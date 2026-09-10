@@ -33,6 +33,8 @@ from PIL import Image, ImageDraw, ImageFilter
 QUI          = pathlib.Path(__file__).parent
 CARTELLA     = QUI / "rilievi"
 NOMINATIM    = "https://nominatim.openstreetmap.org/search"
+INDIRIZZI_ESRI = ("https://geocode.arcgis.com/arcgis/rest/services/World/"
+                  "GeocodeServer/findAddressCandidates")
 CATASTO      = "https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php"
 SATELLITE    = ("https://services.arcgisonline.com/arcgis/rest/services/"
                 "World_Imagery/MapServer")
@@ -48,7 +50,7 @@ SCURO   = (38, 36, 32)
 
 # ---------------------------------------------------------------- rete
 
-def prendi(url, dati=None, tentativi=3, attesa=1.5):
+def prendi(url, dati=None, tentativi=3, attesa=1.5, tempo=60):
     """Una chiamata in rete, con due secondi tentativi se la prima non va."""
     if dati:
         url = url + "?" + urllib.parse.urlencode(dati)
@@ -56,7 +58,7 @@ def prendi(url, dati=None, tentativi=3, attesa=1.5):
     for n in range(tentativi):
         try:
             richiesta = urllib.request.Request(url, headers={"User-Agent": AGENTE})
-            with urllib.request.urlopen(richiesta, timeout=60) as r:
+            with urllib.request.urlopen(richiesta, timeout=tempo) as r:
                 return r.read()
         except Exception as e:                      # noqa: BLE001
             ultimo = e
@@ -66,8 +68,36 @@ def prendi(url, dati=None, tentativi=3, attesa=1.5):
 
 # ------------------------------------------------- dall'indirizzo al punto
 
+def _punto_da_esri(indirizzo):
+    """Il servizio indirizzi di Esri conosce i numeri civici italiani; OpenStreetMap
+    spesso no, e allora mette il punto a meta' della via e si misura la casa sbagliata
+    (successo il 10 settembre 2026: Via 4 Novembre a Quartiano, il 105/B e il 3 davano
+    lo stesso punto). Vale solo se trova proprio il civico: altrimenti None."""
+    try:
+        d = json.loads(prendi(INDIRIZZI_ESRI, {
+            "f": "json", "SingleLine": indirizzo, "countryCode": "ITA", "maxLocations": 3,
+            "outFields": "Addr_type,Match_addr,City,AddNum",
+        }, tentativi=1, tempo=12).decode("utf-8"))
+    except Exception:                                   # noqa: BLE001
+        return None
+    for c in d.get("candidates", []):
+        a = c.get("attributes", {})
+        if a.get("Addr_type") in ("PointAddress", "Subaddress") and c.get("score", 0) >= 90:
+            return {
+                "lat": float(c["location"]["y"]), "lon": float(c["location"]["x"]),
+                "indirizzo": a.get("Match_addr") or c.get("address") or indirizzo,
+                "comune_nome": a.get("City") or "",
+                "preciso": True,
+            }
+    return None
+
+
 def punto_dall_indirizzo(indirizzo):
-    """Indirizzo scritto a mano -> latitudine, longitudine, indirizzo per esteso."""
+    """Indirizzo scritto a mano -> latitudine, longitudine, indirizzo per esteso.
+    Prima il civico esatto da Esri, se no OpenStreetMap come prima."""
+    esatto = _punto_da_esri(indirizzo)
+    if esatto:
+        return esatto
     grezzo = prendi(NOMINATIM, {
         "q": indirizzo, "format": "jsonv2", "limit": 5,
         "countrycodes": "it", "addressdetails": 1,
@@ -468,6 +498,7 @@ def rilievo(indirizzo):
         "fonte": FONTE,
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
+        "preciso": p["preciso"],
         "foto": in_base64(m["immagine"]),
     }
 
