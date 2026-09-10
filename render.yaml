@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: rilievo-sportello
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python rilievo.py --servizio --pubblico
+    healthCheckPath: /ci-sei
