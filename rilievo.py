@@ -47,6 +47,9 @@ VERDE   = (122, 143, 106)
 CARTA   = (247, 241, 229)
 SCURO   = (38, 36, 32)
 
+# quanto deve prevalere il verde su rosso e blu perche' un pixel conti come verde
+SOGLIA_VERDE = 15
+
 
 # ---------------------------------------------------------------- rete
 
@@ -68,34 +71,102 @@ def prendi(url, dati=None, tentativi=3, attesa=1.5, tempo=60):
 
 # ------------------------------------------------- dall'indirizzo al punto
 
-def _punto_da_esri(indirizzo):
+# i tipi di risultato di OpenStreetMap che sono una casa. Non "place": e' il nome di
+# una localita' o di una cascina, un punto che puo' stare lontano dalla casa.
+CASE_OSM = ("house", "building", "yes")
+
+
+def civico_scritto(indirizzo):
+    """Il numero civico scritto a mano, pronto da confrontare: "105/B" -> "105b",
+    "12 bis" -> "12bis". Si cerca in fondo al primo pezzo ("Via Roma 10, Milano")
+    o nel secondo pezzo da solo ("Via Roma, 10, Milano"). None se non c'e'."""
+    pezzi = [p.strip() for p in indirizzo.split(",")]
+    for i, p in enumerate(pezzi[:2]):
+        if i == 0:
+            m = re.search(r"\s(\d{1,4})\s*(?:/\s*)?([a-z]{1,3})?$", p, re.I)
+        else:
+            m = re.fullmatch(r"(\d{1,4})\s*(?:/\s*)?([a-z]{1,3})?", p, re.I)
+        if m:
+            return m.group(1).lstrip("0") + (m.group(2) or "").lower()
+    return None
+
+
+def civico_da_leggere(c):
+    """"105b" -> "105/B", "12bis" -> "12 bis": come lo scriverebbe una persona."""
+    m = re.match(r"(\d+)(\D*)$", c or "")
+    if not m:
+        return c or ""
+    n, lettere = m.group(1), m.group(2)
+    if not lettere:
+        return n
+    return n + ("/" + lettere.upper() if len(lettere) == 1 else " " + lettere)
+
+
+def _stesso_civico(scritto, trovato):
+    """Il civico trovato dal servizio e' proprio quello scritto? Il 12 non e' il 3,
+    e il 105/B non e' il 105: sono case diverse."""
+    if not scritto or not trovato:
+        return False
+    for t in re.split(r"[;,]", str(trovato)):
+        if re.sub(r"[\s/]+", "", t).lower().lstrip("0") == scritto:
+            return True
+    return False
+
+
+def _punto_da_esri(indirizzo, civico):
     """Il servizio indirizzi di Esri conosce i numeri civici italiani; OpenStreetMap
     spesso no, e allora mette il punto a meta' della via e si misura la casa sbagliata
     (successo il 10 settembre 2026: Via 4 Novembre a Quartiano, il 105/B e il 3 davano
-    lo stesso punto). Vale solo se trova proprio il civico: altrimenti None."""
+    lo stesso punto).
+
+    Torna due cose: il punto esatto, se Esri ha trovato proprio il civico scritto, e
+    il punto vicino, se ha trovato una casa vera della stessa via ma con un altro
+    numero. Il vicino non e' mai "preciso": e' la casa accanto."""
     try:
         d = json.loads(prendi(INDIRIZZI_ESRI, {
             "f": "json", "SingleLine": indirizzo, "countryCode": "ITA", "maxLocations": 3,
             "outFields": "Addr_type,Match_addr,City,AddNum",
         }, tentativi=1, tempo=12).decode("utf-8"))
     except Exception:                                   # noqa: BLE001
-        return None
+        return None, None
+    vicino = None
     for c in d.get("candidates", []):
         a = c.get("attributes", {})
-        if a.get("Addr_type") in ("PointAddress", "Subaddress") and c.get("score", 0) >= 90:
-            return {
-                "lat": float(c["location"]["y"]), "lon": float(c["location"]["x"]),
-                "indirizzo": a.get("Match_addr") or c.get("address") or indirizzo,
-                "comune_nome": a.get("City") or "",
-                "preciso": True,
-            }
-    return None
+        if a.get("Addr_type") not in ("PointAddress", "Subaddress") or c.get("score", 0) < 90:
+            continue
+        punto = {
+            "lat": float(c["location"]["y"]), "lon": float(c["location"]["x"]),
+            "indirizzo": a.get("Match_addr") or c.get("address") or indirizzo,
+            "comune_nome": a.get("City") or "",
+            "civico_trovato": str(a.get("AddNum") or ""),
+        }
+        if _stesso_civico(civico, a.get("AddNum")):
+            return dict(punto, preciso=True), None
+        vicino = vicino or dict(punto, preciso=False)
+    return None, vicino
+
+
+def _punto_da_osm(t, preciso):
+    a = t.get("address", {})
+    comune = (a.get("village") or a.get("town") or a.get("city")
+              or a.get("municipality") or a.get("hamlet") or "")
+    return {
+        "lat": float(t["lat"]), "lon": float(t["lon"]),
+        "indirizzo": t.get("display_name", ""),
+        "comune_nome": comune,
+        "civico_trovato": str(a.get("house_number") or ""),
+        "preciso": preciso,
+    }
 
 
 def punto_dall_indirizzo(indirizzo):
     """Indirizzo scritto a mano -> latitudine, longitudine, indirizzo per esteso.
-    Prima il civico esatto da Esri, se no OpenStreetMap come prima."""
-    esatto = _punto_da_esri(indirizzo)
+
+    "preciso" vuol dire una cosa sola: e' stato trovato proprio il civico scritto.
+    Una casa qualunque della via, una localita', un civico diverso: non e' preciso,
+    e l'applicazione avvisa di controllare la particella."""
+    civico = civico_scritto(indirizzo)
+    esatto, vicino = _punto_da_esri(indirizzo, civico)
     if esatto:
         return esatto
     grezzo = prendi(NOMINATIM, {
@@ -104,20 +175,19 @@ def punto_dall_indirizzo(indirizzo):
     })
     trovati = json.loads(grezzo.decode("utf-8"))
     if not trovati:
+        if vicino:
+            return vicino
         raise RuntimeError("Questo indirizzo non si trova sulla mappa: %s" % indirizzo)
-    # meglio un civico che una via intera: la via è una riga, il civico è un punto
-    trovati.sort(key=lambda t: 0 if t.get("addresstype") in ("house", "building",
-                                                            "place", "yes") else 1)
-    t = trovati[0]
-    a = t.get("address", {})
-    comune = (a.get("village") or a.get("town") or a.get("city")
-              or a.get("municipality") or a.get("hamlet") or "")
-    return {
-        "lat": float(t["lat"]), "lon": float(t["lon"]),
-        "indirizzo": t.get("display_name", indirizzo),
-        "comune_nome": comune,
-        "preciso": t.get("addresstype") in ("house", "building", "place", "yes"),
-    }
+    for t in trovati:
+        if (t.get("addresstype") in CASE_OSM
+                and _stesso_civico(civico, t.get("address", {}).get("house_number"))):
+            return _punto_da_osm(t, True)
+    # niente civico giusto: meglio una casa vera della via (Esri) che il centro della via
+    if vicino:
+        return vicino
+    # meglio una casa che una via intera: la via è una riga, la casa è un punto
+    trovati.sort(key=lambda t: 0 if t.get("addresstype") in CASE_OSM else 1)
+    return _punto_da_osm(trovati[0], False)
 
 
 # ------------------------------------------------- dal punto alla particella
@@ -129,25 +199,45 @@ def _riquadro(lat, lon, meta_lato_m):
     return lat - dlat, lon - dlon, lat + dlat, lon + dlon
 
 
+class CatastoOccupato(RuntimeError):
+    """Il catasto risponde, ma rifiuta la domanda (ServiceException ERRX-2).
+    Succede quando da uno stesso indirizzo di rete arrivano troppe domande:
+    il 13 settembre 2026 la macchina delle prove e' stata respinta per ore,
+    mentre il server su Render riceveva risposte normali."""
+
+
 def _chiedi_al_catasto(lat, lon, strato, formato, lato_m=180.0, lati=700):
     y0, x0, y1, x1 = _riquadro(lat, lon, lato_m / 2)
-    return prendi(CATASTO, {
+    domanda = {
         "SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetFeatureInfo",
         "LAYERS": strato, "QUERY_LAYERS": strato, "CRS": "EPSG:6706",
         "BBOX": "%f,%f,%f,%f" % (y0, x0, y1, x1),
         "WIDTH": lati, "HEIGHT": lati, "I": lati // 2, "J": lati // 2,
         "INFO_FORMAT": formato, "FEATURE_COUNT": 1,
-    }).decode("utf-8", "replace")
+    }
+    for attesa in (2.0, None):
+        testo = prendi(CATASTO, domanda).decode("utf-8", "replace")
+        if "ServiceException" not in testo:
+            return testo
+        if attesa:
+            time.sleep(attesa)
+    raise CatastoOccupato(
+        "Il catasto dell'Agenzia delle Entrate in questo momento non accetta "
+        "domande. Riprova tra qualche minuto.")
 
 
-def particella_nel_punto(lat, lon):
-    """Il punto -> foglio, particella, comune, ingombro. None se lì non c'è nulla."""
+def particella_nel_punto(lat, lon, atteso=None):
+    """Il punto -> foglio, particella, comune, ingombro. None se lì non c'è nulla.
+    Con `atteso`, se il punto cade su un'altra particella si risponde col solo
+    codice, senza chiedere anche l'ingombro: una domanda al catasto in meno."""
     html = _chiedi_al_catasto(lat, lon, "CP.CadastralParcel", "text/html")
     rif = re.search(r"NationalCadastralReference</th><td>([^<]+)<", html)
     if not rif:
         return None
     # forma: F801_001300.416  ->  comune F801, foglio 0013, particella 416
     codice = rif.group(1).strip()
+    if atteso and codice != atteso:
+        return {"codice": codice, "riquadro": None}
     m = re.match(r"^([A-Z0-9]{4})_(\d{4})(\w*)\.(.+)$", codice)
     if m:
         comune, foglio, coda, part = m.group(1), str(int(m.group(2))), m.group(3), m.group(4)
@@ -297,28 +387,48 @@ def _allarga(maschera, lati, quanto=7):
     return m.filter(ImageFilter.MaxFilter(quanto)).tobytes()
 
 
+def _e_verde(p):
+    """Un pixel della foto dall'alto che e' vegetazione: il verde supera rosso e blu
+    (indice "excess green", 2G - R - B). Esclude grigi, ghiaia, terra, tetti e le
+    ombre troppo scure per dire cosa c'e' sotto."""
+    r, g, b = p
+    return g > 45 and g >= r and 2 * g - r - b > SOGLIA_VERDE
+
+
 def _maschera(immagine, prova):
     return bytearray(1 if prova(p) else 0 for p in immagine.getdata())
 
 
-def misura(lat, lon, riquadro, lati=1100):
-    """Conta i metri quadri della particella dove cade il punto.
+def misura(semi, riquadri, lati=1100):
+    """Conta i metri quadri del lotto: una particella o piu', ognuna col suo punto.
 
     Il conto si fa sui pixel della mappa che disegna l'Agenzia delle Entrate.
     Si chiede la mappa di un pezzo di terreno di misura nota, quindi si sa
-    quanti metri quadri vale un pixel. Poi si riempie la particella partendo
-    dal punto e si contano i pixel: prima il terreno scoperto, poi i fabbricati
-    che gli stanno attaccati. Sommati fanno il lotto.
+    quanti metri quadri vale un pixel. Poi si riempie ogni particella partendo
+    dal suo punto e si contano i pixel: prima il terreno scoperto, poi i
+    fabbricati che gli stanno attaccati. Sommati fanno il lotto.
+
+    semi: [(lat, lon), ...], il primo e' quello dell'indirizzo, gli altri li tocca
+    il giardiniere sulla foto. riquadri: l'ingombro catastale di ogni particella.
+
+    Il terreno libero non comprende i fabbricati. Prima, quando il punto cadeva sul
+    tetto (succede spesso: il servizio indirizzi mette il civico sulla casa), la
+    casa veniva contata due volte, come scoperto e come coperto: a San Zenone, il
+    13 settembre 2026, 228 mq di "scoperto" erano tutti tetto.
     """
-    # il riquadro da disegnare: quello della particella, con un po' di aria
-    if riquadro:
-        clat = (riquadro["lat0"] + riquadro["lat1"]) / 2
-        clon = (riquadro["lon0"] + riquadro["lon1"]) / 2
-        alto_m  = (riquadro["lat1"] - riquadro["lat0"]) * 111320.0
-        largo_m = (riquadro["lon1"] - riquadro["lon0"]) * 111320.0 * math.cos(math.radians(clat))
+    # il riquadro da disegnare: quello di tutte le particelle insieme, con un po' di aria
+    buoni = [q for q in riquadri if q]
+    if buoni:
+        la0 = min(q["lat0"] for q in buoni); la1 = max(q["lat1"] for q in buoni)
+        lo0 = min(q["lon0"] for q in buoni); lo1 = max(q["lon1"] for q in buoni)
+        clat, clon = (la0 + la1) / 2, (lo0 + lo1) / 2
+        alto_m  = (la1 - la0) * 111320.0
+        largo_m = (lo1 - lo0) * 111320.0 * math.cos(math.radians(clat))
         meta = max(alto_m, largo_m, 34.0) * 0.85
     else:
-        clat, clon, meta = lat, lon, 55.0
+        clat = sum(s[0] for s in semi) / len(semi)
+        clon = sum(s[1] for s in semi) / len(semi)
+        meta = 55.0
     meta = min(meta, 320.0)
     y0, x0, y1, x1 = _riquadro(clat, clon, meta)
 
@@ -334,58 +444,76 @@ def misura(lat, lon, riquadro, lati=1100):
         return (max(0, min(lati - 1, int(round((lo - x0) / (x1 - x0) * (lati - 1))))),
                 max(0, min(lati - 1, int(round((y1 - la) / (y1 - y0) * (lati - 1))))))
 
-    px, py = a_pixel(lat, lon)
-
     # sulla mappa dell'Agenzia i fabbricati sono arancioni pieni
     edifici = _maschera(fabb, lambda p: p[0] > 150 and p[1] < 190 and p[2] < 120
                                         and p[0] - p[2] > 60)
     # sulla mappa delle particelle il terreno è color carta, i confini sono neri,
-    # e quello che particella non è (strade, acqua) resta vuoto
-    terreno = _maschera(mappa, lambda p: p[0] > 200 and p[1] > 185 and p[2] > 130
-                                         and p[0] - p[2] > 25)
+    # e quello che particella non è (strade, acqua) resta vuoto. Il terreno libero
+    # e' quello senza un fabbricato sopra.
+    terreno = bytearray(1 if (not e and p[0] > 200 and p[1] > 185 and p[2] > 130
+                              and p[0] - p[2] > 25) else 0
+                        for p, e in zip(mappa.getdata(), edifici))
 
-    # il recinto: l'ingombro che il catasto dichiara per questa particella.
-    # Fuori di lì la particella non può stare, quindi non ci si guarda nemmeno.
+    # il recinto: l'ingombro che il catasto dichiara per ogni particella scelta.
+    # Fuori di lì il lotto non può stare, quindi non ci si guarda nemmeno.
     # È la rete di sicurezza che impedisce al conto di sbordare sul vicino.
-    if riquadro:
-        rx0, ry0 = a_pixel(riquadro["lat1"], riquadro["lon0"])
-        rx1, ry1 = a_pixel(riquadro["lat0"], riquadro["lon1"])
-        rx0 -= 3; ry0 -= 3; rx1 += 3; ry1 += 3
-    else:
-        rx0 = ry0 = 0; rx1 = ry1 = lati - 1
-    for y in range(lati):
-        dentro_y = ry0 <= y <= ry1
-        riga = y * lati
-        for x in range(lati):
-            if not (dentro_y and rx0 <= x <= rx1):
-                terreno[riga + x] = 0
-                edifici[riga + x] = 0
+    if buoni and len(buoni) == len(riquadri):
+        ammesso = bytearray(lati * lati)
+        for q in buoni:
+            rx0, ry0 = a_pixel(q["lat1"], q["lon0"])
+            rx1, ry1 = a_pixel(q["lat0"], q["lon1"])
+            rx0, ry0 = max(0, rx0 - 3), max(0, ry0 - 3)
+            rx1, ry1 = min(lati - 1, rx1 + 3), min(lati - 1, ry1 + 3)
+            for y in range(ry0, ry1 + 1):
+                ammesso[y * lati + rx0: y * lati + rx1 + 1] = b"\x01" * (rx1 - rx0 + 1)
+        terreno = bytearray(t & a for t, a in zip(terreno, ammesso))
+        edifici = bytearray(e & a for e, a in zip(edifici, ammesso))
 
-    # 1. lo scoperto: si riempie il terreno libero a partire dal punto.
-    #    Le linee nere del catasto lo fermano: confini del lotto e muri di casa.
-    seme = _vicino(terreno, lati, px, py)
-    if not seme:
+    # i punti: quello caduto su un tetto parte dal fabbricato, gli altri dal terreno
+    semi_terreno, semi_edifici = [], []
+    for la, lo in semi:
+        px, py = a_pixel(la, lo)
+        if edifici[py * lati + px]:
+            semi_edifici.append((px, py))
+            continue
+        s = _vicino(terreno, lati, px, py)
+        if s:
+            semi_terreno.append(s)
+    if not semi_terreno and not semi_edifici:
         raise RuntimeError("Nel punto trovato non c'è terreno di particella da misurare.")
-    aperto, aperto_px, est_a = _riempi(terreno, lati, [seme])
+
+    # 1. lo scoperto: si riempie il terreno libero a partire dai punti.
+    #    Le linee nere del catasto lo fermano: confini del lotto e muri di casa.
+    vuoto = bytearray(lati * lati)
+    aperto, aperto_px, est_a = _riempi(terreno, lati, semi_terreno) if semi_terreno \
+        else (vuoto, 0, None)
 
     # 2. il coperto: i fabbricati che toccano quel terreno sono di questo lotto.
     #    Si allarga di poco lo scoperto, quel tanto che basta a scavalcare la
     #    linea del muro, e da lì si riempiono le sagome piene dei fabbricati.
-    bordo = _allarga(aperto, lati, 7)
-    semi = [(i % lati, i // lati) for i in range(lati * lati)
-            if edifici[i] and bordo[i]]
-    coperti, coperto_px, est_c = _riempi(edifici, lati, semi) if semi else \
-             (bytearray(lati * lati), 0, est_a)
+    bordo = _allarga(aperto, lati, 7) if aperto_px else vuoto
+    semi_c = semi_edifici + [(i % lati, i // lati) for i in range(lati * lati)
+                             if edifici[i] and bordo[i]]
+    coperti, coperto_px, est_c = _riempi(edifici, lati, semi_c) if semi_c \
+        else (bytearray(lati * lati), 0, None)
 
-    dentro = bytearray(1 if (aperto[i] or coperti[i]) else 0 for i in range(lati * lati))
-    estremi = (min(est_a[0], est_c[0] if coperto_px else est_a[0]),
-               min(est_a[1], est_c[1] if coperto_px else est_a[1]),
-               max(est_a[2], est_c[2] if coperto_px else est_a[2]),
-               max(est_a[3], est_c[3] if coperto_px else est_a[3]))
+    dentro = bytearray(a | c for a, c in zip(aperto, coperti))
+    parti = [e for e, n in ((est_a, aperto_px), (est_c, coperto_px)) if n]
+    estremi = (min(e[0] for e in parti), min(e[1] for e in parti),
+               max(e[2] for e in parti), max(e[3] for e in parti)) if parti else (0, 0, 0, 0)
+
+    # 3. il verde: dentro lo scoperto, i pixel che nella foto dall'alto sono verdi.
+    #    Lo scoperto del catasto e' tutto il terreno non costruito: cortile,
+    #    vialetto, posto auto, piscina. Il verde toglie quello che verde non e'.
+    #    Prende anche siepi e chiome degli alberi, e cambia con stagione e ombre:
+    #    e' una stima da confermare sul posto, non una misura.
+    colori = foto.getdata()
+    verde_px = sum(1 for i in range(lati * lati) if aperto[i] and _e_verde(colori[i]))
 
     lotto_mq    = (aperto_px + coperto_px) * mq_px
     coperto_mq  = coperto_px * mq_px
     scoperto_mq = aperto_px * mq_px
+    verde_mq    = verde_px * mq_px
 
     largo = (estremi[2] - estremi[0] + 1) * m_per_px
     alto  = (estremi[3] - estremi[1] + 1) * m_per_px
@@ -393,8 +521,14 @@ def misura(lat, lon, riquadro, lati=1100):
     # il conto è da guardare due volte se copre molto meno dell'ingombro che il
     # catasto dichiara: vuol dire che un muro ha tagliato il lotto in due pezzi
     sospetto = False
-    if riquadro:
-        recinto_mq = largo_m * alto_m
+    if buoni:
+        # ogni riquadro una volta sola: i punti intorno alla casa che cadono nella
+        # stessa particella ripetono il suo riquadro, e sommarlo quattro volte faceva
+        # sembrare "tagliato da un muro" un lotto intero (Rivolta d'Adda, 13/9/2026)
+        unici = {(q["lat0"], q["lon0"], q["lat1"], q["lon1"]): q for q in buoni}.values()
+        recinto_mq = sum((q["lat1"] - q["lat0"]) * 111320.0 *
+                         (q["lon1"] - q["lon0"]) * 111320.0 * math.cos(math.radians(clat))
+                         for q in unici)
         if recinto_mq > 0 and lotto_mq < recinto_mq * 0.30:
             sospetto = True
 
@@ -403,9 +537,15 @@ def misura(lat, lon, riquadro, lati=1100):
         "lotto_mq": int(round(lotto_mq)),
         "coperto_mq": int(round(coperto_mq)),
         "scoperto_mq": int(round(scoperto_mq)),
+        "verde_mq": min(int(round(verde_mq)), int(round(scoperto_mq))),
         "ingombro": "%d × %d m" % (round(largo), round(alto)),
         "sospetto": sospetto,
-        "metri_per_pixel": round(m_per_px, 3),
+        "senza_scoperto": aperto_px == 0,
+        "metri_per_pixel": round(m_per_px, 4),
+        # gli angoli della foto sulla terra e quanti metri e' larga: servono
+        # all'applicazione per trasformare un tocco sulla foto in un punto vero
+        "angoli": {"lat0": round(y0, 7), "lon0": round(x0, 7), "lat1": round(y1, 7), "lon1": round(x1, 7)},
+        "lato_m": round(2 * meta, 2),
         "immagine": disegno,
     }
 
@@ -473,15 +613,24 @@ def rilievo(indirizzo):
             "L'indirizzo si trova, ma lì il catasto non ha una particella "
             "(può capitare su una strada o in una zona di Trento e Bolzano, "
             "dove il catasto è delle Province autonome).")
-    m = misura(lat, lon, part["riquadro"])
+    semi, riquadri = _intorno_stessa_particella(part, lat, lon)
+    m = misura(semi, riquadri)
     avvisi = []
     if not p["preciso"]:
-        avvisi.append("L'indirizzo è stato trovato sulla via, non sul civico: "
-                      "controlla che la particella accesa sia quella giusta.")
-    if m["sospetto"]:
-        avvisi.append("Il lotto misurato è molto più piccolo del suo ingombro: "
-                      "forse un muro lo taglia in due e ne è stato contato solo "
-                      "un pezzo. Controlla i metri quadri.")
+        civico = civico_scritto(indirizzo)
+        if civico and p.get("civico_trovato"):
+            avvisi.append("Hai scritto il civico %s, ma è stato trovato il %s: "
+                          "controlla che la particella accesa sia quella giusta."
+                          % (civico_da_leggere(civico),
+                             civico_da_leggere(civico_scritto(", " + p["civico_trovato"])
+                                               or p["civico_trovato"])))
+        elif not civico:
+            avvisi.append("Nell'indirizzo non c'è il numero civico: "
+                          "controlla che la particella accesa sia quella giusta.")
+        else:
+            avvisi.append("L'indirizzo è stato trovato sulla via, non sul civico: "
+                          "controlla che la particella accesa sia quella giusta.")
+    avvisi += _avvisi_misura(m)
     return {
         "indirizzo": p["indirizzo"],
         "comune": part["comune"],
@@ -489,18 +638,131 @@ def rilievo(indirizzo):
         "foglio": part["foglio"],
         "particella": part["particella"],
         "riferimento": part["codice"],
+        "particelle": [_particella_breve(part)],
         "lat": round(lat, 7), "lon": round(lon, 7),
+        "punti": [[round(lat, 7), round(lon, 7)]],
         "lotto_mq": m["lotto_mq"],
         "scoperto_mq": m["scoperto_mq"],
         "coperto_mq": m["coperto_mq"],
+        "verde_mq": m["verde_mq"],
         "ingombro": m["ingombro"],
         "metri_per_pixel": m["metri_per_pixel"],
+        "angoli": m["angoli"],
+        "lato_m": m["lato_m"],
         "fonte": FONTE,
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "preciso": p["preciso"],
         "foto": in_base64(m["immagine"]),
     }
+
+
+def _intorno_stessa_particella(part, lat, lon, raggio_m=10.0):
+    """Il punto dell'indirizzo cade spesso sul tetto, e li' il catasto risponde con
+    l'ingombro del solo fabbricato: il giardino della stessa particella restava
+    fuori dal conto (San Zenone, 13 settembre 2026: 229 mq invece di 1.092).
+    Si guarda dieci metri intorno, in otto direzioni: i punti che cadono nella
+    stessa particella allargano il recinto e diventano semi anche loro."""
+    from concurrent.futures import ThreadPoolExecutor
+    prove = []
+    for grado in range(0, 360, 45):
+        a = math.radians(grado)
+        prove.append((lat + raggio_m * math.cos(a) / 111320.0,
+                      lon + raggio_m * math.sin(a) / (111320.0 * math.cos(math.radians(lat)))))
+
+    def guarda(pt):
+        try:
+            return pt, particella_nel_punto(*pt, atteso=part["codice"])
+        except Exception:                                  # noqa: BLE001
+            return pt, None
+
+    # due domande per volta, non di piu': il catasto respinge chi chiede troppo
+    semi, riquadri = [(lat, lon)], [part["riquadro"]]
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        for pt, p in ex.map(guarda, prove):
+            if p and p["codice"] == part["codice"] and p["riquadro"]:
+                semi.append(pt)
+                riquadri.append(p["riquadro"])
+    return semi, riquadri
+
+
+def _particella_breve(part):
+    return {"codice": part["codice"], "comune": part["comune"],
+            "foglio": part["foglio"], "particella": part["particella"]}
+
+
+def _avvisi_misura(m):
+    avvisi = []
+    if m["senza_scoperto"]:
+        avvisi.append("Nella particella trovata c'è solo il fabbricato: il giardino è "
+                      "su un'altra particella. Toccala sulla foto per aggiungerla al lotto.")
+    if m["sospetto"]:
+        avvisi.append("Il lotto misurato è molto più piccolo del suo ingombro: "
+                      "forse un muro lo taglia in due e ne è stato contato solo "
+                      "un pezzo. Controlla i metri quadri.")
+    return avvisi
+
+
+MAX_PUNTI = 8
+
+
+def rilievo_da_punti(punti, indirizzo=""):
+    """Il lotto fatto di piu' particelle. Il primo punto e' quello del rilievo
+    dall'indirizzo; gli altri li tocca il giardiniere sulla foto, sulle particelle
+    che sono del cliente: il giardino accanto alla casa, il pezzo di prato dietro.
+    Ogni punto diventa la sua particella, e si misurano tutte insieme."""
+    trovate, semi, riquadri, avvisi = [], [], [], []
+    for la, lo in punti[:MAX_PUNTI]:
+        part = particella_nel_punto(la, lo)
+        if not part:
+            avvisi.append("Un punto toccato non cade su nessuna particella (forse una "
+                          "strada): l'ho lasciato fuori.")
+            continue
+        semi.append((la, lo))
+        riquadri.append(part["riquadro"])
+        if part["codice"] not in [t["codice"] for t in trovate]:
+            trovate.append(part)
+    if not trovate:
+        raise RuntimeError("Nessuno dei punti toccati cade su una particella del catasto.")
+    m = misura(semi, riquadri)
+    avvisi += _avvisi_misura(m)
+    fogli = list(dict.fromkeys(t["foglio"] for t in trovate))
+    return {
+        "indirizzo": indirizzo,
+        "comune": trovate[0]["comune"],
+        "foglio": ", ".join(fogli),
+        "particella": ", ".join(t["particella"] for t in trovate),
+        "riferimento": ", ".join(t["codice"] for t in trovate),
+        "particelle": [_particella_breve(t) for t in trovate],
+        "lat": round(semi[0][0], 7), "lon": round(semi[0][1], 7),
+        "punti": [[round(la, 7), round(lo, 7)] for la, lo in semi],
+        "lotto_mq": m["lotto_mq"],
+        "scoperto_mq": m["scoperto_mq"],
+        "coperto_mq": m["coperto_mq"],
+        "verde_mq": m["verde_mq"],
+        "ingombro": m["ingombro"],
+        "metri_per_pixel": m["metri_per_pixel"],
+        "angoli": m["angoli"],
+        "lato_m": m["lato_m"],
+        "fonte": FONTE,
+        "preparato": time.strftime("%Y-%m-%d %H:%M"),
+        "avvisi": avvisi,
+        "foto": in_base64(m["immagine"]),
+    }
+
+
+def leggi_punti(testo):
+    """"45.3273,9.3542;45.3271,9.3544" -> [(45.3273, 9.3542), ...]. Solo punti in
+    Italia, al massimo MAX_PUNTI: quello che non torna si scarta."""
+    punti = []
+    for pezzo in (testo or "").split(";"):
+        try:
+            la, lo = (float(v) for v in pezzo.split(","))
+        except ValueError:
+            continue
+        if 35.0 <= la <= 48.0 and 6.0 <= lo <= 19.0:
+            punti.append((la, lo))
+    return punti[:MAX_PUNTI]
 
 
 def nome_file(indirizzo):
@@ -510,6 +772,18 @@ def nome_file(indirizzo):
 
 
 # ------------------------------------------------- il servizio, mentre lavori
+
+# l'applicazione servita dal server stesso (cartella app/ accanto a questo file)
+APP = QUI / "app"
+STATICI = {
+    "/":                     ("index.html", "text/html; charset=utf-8"),
+    "/index.html":           ("index.html", "text/html; charset=utf-8"),
+    "/sw.js":                ("sw.js", "text/javascript; charset=utf-8"),
+    "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
+    "/icona-192.png":        ("icona-192.png", "image/png"),
+    "/icona-512.png":        ("icona-512.png", "image/png"),
+}
+
 
 def servizio(porta=8787, pubblico=False):
     import http.server, socketserver
@@ -529,12 +803,42 @@ def servizio(porta=8787, pubblico=False):
         def do_OPTIONS(self):
             self._apri(204, "text/plain")
 
+        def _manda(self, codice, dati):
+            self._apri(codice)
+            self.wfile.write(json.dumps(dati, ensure_ascii=False).encode())
+
         def do_GET(self):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
+            # l'applicazione stessa, se c'e' la cartella app/: cosi' ha un indirizzo
+            # fisso e si installa sul telefono, e si apre anche senza rete
+            if u.path in STATICI and (APP / STATICI[u.path][0]).is_file():
+                nome, tipo = STATICI[u.path]
+                dati = (APP / nome).read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", tipo)
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Content-Length", str(len(dati)))
+                self.end_headers()
+                self.wfile.write(dati)
+                return
             if u.path in ("/", "/ci-sei"):
-                self._apri()
-                self.wfile.write(json.dumps({"servizio": "rilievo", "pronto": True}).encode())
+                self._manda(200, {"servizio": "rilievo", "pronto": True})
+                return
+            if u.path == "/particelle":
+                punti = leggi_punti((q.get("punti") or [""])[0])
+                if not punti:
+                    self._manda(400, {"errore": "Mancano i punti toccati sulla foto."})
+                    return
+                indirizzo = (q.get("indirizzo") or [""])[0].strip()[:200]
+                print("  particelle:", len(punti), "punti")
+                try:
+                    r = rilievo_da_punti(punti, indirizzo)
+                    print("     %s mq di lotto, %s particelle" % (r["lotto_mq"], len(r["particelle"])))
+                    self._manda(200, r)
+                except Exception as e:              # noqa: BLE001
+                    print("     non riuscito:", e)
+                    self._manda(502, {"errore": str(e)})
                 return
             if u.path != "/rilievo":
                 self._apri(404)
@@ -611,7 +915,8 @@ def main():
     print("  %s" % r["indirizzo"])
     print("  foglio %s, particella %s, comune %s" % (r["foglio"], r["particella"], r["comune"]))
     print("  lotto      %5d mq" % r["lotto_mq"])
-    print("  scoperto   %5d mq   <- questo è quello da trattare" % r["scoperto_mq"])
+    print("  scoperto   %5d mq   (terreno non costruito: anche cortili e vialetti)" % r["scoperto_mq"])
+    print("  verde      %5d mq   <- stima dalla foto, da confermare sul posto" % r["verde_mq"])
     print("  coperto    %5d mq" % r["coperto_mq"])
     print("  ingombro   %s" % r["ingombro"])
     for x in r["avvisi"]:
