@@ -240,6 +240,11 @@ def particella_nel_punto(lat, lon, atteso=None):
     # Prima si leggeva solo la prima forma: a Genova e a Bari il foglio restava vuoto e
     # l'app scartava tutto il rilievo (14 settembre 2026).
     codice = rif.group(1).strip()
+    if not codice:
+        # il catasto sotto carico a volte manda la casella vuota: meglio "qui non c'e'
+        # niente" (si cerca poco piu' in la') che un rilievo senza foglio, che l'app
+        # scarta (Andrea, 14 settembre 2026, Quartiano 105/B)
+        return None
     if atteso and codice != atteso:
         return {"codice": codice, "riquadro": None}
     m = re.match(r"^([A-Z]\d{3})([A-Z_]?)(\d{4})(\w*)\.(.+)$", codice)
