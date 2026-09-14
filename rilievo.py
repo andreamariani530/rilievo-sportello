@@ -711,15 +711,24 @@ def rilievo_da_punti(punti, indirizzo=""):
     dall'indirizzo; gli altri li tocca il giardiniere sulla foto, sulle particelle
     che sono del cliente: il giardino accanto alla casa, il pezzo di prato dietro.
     Ogni punto diventa la sua particella, e si misurano tutte insieme."""
-    trovate, semi, riquadri, avvisi = [], [], [], []
+    trovate, semi, riquadri, avvisi, toccati = [], [], [], [], []
     for la, lo in punti[:MAX_PUNTI]:
         part = particella_nel_punto(la, lo)
         if not part:
             avvisi.append("Un punto toccato non cade su nessuna particella (forse una "
                           "strada): l'ho lasciato fuori.")
             continue
-        semi.append((la, lo))
-        riquadri.append(part["riquadro"])
+        toccati.append((la, lo))
+        if not semi and part["riquadro"]:
+            # il primo punto e' quello dell'indirizzo e cade spesso sul tetto: come nel
+            # rilievo, si guarda intorno per riprendere il giardino della stessa
+            # particella (San Zenone, 14 settembre 2026: 229 mq invece di 1.092)
+            s, r = _intorno_stessa_particella(part, la, lo)
+            semi += s
+            riquadri += r
+        else:
+            semi.append((la, lo))
+            riquadri.append(part["riquadro"])
         if part["codice"] not in [t["codice"] for t in trovate]:
             trovate.append(part)
     if not trovate:
@@ -734,8 +743,8 @@ def rilievo_da_punti(punti, indirizzo=""):
         "particella": ", ".join(t["particella"] for t in trovate),
         "riferimento": ", ".join(t["codice"] for t in trovate),
         "particelle": [_particella_breve(t) for t in trovate],
-        "lat": round(semi[0][0], 7), "lon": round(semi[0][1], 7),
-        "punti": [[round(la, 7), round(lo, 7)] for la, lo in semi],
+        "lat": round(toccati[0][0], 7), "lon": round(toccati[0][1], 7),
+        "punti": [[round(la, 7), round(lo, 7)] for la, lo in toccati],
         "lotto_mq": m["lotto_mq"],
         "scoperto_mq": m["scoperto_mq"],
         "coperto_mq": m["coperto_mq"],
