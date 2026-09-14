@@ -234,15 +234,24 @@ def particella_nel_punto(lat, lon, atteso=None):
     rif = re.search(r"NationalCadastralReference</th><td>([^<]+)<", html)
     if not rif:
         return None
-    # forma: F801_001300.416  ->  comune F801, foglio 0013, particella 416
+    # due forme: F801_001300.416 (comune F801, nessuna sezione, foglio 0013, allegato 00,
+    # particella 416) e D969A006900.479 (Genova, sezione A, foglio 0069, particella 479).
+    # Il trattino basso sta al posto della sezione nei comuni che non ne hanno.
+    # Prima si leggeva solo la prima forma: a Genova e a Bari il foglio restava vuoto e
+    # l'app scartava tutto il rilievo (14 settembre 2026).
     codice = rif.group(1).strip()
     if atteso and codice != atteso:
         return {"codice": codice, "riquadro": None}
-    m = re.match(r"^([A-Z0-9]{4})_(\d{4})(\w*)\.(.+)$", codice)
+    m = re.match(r"^([A-Z]\d{3})([A-Z_]?)(\d{4})(\w*)\.(.+)$", codice)
     if m:
-        comune, foglio, coda, part = m.group(1), str(int(m.group(2))), m.group(3), m.group(4)
+        comune, sezione, foglio, part = (m.group(1), m.group(2).strip("_"),
+                                         str(int(m.group(3))), m.group(5))
     else:
-        comune, foglio, part = "", "", codice
+        # una forma mai vista: si tiene quello che si riconosce, mai un foglio vuoto
+        comune, sezione = codice[:4], ""
+        cifre = re.search(r"(\d{4})\w*\.", codice)
+        foglio = str(int(cifre.group(1))) if cifre else "?"
+        part = codice.rsplit(".", 1)[-1] or codice
 
     gml = _chiedi_al_catasto(lat, lon, "CP.CadastralParcel",
                              "application/vnd.ogc.gml")
@@ -251,7 +260,7 @@ def particella_nel_punto(lat, lon, atteso=None):
     if box:
         n = [float(v) for v in re.split(r"[,\s]+", box.group(1).strip())]
         riquadro = {"lon0": n[0], "lat0": n[1], "lon1": n[2], "lat1": n[3]}
-    return {"codice": codice, "comune": comune, "foglio": foglio,
+    return {"codice": codice, "comune": comune, "sezione": sezione, "foglio": foglio,
             "particella": part, "riquadro": riquadro}
 
 
