@@ -1,0 +1,16 @@
+{
+  "name": "Rilievo",
+  "short_name": "Rilievo",
+  "description": "Sopralluogo, rilievo e preventivo per chi cura il verde.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F7F1E5",
+  "theme_color": "#F7F1E5",
+  "icons": [
+    {"src": "icona-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

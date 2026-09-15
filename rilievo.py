@@ -113,6 +113,32 @@ def _stesso_civico(scritto, trovato):
     return False
 
 
+CAMPI_ESRI = "Addr_type,Match_addr,City,AddNum,Subregion,StName"
+
+
+def _punto_esri(c):
+    a = c.get("attributes", {})
+    return {
+        "lat": float(c["location"]["y"]), "lon": float(c["location"]["x"]),
+        "indirizzo": a.get("Match_addr") or c.get("address") or "",
+        "comune_nome": a.get("City") or "",
+        "provincia": a.get("Subregion") or "",
+        "civico_trovato": str(a.get("AddNum") or ""),
+    }
+
+
+def _chiedi_a_esri(dati, quanti=10):
+    """Una domanda al servizio indirizzi di Esri. None se non risponde (diverso da
+    "risponde ma non trova niente", che e' una lista vuota)."""
+    try:
+        d = json.loads(prendi(INDIRIZZI_ESRI, dict(
+            dati, f="json", countryCode="ITA", maxLocations=quanti, outFields=CAMPI_ESRI,
+        ), tentativi=1, tempo=12).decode("utf-8"))
+    except Exception:                                   # noqa: BLE001
+        return None
+    return d.get("candidates", [])
+
+
 def _punto_da_esri(indirizzo, civico):
     """Il servizio indirizzi di Esri conosce i numeri civici italiani; OpenStreetMap
     spesso no, e allora mette il punto a meta' della via e si misura la casa sbagliata
@@ -121,28 +147,17 @@ def _punto_da_esri(indirizzo, civico):
 
     Torna due cose: il punto esatto, se Esri ha trovato proprio il civico scritto, e
     il punto vicino, se ha trovato una casa vera della stessa via ma con un altro
-    numero. Il vicino non e' mai "preciso": e' la casa accanto."""
-    try:
-        d = json.loads(prendi(INDIRIZZI_ESRI, {
-            "f": "json", "SingleLine": indirizzo, "countryCode": "ITA", "maxLocations": 3,
-            "outFields": "Addr_type,Match_addr,City,AddNum",
-        }, tentativi=1, tempo=12).decode("utf-8"))
-    except Exception:                                   # noqa: BLE001
-        return None, None
+    numero. Il vicino non e' mai "preciso": e' la casa accanto.
+    Attenzione: qui il comune non si guarda. Serve solo quando il comune scritto non
+    si riconosce, e allora il risultato non e' mai preciso (vedi punto_dall_indirizzo)."""
     vicino = None
-    for c in d.get("candidates", []):
+    for c in _chiedi_a_esri({"SingleLine": indirizzo}, 3) or []:
         a = c.get("attributes", {})
         if a.get("Addr_type") not in ("PointAddress", "Subaddress") or c.get("score", 0) < 90:
             continue
-        punto = {
-            "lat": float(c["location"]["y"]), "lon": float(c["location"]["x"]),
-            "indirizzo": a.get("Match_addr") or c.get("address") or indirizzo,
-            "comune_nome": a.get("City") or "",
-            "civico_trovato": str(a.get("AddNum") or ""),
-        }
         if _stesso_civico(civico, a.get("AddNum")):
-            return dict(punto, preciso=True), None
-        vicino = vicino or dict(punto, preciso=False)
+            return dict(_punto_esri(c), preciso=True), None
+        vicino = vicino or dict(_punto_esri(c), preciso=False)
     return None, vicino
 
 
@@ -154,18 +169,257 @@ def _punto_da_osm(t, preciso):
         "lat": float(t["lat"]), "lon": float(t["lon"]),
         "indirizzo": t.get("display_name", ""),
         "comune_nome": comune,
+        "provincia": a.get("county") or "",
         "civico_trovato": str(a.get("house_number") or ""),
         "preciso": preciso,
     }
 
 
+# ------------------------------------------------- il comune scritto va rispettato
+#
+# Il 15 settembre 2026 "Via Dante 10, Milano" dava Via Dante 10 ad ARLUNO, e per di piu'
+# "preciso": Esri ha cinque Via Dante 10 in provincia di Milano e si prendeva il primo col
+# numero giusto, senza guardare il comune. "Via Emilia 5, Paullo" dava Via Masere 5 a
+# Paullo di Casina (Reggio Emilia): OpenStreetMap conosce una frazione che si chiama
+# Paullo, e una via qualunque col 5. Da allora: prima si trova il posto scritto (comune o
+# frazione), poi si cerca la via solo li' dentro, e un risultato in un altro comune non si
+# accetta mai.
+
+class IndirizzoNonTrovato(RuntimeError):
+    """Il comune si trova, ma quella via in quel comune no."""
+
+
+def _pulito(t):
+    """Per confrontare nomi: senza accenti, apostrofi e maiuscole."""
+    t = unicodedata.normalize("NFKD", str(t or "")).encode("ascii", "ignore").decode().lower()
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", t).split())
+
+
+# il tipo di strada e le parolette non servono a riconoscerla: "Via Dante" e' "Dante"
+TIPI_STRADA = {"via", "viale", "vle", "v", "corso", "cso", "piazza", "pza", "p", "piazzale",
+               "largo", "vicolo", "strada", "str", "localita", "loc", "contrada", "borgo",
+               "frazione", "fraz", "salita", "galleria", "passaggio", "vicinale", "privata"}
+PAROLETTE = {"di", "del", "della", "dei", "degli", "delle", "de", "d", "da", "e", "al",
+             "alla", "l", "lo", "la", "le", "il"}
+NUMERI_A_PAROLE = {"uno": "1", "primo": "1", "due": "2", "tre": "3", "quattro": "4",
+                   "cinque": "5", "sei": "6", "sette": "7", "otto": "8", "nove": "9",
+                   "dieci": "10", "undici": "11", "dodici": "12", "venti": "20",
+                   "ventiquattro": "24", "venticinque": "25", "ventotto": "28", "trenta": "30"}
+ROMANI = {"i": 1, "v": 5, "x": 10, "l": 50}
+
+
+def _numero(p):
+    """"quattro" -> "4", "iv" -> "4", "xx" -> "20": via IV Novembre e' via 4 Novembre."""
+    if p in NUMERI_A_PAROLE:
+        return NUMERI_A_PAROLE[p]
+    if re.fullmatch(r"[ivxl]{2,6}", p):
+        tot, prima = 0, 0
+        for ch in reversed(p):
+            v = ROMANI[ch]
+            tot, prima = (tot - v, prima) if v < prima else (tot + v, v)
+        return str(tot)
+    return p
+
+
+def _chiave_strada(t):
+    parole = [p for p in _pulito(t).split() if p not in PAROLETTE]
+    if parole and parole[0] in TIPI_STRADA:
+        parole = parole[1:]
+    return {_numero(p) for p in parole if not re.fullmatch(r"\d+[a-z]{0,3}", p) or len(parole) > 1}
+
+
+def _stessa_strada(scritta, trovata):
+    """"Via Dante 10" e "Dante Alighieri" sono la stessa via; "Via Emilia" e
+    "Via Masere" no. Il civico scritto non conta."""
+    a = _chiave_strada(re.sub(r"\s\d{1,4}\s*(?:/\s*[a-z]{1,3}|\s(?:bis|ter))?$", "", scritta.strip(), flags=re.I))
+    b = _chiave_strada(trovata)
+    return bool(a and b) and (a <= b or b <= a)
+
+
+def leggi_indirizzo(indirizzo):
+    """"Via Dante 10, 20121 Milano (MI)" -> ("Via Dante 10", "Milano", "MI").
+    Il posto e' l'ultimo pezzo dopo la virgola, senza CAP, sigla e "Italia". Senza
+    virgole si prova a staccarlo dopo il civico: "Via Roma 5 Milano". "" se non c'e'."""
+    pezzi = [p.strip() for p in re.split(r"[,;\n]", indirizzo or "") if p.strip()]
+    pezzi = [p for p in pezzi if _pulito(p) not in ("italia", "italy")]
+    if not pezzi:
+        return "", "", ""
+    if len(pezzi) == 1:
+        m = re.match(r"^(.*\d{1,4}(?:\s*/\s*[a-z]{1,3}|\s+(?:bis|ter))?)\s+(?:a\s+|in\s+)?([^\d\s/].*)$",
+                     pezzi[0], re.I)
+        if not m:
+            return pezzi[0], "", ""
+        pezzi = [m.group(1), m.group(2)]
+    via = pezzi[0]
+    if len(pezzi) >= 3 and re.fullmatch(r"\d{1,4}\s*(?:/\s*[a-z]{1,3}|bis|ter)?", pezzi[1], re.I):
+        via, pezzi = via + " " + pezzi[1], [via] + pezzi[2:]
+    sigla, posto = "", ""
+    for p in reversed(pezzi[1:]):
+        m = re.search(r"\s*\(?\b([A-Z]{2})\)?\s*$", p)
+        if m and m.start() > 0:
+            sigla, p = sigla or m.group(1), p[:m.start()]
+        elif re.fullmatch(r"\(?[A-Z]{2}\)?", p.strip()):
+            sigla = sigla or p.strip("() ")
+            continue
+        p = " ".join(re.sub(r"\b\d{5}\b", " ", p).split())
+        if p:
+            posto = p
+            break
+    return via, posto, sigla
+
+
+def _distanza_km(a, b):
+    dy = (a[0] - b[0]) * 111.32
+    dx = (a[1] - b[1]) * 111.32 * math.cos(math.radians((a[0] + b[0]) / 2))
+    return math.hypot(dx, dy)
+
+
+def _posti(posto, sigla=""):
+    """Dove sta il posto scritto: comuni con quel nome, e frazioni con quel nome
+    (Quartiano -> Mulazzano). Prima i comuni, poi le frazioni. None se Esri non risponde."""
+    cand = _chiedi_a_esri({"SingleLine": (posto + " " + sigla).strip(),
+                           "category": "City,Neighborhood,Postal,Populated Place"}, 10)
+    if cand is None:
+        return None
+    voluto, trovati = _pulito(posto), []
+    for c in cand:
+        a = c.get("attributes", {})
+        comune = a.get("City") or ""
+        if a.get("Addr_type") not in ("Locality", "PostalLoc") or not comune:
+            continue
+        primo = _pulito((a.get("Match_addr") or "").split(",")[0])
+        if _pulito(comune) == voluto:
+            tipo = 0
+        elif primo == voluto:
+            tipo = 1
+        else:
+            continue
+        dove = (float(c["location"]["y"]), float(c["location"]["x"]))
+        if any(_pulito(t["comune"]) == _pulito(comune) and _distanza_km(t["dove"], dove) < 30
+               for t in trovati):
+            continue
+        trovati.append({"comune": comune, "provincia": a.get("Subregion") or "",
+                        "dove": dove, "tipo": tipo})
+    trovati.sort(key=lambda t: t["tipo"])
+    return trovati
+
+
+def _via_nel_posto(via, posto, civico):
+    """La via cercata solo intorno al comune trovato, e poi tenuta solo se e' proprio
+    in quel comune. Civico uguale -> preciso; altro civico della via -> la casa accanto;
+    solo la via -> sulla via, non preciso."""
+    lat, lon = posto["dove"]
+    riquadro = "%f,%f,%f,%f" % (lon - 0.11, lat - 0.08, lon + 0.11, lat + 0.08)
+    esatto = vicino = strada = None
+    for c in _chiedi_a_esri({
+            "SingleLine": via + ", " + posto["comune"], "searchExtent": riquadro,
+            "category": "Point Address,Subaddress,Street Address,Street Name"}, 20) or []:
+        a = c.get("attributes", {})
+        if _pulito(a.get("City")) != _pulito(posto["comune"]) or c.get("score", 0) < 80:
+            continue
+        if a.get("StName") and not _stessa_strada(via, a.get("StName")):
+            continue
+        p = _punto_esri(c)
+        if a.get("Addr_type") in ("PointAddress", "Subaddress"):
+            if _stesso_civico(civico, a.get("AddNum")):
+                esatto = esatto or dict(p, preciso=True)
+            else:
+                vicino = vicino or dict(p, preciso=False)
+        else:
+            strada = strada or dict(p, preciso=False, civico_trovato="")
+    return esatto or vicino or strada
+
+
+def _via_da_osm(via, posto, civico, scritto):
+    """Se Esri non conosce la via, OpenStreetMap, ma solo dentro il riquadro del comune,
+    solo con la via giusta e solo nel comune (o nella frazione) scritto."""
+    lat, lon = posto["dove"]
+    try:
+        trovati = json.loads(prendi(NOMINATIM, {
+            "q": via + ", " + posto["comune"], "format": "jsonv2", "limit": 10,
+            "countrycodes": "it", "addressdetails": 1, "bounded": 1,
+            "viewbox": "%f,%f,%f,%f" % (lon - 0.11, lat + 0.08, lon + 0.11, lat - 0.08),
+        }, tentativi=2).decode("utf-8"))
+    except Exception:                                   # noqa: BLE001
+        return None
+    nomi = {_pulito(posto["comune"]), _pulito(scritto)}
+    buoni = []
+    for t in trovati:
+        a = t.get("address", {})
+        posti = {_pulito(a.get(k)) for k in ("city", "town", "village", "municipality", "hamlet", "suburb")}
+        if not (nomi & posti) or not _stessa_strada(via, a.get("road", "")):
+            continue
+        buoni.append(t)
+    for t in buoni:
+        if (t.get("addresstype") in CASE_OSM
+                and _stesso_civico(civico, t.get("address", {}).get("house_number"))):
+            return dict(_punto_da_osm(t, True), comune_nome=posto["comune"], provincia=posto["provincia"])
+    if buoni:
+        buoni.sort(key=lambda t: 0 if t.get("addresstype") in CASE_OSM else 1)
+        return dict(_punto_da_osm(buoni[0], False), comune_nome=posto["comune"], provincia=posto["provincia"])
+    return None
+
+
 def punto_dall_indirizzo(indirizzo):
     """Indirizzo scritto a mano -> latitudine, longitudine, indirizzo per esteso.
 
-    "preciso" vuol dire una cosa sola: e' stato trovato proprio il civico scritto.
-    Una casa qualunque della via, una localita', un civico diverso: non e' preciso,
-    e l'applicazione avvisa di controllare la particella."""
-    civico = civico_scritto(indirizzo)
+    "preciso" vuol dire una cosa sola: e' stato trovato proprio il civico scritto,
+    nel comune scritto. Una casa qualunque della via, una localita', un civico diverso,
+    un comune che non si e' potuto controllare: non e' preciso, e l'applicazione avvisa
+    di controllare la particella."""
+    via, posto, sigla = leggi_indirizzo(indirizzo)
+    civico = civico_scritto(via)
+    posti = _posti(posto, sigla) if posto else None
+    trovati = []
+    for p in (posti or [])[:3]:
+        # un posto lontano da quello dove si e' gia' trovato qualcosa e' un omonimo: basta
+        if trovati and _distanza_km(p["dove"], trovati[0][0]["dove"]) > 5:
+            break
+        t = _via_nel_posto(via, p, civico) or _via_da_osm(via, p, civico, posto)
+        if t:
+            trovati.append((p, t))
+            if t["preciso"]:
+                break
+    if trovati:
+        # Esri a volte chiama "comune" anche una frazione (Quartiano, che e' di Mulazzano):
+        # fra i posti nello stesso punto vince il risultato migliore. Prima il civico
+        # esatto, poi una casa vera della via, per ultima la via.
+        p, trovato = min(trovati, key=lambda x: 0 if x[1]["preciso"]
+                         else 1 if x[1].get("civico_trovato") else 2)
+        trovato = dict(trovato, comune_verificato=True, civico_scritto=civico)
+        if not trovato.get("provincia"):
+            trovato["provincia"] = p["provincia"]
+        # trovato in un posto con lo stesso nome ma lontano dal primo (i due Castro, Paullo
+        # e la frazione Paullo di Casina): puo' non essere quello voluto, e si dice
+        if _distanza_km(p["dove"], posti[0]["dove"]) > 5:
+            trovato["preciso"] = False
+            trovato["avviso_comune"] = (
+                "C'è più di un posto che si chiama %s: l'indirizzo è stato trovato a %s%s. "
+                "Se non è questo, aggiungi la sigla della provincia (per esempio «%s MI»)."
+                % (posto, trovato.get("comune_nome") or p["comune"],
+                   " (%s)" % trovato["provincia"] if trovato.get("provincia") else "", posto))
+        return trovato
+    if posti:
+        via_sola = re.sub(r"\s\d{1,4}\s*(?:/\s*[a-z]{1,3}|\s(?:bis|ter))?$", "", via.strip(), flags=re.I)
+        p = posti[0]
+        raise IndirizzoNonTrovato(
+            "%s a %s%s non si trova sulla mappa. Controlla come è scritta la via; "
+            "se è giusta, scrivi le misure a mano."
+            % (via_sola, p["comune"], " (%s)" % p["provincia"] if p["provincia"] else ""))
+    # il comune non e' scritto, o non si riconosce: la ricerca di prima, ma mai "preciso"
+    trovato = _punto_senza_comune(indirizzo, civico)
+    return dict(trovato, preciso=False, comune_verificato=False, civico_scritto=civico,
+                avviso_comune=(
+                    "Nell'indirizzo non c'è il comune: l'ho trovato a %s. Controlla che sia il posto giusto."
+                    if not posto else
+                    "Non riconosco il comune «" + posto + "»: l'indirizzo è stato trovato a %s. "
+                    "Controlla che sia il posto giusto.")
+                % ((trovato.get("comune_nome") or "?")
+                   + (" (%s)" % trovato["provincia"] if trovato.get("provincia") else "")))
+
+
+def _punto_senza_comune(indirizzo, civico):
+    """La ricerca di prima del 15 settembre 2026, che non guarda il comune."""
     esatto, vicino = _punto_da_esri(indirizzo, civico)
     if esatto:
         return esatto
@@ -629,9 +883,9 @@ def rilievo(indirizzo):
             "dove il catasto è delle Province autonome).")
     semi, riquadri = _intorno_stessa_particella(part, lat, lon)
     m = misura(semi, riquadri)
-    avvisi = []
+    avvisi = [p["avviso_comune"]] if p.get("avviso_comune") else []
     if not p["preciso"]:
-        civico = civico_scritto(indirizzo)
+        civico = p.get("civico_scritto")
         if civico and p.get("civico_trovato"):
             avvisi.append("Hai scritto il civico %s, ma è stato trovato il %s: "
                           "controlla che la particella accesa sia quella giusta."
@@ -649,6 +903,8 @@ def rilievo(indirizzo):
         "indirizzo": p["indirizzo"],
         "comune": part["comune"],
         "comune_nome": p["comune_nome"],
+        "provincia": p.get("provincia", ""),
+        "comune_verificato": bool(p.get("comune_verificato")),
         "foglio": part["foglio"],
         "particella": part["particella"],
         "riferimento": part["codice"],
@@ -805,6 +1061,7 @@ STATICI = {
     "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
     "/icona-192.png":        ("icona-192.png", "image/png"),
     "/icona-512.png":        ("icona-512.png", "image/png"),
+    "/icona-180.png":        ("icona-180.png", "image/png"),
 }
 
 
