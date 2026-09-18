@@ -159,6 +159,10 @@ th.n{text-align:right;padding-right:0}
 .foglio th.n,.foglio td.n{padding-left:14px}
 .foglio td.n{white-space:nowrap}
 
+/* una lavorazione detta che a listino non c'e': non e' un errore, e' un lavoro da
+   fare adesso (mettile un prezzo), quindi oro e non verde */
+.chip.fuori-listino{border-color:var(--oro);color:var(--oro);background:transparent}
+
 /* nastro dimostrazione */
 .nastro{position:fixed;right:0;bottom:0;background:var(--inchiostro);color:var(--carta);
   font-family:'Jost',sans-serif;font-size:9px;letter-spacing:.2em;text-transform:uppercase;
@@ -324,6 +328,30 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
   .foglio .dati{text-align:left}
 }
 
+/* Il documento sul telefono: prima le quattro colonne si stringevano fino a spezzare
+   i nomi delle lavorazioni in mezzo a una parola, e le intestazioni erano un grigio
+   chiaro da 9 px. Il cliente legge il preventivo sul telefono, e deve leggerlo senza
+   avvicinarselo agli occhi (Cafagna, 17 settembre 2026).
+   Sotto i 560 px ogni riga diventa un blocco: il nome per intero, e sotto quanto,
+   a quanto, e quanto fa. */
+@media (max-width:560px){
+  .foglio table{margin-top:10px}
+  .foglio thead{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  .foglio tbody,.foglio tr,.foglio td{display:block}
+  .foglio tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 24px;
+    padding:14px 0;border-bottom:1px solid var(--filetto)}
+  .foglio td{border:0;padding:0;font-size:17.5px;color:var(--inchiostro)}
+  .foglio td:first-child{flex:1 0 100%;margin-bottom:8px}
+  .foglio td.n{flex:0 0 auto;text-align:left;padding:0;font-size:20px;white-space:nowrap}
+  .foglio td.n:last-child{margin-left:auto;text-align:right}
+  .foglio td.n::before{content:attr(data-l);display:block;font-family:'Jost',sans-serif;
+    font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);margin-bottom:3px}
+  .foglio .sub-doc{font-size:14.5px}
+  .foglio .dati{font-size:15.5px}
+  .foglio .condizioni-doc p{font-size:16.5px}
+  .foglio .piede{font-size:14.5px}
+}
+
 /* le foto del posto */
 .foto-testa{display:flex;gap:18px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
 .foto-griglia{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:14px;margin-top:18px}
@@ -439,10 +467,17 @@ body.disegno-aperto{overflow:hidden}
   font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--tenue);padding:12px 16px 10px}
 .attrezzi button.attivo{color:var(--accento);border-bottom-color:var(--accento)}
-.disegno-foglio{flex:1;overflow:auto;padding:16px;background:var(--carta2);-webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain}
-.disegno-foto{position:relative;margin:0 auto;line-height:0;box-shadow:var(--ombra);
-  width:min(100%, max(280px, 100vh - 260px))}
+/* min-height:0 e' quello che tiene in piedi tutto: senza, un figlio flex non si
+   restringe sotto il suo contenuto, la foto spinge il piede fuori dallo schermo e
+   del giardino resta una striscia alta due dita (Cafagna, 17 settembre 2026) */
+.disegno-foglio{flex:1;min-height:0;overflow:auto;padding:16px;background:var(--carta2);
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-x pan-y;
+  display:flex}
+/* la foto si centra con i margini automatici, non con justify-content: centrandola
+   col flex, ingrandita, il bordo sinistro finiva fuori e non si poteva raggiungere
+   scorrendo (visto a 390 px il 17 settembre 2026) */
+.disegno-foto{position:relative;margin:auto;line-height:0;box-shadow:var(--ombra);flex:0 0 auto;
+  width:min(100%, max(240px, 100vh - 260px))}
 .disegno-foto img{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none;pointer-events:none}
 .disegno-foto svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
 .disegno-piede{display:grid;grid-template-columns:1fr auto;gap:8px 18px;align-items:center;
@@ -450,6 +485,20 @@ body.disegno-aperto{overflow:hidden}
 .disegno-istruzione{font-size:15.5px;color:var(--soft);max-width:60ch}
 .disegno-misura{font-family:'Cormorant',serif;font-size:31px;line-height:1;text-align:right;white-space:nowrap}
 .disegno-piede .azioni{grid-column:1 / -1}
+/* sul telefono ogni riga che togli intorno alla foto e' giardino che si vede:
+   testata, attrezzi e piede si stringono, e il giardino si prende il resto */
+@media (max-width:560px){
+  .disegno-testa{padding:10px 14px 8px;gap:8px}
+  .disegno-testa h3{font-size:21px;margin-top:2px}
+  .disegno-testa .lbl{font-size:9px}
+  .attrezzi button{padding:9px 12px 8px}
+  .disegno-foglio{padding:8px}
+  .disegno-piede{padding:8px 14px 12px;gap:6px 12px}
+  .disegno-istruzione{font-size:14px}
+  .disegno-misura{font-size:25px}
+  .disegno-piede .azioni{gap:6px}
+  .disegno-piede .bottone.piccolo{padding:9px 13px}
+}
 .zoom{display:inline-flex;border:1px solid var(--filetto2)}
 .zoom button{background:none;border:0;width:40px;height:34px;font-size:19px;line-height:1;cursor:pointer;color:var(--soft)}
 .zoom button + button{border-left:1px solid var(--filetto2)}
@@ -1236,7 +1285,16 @@ function generaPreventivo(idSopralluogo){
     if(g){ g.q += q; return; }
     righe.push({v:v.id, q, p:v.p, nome:v.nome, u:v.u, on:true});
   });
-  if(!righe.length){ avvisa('Prima detta il sopralluogo: le voci nascono da lì.'); return; }
+  /* quello che ha detto e che a listino non c'e' non entra nel preventivo: se sparisse
+     in silenzio, l'artigiano se ne accorgerebbe davanti al cliente */
+  const fuoriListino = trovate.filter(t => t.nuova);
+  if(!righe.length){
+    avvisa(fuoriListino.length
+      ? 'Nessuna voce del tuo listino in quello che hai detto. «' + fuoriListino[0].nome +
+        '» non ce l\'hai: toccala qui sopra e mettile un prezzo.'
+      : 'Prima detta il sopralluogo: le voci nascono da lì.');
+    return;
+  }
   const p = {
     id: nuovoId('p'), numero: nuovoNumero(),
     cliente: s.cliente || null, nome: s.nome, luogo: s.luogo,
@@ -1248,6 +1306,8 @@ function generaPreventivo(idSopralluogo){
   s.preventivo = p.id; s.stato = 'fatto';
   salva();
   avvisa('Preventivo pronto: ' + righe.length + ' voci prese dal parlato.'
+    + (fuoriListino.length ? ' Fuori è rimasta «' + fuoriListino[0].nome + '»: non è a listino.' +
+       (fuoriListino.length > 1 ? ' E altre ' + (fuoriListino.length - 1) + '.' : '') : '')
     + (dalDisegno.length ? ' Dal disegno sulla foto: ' + dalDisegno.join(', ') + '.' : '')
     + (dalRilievo.length ? ' Per ' + dalRilievo.join(' e ') + ' la superficie viene dal rilievo ('
        + cifra(base, 0) + ' mq ' + (ril.verde_mq > 0 ? 'di verde' : 'di scoperto') + '): controllala.' : ''));
@@ -1784,9 +1844,65 @@ function fotoHtml(s){
       : '<div class="niente" style="margin-top:16px">Ancora nessuna foto. Una per ogni cosa da fare, e il preventivo si spiega da solo.</div>'}
   </div>`;
 }
+/* come si scrive a voce un'unita' di misura sentita nel parlato */
+function unitaDetta(u){ return u === 'mq' ? 'mq' : u === 'm' ? 'm' : u === 'pezzi' ? 'pz' : ''; }
+/* le unita' di misura fra cui scegliere quando una lavorazione entra a listino:
+   le stesse che il listino sa leggere, dette come le direbbe un giardiniere */
+const UNITA_LISTINO = [
+  ['ogni 100 mq', 'Ogni 100 mq — prato, superfici grandi'],
+  ['al mq', 'Al metro quadro'],
+  ['al metro', 'Al metro — siepi, bordure'],
+  ['a pianta', 'A pianta'],
+  ['a viaggio', 'A viaggio'],
+  ['a intervento', 'A intervento — prezzo unico']
+];
+/* l'unita' che il parlato suggerisce: si e' sentito "venti metri" o "duecento mq" */
+function unitaSuggerita(u, q){
+  if(u === 'mq') return q >= 150 ? 'ogni 100 mq' : 'al mq';
+  if(u === 'm') return 'al metro';
+  return 'a intervento';
+}
+/* Una lavorazione detta a voce che a listino non c'e': gli si chiede il prezzo qui,
+   sul posto, e da quel momento e' nel suo listino con le parole con cui l'ha detta.
+   Il listino cresce lavorando, invece di doverlo scrivere a tavolino una sera. */
+function mettiAListino(idSopralluogo, indice){
+  const s = sopr(idSopralluogo); if(!s) return;
+  const t = (s._trovate || [])[indice]; if(!t || !t.nuova) return;
+  const u = unitaSuggerita(t.u, t.q);
+  const tipo = tipoUnita(u);
+  const quanto = t.q ? Math.round(t.q / tipo.per * 100) / 100 : 1;
+  scheda({
+    titolo: 'Non ce l\'hai a listino',
+    sotto: 'L\'hai detta così: «' + t.detto + '». Dimmi quanto la fai pagare e la metto nel tuo listino: '
+         + 'la prossima volta che la dici la riconosco da sola.',
+    valori: {nome: primaMaiuscola(t.nome), u, p:'', q: quanto},
+    campi:[
+      {k:'nome', l:'Come si chiama', p:'Rifacimento vialetto in ghiaia'},
+      {k:'u',    l:'Come la conti',  t:'scelta', opzioni:UNITA_LISTINO},
+      {k:'p',    l:'Prezzo in euro', t:'numero', p:'45'},
+      {k:'q',    l:'Quanta ne serve qui', t:'numero'}
+    ],
+    controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
+      : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.'
+      : !(d.q > 0) ? 'Serve una quantità.' : null,
+    testoSalva: 'Mettila a listino',
+    salva: d => {
+      const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p};
+      if(t.detto) nuova.detti = t.detto;
+      S.listino.push(nuova);
+      s._trovate[indice] = {voce: nuova.id, q: d.q, aMano: true};
+    },
+    elimina: () => { s._trovate.splice(indice, 1); },
+    testoElimina: 'Lascio perdere questa lavorazione: non entra nel preventivo.',
+    messaggio: 'Messa a listino. D\'ora in poi la riconosco quando la dici.'
+  });
+}
+const primaMaiuscola = t => String(t || '').charAt(0).toUpperCase() + String(t || '').slice(1);
+
 function schedaLavorazione(idSopralluogo, indice){
   const s = sopr(idSopralluogo);
   s._trovate = s._trovate || [];
+  if(indice !== null && s._trovate[indice] && s._trovate[indice].nuova){ mettiAListino(idSopralluogo, indice); return; }
   const t = indice === null ? {voce:S.listino[0].id, q:1} : s._trovate[indice];
   const primaVoce = t.voce, detto = indice === null ? '' : (t.detto || '');
   const o = {
@@ -1860,7 +1976,7 @@ function schedaDocumento(id){
         <div class="riga-azione">
           <button type="button" class="bottone piccolo" onclick="apriFile('${d.id}')">Apri</button>
           <button type="button" class="bottone vuoto piccolo" onclick="apriFile('${d.id}', true)">Scarica</button>
-          ${/pdf|text|csv/i.test(d.file.tipo || '') ? `<button type="button" class="bottone vuoto piccolo" onclick="apriListinoDaVecchi('${d.id}')">Fai il listino da questo</button>` : ''}
+          ${siLegge(d.file) ? `<button type="button" class="bottone vuoto piccolo" onclick="apriListinoDaVecchi('${d.id}')">Fai il listino da questo</button>` : ''}
         </div>
       </div>` : '',
     valori: d || {tipo:'Rapportino', data:S.oggi, stato:'archiviato'},
@@ -2507,7 +2623,7 @@ PAGINE.sopralluogo = {
   },
   spiega:{
     testo:'Cammini nel giardino e parli come parli sempre. Rilievo ascolta, scrive, e riconosce da solo le lavorazioni e le misure che dici. Non devi scrivere niente e non devi ricordarti niente per stasera.',
-    punti:['Il rilievo dall\'indirizzo è già pronto quando arrivi, senza prendere misure a mano','Le misure dette a voce finiscono al posto giusto','Da qui il preventivo esce già scritto, davanti al cliente']
+    punti:['Puoi preparare il rilievo dall\'indirizzo prima di partire e verificare le misure sul posto','Le misure dette a voce finiscono al posto giusto','Da qui il preventivo esce già scritto, davanti al cliente']
   },
   corpo(arg){
     if(!arg) return elencoSopralluoghi();
@@ -2607,7 +2723,9 @@ function rilievoHtml(ril, s, r){
   return `<div class="riquadro">
     ${intestazioneSopralluogo(s, r)}
     <div class="foto-testa" style="align-items:baseline">
-      <div class="lbl" style="margin-bottom:12px">${ril.a_mano ? 'Rilievo scritto a mano' : "Rilievo preparato dall'indirizzo, prima di partire"}</div>
+      <div class="lbl" style="margin-bottom:12px">${ril.a_mano ? 'Rilievo scritto a mano'
+        : ril.da_disegnare ? "Foto dall'alto: il giardino lo segni tu"
+        : "Rilievo preparato dall'indirizzo, prima di partire"}</div>
       ${comandi([
         {t:'Correggi le misure',      f:`schedaRilievo('${s.id}')`, i:'&#9998;'},
         {t:'Rifai dall indirizzo',    f:`preparaRilievo('${s.id}')`, i:'&#8635;'},
@@ -2623,23 +2741,32 @@ function rilievoHtml(ril, s, r){
       <div class="didascalia">${esc(ril.fonte || 'Misure prese a mano')}</div>
     </div>
     <div class="misure">
-      <div><div class="val">${mq(ril.lotto_mq)} <small style="font-size:15px">mq</small></div><div class="lbl">Superficie del lotto</div></div>
+      ${ril.da_disegnare && !zone.length ? `<div style="grid-column:1/-1">
+        <p style="max-width:56ch;color:var(--soft)">Il catasto non ha dato i confini, ma la foto del posto c'è.
+        Segna il prato sulla foto: tocca gli angoli, e i metri quadri compaiono qui.</p>
+        <button class="bottone piccolo" style="margin-top:12px" onclick="apriDisegno('${s.id}')">Segna il giardino sulla foto</button>
+      </div>` : `
+      <div><div class="val">${mq(ril.lotto_mq)} <small style="font-size:15px">mq</small></div><div class="lbl">${ril.da_disegnare ? 'Segnato sulla foto' : 'Superficie del lotto'}</div></div>
       <div><div class="val">${mq(ril.scoperto_mq)} <small style="font-size:15px">mq</small></div><div class="lbl">Scoperto, non costruito</div></div>
       ${verde ? `<div><div class="val">${mq(ril.verde_mq)} <small style="font-size:15px">mq</small></div><div class="lbl">${ril.a_mano ? 'Prato e verde misurati' : 'Verde visto dall\'alto'}</div></div>` : ''}
       <div><div class="val">${mq(ril.coperto_mq)} <small style="font-size:15px">mq</small></div><div class="lbl">Coperto da fabbricato</div></div>
-      <div><div class="val" style="font-size:23px">${esc(ril.ingombro || '—')}</div><div class="lbl">Ingombro</div></div>
+      <div><div class="val" style="font-size:23px">${esc(ril.ingombro || '—')}</div><div class="lbl">Ingombro</div></div>`}
     </div>
     </div>
     ${!ril.a_mano && lato ? `<div class="particelle-riga">
-      <p>${(ril.particelle || []).length > 1
+      <p>${ril.da_disegnare
+          ? 'La foto mostra ' + cifra(Math.round(ril.lato_m || 0), 0) + ' metri da un bordo all\'altro. Se il giardino non ci sta tutto, allargala.'
+          : (ril.particelle || []).length > 1
           ? 'Il lotto è fatto di ' + ril.particelle.length + ' particelle: ' + esc(ril.particelle.map(x => x.particella).join(', ')) + '.'
           : ril.preciso === false
           ? 'Il civico non è stato trovato preciso: se la casa accesa non è quella del cliente, spostati su quella giusta.'
           : 'Il giardino è su un\'altra particella, o ne manca un pezzo?'}
-        ${angoliBuoni(ril.angoli) ? '' : ' Per sceglierle sulla foto, rifai prima il rilievo dall\'indirizzo.'}</p>
+        ${angoliBuoni(ril.angoli) || ril.da_disegnare ? '' : ' Per sceglierle sulla foto, rifai prima il rilievo dall\'indirizzo.'}</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        ${angoliBuoni(ril.angoli) ? `<button class="bottone vuoto piccolo" onclick="apriParticelle('${s.id}')">Scegli le particelle</button>` : ''}
-        ${puoSpostare(ril) ? `<button class="bottone vuoto piccolo" onclick="apriSposta('${s.id}')">Sposta sulla casa giusta</button>` : ''}
+        ${angoliBuoni(ril.angoli) && !ril.da_disegnare ? `<button class="bottone vuoto piccolo" onclick="apriParticelle('${s.id}')">Scegli le particelle</button>` : ''}
+        ${puoSpostare(ril) && !ril.da_disegnare ? `<button class="bottone vuoto piccolo" onclick="apriSposta('${s.id}')">Sposta sulla casa giusta</button>` : ''}
+        ${ril.indirizzo || s.luogo ? `<button class="bottone vuoto piccolo" onclick="allargaFoto('${s.id}')">Allarga la foto</button>
+        <button class="bottone vuoto piccolo" onclick="disegnaDaVicino('${s.id}')">Disegna il giardino da vicino</button>` : ''}
       </div>
     </div>` : ''}
     ${lato ? zoneHtml(ril, s) : ''}
@@ -2649,7 +2776,8 @@ function rilievoHtml(ril, s, r){
         : (verde ? '' : 'Il prato va misurato sul posto.')}
     </p>
     <p style="font-size:15px;color:var(--tenue);margin-top:14px;max-width:70ch">
-      Foglio ${esc(ril.foglio || '—')}, particella ${esc(ril.particella || '—')}, comune ${esc(ril.comune || '—')}${ril.comune_nome ? ' (' + esc(ril.comune_nome) + (ril.provincia ? ', ' + esc(ril.provincia) : '') + ')' : ''}.
+      ${ril.senza_riferimenti ? 'Il catasto non ha dato foglio e particella: i metri quadri sono contati sui confini della mappa.'
+        : `Foglio ${esc(ril.foglio || '—')}, particella ${esc(ril.particella || '—')}, comune ${esc(ril.comune || '—')}${ril.comune_nome ? ' (' + esc(ril.comune_nome) + (ril.provincia ? ', ' + esc(ril.provincia) : '') + ')' : ''}.`}
       ${ril.a_mano ? 'Misure scritte a mano, non calcolate dal catasto.'
                    : 'Ottenuto dal solo indirizzo, senza sopralluogo e senza misure prese a mano.'}
       ${ril.casa_a_mano ? 'La casa l\'hai indicata tu sulla foto.' : ''}
@@ -2701,7 +2829,40 @@ function preparaRilievo(idSopralluogo){
   });
 }
 
-function chiediRilievo(idSopralluogo, indirizzo){
+/* Due vie d'uscita quando la particella del catasto non e' il giardino del cliente.
+
+   «Allarga la foto»: il lotto esce dal quadro (un lotto di campagna lungo
+   trecento metri). Si rifa' il rilievo con un'inquadratura piu' larga e si
+   rimisura tutto.
+
+   «Disegna il giardino da vicino»: la particella c'e' ma non serve, perche' il
+   giardino del cliente e' un pezzo dentro una corte comune (Via Torino 5 a
+   Casalmaiocco: la particella e' tutto il residence, 11.183 mq) oppure perche' il
+   civico e' caduto sulla strada (Via Colombarone 10 a Monticelli d'Ongina: si
+   accende la banchina). Si prende la foto da vicino e il giardino lo segna lui:
+   quella misura e' vera, la particella no. */
+function fotoDelRilievo(idSopralluogo){
+  const s = sopr(idSopralluogo), ril = s ? rilievoDelSopralluogo(s) : null;
+  if(!ril) return null;
+  const dove = ril.indirizzo || s.luogo || '';
+  if(!dove){ avvisa('Per rifare la foto serve l\'indirizzo: usa «Prepara dall\'indirizzo».'); return null; }
+  return {ril, dove, lato: (typeof ril.lato_m === 'number' && ril.lato_m > 0) ? ril.lato_m : 150};
+}
+function allargaFoto(idSopralluogo){
+  const t = fotoDelRilievo(idSopralluogo); if(!t) return;
+  const lato = Math.max(22, Math.min(2200, Math.round(t.lato * 1.8)));
+  if(lato <= Math.round(t.lato)){ avvisa('Più larga di così non si può.'); return; }
+  avvisa('Rifaccio il rilievo su una foto più larga: ' + lato + ' metri da un bordo all\'altro.');
+  chiediRilievo(idSopralluogo, t.dove, lato);
+}
+function disegnaDaVicino(idSopralluogo){
+  const t = fotoDelRilievo(idSopralluogo); if(!t) return;
+  const lato = Math.max(30, Math.round(t.lato / 3));
+  avvisa('Prendo la foto da vicino: ' + lato + ' metri da un bordo all\'altro. Poi segni il giardino.');
+  chiediRilievo(idSopralluogo, t.dove, lato, true);
+}
+
+function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto){
   /* vale solo la risposta all'ultima domanda: se si preme due volte (prima un
      indirizzo sbagliato, poi quello giusto) la prima puo' arrivare per ultima */
   if(senzaRete()){ avvisa(SENZA_RETE); return; }
@@ -2713,11 +2874,12 @@ function chiediRilievo(idSopralluogo, indirizzo){
   const sveglia = setTimeout(() => { if(!superata()) avvisa('Il servizio del rilievo si sta svegliando: la prima volta ci mette fino a un minuto. Resta qui.'); }, 8000);
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
-  fetch(SPORTELLO_RILIEVO + '/rilievo?indirizzo=' + encodeURIComponent(indirizzo), {signal: basta.signal})
+  fetch(SPORTELLO_RILIEVO + (soloFoto ? '/foto?indirizzo=' : '/rilievo?indirizzo=') + encodeURIComponent(indirizzo) +
+        (lato > 0 ? '&lato=' + Math.round(lato) : ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
       if(superata()) return;
-      if(!ok || !d || d.errore){ avvisa('Non riuscito: ' + ((d && d.errore) || 'il servizio del rilievo non ha risposto bene. Riprova tra poco.')); return; }
+      if(!ok || !d || d.errore){ rilievoNonDisponibile(idSopralluogo); return; }
       const problema = rilievoValido(d);
       if(problema){ avvisa('Non riuscito: il servizio ha mandato misure che non tornano (' + problema + '). Il rilievo di prima resta com\'era.'); return; }
       /* il comune trovato deve essere quello scritto: il 15 settembre 2026 "Via Dante 10,
@@ -2725,14 +2887,47 @@ function chiediRilievo(idSopralluogo, indirizzo){
          solo (comune_verificato); con quello vecchio lo controlla l'app. */
       const altrove = comuneDiverso(indirizzo, d);
       if(altrove){ d = Object.assign({}, d, {preciso:false, avvisi:[altrove].concat(d.avvisi || [])}); }
+      /* il catasto non ha risposto: c'e' la foto giusta e basta. Il sopralluogo
+         va avanti lo stesso, segnando il giardino sulla foto. */
+      if(d.da_disegnare === true){
+        /* foglio e particella, se li avevamo, restano scritti sul documento: sono
+           del posto, e non cambiano perche' la foto e' piu' stretta */
+        const gia = sopr(idSopralluogo), prima = gia ? rilievoDelSopralluogo(gia) : null;
+        if(soloFoto && prima && prima.foglio)
+          d = Object.assign({}, d, {foglio:prima.foglio, particella:prima.particella,
+            comune:prima.comune, riferimento:prima.riferimento, particelle:prima.particelle || []});
+        /* la foto da vicino l'ha chiesta lui: si chiede conferma solo se c'e' un
+           disegno da perdere. Quando invece e' il catasto a tacere, il rilievo di
+           prima puo' essere buono, e allora si guardano i due uno accanto all'altro. */
+        if(prima && (soloFoto ? zoneDi(prima).length : true)){
+          confermaRilievo(idSopralluogo, d, 'disegno'); return;
+        }
+        usaRilievo(idSopralluogo, d);
+        avvisa((d.avvisi || [])[0] || 'Foto pronta: segna il giardino sulla foto.');
+        setTimeout(() => apriDisegno(idSopralluogo), 400);
+        return;
+      }
       /* trovato sulla via o su un altro civico: prima di buttare quello che c'e'
          (magari corretto a mano) si guardano i due uno accanto all'altro */
       if(d.preciso !== true || conDisegno(idSopralluogo)){ confermaRilievo(idSopralluogo, d, altrove ? 'comune' : ''); return; }
       usaRilievo(idSopralluogo, d);
       avvisa('Rilievo pronto: ' + cifra(d.lotto_mq, 0) + ' mq di lotto, ' + cifra(d.scoperto_mq, 0) + ' scoperti.');
     })
-    .catch(() => { if(!superata()) avvisa(senzaRete() ? SENZA_RETE : 'Il servizio del rilievo non risponde. Riprova tra un minuto, oppure scrivi le misure a mano.'); })
+    .catch(() => { if(!superata()) rilievoNonDisponibile(idSopralluogo); })
     .finally(() => { clearTimeout(sveglia); clearTimeout(scade); });
+}
+function rilievoNonDisponibile(idSopralluogo){
+  /* la riga in alto resta ferma su "sto preparando" finche' non le si dice come e'
+     finita: chi guarda lo schermo crede che stia ancora lavorando */
+  avvisa('Il rilievo dall\'indirizzo non è riuscito. Puoi scrivere le misure a mano e andare avanti.');
+  scheda({
+    titolo:'Il rilievo automatico non è disponibile',
+    sotto:'Puoi continuare a raccontare le lavorazioni e preparare il preventivo. Le misure automatiche non sono state aggiornate. Usa solo quelle che hai verificato sul posto.',
+    campi:[],
+    extra:'<p style="padding:0 24px">Chiudi questa finestra per continuare il sopralluogo, oppure inserisci le misure che hai preso.</p>',
+    testoSalva:'Inserisci le misure',
+    salva:() => rilievoAMano(idSopralluogo)
+  });
 }
 const turniRilievo = {};
 /* il collaudo fa girare l'app anche fuori dal browser, dove navigator non c'e' */
@@ -2759,8 +2954,19 @@ function comuneDiverso(indirizzo, d){
     (d.provincia ? ' (' + d.provincia + ')' : '') + ': controlla che sia il posto giusto prima di usarlo.';
 }
 
+/* il rilievo appena arrivato, in attesa che lui decida: serve al tasto che porta
+   dritto sulla foto a toccare la casa giusta */
+let rilievoInAttesa = null;
+function usaEToccaLaCasa(){
+  const t = rilievoInAttesa; if(!t) return;
+  rilievoInAttesa = null;
+  chiudiScheda();
+  usaRilievo(t.id, t.d);
+  setTimeout(() => apriSposta(t.id), 300);
+}
 function confermaRilievo(idSopralluogo, d, perche){
   const s = sopr(idSopralluogo); if(!s) return;
+  rilievoInAttesa = {id:idSopralluogo, d};
   const ora = rilievoDelSopralluogo(s);
   const avvisi = (d.avvisi || []).filter(Boolean);
   /* il civico e' giusto, ma sulla foto di adesso c'e' un disegno: la foto nuova
@@ -2770,22 +2976,33 @@ function confermaRilievo(idSopralluogo, d, perche){
   const colonna = (x, titolo) => `<div>
       <div class="lbl" style="margin-bottom:6px">${titolo}</div>
       ${x.comune_nome ? `<div>${esc(x.comune_nome)}${x.provincia ? ' (' + esc(x.provincia) + ')' : ''}</div>` : ''}
-      <div>Foglio ${esc(x.foglio || '—')}, particella ${esc(x.particella || '—')}</div>
-      <div>${cifra(x.lotto_mq, 0)} mq di lotto, ${cifra(x.scoperto_mq, 0)} scoperti</div>
+      ${x.da_disegnare ? `<div>Foto dall'alto, ${cifra(Math.round(x.lato_m || 0), 0)} m da un bordo all'altro</div>
+       <div>Il giardino si segna sulla foto</div>`
+      : `<div>Foglio ${esc(x.foglio || '—')}, particella ${esc(x.particella || '—')}</div>
+      <div>${cifra(x.lotto_mq, 0)} mq di lotto, ${cifra(x.scoperto_mq, 0)} scoperti</div>`}
       ${x.corretto ? `<div style="color:var(--tenue)">Corretto a mano il ${esc(dataLunga(x.corretto))}</div>` : ''}
       ${zoneDi(x).length ? `<div style="color:var(--tenue)">${zoneDi(x).length} ${zoneDi(x).length === 1 ? 'parte disegnata' : 'parti disegnate'} sulla foto</div>` : ''}
     </div>`;
+  const senzaCatasto = d.da_disegnare === true;
   scheda({
-    titolo: soloDisegno ? 'Prima di sostituire il rilievo' : 'Controlla la casa prima di usarlo',
-    sotto: soloDisegno ? 'Il rilievo nuovo porta una foto nuova, e il disegno fatto su quella di adesso non ci starebbe sopra.'
+    titolo: senzaCatasto ? 'Il catasto non risponde' : soloDisegno ? 'Prima di sostituire il rilievo' : 'Controlla la casa prima di usarlo',
+    sotto: senzaCatasto ? (avvisi[0] || 'C\'è la foto dall\'alto di questo indirizzo: segna il giardino sulla foto e i metri quadri li conto io.')
+           : soloDisegno ? 'Il rilievo nuovo porta una foto nuova, e il disegno fatto su quella di adesso non ci starebbe sopra.'
                        : (avvisi[0] || 'Il civico non è stato confermato: la particella trovata potrebbe essere quella accanto.'),
     extra: `<div class="confronto-rilievi">${ora ? colonna(ora, 'Quello che hai adesso') : ''}${colonna(d, 'Quello appena trovato')}</div>
+      ${d.preciso === false && puoSpostare(d) ? `<p style="font-size:15.5px;color:var(--soft);margin-bottom:18px">
+        Il civico non è stato trovato: quella accesa può essere la casa accanto, o la strada.
+        <button class="bottone vuoto piccolo" style="margin-top:10px" onclick="usaEToccaLaCasa()">Tocca la casa giusta sulla foto</button></p>` : ''}
       ${ora && ora.corretto ? '<p style="color:var(--tenue);font-size:15.5px;margin-bottom:18px">Se usi quello nuovo, le misure che hai corretto a mano si perdono.</p>' : ''}
       ${disegnate ? '<p style="color:var(--tenue);font-size:15.5px;margin-bottom:18px">Se usi quello nuovo, le parti del giardino disegnate si perdono: andranno ridisegnate sulla foto nuova.</p>' : ''}`,
     campi: [],
-    testoSalva: 'Usa quello nuovo',
-    salva: () => usaRilievo(idSopralluogo, d),
-    messaggio: soloDisegno ? 'Rilievo nuovo in uso. Ridisegna le parti del giardino sulla foto nuova.'
+    testoSalva: senzaCatasto ? 'Usa la foto' : 'Usa quello nuovo',
+    salva: () => {
+      usaRilievo(idSopralluogo, d);
+      if(senzaCatasto) setTimeout(() => apriDisegno(idSopralluogo), 400);
+    },
+    messaggio: senzaCatasto ? 'Foto in uso. Segna il giardino sulla foto: i metri quadri li conto io.'
+             : soloDisegno ? 'Rilievo nuovo in uso. Ridisegna le parti del giardino sulla foto nuova.'
                            : 'Rilievo nuovo in uso. Sul posto controlla che la particella accesa sia quella giusta.'
   });
   avvisa(soloDisegno ? 'Sulla foto di adesso c\'è un disegno: guarda la scheda prima di sostituire il rilievo.'
@@ -2804,6 +3021,19 @@ function rilievoValido(d){
   if(!d || typeof d !== 'object' || Array.isArray(d)) return 'non è un rilievo';
   const n = k => (typeof d[k] === 'number' && isFinite(d[k])) ? d[k] : null;
   const c = v => v === undefined || v === null;
+  /* il rilievo senza catasto: c'e' la foto del posto e la sua scala, i metri quadri
+     li fa il giardiniere segnando il giardino sulla foto. Non ha ne' particella ne'
+     misure, ed e' giusto cosi': senza questa strada, quando l'Agenzia delle Entrate
+     tace il sopralluogo si ferma (17 settembre 2026). */
+  if(d.da_disegnare === true){
+    if(!fotoSicura(d.foto)) return 'manca la foto su cui disegnare';
+    if(!angoliBuoni(d.angoli)) return 'gli angoli della foto non sono scritti bene';
+    if(!(typeof d.lato_m === 'number' && isFinite(d.lato_m) && d.lato_m > 0)) return 'manca la misura della foto';
+    if(!c(d.zone) && (!Array.isArray(d.zone) || d.zone.length > 200 || !d.zone.every(zonaValida)))
+      return 'le parti del giardino disegnate non sono scritte bene';
+    if(!c(d.punti) && !puntiBuoni(d.punti)) return 'i punti del lotto non sono scritti bene';
+    return null;
+  }
   const lotto = n('lotto_mq'), scop = n('scoperto_mq');
   if(lotto === null || scop === null) return 'mancano i metri quadri del lotto o dello scoperto';
   if(!c(d.coperto_mq) && n('coperto_mq') === null) return 'il coperto non è un numero';
@@ -2819,7 +3049,10 @@ function rilievoValido(d){
   if(cop !== null && !d.a_mano && Math.abs(lotto - scop - cop) > Math.max(2, lotto * 0.01))
     return 'lotto, scoperto e coperto non tornano';
   if(verde !== null && verde > scop + 2) return 'il verde è più grande dello scoperto';
-  if(!d.a_mano && (!d.foglio || !d.particella)) return 'mancano foglio e particella';
+  /* il catasto ha due sportelli e si guastano separatamente: quando quello che dice il
+     nome della particella tace, le mappe arrivano lo stesso e i metri quadri si contano
+     uguale. Quel rilievo vale, solo senza foglio e particella (17 settembre 2026). */
+  if(!d.a_mano && !d.senza_riferimenti && (!d.foglio || !d.particella)) return 'mancano foglio e particella';
   if(!c(d.foto) && !fotoSicura(d.foto)) return 'la foto dentro non è un\'immagine';
   if(!c(d.zone) && (!Array.isArray(d.zone) || d.zone.length > 200 || !d.zone.every(zonaValida)))
     return 'le parti del giardino disegnate non sono scritte bene';
@@ -2868,14 +3101,29 @@ function caricaRilievo(idSopralluogo, input){
 }
 
 /* i controlli delle misure scritte a mano, uguali nella scheda nuova e in quella
-   di correzione: solo quello che un numero vero non puo' fare. Il lotto si puo'
-   lasciare vuoto; lo scoperto no, perche' il preventivo parte da li'. */
+   di correzione: solo quello che un numero vero non puo' fare, e il minimo
+   indispensabile per far partire un preventivo.
+
+   Un giardiniere misura il prato, non "lo scoperto": prima l'app pretendeva lo
+   scoperto e chi scriveva solo il prato restava bloccato senza capire perche'
+   (Cafagna, 17 settembre 2026). Adesso basta uno dei due, e gli altri numeri si
+   riempiono da soli: il prato da solo vale anche come scoperto, e lo scoperto da
+   solo vale anche come lotto. Chi li sa tutti li scrive tutti.
+
+   Rimette anche a posto quello che manca, quindi si chiama prima di salvare. */
 function misureAMano(d){
   const v = k => typeof d[k] === 'number' ? d[k] : null;
-  const lotto = v('lotto_mq'), scop = v('scoperto_mq'), cop = v('coperto_mq'), verde = v('verde_mq');
+  let lotto = v('lotto_mq'), scop = v('scoperto_mq');
+  const cop = v('coperto_mq'), verde = v('verde_mq');
   if([lotto, scop, cop, verde].some(x => x !== null && x < 0)) return 'I metri quadri non possono essere negativi.';
-  if(!(scop > 0)) return 'Serve lo scoperto: senza, il preventivo non ha una superficie da cui partire.';
-  if(lotto > 0 && scop > lotto + 2) return 'Lo scoperto non può essere più grande del lotto. Controlla i due numeri.';
+  if(!(scop > 0) && !(verde > 0))
+    return 'Scrivi almeno il prato, oppure la superficie scoperta: il preventivo parte da lì.';
+  /* il prato da solo basta, e vale anche come scoperto. Dal lotto invece non si
+     ricava niente da soli: se uno scrive lo scoperto a zero lo intende davvero
+     (una particella tutta costruita), e non gli si cambiano i numeri sotto */
+  if(!(scop > 0)) scop = d.scoperto_mq = verde;
+  if(!(lotto > 0)) lotto = d.lotto_mq = scop + (cop || 0);
+  if(scop > lotto + 2) return 'Lo scoperto non può essere più grande del lotto. Controlla i due numeri.';
   if(verde !== null && verde > scop + 2) return 'Il prato non può essere più grande dello scoperto.';
   return null;
 }
@@ -2887,14 +3135,14 @@ function rilievoAMano(idSopralluogo){
   const r = richiesta(s.richiesta);
   scheda({
     titolo:'Scrivi le misure a mano',
-    sotto:'Quando il catasto non aiuta, o le misure le hai prese tu sul posto. Da qui in avanti valgono come un rilievo qualunque, e si correggono allo stesso modo.',
-    valori:{indirizzo:(r && r.indirizzo) || s.luogo || '', lotto_mq:'', scoperto_mq:'', coperto_mq:'', ingombro:''},
+    sotto:'Quando il catasto non aiuta, o le misure le hai prese tu sul posto. Basta il prato: gli altri numeri sono facoltativi. Da qui in avanti vale come un rilievo qualunque.',
+    valori:{indirizzo:(r && r.indirizzo) || s.luogo || '', lotto_mq:'', scoperto_mq:'', coperto_mq:'', verde_mq:'', ingombro:''},
     campi:[
       {k:'indirizzo',   l:'Indirizzo'},
-      {k:'lotto_mq',    l:'Superficie del lotto (mq)',  t:'numero'},
-      {k:'scoperto_mq', l:'Scoperto, non costruito (mq)', t:'numero'},
-      {k:'verde_mq',    l:'Prato e verde (mq)',         t:'numero', facoltativo:true, p:'Se l\'hai misurato'},
-      {k:'coperto_mq',  l:'Coperto da fabbricato (mq)', t:'numero'},
+      {k:'verde_mq',    l:'Prato e verde (mq)',         t:'numero', facoltativo:true, p:'Per esempio 200'},
+      {k:'scoperto_mq', l:'Tutto il terreno scoperto (mq)', t:'numero', facoltativo:true, p:'Prato, vialetti, cortile'},
+      {k:'coperto_mq',  l:'Coperto da fabbricato (mq)', t:'numero', facoltativo:true, p:'Se lo sai'},
+      {k:'lotto_mq',    l:'Superficie del lotto (mq)',  t:'numero', facoltativo:true, p:'Se lo sai'},
       {k:'ingombro',    l:'Ingombro',                   p:'26 × 49 m'},
       {k:'foglio',      l:'Foglio'},
       {k:'particella',  l:'Particella'}
@@ -2903,6 +3151,9 @@ function rilievoAMano(idSopralluogo){
     testoSalva:'Salva il rilievo',
     salva: d => {
       if(d.verde_mq === null) delete d.verde_mq;
+      /* i facoltativi lasciati vuoti valgono zero, non "niente": finiscono
+         stampati sul documento del cliente */
+      if(!(d.coperto_mq > 0)) d.coperto_mq = 0;
       usaRilievo(idSopralluogo, Object.assign({}, d, {
         a_mano:true,
         fonte:'Misure prese a mano',
@@ -3046,6 +3297,19 @@ function totaliZone(ril){
   return tot;
 }
 const misuraTotale = (k, q) => cifra(q, 0) + ' <small>' + (TIPI_ZONA[k].u || (q === 1 ? 'pianta' : 'piante')) + '</small>';
+
+/* Quando il rilievo arriva senza catasto, le misure SONO il disegno: il prato e le
+   aiuole segnate sulla foto fanno lo scoperto, e da li' parte il preventivo. Va
+   richiamata a ogni forma salvata, spostata o tolta. */
+function misureDalDisegno(ril){
+  if(!ril || ril.da_disegnare !== true) return;
+  const t = totaliZone(ril);
+  const area = Math.round(t.prato + t.aiuola);
+  ril.verde_mq = area;
+  ril.scoperto_mq = area;
+  ril.lotto_mq = area;
+  ril.coperto_mq = 0;
+}
 function nomeNuovo(ril, tipo){
   const zone = zoneDi(ril), usati = new Set(zone.map(z => z.nome));
   let n = zone.filter(z => z.tipo === tipo).length + 1;
@@ -3186,7 +3450,7 @@ function schedaZona(idSopralluogo, idZona){
       z.nome = d.nome;
       if(d.tipo && TIPI_ZONA[d.tipo] && TIPI_ZONA[d.tipo].forma === f) z.tipo = d.tipo;
     },
-    elimina: () => { ril.zone = zoneDi(ril).filter(x => x.id !== z.id); },
+    elimina: () => { ril.zone = zoneDi(ril).filter(x => x.id !== z.id); misureDalDisegno(ril); },
     testoElimina: 'Tolgo «' + nome + '» dal disegno. La foto e le misure del rilievo restano.',
     messaggio: 'Disegno aggiornato.'
   });
@@ -3195,6 +3459,7 @@ function eliminaZona(idSopralluogo, idZona){
   const t = zonaDelSopralluogo(idSopralluogo, idZona); if(!t) return;
   chiedi('Tolgo «' + (t.z.nome || TIPI_ZONA[t.z.tipo].nome) + '» dal disegno. La foto e le misure del rilievo restano.', () => {
     t.ril.zone = zoneDi(t.ril).filter(x => x.id !== idZona);
+    misureDalDisegno(t.ril);
     salva(); vai();
     avvisa('Tolto dal disegno.');
   });
@@ -3202,9 +3467,34 @@ function eliminaZona(idSopralluogo, idZona){
 
 /* ---- il foglio da disegno ----
    Tocchi sulla foto per mettere i punti; i punti si trascinano per spostarli;
-   con + e − la foto si ingrandisce e si scorre col dito. */
+   si ingrandisce con due dita sulla foto, o con + e −, e si scorre col dito. */
 let D = null;
-const ZOOM = [1, 1.5, 2, 3, 4];
+const ZOOM_MIN = 1, ZOOM_MAX = 8;
+
+/* Quanto larga sta la foto nello spazio che le resta davvero.
+
+   Prima era un conto a occhio nel foglio di stile (100vh meno 260 px di testata,
+   attrezzi e piede). Quando quei 260 non bastavano, la foto veniva piu' alta dello
+   spazio e del giardino si vedeva una striscia. Adesso lo spazio si misura: la
+   foto e' quadrata, quindi entra tutta se sta dentro il lato piu' corto. */
+function larghezzaBaseFoto(){
+  const foglio = document.getElementById('disegno-foglio');
+  if(!foglio || !foglio.clientWidth) return 300;
+  let padX = 32, padY = 32;
+  if(typeof getComputedStyle === 'function'){
+    const st = getComputedStyle(foglio);
+    padX = (parseFloat(st.paddingLeft) || 0) + (parseFloat(st.paddingRight) || 0);
+    padY = (parseFloat(st.paddingTop) || 0) + (parseFloat(st.paddingBottom) || 0);
+  }
+  const largo = foglio.clientWidth - padX, alto = foglio.clientHeight - padY;
+  return Math.max(200, Math.min(largo, alto > 0 ? alto : largo));
+}
+/* la foto grande quanto deve essere adesso: la misura di base per lo zoom */
+function misuraLaFoto(){
+  const foto = document.getElementById('disegno-foto');
+  if(!foto || !D) return;
+  foto.style.width = Math.round(larghezzaBaseFoto() * (D.zoom || 1)) + 'px';
+}
 /* lo zoom con due dita ingrandisce tutta la pagina, non la foto: la foto resta larga
    uguale, ma sullo schermo diventa piu' grande. I pallini si misurano sullo schermo,
    se no crescono con lo zoom e coprono il punto (Andrea, dal telefono, 15/9/2026). */
@@ -3263,6 +3553,7 @@ function apriDisegno(idSopralluogo, idZona){
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('disegno-aperto');
+  ascoltaLeDueDita(velo);
   addEventListener('keydown', tastoDisegno);
   const svg = velo.querySelector('#disegno-svg');
   svg.addEventListener('click', toccoDisegno);
@@ -3373,17 +3664,56 @@ function lasciaPunto(){
   D.trascina = null; D.trascinato = false;
 }
 function ingrandisci(verso){
+  portaZoomA((D ? D.zoom || 1 : 1) * (verso > 0 ? 1.6 : 1 / 1.6));
+}
+/* La foto si ingrandisce di quanto serve, non a scatti fissi: su una particella
+   piccola davanti a una casa a schiera si arriva fino a otto volte, e i punti si
+   mettono dove vanno davvero (Casalmaiocco, 17 settembre 2026).
+   Il centro di quello che si stava guardando resta dov'e'. */
+function portaZoomA(quanto, ancora){
   if(!D) return;
   const foglio = document.getElementById('disegno-foglio');
-  const i = Math.max(0, Math.min(ZOOM.length - 1, ZOOM.indexOf(D.zoom) + verso));
-  if(ZOOM[i] === D.zoom) return;
-  /* si tiene fermo il centro di quello che si stava guardando */
-  const cx = foglio.scrollWidth ? (foglio.scrollLeft + foglio.clientWidth / 2) / foglio.scrollWidth : .5;
-  const cy = foglio.scrollHeight ? (foglio.scrollTop + foglio.clientHeight / 2) / foglio.scrollHeight : .5;
-  D.zoom = ZOOM[i];
+  const nuovo = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, quanto));
+  if(!foglio || Math.abs(nuovo - (D.zoom || 1)) < 0.001) return;
+  const largo = foglio.clientWidth, alto = foglio.clientHeight;
+  const ax = ancora ? ancora[0] : largo / 2, ay = ancora ? ancora[1] : alto / 2;
+  /* dove sta, dentro tutto il foglio, il punto che deve restare fermo */
+  const fx = foglio.scrollWidth  ? (foglio.scrollLeft + ax) / foglio.scrollWidth  : .5;
+  const fy = foglio.scrollHeight ? (foglio.scrollTop  + ay) / foglio.scrollHeight : .5;
+  D.zoom = nuovo;
   ridisegna();
-  foglio.scrollLeft = cx * foglio.scrollWidth - foglio.clientWidth / 2;
-  foglio.scrollTop  = cy * foglio.scrollHeight - foglio.clientHeight / 2;
+  foglio.scrollLeft = fx * foglio.scrollWidth  - ax;
+  foglio.scrollTop  = fy * foglio.scrollHeight - ay;
+}
+/* due dita sulla foto: si allarga e si stringe come in una qualunque app di foto.
+   Prima c'era solo lo zoom del browser, che ingrandisce tutta la pagina: tasti e
+   scritte crescevano insieme alla foto e lo spazio utile restava quello. */
+let pinch = null;
+const distanzaDita = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+function pinchInizio(e){
+  if(!D || e.touches.length !== 2) return;
+  pinch = {d: distanzaDita(e.touches), zoom: D.zoom || 1};
+}
+function pinchMuovi(e){
+  if(!D || !pinch || e.touches.length !== 2) return;
+  const d = distanzaDita(e.touches);
+  if(!pinch.d || !d) return;
+  e.preventDefault();
+  const foglio = document.getElementById('disegno-foglio');
+  const r = foglio ? foglio.getBoundingClientRect() : null;
+  const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+  const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+  portaZoomA(pinch.zoom * (d / pinch.d), r ? [mx - r.left, my - r.top] : null);
+}
+function pinchFine(e){ if(!e.touches || e.touches.length < 2) pinch = null; }
+/* i tre fogli da disegno si comportano tutti allo stesso modo */
+function ascoltaLeDueDita(velo){
+  const foglio = velo.querySelector('#disegno-foglio');
+  if(!foglio) return;
+  foglio.addEventListener('touchstart', pinchInizio, {passive:true});
+  foglio.addEventListener('touchmove', pinchMuovi, {passive:false});
+  foglio.addEventListener('touchend', pinchFine, {passive:true});
+  foglio.addEventListener('touchcancel', pinchFine, {passive:true});
 }
 /* ---- la siepe che si interrompe: un ingresso, un cancello ----
    Si tocca sulla siepe dove si apre e dove riprende: i due punti entrano nella
@@ -3466,6 +3796,7 @@ function salvaForma(inUscita){
     D.ril.zone.push(z);
   }
   const eraModifica = !!D.modifica;
+  misureDalDisegno(D.ril);
   D.punti = []; D.salti = []; D.tagli = false; D.taglio = null;
   if(!salva()) avvisa('Salvato solo per adesso: la memoria del telefono è piena.');
   else avvisa((eraModifica ? 'Ho aggiornato «' : 'Ho salvato «') + (z ? z.nome : '') + '»: ' + scriviMisura(z ? z.tipo : D.tipo, q) + '.');
@@ -3478,7 +3809,7 @@ function ridisegna(){
   if(D.casa){ ridisegnaCasa(); return; }
   const velo = document.getElementById('disegno'); if(!velo) return;
   const foto = document.getElementById('disegno-foto');
-  if(foto) foto.style.width = D.zoom === 1 ? '' : 'calc(min(100%, max(280px, 100vh - 260px)) * ' + D.zoom + ')';
+  misuraLaFoto();
   const svg = document.getElementById('disegno-svg');
   const largo = largoSulloSchermo(svg);
   const k = largo ? 1000 / largo : 2.4;
@@ -3564,6 +3895,7 @@ function apriParticelle(idSopralluogo){
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('disegno-aperto');
+  ascoltaLeDueDita(velo);
   addEventListener('keydown', tastoDisegno);
   velo.querySelector('#disegno-svg').addEventListener('click', toccoDisegno);
   ridisegna();
@@ -3585,7 +3917,7 @@ function toccoParticelle(e){
 function ridisegnaParticelle(){
   const svg = document.getElementById('disegno-svg'); if(!svg) return;
   const foto = document.getElementById('disegno-foto');
-  if(foto) foto.style.width = D.zoom === 1 ? '' : 'calc(min(100%, max(280px, 100vh - 260px)) * ' + D.zoom + ')';
+  misuraLaFoto();
   const largo = largoSulloSchermo(svg), k = largo ? 1000 / largo : 2.4;
   svg.innerHTML = D.semi.map((t, i) => {
     const q = sullaFoto(D.ril.angoli, t);
@@ -3703,6 +4035,7 @@ function apriSposta(idSopralluogo){
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('disegno-aperto');
+  ascoltaLeDueDita(velo);
   addEventListener('keydown', tastoDisegno);
   velo.querySelector('#disegno-svg').addEventListener('click', toccoDisegno);
   ridisegna();
@@ -3727,6 +4060,7 @@ function allargaCasa(verso){
 }
 function ridisegnaCasa(){
   const svg = document.getElementById('disegno-svg'); if(!svg) return;
+  misuraLaFoto();
   const a = D.angoli = riquadroCasa(D.centro, LATI_CASA[D.lato]);
   const foto = document.getElementById('casa-foto'), confini = document.getElementById('casa-confini');
   if(foto && foto.getAttribute('src') !== fotoCasa(a)) foto.setAttribute('src', fotoCasa(a));
@@ -3797,6 +4131,8 @@ function disegnaRilevate(id){
   const c = document.getElementById('rilevate'); if(!c) return;
   const lista = s._trovate || [];
   c.innerHTML = lista.map((x, i) => {
+    if(x.nuova) return `<button class="chip fuori-listino" style="cursor:pointer" onclick="schedaLavorazione('${id}',${i})"
+      title="Mettila a listino">+&nbsp; ${esc(x.nome)}${x.q ? ' · ' + x.q + ' ' + esc(unitaDetta(x.u)) : ''} · quanto la fai pagare?</button>`;
     const v = voce(x.voce);
     return `<button class="chip" style="cursor:pointer" onclick="schedaLavorazione('${id}',${i})"
       title="Cambia o togli">✓&nbsp; ${esc(v ? v.nome : x.voce)} · ${x.q} ${esc(v ? v.u : '')}${x.dubbio ? ' · controlla la quantità' : ''}</button>`;
@@ -4086,6 +4422,34 @@ const DUBBIO_NON = new Set(['so','saprei','sapre','ricordo','sono','sicuro','sic
 function rifiutata(tok){
   return tok.some((w, i) => NIENTE.has(w) && !(w === 'non' && DUBBIO_NON.has(tok[i + 1] || '')));
 }
+/* le parole che dicono "qui si sta parlando di un lavoro da fare": i verbi del
+   mestiere e tutte le parole dei concetti. Servono a distinguere una lavorazione
+   che non e' a listino ("rifacciamo il vialetto in ghiaia") dalle chiacchiere
+   ("allora, sopralluogo, il cliente diceva"). */
+const PAROLE_CONCETTO = (function(){
+  const p = new Set();
+  CONCETTI.forEach(c => { (c.chiavi || []).forEach(w => p.add(w)); (c.dette || []).forEach(w => p.add(w)); });
+  return [...p];
+})();
+function lavorazioneFuoriListino(tok){
+  const parole = tok.filter(w => numeroDetto(w) == null && CIRCA[w] == null && !UNITA_DOPO[w] &&
+    !RIEMPITIVI.has(w) && !ARTICOLI.has(w) && !PICCOLE.has(w) && w.length > 2);
+  if(parole.length < 1 || parole.length > 6) return null;
+  const numeri = numeriDetti(tok);
+  /* Due soli modi per dire "questo e' un lavoro, non una chiacchiera": o si nomina
+     una cosa del mestiere (le rose, la siepe, il concime), oppure si dice una misura
+     vera, con la sua unita'. Un verbo generico da solo non basta mai: "il giro lo
+     facciamo domani" e "gli diamo una sistemata" non sono lavorazioni da mettere a
+     listino, e chiederne il prezzo sarebbe peggio del silenzio di prima. */
+  const delMestiere = parole.some(w => PAROLE_CONCETTO.some(m => somiglia(w, m)));
+  const conMisura = numeri.some(n => n.u);
+  if(!delMestiere && !conMisura) return null;
+  if(parole.every(w => VERBI_GENERICI.has(w))) return null;
+  const misura = numeri.find(n => n.u) || numeri.find(n => n.u === null) || null;
+  const nome = parole.slice(0, 4).join(' ');
+  return {nuova:true, nome, detto: parole.slice(0, 5).join(' '),
+          q: misura ? misura.v : null, u: misura ? misura.u : null};
+}
 function capisci(testo, listino){
   const voci = listino.map(v => ({v, parole: paroleDellaVoce(v), frasi: frasiDellaVoce(v), tipo: tipoUnita(v.u)}));
   const haMisura = g => numeriDetti(g.tok).some(n => misuraDellaVoce(n, g.voce.tipo.k));
@@ -4114,6 +4478,15 @@ function capisci(testo, listino){
                 (ultimo.voce === p.voce && !(haMisura(ultimo) && haMisura(p))))){
         ultimo.voce = p.voce; ultimo.tok = ultimo.tok.concat(p.tok);
       } else gruppi.push({voce:p.voce, tok:p.tok.slice()});
+    });
+    /* Quello che ha detto e che a listino non c'e'. Prima spariva senza lasciare
+       traccia: l'artigiano lo diceva, non lo vedeva comparire, e pensava che l'app
+       non avesse capito. Adesso resta li', e gli si chiede il prezzo una volta sola:
+       dopo, quella lavorazione e' nel suo listino e la prossima volta si riconosce
+       da sola (Andrea, 17 settembre 2026, dopo la prova con Cafagna). */
+    gruppi.filter(g => !g.voce).forEach(g => {
+      const nuova = lavorazioneFuoriListino(g.tok);
+      if(nuova && !trovate.some(t => t.nuova && t.nome === nuova.nome)) trovate.push(nuova);
     });
     gruppi.filter(g => g.voce).forEach(g => {
       const numeri = numeriDetti(g.tok);
@@ -4702,8 +5075,152 @@ async function testoDalPdf(file){
   return righe.join('\n');
 }
 
-/* da un file qualunque al testo. Il PDF si legge; un file di testo si legge;
-   Word ed Excel no, e allora si chiede di incollare. Mai un errore tecnico. */
+/* ===== WORD, EXCEL E OPENOFFICE, LETTI DAVVERO =======================
+   Andrea, 17 settembre 2026: "trovami un modo per caricare i file su rilievo
+   senza pdf". Prima un .docx o un .xlsx venivano rifiutati e si diceva
+   all'artigiano di aprire il file e incollare le righe a mano: sul telefono
+   e' il gesto che fa mollare la gente, esattamente come per i PDF.
+
+   Un .docx, un .xlsx, un .odt e un .ods sono **cartelle compresse** con dentro
+   dei file XML. Quindi non serve nessuna libreria in piu': si apre lo zip a
+   mano e si legge l'XML. Lo zip si scompatta con `DecompressionStream`, che
+   il telefono ha gia' dentro (Chrome da anni, Safari dal 16.4).
+   L'app non cresce di un solo byte.
+
+   NON si leggono i formati vecchi `.doc` e `.xls` (Office 2003 e prima): non
+   sono zip, sono un formato binario chiuso. E nemmeno `.pages`/`.numbers`.
+   Per quelli resta la casella dove incollare, detta con parole sue.
+   ===================================================================== */
+const SEGNI_XML = {lt:'<', gt:'>', quot:'"', apos:"'", amp:'&', nbsp:' '};
+const segniXml = t => String(t).replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (tutto, s) => {
+  if(s[0] === '#'){
+    const n = (s[1] === 'x' || s[1] === 'X') ? parseInt(s.slice(2), 16) : parseInt(s.slice(1), 10);
+    return (isFinite(n) && n > 0 && n <= 0x10FFFF) ? String.fromCodePoint(n) : tutto;
+  }
+  return SEGNI_XML[s] != null ? SEGNI_XML[s] : tutto;
+});
+/* via le etichette, dentro il testo, e gli spazi di troppo in uno solo */
+const soloTesto = t => segniXml(String(t).replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
+
+/* apre una cartella compressa e tira fuori solo i pezzi che servono */
+async function dalloZip(dati, serve){
+  const b = new DataView(dati.buffer, dati.byteOffset, dati.byteLength);
+  const u16 = i => b.getUint16(i, true), u32 = i => b.getUint32(i, true);
+  /* la coda dello zip (PK\5\6) sta in fondo, al massimo 64 KB piu' su */
+  let coda = -1;
+  for(let i = dati.length - 22; i >= 0 && i > dati.length - 66000; i--)
+    if(u32(i) === 0x06054b50){ coda = i; break; }
+  if(coda < 0) throw new Error('non e una cartella compressa');
+  let quanti = u16(coda + 10), p = u32(coda + 16);
+  const fuori = {}, leggi = new TextDecoder();
+  for(let k = 0; k < quanti && p + 46 <= dati.length; k++){
+    if(u32(p) !== 0x02014b50) break;                         // PK\1\2: un pezzo dell'elenco
+    const metodo = u16(p + 10), quanto = u32(p + 20);
+    const lnome = u16(p + 28), lextra = u16(p + 30), lcom = u16(p + 32), dove = u32(p + 42);
+    const nome = leggi.decode(dati.subarray(p + 46, p + 46 + lnome));
+    p += 46 + lnome + lextra + lcom;
+    if(!serve(nome)) continue;
+    const ln2 = u16(dove + 26), le2 = u16(dove + 28), inizio = dove + 30 + ln2 + le2;
+    const pezzo = dati.subarray(inizio, inizio + quanto);
+    if(metodo === 0){ fuori[nome] = leggi.decode(pezzo); continue; }   // dentro senza comprimere
+    if(metodo !== 8) continue;                                         // un modo che non conosciamo
+    const flusso = new Blob([pezzo]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    fuori[nome] = leggi.decode(new Uint8Array(await new Response(flusso).arrayBuffer()));
+  }
+  return fuori;
+}
+
+/* Word: ogni paragrafo e' una riga; una riga di tabella e' una riga sola, con
+   le celle separate da spazi, cosi' "Sfalcio prato  350 mq  0,30  105,00"
+   arriva al lettore del listino come sta sul foglio. */
+function righeDaWord(xml){
+  const corpo = (xml.match(/<w:body[\s\S]*?<\/w:body>/) || [xml])[0];
+  const righe = [];
+  (corpo.match(/<w:tbl[ >][\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>|<w:p\/>/g) || []).forEach(bl => {
+    if(bl.indexOf('<w:tbl') === 0){
+      (bl.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || []).forEach(tr => {
+        const celle = (tr.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || [])
+          .map(c => soloTesto((c.match(/<w:t[^>]*>[\s\S]*?<\/w:t>/g) || []).join(' ')));
+        const r = celle.filter(Boolean).join('   ');
+        if(r) righe.push(r);
+      });
+    } else {
+      const r = soloTesto((bl.match(/<w:t[^>]*>[\s\S]*?<\/w:t>/g) || []).join(''));
+      if(r) righe.push(r);
+    }
+  });
+  return righe;
+}
+
+/* Excel: ogni riga del foglio e' una riga. Le parole possono stare nel foglio
+   (come le scrive un programma) oppure tutte insieme in un file a parte
+   (come le scrive Excel vero): si leggono in tutti e due i modi. */
+function righeDaExcel(dentro){
+  const parole = ((dentro['xl/sharedStrings.xml'] || '').match(/<si>[\s\S]*?<\/si>/g) || [])
+    .map(si => soloTesto((si.match(/<t[^>]*>[\s\S]*?<\/t>/g) || []).join('')));
+  const righe = [];
+  Object.keys(dentro).filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort().forEach(foglio => {
+    (dentro[foglio].match(/<row[ >][\s\S]*?<\/row>/g) || []).forEach(r => {
+      const celle = (r.match(/<c[ >][\s\S]*?<\/c>|<c[^>]*\/>/g) || []).map(c => {
+        const tipo = (c.match(/\st="([^"]+)"/) || [])[1];
+        if(tipo === 'inlineStr') return soloTesto((c.match(/<t[^>]*>[\s\S]*?<\/t>/g) || []).join(''));
+        const v = (c.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        if(v == null) return '';
+        if(tipo === 's'){ const i = Number(v); return parole[i] != null ? parole[i] : ''; }
+        /* Excel scrive i numeri col punto: qui i prezzi si scrivono con la virgola */
+        return /^-?\d+\.\d+$/.test(v) ? v.replace('.', ',') : String(v);
+      });
+      const riga = celle.map(x => String(x).trim()).filter(Boolean).join('   ');
+      if(riga) righe.push(riga);
+    });
+  });
+  return righe;
+}
+
+/* OpenOffice e LibreOffice (.odt, .ods): tutto in content.xml */
+function righeDaOpenOffice(xml){
+  const righe = [];
+  const pezzi = xml.match(/<table:table-row[ >][\s\S]*?<\/table:table-row>|<text:p[ >][\s\S]*?<\/text:p>|<text:p\/>/g) || [];
+  pezzi.forEach(bl => {
+    if(bl.indexOf('<table:table-row') === 0){
+      const celle = (bl.match(/<table:table-cell[ >][\s\S]*?<\/table:table-cell>|<table:table-cell[^>]*\/>/g) || [])
+        .map(soloTesto);
+      const r = celle.filter(Boolean).join('   ');
+      if(r) righe.push(r);
+    } else { const r = soloTesto(bl); if(r) righe.push(r); }
+  });
+  return righe;
+}
+
+/* il testo dentro un file di Word, Excel o OpenOffice */
+async function testoDaUfficio(file, nome){
+  const dati = new Uint8Array(await file.arrayBuffer());
+  if(/\.docx$/.test(nome)){
+    const d = await dalloZip(dati, n => n === 'word/document.xml');
+    return righeDaWord(d['word/document.xml'] || '').join('\n');
+  }
+  if(/\.xlsx$/.test(nome)){
+    const d = await dalloZip(dati, n => /^xl\/(sharedStrings\.xml|worksheets\/sheet\d+\.xml)$/.test(n));
+    return righeDaExcel(d).join('\n');
+  }
+  const d = await dalloZip(dati, n => n === 'content.xml');       // .odt e .ods
+  return righeDaOpenOffice(d['content.xml'] || '').join('\n');
+}
+
+/* di un documento gia' nel cassetto: lo so leggere da solo?
+   Si guarda prima il nome, perche' dal telefono il tipo a volte arriva vuoto
+   o sbagliato. I formati vecchi di Office (.doc, .xls) restano fuori. */
+function siLegge(f){
+  const nome = String((f && f.nome) || '').toLowerCase();
+  const tipo = String((f && f.tipo) || '').toLowerCase();
+  if(/\.(pdf|docx|xlsx|odt|ods|txt|csv|md|rtf)$/.test(nome)) return true;
+  if(/\.(doc|xls|pages|numbers|jpe?g|png|webp|heic)$/.test(nome)) return false;
+  return /pdf|text|csv|wordprocessing|spreadsheet|opendocument/i.test(tipo);
+}
+
+/* da un file qualunque al testo. Si leggono davvero: PDF, Word, Excel,
+   OpenOffice e i file di testo. I formati vecchi di Office e quelli di Apple
+   no, e allora si chiede di incollare. Mai un errore tecnico. */
 async function testoDalFile(file){
   const nome = (file && file.name ? file.name : '').toLowerCase();
   const tipo = (file && file.type) || '';
@@ -4716,7 +5233,16 @@ async function testoDalFile(file){
     const t = await file.text();
     return {testo: /\.rtf$/.test(nome) ? t.replace(/\\[a-z]+\d* ?/g, ' ').replace(/[{}]/g, ' ') : t};
   }
-  if(/\.(doc|docx|odt|xls|xlsx|ods|pages|numbers)$/.test(nome)) return {testo:'', motivo:'ufficio'};
+  if(/\.(docx|xlsx|odt|ods)$/.test(nome)){
+    /* se il telefono e' troppo vecchio per scompattare, si torna alla casella */
+    if(typeof DecompressionStream !== 'function') return {testo:'', motivo:'ufficio'};
+    try{
+      const t = await testoDaUfficio(file, nome);
+      if(!t.trim()) return {testo:'', motivo:'vuoto'};
+      return {testo:t};
+    }catch(e){ return {testo:'', motivo:'ufficio'}; }
+  }
+  if(/\.(doc|xls|pages|numbers)$/.test(nome)) return {testo:'', motivo:'ufficio-vecchio'};
   if(/^image\//.test(tipo) || /\.(jpg|jpeg|png|heic|webp)$/.test(nome)) return {testo:'', motivo:'foto'};
   return {testo:'', motivo:'sconosciuto'};
 }
@@ -4733,19 +5259,20 @@ let VOCI_TROVATE = null;                       /* quello che si sta guardando ad
 function apriListinoDaVecchi(idDoc){
   chiudiScheda();
   VOCI_TROVATE = null;
-  const vecchi = S.documenti.filter(d => fileBuono(d.file) && /pdf|text|csv/i.test(d.file.tipo || '') )
+  const vecchi = S.documenti.filter(d => fileBuono(d.file) && siLegge(d.file))
     .slice(0, 12);
   finestraListino(`
     <div class="sopra">
       <h3>Il tuo listino dai preventivi di prima</h3>
       <p style="color:var(--tenue);font-size:15.5px">Prendo un preventivo che hai già fatto, leggo le righe e ti propongo le
-        lavorazioni col prezzo. Tu scegli quali tenere. Dove c'è scritto solo il totale della riga, il prezzo per unità lo ricavo io.</p>
+        lavorazioni col prezzo. Tu scegli quali tenere. Dove c'è scritto solo il totale della riga, il prezzo per unità lo ricavo io.
+        Va bene un PDF, un Word, un Excel: li apro io, non devi copiare niente a mano.</p>
     </div>
     <div class="form" id="listino-passo1">
       <div class="riga-azione" style="gap:10px;flex-wrap:wrap">
         <button class="bottone" onclick="document.getElementById('scelta-preventivo-vecchio').click()">Scegli un preventivo dal telefono</button>
         <input type="file" id="scelta-preventivo-vecchio" style="display:none"
-          accept=".pdf,.txt,.csv,.rtf,application/pdf,text/plain,text/csv" onchange="leggiPreventivoScelto(this)">
+          accept=".pdf,.docx,.xlsx,.odt,.ods,.txt,.csv,.rtf,application/pdf,text/plain,text/csv" onchange="leggiPreventivoScelto(this)">
       </div>
       ${vecchi.length ? `<div style="margin-top:20px">
         <div class="lbl">Oppure uno di quelli già nel cassetto</div>
@@ -4757,7 +5284,7 @@ function apriListinoDaVecchi(idDoc){
       </div>` : ''}
       <div style="margin-top:22px">
         <div class="lbl">Oppure incolla qui il testo</div>
-        <p style="font-size:15px;color:var(--tenue);margin:6px 0 8px">Da Word, da Excel o da una mail: seleziona le righe del preventivo e incollale qui.</p>
+        <p style="font-size:15px;color:var(--tenue);margin:6px 0 8px">Serve per una mail, un messaggio, o un preventivo vecchio di quelli che non riesco ad aprire: seleziona le righe e incollale qui.</p>
         <textarea class="campo" id="listino-incollato" rows="5" placeholder="Sfalcio prato 350 mq 105,00
 Potatura siepe 40 ml 9,00 360,00"></textarea>
         <div class="riga-azione" style="margin-top:10px"><button class="bottone vuoto piccolo" onclick="leggiTestoIncollato()">Leggi il testo</button></div>
@@ -4809,9 +5336,11 @@ async function leggiEProponi(file){
   if(!esito.testo.trim()){
     /* i casi veri si dicono chiari, non si fanno passare per un guasto */
     if(esito.motivo === 'scansione') avvisa('Questo preventivo è una scansione o una foto: dentro non c\'è testo da leggere. Riscrivi le righe nella casella qui sotto, oppure carica il file originale.');
-    else if(esito.motivo === 'ufficio') avvisa('Word ed Excel non li so aprire da solo. Apri il file, copia le righe del preventivo e incollale nella casella qui sotto.');
-    else if(esito.motivo === 'foto') avvisa('Questa è una foto: dentro non c\'è testo da leggere. Copia le righe a mano nella casella qui sotto.');
-    else avvisa('Questo file non so leggerlo. Vanno bene i PDF e il testo incollato.');
+    else if(esito.motivo === 'ufficio-vecchio') avvisa('Questo è un file di Office vecchio (.doc o .xls) e non lo so aprire. Riaprilo col tuo programma e salvalo come .docx, .xlsx o PDF: quelli li leggo. Oppure copia le righe e incollale qui sotto.');
+    else if(esito.motivo === 'ufficio') avvisa('Questo file di Word o Excel non sono riuscito ad aprirlo. Apri il file, copia le righe del preventivo e incollale nella casella qui sotto.');
+    else if(esito.motivo === 'vuoto') avvisa('Ho aperto il file ma dentro non ci ho trovato scritto niente. Controlla che sia il preventivo giusto, oppure incolla le righe qui sotto.');
+    else if(esito.motivo === 'foto') avvisa('Questa è una foto: dentro non c\'è testo da leggere. Sul telefono puoi selezionare il testo dalla foto e incollarlo qui sotto.');
+    else avvisa('Questo file non so leggerlo. Vanno bene PDF, Word, Excel, OpenOffice e il testo incollato.');
     return;
   }
   proponiVoci(leggiRigheListino(esito.testo), 'Da ' + (file.name || 'un preventivo vecchio'));
@@ -5298,9 +5827,9 @@ PAGINE.documento = {
         <tbody>
           ${righe.map(r => `<tr>
             <td>${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}</div></td>
-            <td class="n">${cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
-            <td class="n">${euro(r.p)}</td>
-            <td class="n">${euro(importoRiga(r))}</td>
+            <td class="n" data-l="Quantità">${cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
+            <td class="n" data-l="Prezzo">${euro(r.p)}</td>
+            <td class="n" data-l="Importo">${euro(importoRiga(r))}</td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -5530,9 +6059,22 @@ async function pdfPreventivo(id){
     const d = f.contentDocument;
     const stili = [...document.querySelectorAll('style')].map(s => s.outerHTML).join('');
     d.open();
+    /* sulla carta il corpo del testo va portato a dodici punti: il preventivo lo
+       legge il cliente, spesso dal telefono e spesso con gli occhi di chi ha
+       sessant'anni. I 16,5 px dello schermo, ridotti da 920 a un A4, diventavano
+       dieci punti scarsi in grigio chiaro (Cafagna, 17 settembre 2026). */
     d.write('<!doctype html><html lang="it"><head><meta charset="utf-8">' + stili +
       '<style>html,body{background:#fff;margin:0}.foglio{background:#fff!important;border:0!important;box-shadow:none!important;' +
-      'margin:0!important;max-width:none!important;padding:46px 50px!important}</style></head><body>' +
+      'margin:0!important;max-width:none!important;padding:44px 48px!important}' +
+      '.foglio table td{font-size:19px;padding-top:15px;padding-bottom:15px}' +
+      '.foglio table td.n{font-size:22px}' +
+      '.foglio table th{font-size:11px;letter-spacing:.14em;color:#5A554C}' +
+      '.foglio .sub-doc{font-size:15px;color:#5A554C}' +
+      '.foglio .lbl{font-size:11px;letter-spacing:.14em;color:#5A554C}' +
+      '.foglio .dati{font-size:16.5px;color:#4A463F}' +
+      '.foglio .condizioni-doc p{font-size:18px;line-height:1.65}' +
+      '.foglio .piede{font-size:15.5px;color:#5A554C}' +
+      '.foglio .firma-nome,.foglio .firma-data{font-size:16px}</style></head><body>' +
       PAGINE.documento.corpo(id) + '</body></html>');
     d.close();
     void d.body.offsetHeight;
