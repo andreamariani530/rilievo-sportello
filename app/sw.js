@@ -12,16 +12,29 @@
  * VERSIONE la scrive costruisci.py: cambia quando cambia l'app, e il telefono si
  * accorge da solo che c'e' una copia nuova da tenere.
  */
-const VERSIONE = '31195fdf0968';
+const VERSIONE = '15ae7f25820e';
 const CASSETTO = 'rilievo-app';
 const FILE = ['./', 'manifest.webmanifest', 'icona-192.png', 'icona-512.png', 'icona-180.png'];
 
+/* se il cassetto c'e' gia', questa non e' la prima installazione: c'era una copia
+   vecchia aperta, e chi la sta guardando va avvisato che ne e' arrivata una nuova */
+let eraGiaQui = false;
+
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CASSETTO).then(c => c.addAll(FILE)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.has(CASSETTO)
+    .then(c => { eraGiaQui = c; return caches.open(CASSETTO); })
+    .then(c => c.addAll(FILE))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(self.clients.claim().then(() => {
+    if(!eraGiaQui) return;
+    /* la pagina aperta e' quella di prima: glielo diciamo, e ricarica solo se
+       la persona tocca "Aggiorna". Mai da soli: potrebbe star dettando. */
+    return self.clients.matchAll({type:'window'})
+      .then(f => f.forEach(c => c.postMessage({rilievo:'versione-nuova', versione:VERSIONE})));
+  }));
 });
 
 self.addEventListener('fetch', e => {
