@@ -35,6 +35,11 @@ from PIL import Image, ImageDraw, ImageFilter
 QUI          = pathlib.Path(__file__).parent
 CARTELLA     = QUI / "rilievi"
 NOMINATIM    = "https://nominatim.openstreetmap.org/search"
+# Photon legge gli stessi dati di OpenStreetMap ma non chiude la porta a chi chiama
+# da un server in cloud. Il 19 settembre 2026 "Via del Borgo 13, Longana" si trovava
+# da qui e non si trovava da Render: la via e' scritta "Via del Borgo Longana" e solo
+# OpenStreetMap la conosce. Serve una seconda porta per gli stessi dati.
+PHOTON       = "https://photon.komoot.io/api/"
 INDIRIZZI_ESRI = ("https://geocode.arcgis.com/arcgis/rest/services/World/"
                   "GeocodeServer/findAddressCandidates")
 CATASTO      = "https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php"
@@ -73,9 +78,18 @@ def prendi(url, dati=None, tentativi=3, attesa=1.5, tempo=60):
 
 # ------------------------------------------------- dall'indirizzo al punto
 
-# i tipi di risultato di OpenStreetMap che sono una casa. Non "place": e' il nome di
-# una localita' o di una cascina, un punto che puo' stare lontano dalla casa.
-CASE_OSM = ("house", "building", "yes")
+# i tipi di risultato di OpenStreetMap che sono una casa. Non una localita' o una
+# cascina, che sono un punto che puo' stare lontano dalla casa.
+CASE_OSM = ("house", "building", "yes", "residential", "apartments", "detached")
+
+
+def _e_casa_osm(t):
+    """OpenStreetMap chiama "place" il tipo generale di un civico e "house" quello
+    preciso: guardarne uno solo faceva perdere il civico giusto. Il 19 settembre 2026
+    Via del Borgo 13 a Longana tornava col numero civico giusto e non veniva mai
+    considerata "precisa", perche' il suo addresstype e' "place"."""
+    return (t.get("type") in CASE_OSM or t.get("addresstype") in CASE_OSM
+            or t.get("class") == "building")
 
 
 def civico_scritto(indirizzo):
@@ -163,6 +177,132 @@ def _punto_da_esri(indirizzo, civico):
     return None, vicino
 
 
+def _da_photon(domanda, quanti=8, intorno=None):
+    """Photon, gli stessi dati di OpenStreetMap ma senza la porta chiusa ai server.
+    None se non risponde; lista (anche vuota) se risponde."""
+    dati = {"q": domanda, "limit": quanti, "lang": "it"}
+    if intorno:
+        dati["lat"], dati["lon"] = "%.5f" % intorno[0], "%.5f" % intorno[1]
+    try:
+        d = json.loads(prendi(PHOTON, dati, tentativi=1, tempo=12).decode("utf-8"))
+    except Exception:                                   # noqa: BLE001
+        return None
+    trovati = []
+    for x in d.get("features", []):
+        a = x.get("properties", {}) or {}
+        if (a.get("countrycode") or "IT") != "IT":
+            continue
+        try:
+            lon, lat = (float(v) for v in x["geometry"]["coordinates"][:2])
+        except Exception:                               # noqa: BLE001
+            continue
+        strada = a.get("street") or a.get("name") or ""
+        comune = a.get("city") or a.get("county") or ""
+        scritto = ", ".join(x for x in [
+            (strada + " " + (a.get("housenumber") or "")).strip(),
+            a.get("district") or "", comune, a.get("postcode") or ""] if x)
+        trovati.append({
+            "lat": lat, "lon": lon,
+            "indirizzo": scritto or (a.get("name") or ""),
+            "comune_nome": comune,
+            "provincia": a.get("county") or "",
+            "civico_trovato": str(a.get("housenumber") or ""),
+            "strada": strada,
+            "posto_vicino": a.get("district") or a.get("locality") or "",
+            "cap": str(a.get("postcode") or ""),
+            "casa": a.get("osm_value") in ("house", "residential", "building", "yes")
+                    or bool(a.get("housenumber")),
+        })
+    return trovati
+
+
+def _via_da_photon(via, posto, civico, cap=""):
+    """La via cercata su Photon, ma tenuta solo se cade nel posto scritto.
+    Serve dove Esri non arriva: le vie delle frazioni piccole ci sono solo in
+    OpenStreetMap, e spesso scritte per esteso ("Via del Borgo Longana")."""
+    lat, lon = posto["dove"]
+    nomi = {_pulito(posto["comune"])}
+    trovati = _da_photon(via + ", " + posto["comune"] + ((" " + cap) if cap else ""),
+                         8, (lat, lon))
+    if not trovati:
+        return None
+    esatto = vicino = strada = None
+    for p in trovati:
+        if _distanza_km((p["lat"], p["lon"]), (lat, lon)) > 12:
+            continue
+        dove = {_pulito(p["comune_nome"]), _pulito(p["posto_vicino"])}
+        if not (nomi & dove):
+            continue
+        if not _stessa_strada(via, p.get("strada") or p["indirizzo"]):
+            continue
+        if cap and p.get("cap") and p["cap"] != cap:
+            continue
+        pulito = {k: v for k, v in p.items()
+                  if k not in ("strada", "posto_vicino", "cap", "casa")}
+        pulito["comune_nome"] = posto["comune"]
+        pulito["provincia"] = posto["provincia"] or p.get("provincia", "")
+        if p["civico_trovato"] and _stesso_civico(civico, p["civico_trovato"]):
+            esatto = esatto or dict(pulito, preciso=True)
+        elif p["civico_trovato"]:
+            vicino = vicino or dict(pulito, preciso=False)
+        else:
+            strada = strada or dict(pulito, preciso=False, civico_trovato="")
+    return esatto or vicino or strada
+
+
+def suggerimenti_indirizzo(indirizzo, cap="", quanti=6):
+    """Gli indirizzi possibili per quello che e' stato scritto, da tutte le porte
+    che abbiamo, da far scegliere a mano.
+
+    E' la via d'uscita quando l'indirizzo scritto non si trova o cade nel posto
+    sbagliato: invece di un errore e basta, si mettono in fila i posti veri che
+    somigliano a quello che ha scritto, e lui tocca quello giusto."""
+    via, nomi, sigla, cap_scritto = _pezzi_indirizzo(indirizzo)
+    cap = (cap or cap_scritto or "").strip()
+    scritta = ", ".join([via] + nomi) if via else (indirizzo or "")
+    domanda = (scritta + (" " + cap if cap else "") + (" " + sigla if sigla else "")).strip()
+    civico = civico_scritto(via)
+    fuori = []
+
+    def aggiungi(p, fonte):
+        if not p or not p.get("lat"):
+            return
+        for g in fuori:
+            if _distanza_km((g["lat"], g["lon"]), (p["lat"], p["lon"])) < 0.025:
+                return
+        testo = " ".join((p.get("indirizzo") or "").split())
+        if not testo:
+            return
+        fuori.append({
+            "testo": testo[:160],
+            "lat": round(float(p["lat"]), 7), "lon": round(float(p["lon"]), 7),
+            "comune": p.get("comune_nome") or "", "provincia": p.get("provincia") or "",
+            "civico": str(p.get("civico_trovato") or ""),
+            "cap": str(p.get("cap") or ""),
+            "fonte": fonte,
+            "preciso": bool(civico and _stesso_civico(civico, p.get("civico_trovato"))),
+        })
+
+    for c in _chiedi_a_esri({"SingleLine": domanda,
+                             "category": "Point Address,Subaddress,Street Address,Street Name"},
+                            8) or []:
+        if c.get("score", 0) >= 70:
+            aggiungi(_punto_esri(c), "Esri")
+    for p in _da_photon(domanda, 8) or []:
+        aggiungi(p, "OpenStreetMap")
+    if len(fuori) < quanti:
+        try:
+            for x in json.loads(prendi(NOMINATIM, {
+                    "q": domanda, "format": "jsonv2", "limit": 8,
+                    "countrycodes": "it", "addressdetails": 1}, tentativi=1, tempo=12).decode("utf-8")):
+                aggiungi(_punto_da_osm(x, False), "OpenStreetMap")
+        except Exception:                               # noqa: BLE001
+            pass
+    # prima il civico scritto, poi chi almeno un civico ce l'ha
+    fuori.sort(key=lambda s: (0 if s["preciso"] else 1, 0 if s["civico"] else 1))
+    return fuori[:quanti]
+
+
 def _punto_da_osm(t, preciso):
     a = t.get("address", {})
     comune = (a.get("village") or a.get("town") or a.get("city")
@@ -238,36 +378,62 @@ def _stessa_strada(scritta, trovata):
     return bool(a and b) and (a <= b or b <= a)
 
 
-def leggi_indirizzo(indirizzo):
-    """"Via Dante 10, 20121 Milano (MI)" -> ("Via Dante 10", "Milano", "MI").
-    Il posto e' l'ultimo pezzo dopo la virgola, senza CAP, sigla e "Italia". Senza
-    virgole si prova a staccarlo dopo il civico: "Via Roma 5 Milano". "" se non c'e'."""
+def _pezzi_indirizzo(indirizzo):
+    """Spacchetta l'indirizzo scritto a mano: via, posti, sigla, CAP.
+
+    I posti sono tutti i nomi scritti dopo la via, **dal piu' piccolo al piu'
+    grande**: "Via del Borgo 13, Longana, Ravenna" -> ["Longana", "Ravenna"].
+    Prima si teneva solo l'ultimo, e la frazione (che e' proprio il pezzo che dice
+    dove si e') andava persa: si cercava Via del Borgo in tutto il comune di
+    Ravenna e usciva un'altra via (Andrea, 19 settembre 2026).
+
+    "Longana(Ravenna)" scritto attaccato sono due posti, non uno solo."""
     pezzi = [p.strip() for p in re.split(r"[,;\n]", indirizzo or "") if p.strip()]
     pezzi = [p for p in pezzi if _pulito(p) not in ("italia", "italy")]
     if not pezzi:
-        return "", "", ""
+        return "", [], "", ""
     if len(pezzi) == 1:
         m = re.match(r"^(.*\d{1,4}(?:\s*/\s*[a-z]{1,3}|\s+(?:bis|ter))?)\s+(?:a\s+|in\s+)?([^\d\s/].*)$",
                      pezzi[0], re.I)
         if not m:
-            return pezzi[0], "", ""
+            return pezzi[0], [], "", ""
         pezzi = [m.group(1), m.group(2)]
     via = pezzi[0]
     if len(pezzi) >= 3 and re.fullmatch(r"\d{1,4}\s*(?:/\s*[a-z]{1,3}|bis|ter)?", pezzi[1], re.I):
         via, pezzi = via + " " + pezzi[1], [via] + pezzi[2:]
-    sigla, posto = "", ""
-    for p in reversed(pezzi[1:]):
-        m = re.search(r"\s*\(?\b([A-Z]{2})\)?\s*$", p)
+    aperti = []
+    for p in pezzi[1:]:
+        m = re.match(r"^(.*?)\s*\(([^)]*)\)\s*$", p)
+        if m:
+            if m.group(1).strip():
+                aperti.append(m.group(1).strip())
+            if m.group(2).strip():
+                aperti.append(m.group(2).strip())
+        else:
+            aperti.append(p)
+    sigla, cap, posti = "", "", []
+    for p in aperti:
+        m = re.search(r"\b(\d{5})\b", p)
+        if m:
+            cap = cap or m.group(1)
+            p = " ".join(re.sub(r"\b\d{5}\b", " ", p).split())
+        if re.fullmatch(r"[A-Z]{2}", p.strip()):
+            sigla = sigla or p.strip()
+            continue
+        m = re.search(r"\s*\b([A-Z]{2})\s*$", p)
         if m and m.start() > 0:
             sigla, p = sigla or m.group(1), p[:m.start()]
-        elif re.fullmatch(r"\(?[A-Z]{2}\)?", p.strip()):
-            sigla = sigla or p.strip("() ")
-            continue
-        p = " ".join(re.sub(r"\b\d{5}\b", " ", p).split())
+        p = p.strip()
         if p:
-            posto = p
-            break
-    return via, posto, sigla
+            posti.append(p)
+    return via, posti, sigla, cap
+
+
+def leggi_indirizzo(indirizzo):
+    """"Via Dante 10, 20121 Milano (MI)" -> ("Via Dante 10", "Milano", "MI").
+    Il posto e' il piu' grande dei nomi scritti dopo la via, cioe' l'ultimo."""
+    via, posti, sigla, _cap = _pezzi_indirizzo(indirizzo)
+    return via, (posti[-1] if posti else ""), sigla
 
 
 def _distanza_km(a, b):
@@ -276,13 +442,15 @@ def _distanza_km(a, b):
     return math.hypot(dx, dy)
 
 
-def _posti(posto, sigla=""):
+def _posti(posto, sigla="", cap=""):
     """Dove sta il posto scritto: comuni con quel nome, e frazioni con quel nome
-    (Quartiano -> Mulazzano). Prima i comuni, poi le frazioni. None se Esri non risponde."""
-    cand = _chiedi_a_esri({"SingleLine": (posto + " " + sigla).strip(),
+    (Quartiano -> Mulazzano). Prima i comuni, poi le frazioni. None se Esri non risponde.
+    Col CAP scritto la domanda e' piu' stretta, e un omonimo lontano non entra."""
+    cand = _chiedi_a_esri({"SingleLine": " ".join(x for x in (posto, sigla, cap) if x).strip(),
                            "category": "City,Neighborhood,Postal,Populated Place"}, 10)
     if cand is None:
         return None
+    solo_cap = bool(cap) and _pulito(posto) == _pulito(cap)
     voluto, trovati = _pulito(posto), []
     for c in cand:
         a = c.get("attributes", {})
@@ -290,7 +458,10 @@ def _posti(posto, sigla=""):
         if a.get("Addr_type") not in ("Locality", "PostalLoc") or not comune:
             continue
         primo = _pulito((a.get("Match_addr") or "").split(",")[0])
-        if _pulito(comune) == voluto:
+        if solo_cap:
+            # il posto e' il CAP: vale il comune che il CAP indica
+            tipo = 0
+        elif _pulito(comune) == voluto:
             tipo = 0
         elif primo == voluto:
             tipo = 1
@@ -353,35 +524,51 @@ def _via_da_osm(via, posto, civico, scritto):
             continue
         buoni.append(t)
     for t in buoni:
-        if (t.get("addresstype") in CASE_OSM
+        if (_e_casa_osm(t)
                 and _stesso_civico(civico, t.get("address", {}).get("house_number"))):
             return dict(_punto_da_osm(t, True), comune_nome=posto["comune"], provincia=posto["provincia"])
     if buoni:
-        buoni.sort(key=lambda t: 0 if t.get("addresstype") in CASE_OSM else 1)
+        buoni.sort(key=lambda t: 0 if _e_casa_osm(t) else 1)
         return dict(_punto_da_osm(buoni[0], False), comune_nome=posto["comune"], provincia=posto["provincia"])
     return None
 
 
-def punto_dall_indirizzo(indirizzo):
+def punto_dall_indirizzo(indirizzo, cap=""):
     """Indirizzo scritto a mano -> latitudine, longitudine, indirizzo per esteso.
+
+    Il CAP e' facoltativo: se c'e', restringe la ricerca del posto. Serve per le
+    frazioni piccole, dove lo stesso nome di via torna in mezzo comune.
 
     "preciso" vuol dire una cosa sola: e' stato trovato proprio il civico scritto,
     nel comune scritto. Una casa qualunque della via, una localita', un civico diverso,
     un comune che non si e' potuto controllare: non e' preciso, e l'applicazione avvisa
     di controllare la particella."""
-    via, posto, sigla = leggi_indirizzo(indirizzo)
+    via, nomi, sigla, cap_scritto = _pezzi_indirizzo(indirizzo)
+    cap = (cap or cap_scritto or "").strip()
     civico = civico_scritto(via)
-    posti = _posti(posto, sigla) if posto else None
-    trovati = []
-    for p in (posti or [])[:3]:
-        # un posto lontano da quello dove si e' gia' trovato qualcosa e' un omonimo: basta
-        if trovati and _distanza_km(p["dove"], trovati[0][0]["dove"]) > 5:
-            break
-        t = _via_nel_posto(via, p, civico) or _via_da_osm(via, p, civico, posto)
-        if t:
-            trovati.append((p, t))
-            if t["preciso"]:
+    # i nomi si provano dal piu' piccolo al piu' grande: prima la frazione scritta
+    # (Longana), e solo se li' la via non c'e' il comune intero (Ravenna). Col CAP
+    # e senza nessun nome, il posto lo dice il CAP.
+    if not nomi and cap:
+        nomi = [cap]
+    posto, posti, trovati = "", None, []
+    for nome in nomi[:2]:
+        posto = nome
+        posti = _posti(nome, sigla, cap)
+        trovati = []
+        for p in (posti or [])[:3]:
+            # un posto lontano da quello dove si e' gia' trovato qualcosa e' un omonimo: basta
+            if trovati and _distanza_km(p["dove"], trovati[0][0]["dove"]) > 5:
                 break
+            t = (_via_nel_posto(via, p, civico)
+                 or _via_da_photon(via, p, civico, cap)
+                 or _via_da_osm(via, p, civico, nome))
+            if t:
+                trovati.append((p, t))
+                if t["preciso"]:
+                    break
+        if trovati:
+            break
     if trovati:
         # Esri a volte chiama "comune" anche una frazione (Quartiano, che e' di Mulazzano):
         # fra i posti nello stesso punto vince il risultato migliore. Prima il civico
@@ -405,8 +592,8 @@ def punto_dall_indirizzo(indirizzo):
         via_sola = re.sub(r"\s\d{1,4}\s*(?:/\s*[a-z]{1,3}|\s(?:bis|ter))?$", "", via.strip(), flags=re.I)
         p = posti[0]
         raise IndirizzoNonTrovato(
-            "%s a %s%s non si trova sulla mappa. Controlla come è scritta la via; "
-            "se è giusta, scrivi le misure a mano."
+            "%s a %s%s non si trova sulla mappa. Guarda se è uno di questi indirizzi, "
+            "oppure scrivi le misure a mano."
             % (via_sola, p["comune"], " (%s)" % p["provincia"] if p["provincia"] else ""))
     # il comune non e' scritto, o non si riconosce: la ricerca di prima, ma mai "preciso"
     trovato = _punto_senza_comune(indirizzo, civico)
@@ -435,14 +622,14 @@ def _punto_senza_comune(indirizzo, civico):
             return vicino
         raise RuntimeError("Questo indirizzo non si trova sulla mappa: %s" % indirizzo)
     for t in trovati:
-        if (t.get("addresstype") in CASE_OSM
+        if (_e_casa_osm(t)
                 and _stesso_civico(civico, t.get("address", {}).get("house_number"))):
             return _punto_da_osm(t, True)
     # niente civico giusto: meglio una casa vera della via (Esri) che il centro della via
     if vicino:
         return vicino
     # meglio una casa che una via intera: la via è una riga, la casa è un punto
-    trovati.sort(key=lambda t: 0 if t.get("addresstype") in CASE_OSM else 1)
+    trovati.sort(key=lambda t: 0 if _e_casa_osm(t) else 1)
     return _punto_da_osm(trovati[0], False)
 
 
@@ -934,6 +1121,10 @@ def misura(semi, riquadri, lati=None, lato_m=None):
     disegno = componi(foto, mappa, dentro, lati)
     return {
         "tocca_il_bordo": tocca_il_bordo,
+        # la foto pulita e il confine come punti: servono per ricalcare il lotto
+        # e spostarlo finche' non sta sul giardino vero
+        "foto_pulita": foto,
+        "contorno": contorno_punti(dentro, lati),
         "lotto_mq": int(round(lotto_mq)),
         "coperto_mq": int(round(coperto_mq)),
         "scoperto_mq": int(round(scoperto_mq)),
@@ -960,6 +1151,114 @@ def _contorno(maschera, lati, spessore=5):
     return Image.frombytes("L", (lati, lati),
                            bytes(255 if a and not b else 0
                                  for a, b in zip(fuori.tobytes(), dentro.tobytes())))
+
+
+# ------------------------------------------------- il confine come linea di punti
+#
+# Il confine del catasto disegnato sulla foto non combacia mai al pixel: le foto
+# dall'alto hanno qualche metro di scarto e i tetti "cadono" di lato, perche'
+# l'aereo non era a piombo sulla casa (Andrea, 19 settembre 2026: "il catasto
+# matcha molto male sull'immagine satellitare"). Percio' il confine non serve solo
+# come disegno: serve come **punti spostabili**. L'applicazione lo ricalca, lui lo
+# trascina finche' non sta sul giardino vero, e i metri quadri li conta da li'.
+
+def _macchia_piu_grande(dentro, lati):
+    """La macchia piu' grande, fra quelle che ci sono: il lotto vero. Senza questo
+    si partiva dal primo pixel acceso in alto a sinistra, che puo' essere un
+    pezzetto staccato di muro, e il giro del contorno finiva subito."""
+    visti = bytearray(lati * lati)
+    grande, quanti_grande = None, 0
+    for i, b in enumerate(dentro):
+        if not b or visti[i]:
+            continue
+        macchia, quanti, _est = _riempi(dentro, lati, [(i % lati, i // lati)])
+        visti = bytearray(v | m for v, m in zip(visti, macchia))
+        if quanti > quanti_grande:
+            grande, quanti_grande = macchia, quanti
+    return grande, quanti_grande
+
+
+def _traccia_bordo(dentro, lati, partenza=None, quanti=0):
+    """Il giro del contorno della macchia, pixel per pixel (Moore, in senso orario)."""
+    if partenza is None:
+        for i, b in enumerate(dentro):
+            if b:
+                partenza = (i % lati, i // lati)
+                break
+    if not partenza:
+        return []
+    pieno = lambda x, y: 0 <= x < lati and 0 <= y < lati and dentro[y * lati + x]
+    intorno = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+    giro = [partenza]
+    qui, verso = partenza, 0          # si arriva da sinistra: il primo pieno della riga
+    for _ in range(4 * (quanti or lati * lati) + 16):
+        trovato = False
+        for k in range(8):
+            d = (verso + 5 + k) % 8   # si riparte da chi sta dietro, girando in tondo
+            dx, dy = intorno[d]
+            if pieno(qui[0] + dx, qui[1] + dy):
+                qui, verso, trovato = (qui[0] + dx, qui[1] + dy), d, True
+                break
+        if not trovato:
+            break
+        if qui == partenza and len(giro) > 2:
+            break
+        giro.append(qui)
+    return giro
+
+
+def _semplifica(punti, tolleranza):
+    """Douglas-Peucker: la stessa linea con molti meno punti."""
+    if len(punti) < 3:
+        return list(punti)
+    a, b = punti[0], punti[-1]
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    l2 = dx * dx + dy * dy
+    lontano, quale = -1.0, 0
+    for i in range(1, len(punti) - 1):
+        p = punti[i]
+        if l2:
+            s = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2))
+            d = math.hypot(p[0] - (a[0] + s * dx), p[1] - (a[1] + s * dy))
+        else:
+            d = math.hypot(p[0] - a[0], p[1] - a[1])
+        if d > lontano:
+            lontano, quale = d, i
+    if lontano <= tolleranza:
+        return [a, b]
+    return _semplifica(punti[:quale + 1], tolleranza)[:-1] + _semplifica(punti[quale:], tolleranza)
+
+
+def contorno_punti(dentro, lati, quanti=40):
+    """Il confine del lotto come pochi punti, in frazioni della foto (0..1):
+    le stesse coordinate con cui l'applicazione disegna le parti del giardino."""
+    macchia, quanti = _macchia_piu_grande(dentro, lati)
+    if not macchia or quanti < 16:
+        return []
+    partenza = None
+    for i, b in enumerate(macchia):
+        if b:
+            partenza = (i % lati, i // lati)
+            break
+    giro = _traccia_bordo(macchia, lati, partenza, quanti)
+    if len(giro) < 8:
+        return []
+    tolleranza = max(1.5, lati / 260.0)
+    semplice = _semplifica(giro, tolleranza)
+    for _ in range(8):
+        if len(semplice) <= quanti:
+            break
+        tolleranza *= 1.7
+        semplice = _semplifica(giro, tolleranza)
+    fuori = []
+    for x, y in semplice[:quanti]:
+        p = [round(x / (lati - 1.0), 4), round(y / (lati - 1.0), 4)]
+        if fuori and math.hypot(p[0] - fuori[-1][0], p[1] - fuori[-1][1]) < 0.004:
+            continue
+        fuori.append(p)
+    if len(fuori) > 3 and math.hypot(fuori[0][0] - fuori[-1][0], fuori[0][1] - fuori[-1][1]) < 0.004:
+        fuori.pop()
+    return fuori
 
 
 def componi(foto, mappa, dentro, lati):
@@ -994,12 +1293,12 @@ def componi(foto, mappa, dentro, lati):
     return fondo
 
 
-def in_base64(immagine, lato=1000):
+def in_base64(immagine, lato=1000, qualita=82):
     im = immagine.copy()
     if im.width > lato:
         im = im.resize((lato, lato), Image.LANCZOS)
     buf = io.BytesIO()
-    im.save(buf, "JPEG", quality=82, optimize=True)
+    im.save(buf, "JPEG", quality=qualita, optimize=True)
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
@@ -1037,7 +1336,7 @@ def solo_foto(lat, lon, lato_m):
     }
 
 
-def rilievo_da_disegnare(p, lato_m=None, motivo=""):
+def rilievo_da_disegnare(p, lato_m=None, motivo="", indirizzo="", cap=""):
     """Un rilievo senza misure: la foto giusta, e il giardino da segnare a dito."""
     f = solo_foto(p["lat"], p["lon"], lato_m)
     avvisi = [motivo or SENZA_CATASTO]
@@ -1052,6 +1351,8 @@ def rilievo_da_disegnare(p, lato_m=None, motivo=""):
         "provincia": p.get("provincia", ""),
         "comune_verificato": bool(p.get("comune_verificato")),
         "foglio": "", "particella": "", "riferimento": "", "particelle": [],
+        "suggerimenti": [] if p["preciso"] or not indirizzo
+                        else _suggerimenti_calmi(indirizzo, cap),
         "lat": round(p["lat"], 7), "lon": round(p["lon"], 7),
         "punti": [[round(p["lat"], 7), round(p["lon"], 7)]],
         "da_disegnare": True,
@@ -1069,7 +1370,7 @@ def rilievo_da_disegnare(p, lato_m=None, motivo=""):
 
 # ------------------------------------------------- il rilievo, tutto insieme
 
-def rilievo_senza_riferimenti(p, lato_m=None):
+def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap=""):
     """Il lotto misurato senza sapere come si chiama.
 
     Il catasto ha due sportelli, e si guastano separatamente: quello che dice
@@ -1104,6 +1405,8 @@ def rilievo_senza_riferimenti(p, lato_m=None):
         "comune_verificato": bool(p.get("comune_verificato")),
         "foglio": "", "particella": "", "riferimento": "", "particelle": [],
         "senza_riferimenti": True,
+        "suggerimenti": [] if p["preciso"] or not indirizzo
+                        else _suggerimenti_calmi(indirizzo, cap),
         "lat": round(p["lat"], 7), "lon": round(p["lon"], 7),
         "punti": [[round(p["lat"], 7), round(p["lon"], 7)]],
         "lotto_mq": m["lotto_mq"],
@@ -1115,6 +1418,11 @@ def rilievo_senza_riferimenti(p, lato_m=None):
         "angoli": m["angoli"],
         "lato_m": m["lato_m"],
         "fonte": FONTE,
+        # la foto senza i confini disegnati sopra, e il confine come punti
+        # spostabili: i confini del catasto non combaciano col satellite, e cosi'
+        # si ricalcano e si tirano al posto giusto
+        "foto_pulita": in_base64(m["foto_pulita"], qualita=72) if m.get("foto_pulita") else "",
+        "contorno": m.get("contorno") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "preciso": p["preciso"],
@@ -1122,8 +1430,17 @@ def rilievo_senza_riferimenti(p, lato_m=None):
     }
 
 
-def rilievo(indirizzo, lato_m=None):
-    p = punto_dall_indirizzo(indirizzo)
+def _suggerimenti_calmi(indirizzo, cap=""):
+    """I suggerimenti, ma senza il rischio di far cadere la risposta: se anche
+    questa ricerca non riesce, si torna una lista vuota."""
+    try:
+        return suggerimenti_indirizzo(indirizzo, cap)
+    except Exception:                               # noqa: BLE001
+        return []
+
+
+def rilievo(indirizzo, lato_m=None, cap=""):
+    p = punto_dall_indirizzo(indirizzo, cap)
     try:
         part, lat, lon = cerca_la_particella(p["lat"], p["lon"])
         if not part:
@@ -1131,7 +1448,7 @@ def rilievo(indirizzo, lato_m=None):
                 "L'indirizzo si trova, ma lì il catasto non ha una particella "
                 "(succede su una strada, o a Trento e Bolzano, dove il catasto è "
                 "delle Province autonome). Segna il giardino sulla foto: "
-                "i metri quadri li conto io.")
+                "i metri quadri li conto io.", indirizzo, cap)
         semi, riquadri = _intorno_stessa_particella(part, lat, lon)
         m = misura(semi, riquadri, lato_m=lato_m)
     except CatastoOccupato:
@@ -1139,9 +1456,9 @@ def rilievo(indirizzo, lato_m=None):
         # le mappe risponde ancora, il lotto si misura lo stesso; se no restano la
         # foto e il dito
         try:
-            return rilievo_senza_riferimenti(p, lato_m)
+            return rilievo_senza_riferimenti(p, lato_m, indirizzo, cap)
         except Exception:                           # noqa: BLE001
-            return rilievo_da_disegnare(p, lato_m)
+            return rilievo_da_disegnare(p, lato_m, "", indirizzo, cap)
     avvisi = [p["avviso_comune"]] if p.get("avviso_comune") else []
     if not p["preciso"]:
         civico = p.get("civico_scritto")
@@ -1158,8 +1475,13 @@ def rilievo(indirizzo, lato_m=None):
             avvisi.append("L'indirizzo è stato trovato sulla via, non sul civico: "
                           "controlla che la particella accesa sia quella giusta.")
     avvisi += _avvisi_misura(m)
+    # il civico non e' confermato: insieme al rilievo si mandano gli indirizzi
+    # possibili, cosi' l'applicazione puo' farne scegliere un altro invece di
+    # lasciare l'artigiano davanti a una casa che non e' quella del cliente
+    altri = [] if p["preciso"] else _suggerimenti_calmi(indirizzo, cap)
     return {
         "indirizzo": p["indirizzo"],
+        "suggerimenti": altri,
         "comune": part["comune"],
         "comune_nome": p["comune_nome"],
         "provincia": p.get("provincia", ""),
@@ -1179,6 +1501,11 @@ def rilievo(indirizzo, lato_m=None):
         "angoli": m["angoli"],
         "lato_m": m["lato_m"],
         "fonte": FONTE,
+        # la foto senza i confini disegnati sopra, e il confine come punti
+        # spostabili: i confini del catasto non combaciano col satellite, e cosi'
+        # si ricalcano e si tirano al posto giusto
+        "foto_pulita": in_base64(m["foto_pulita"], qualita=72) if m.get("foto_pulita") else "",
+        "contorno": m.get("contorno") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "preciso": p["preciso"],
@@ -1287,6 +1614,11 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None):
         "angoli": m["angoli"],
         "lato_m": m["lato_m"],
         "fonte": FONTE,
+        # la foto senza i confini disegnati sopra, e il confine come punti
+        # spostabili: i confini del catasto non combaciano col satellite, e cosi'
+        # si ricalcano e si tirano al posto giusto
+        "foto_pulita": in_base64(m["foto_pulita"], qualita=72) if m.get("foto_pulita") else "",
+        "contorno": m.get("contorno") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "foto": in_base64(m["immagine"]),
@@ -1314,6 +1646,11 @@ def nome_file(indirizzo):
 
 
 # ------------------------------------------------- il servizio, mentre lavori
+
+# quale versione del codice sta girando: su Render la mette la piattaforma, in
+# locale non c'e' e vale "locale". Serve a sapere in un colpo solo se il server
+# ha davvero preso l'ultimo caricamento.
+VERSIONE = (os.environ.get("RENDER_GIT_COMMIT") or "")[:10] or "locale"
 
 # l'applicazione servita dal server stesso (cartella app/ accanto a questo file)
 APP = QUI / "app"
@@ -1365,6 +1702,9 @@ def servizio(porta=8787, pubblico=False):
                 self.end_headers()
                 self.wfile.write(dati)
                 return
+            def cap_chiesto():
+                return (q.get("cap") or [""])[0].strip()[:5]
+
             def lato_chiesto():
                 try:
                     return float((q.get("lato") or [""])[0])
@@ -1372,12 +1712,28 @@ def servizio(porta=8787, pubblico=False):
                     return None
 
             if u.path in ("/", "/ci-sei"):
-                self._manda(200, {"servizio": "rilievo", "pronto": True})
+                self._manda(200, {"servizio": "rilievo", "pronto": True,
+                                  "versione": VERSIONE})
                 return
             if u.path == "/catasto-risponde":
                 # a che punto sta l'Agenzia delle Entrate, detto in chiaro: serve a
                 # capire in dieci secondi se un rilievo mancato e' colpa loro
                 self._manda(200, catasto_risponde())
+                return
+            if u.path == "/indirizzi":
+                # gli indirizzi possibili per quello che e' stato scritto: la via
+                # d'uscita quando l'indirizzo non si trova o cade nel posto sbagliato
+                cerca = (q.get("cerca") or q.get("indirizzo") or [""])[0].strip()[:200]
+                if not cerca:
+                    self._manda(400, {"errore": "Manca l'indirizzo da cercare."})
+                    return
+                print("  indirizzi come:", cerca)
+                try:
+                    trovati = suggerimenti_indirizzo(cerca, cap_chiesto())
+                    self._manda(200, {"cercato": cerca, "suggerimenti": trovati})
+                except Exception as e:              # noqa: BLE001
+                    print("     non riuscita:", e)
+                    self._manda(502, {"errore": str(e), "suggerimenti": []})
                 return
             if u.path == "/foto":
                 # solo la foto dall'alto, da disegnare a mano: non passa dal catasto
@@ -1387,14 +1743,16 @@ def servizio(porta=8787, pubblico=False):
                     return
                 print("  foto di:", indirizzo)
                 try:
-                    p = punto_dall_indirizzo(indirizzo)
+                    p = punto_dall_indirizzo(indirizzo, cap_chiesto())
                     r = rilievo_da_disegnare(p, lato_chiesto(),
                         "Foto dall'alto di questo indirizzo: segna il giardino "
-                        "sulla foto e i metri quadri li conto io.")
+                        "sulla foto e i metri quadri li conto io.",
+                        indirizzo, cap_chiesto())
                     self._manda(200, r)
                 except Exception as e:              # noqa: BLE001
                     print("     non riuscita:", e)
-                    self._manda(502, {"errore": str(e)})
+                    self._manda(502, {"errore": str(e),
+                                      "suggerimenti": _suggerimenti_calmi(indirizzo, cap_chiesto())})
                 return
             if u.path == "/particelle":
                 punti = leggi_punti((q.get("punti") or [""])[0])
@@ -1423,7 +1781,7 @@ def servizio(porta=8787, pubblico=False):
                 return
             print("  rilievo di:", indirizzo)
             try:
-                r = rilievo(indirizzo, lato_chiesto())
+                r = rilievo(indirizzo, lato_chiesto(), cap_chiesto())
                 if r.get("da_disegnare"):
                     print("     senza catasto: foto da disegnare")
                 else:
@@ -1431,9 +1789,14 @@ def servizio(porta=8787, pubblico=False):
                 self._apri()
                 self.wfile.write(json.dumps(r, ensure_ascii=False).encode())
             except Exception as e:                  # noqa: BLE001
+                # un indirizzo che non si trova non finisce in un vicolo cieco: si
+                # mandano gli indirizzi possibili, e lui tocca quello giusto
                 print("     non riuscito:", e)
                 self._apri(502)
-                self.wfile.write(json.dumps({"errore": str(e)}, ensure_ascii=False).encode())
+                self.wfile.write(json.dumps(
+                    {"errore": str(e),
+                     "suggerimenti": _suggerimenti_calmi(indirizzo, cap_chiesto())},
+                    ensure_ascii=False).encode())
 
     # Sul portatile si ascolta solo su 127.0.0.1: nessuno da fuori puo' entrare.
     # Su un server serve --pubblico, e allora si ascolta su tutte le schede di

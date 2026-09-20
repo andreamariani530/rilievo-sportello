@@ -474,6 +474,17 @@ body.disegno-aperto{overflow:hidden}
   font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--tenue);padding:12px 16px 10px}
 .attrezzi button.attivo{color:var(--accento);border-bottom-color:var(--accento)}
+.a-corpo{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);
+  border:1px solid var(--filetto2);border-radius:999px;padding:6px 11px;white-space:nowrap}
+.suggeriti{padding:0 24px 4px}
+.suggeriti .lbl{margin-bottom:8px;display:block}
+.riga-suggerita{display:block;width:100%;text-align:left;background:var(--bianco);
+  border:1px solid var(--filetto2);border-radius:10px;padding:11px 13px;margin-bottom:8px;
+  font-family:inherit;cursor:pointer}
+.riga-suggerita:hover{border-color:var(--accento)}
+.riga-suggerita .dove{display:block;font-size:16px;color:var(--inchiostro)}
+.riga-suggerita .chi{display:block;font-size:13.5px;color:var(--tenue);margin-top:2px}
+.nota-suggeriti{font-size:14px;color:var(--tenue);margin:2px 0 6px}
 /* min-height:0 e' quello che tiene in piedi tutto: senza, un figlio flex non si
    restringe sotto il suo contenuto, la foto spinge il piede fuori dallo schermo e
    del giardino resta una striscia alta due dita (Cafagna, 17 settembre 2026) */
@@ -483,10 +494,19 @@ body.disegno-aperto{overflow:hidden}
 /* la foto si centra con i margini automatici, non con justify-content: centrandola
    col flex, ingrandita, il bordo sinistro finiva fuori e non si poteva raggiungere
    scorrendo (visto a 390 px il 17 settembre 2026) */
-.disegno-foto{position:relative;margin:auto;line-height:0;box-shadow:var(--ombra);flex:0 0 auto;
+/* la cassa che tiene la foto: quando la foto e' girata il suo ingombro cresce, e
+   deve crescere anche lo spazio da scorrere, se no gli angoli restano irraggiungibili */
+.disegno-gira{position:relative;margin:auto;flex:0 0 auto;display:flex;
+  align-items:center;justify-content:center;
+  width:min(100%, max(240px, 100vh - 260px));height:min(100%, max(240px, 100vh - 260px))}
+.disegno-foto{position:relative;line-height:0;box-shadow:var(--ombra);flex:0 0 auto;
+  transform-origin:50% 50%;
   width:min(100%, max(240px, 100vh - 260px))}
 .disegno-foto img{display:block;width:100%;height:auto;user-select:none;-webkit-user-select:none;pointer-events:none}
-.disegno-foto svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+ /* touch-action:none: il dito sulla foto lo muoviamo noi, punto per punto. Lasciandolo
+    fare al browser, sul telefono lo scorrimento partiva a volte si' e a volte no, e
+    quando partiva lasciava un punto dove il dito si era alzato. */
+.disegno-foto svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
 .disegno-piede{display:grid;grid-template-columns:1fr auto;gap:8px 18px;align-items:center;
   padding:12px 20px 16px;border-top:1px solid var(--filetto2);background:var(--bianco)}
 .disegno-istruzione{font-size:15.5px;color:var(--soft);max-width:60ch}
@@ -1106,7 +1126,13 @@ const prev      = id => S.preventivi.find(p => p.id === id);
    vale prezzo x quantita' x volte. Le voci facoltative stanno fuori dal totale:
    sono proposte a parte, che il cliente sceglie quando firma. */
 const volteRiga   = r => (typeof r.volte === 'number' && r.volte > 1) ? r.volte : 1;
-const importoRiga = r => Math.round(r.p * r.q * volteRiga(r) * 100) / 100;
+/* "a corpo": prezzo fisso per tutto il lavoro, la quantita' non conta.
+   Chiesto da Andrea il 19 settembre 2026: certe lavorazioni davanti al cliente si
+   dicono a numero unico ("la sistemazione di tutta la siepe, 400 euro"), e contarle
+   a metri o a pezzi e' un conto che non si fa mai. */
+const A_CORPO = 'a corpo';
+const aCorpo  = r => /\ba corpo\b/.test(String((r && r.u) || '').toLowerCase());
+const importoRiga = r => Math.round((aCorpo(r) ? r.p : r.p * r.q) * volteRiga(r) * 100) / 100;
 function conti(p){
   let imponibile = 0, facoltative = 0;
   p.righe.forEach(r => {
@@ -1281,9 +1307,10 @@ function nuovaRichiesta(){
   salva(); vai();
   avvisa('Richiesta salvata. Da qui puoi fissare il sopralluogo.');
 }
-function generaPreventivo(idSopralluogo){
-  const s = sopr(idSopralluogo);
-  if(s.preventivo){ location.hash = '#preventivo/' + s.preventivo; return; }
+/* Le voci del preventivo a partire da quello che e' stato detto nel sopralluogo.
+   Sta a parte perche' serve due volte: quando il preventivo nasce, e quando si
+   rifa' dopo aver corretto una lavorazione sentita male (Andrea, 19/9/2026). */
+function righeDalSopralluogo(s){
   const trovate = (s._trovate && s._trovate.length) ? s._trovate : s.trovate;
   /* le lavorazioni a superficie dette senza misura ("e poi lo sfalcio del prato")
      partono dal rilievo: il verde, se c'e', se no lo scoperto. Da confermare. */
@@ -1294,7 +1321,7 @@ function generaPreventivo(idSopralluogo){
   const tot = ril ? totaliZone(ril) : null;
   const dalRilievo = [], dalDisegno = [];
   const righe = [];
-  trovate.forEach(t => {
+  (trovate || []).forEach(t => {
     const v = voce(t.voce); if(!v) return;
     let q = t.q;
     const tipo = tipoUnita(v.u);
@@ -1313,31 +1340,65 @@ function generaPreventivo(idSopralluogo){
   });
   /* quello che ha detto e che a listino non c'e' non entra nel preventivo: se sparisse
      in silenzio, l'artigiano se ne accorgerebbe davanti al cliente */
-  const fuoriListino = trovate.filter(t => t.nuova);
-  if(!righe.length){
-    avvisa(fuoriListino.length
-      ? 'Nessuna voce del tuo listino in quello che hai detto. «' + fuoriListino[0].nome +
-        '» non ce l\'hai: toccala qui sopra e mettile un prezzo.'
-      : 'Prima detta il sopralluogo: le voci nascono da lì.');
-    return;
-  }
+  return {righe, dalRilievo, dalDisegno, base, ril, fuoriListino: (trovate || []).filter(t => t.nuova)};
+}
+/* il racconto di come sono venute le quantita': la stessa frase nei due casi */
+function raccontoRighe(d){
+  return (d.fuoriListino.length ? ' Fuori è rimasta «' + d.fuoriListino[0].nome + '»: non è a listino.' +
+       (d.fuoriListino.length > 1 ? ' E altre ' + (d.fuoriListino.length - 1) + '.' : '') : '')
+    + (d.dalDisegno.length ? ' Dal disegno sulla foto: ' + d.dalDisegno.join(', ') + '.' : '')
+    + (d.dalRilievo.length ? ' Per ' + d.dalRilievo.join(' e ') + ' la superficie viene dal rilievo ('
+       + cifra(d.base, 0) + ' mq ' + (d.ril.verde_mq > 0 ? 'di verde' : 'di scoperto') + '): controllala.' : '');
+}
+function nienteDaMettere(d){
+  avvisa(d.fuoriListino.length
+    ? 'Nessuna voce del tuo listino in quello che hai detto. «' + d.fuoriListino[0].nome +
+      '» non ce l\'hai: toccala qui sopra e mettile un prezzo.'
+    : 'Prima detta il sopralluogo: le voci nascono da lì.');
+}
+function generaPreventivo(idSopralluogo){
+  const s = sopr(idSopralluogo);
+  if(s.preventivo){ location.hash = '#preventivo/' + s.preventivo; return; }
+  const d = righeDalSopralluogo(s);
+  if(!d.righe.length){ nienteDaMettere(d); return; }
   const p = {
     id: nuovoId('p'), numero: nuovoNumero(),
     cliente: s.cliente || null, nome: s.nome, luogo: s.luogo,
     data: S.oggi, stato: 'bozza', sconto: 0,
     note: 'Preventivo scritto in sopralluogo il ' + dataLunga(S.oggi) + '.',
-    righe, sopralluogo: s.id
+    righe: d.righe, sopralluogo: s.id
   };
   S.preventivi.unshift(p);
   s.preventivo = p.id; s.stato = 'fatto';
   salva();
-  avvisa('Preventivo pronto: ' + righe.length + ' voci prese dal parlato.'
-    + (fuoriListino.length ? ' Fuori è rimasta «' + fuoriListino[0].nome + '»: non è a listino.' +
-       (fuoriListino.length > 1 ? ' E altre ' + (fuoriListino.length - 1) + '.' : '') : '')
-    + (dalDisegno.length ? ' Dal disegno sulla foto: ' + dalDisegno.join(', ') + '.' : '')
-    + (dalRilievo.length ? ' Per ' + dalRilievo.join(' e ') + ' la superficie viene dal rilievo ('
-       + cifra(base, 0) + ' mq ' + (ril.verde_mq > 0 ? 'di verde' : 'di scoperto') + '): controllala.' : ''));
+  avvisa('Preventivo pronto: ' + d.righe.length + ' voci prese dal parlato.' + raccontoRighe(d));
   location.hash = '#preventivo/' + p.id;
+}
+/* Rifare il preventivo dopo aver corretto il parlato. Le voci tornano da quello che
+   si e' detto adesso; quelle aggiunte a mano nel preventivo restano dov'erano, e lo
+   sconto, le note e il numero non si toccano. Un preventivo gia' consegnato non si
+   tocca: quello si rifa' uguale e si cambia la copia. */
+function rifaiPreventivo(idSopralluogo){
+  const s = sopr(idSopralluogo); if(!s || !s.preventivo) return;
+  const p = prev(s.preventivo); if(!p) return;
+  if(p.stato !== 'bozza'){
+    avvisa('Questo preventivo è già stato consegnato: aprilo e usa «Rifallo uguale», così il cliente tiene quello che ha in mano.');
+    location.hash = '#preventivo/' + p.id; return;
+  }
+  const d = righeDalSopralluogo(s);
+  if(!d.righe.length){ nienteDaMettere(d); return; }
+  const aMano = p.righe.filter(r => r.aMano);
+  chiedi('Rifaccio le voci con quello che hai detto adesso. Le ' + d.righe.length +
+         ' voci del parlato si riscrivono' +
+         (aMano.length ? ', le ' + aMano.length + ' aggiunte a mano restano' : '') +
+         '. Sconto, note e numero non cambiano.', () => {
+    /* le quantita' cambiate a mano sulle voci del parlato si perdono: sono proprio
+       quelle che si sta rifacendo */
+    p.righe = d.righe.concat(aMano);
+    salva(); vai();
+    avvisa('Preventivo rifatto: ' + d.righe.length + ' voci dal parlato.' + raccontoRighe(d));
+    location.hash = '#preventivo/' + p.id;
+  }, 'Sì, rifallo');
 }
 function inviaPreventivo(id, come){
   const p = prev(id);
@@ -1510,7 +1571,7 @@ function scheda(o){
 }
 
 /* la domanda prima di cancellare */
-function chiedi(testo, poi){
+function chiedi(testo, poi, testoSi){
   chiudiScheda();
   const velo = document.createElement('div');
   velo.className = 'velo-scheda';
@@ -1522,7 +1583,7 @@ function chiedi(testo, poi){
       <div class="piede">
         <div class="a-destra riga-azione">
           <button class="bottone vuoto piccolo" onclick="chiudiScheda()">No, lascia stare</button>
-          <button class="bottone piccolo" id="btn-si">Sì, cancella</button>
+          <button class="bottone piccolo" id="btn-si">${esc(testoSi || 'Sì, cancella')}</button>
         </div>
       </div>
     </div>`;
@@ -1696,9 +1757,9 @@ function schedaRiga(id, k){
     valori: Object.assign({}, r, {facoltativa: r.facoltativa ? 'si' : 'no', volte: volteRiga(r) > 1 ? r.volte : ''}),
     campi:[
       {k:'nome', l:'Lavorazione'},
-      {k:'u', l:'Unità', m:true},
+      {k:'u', l:'Unità', t:'scelta', m:true, opzioni: unitaConLaSua(r.u)},
       {k:'p', l:'Prezzo in euro', t:'numero', m:true},
-      {k:'q', l:'Quantità', t:'numero', m:true},
+      {k:'q', l:'Quantità', t:'numero', m:true, facoltativo:true, p:'A corpo non conta'},
       {k:'volte', l:'Volte nell\'anno', t:'numero', m:true, facoltativo:true, p:'Vuoto se si fa una volta'},
       {k:'facoltativa', l:'Nel preventivo', t:'scelta',
        opzioni:[['no','Compresa nel totale'], ['si','Facoltativa: la proponi a parte, il cliente sceglie']]}
@@ -1707,7 +1768,7 @@ function schedaRiga(id, k){
       : (d.volte !== null && !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60)
          ? 'Le volte nell\'anno sono un numero intero, da 1 a 60.' : null),
     salva: d => {
-      Object.assign(r, {nome:d.nome, u:d.u, p:d.p, q:d.q});
+      Object.assign(r, {nome:d.nome, u:d.u, p:d.p, q: (d.q > 0 ? d.q : 1)});
       r.facoltativa = d.facoltativa === 'si';
       if(d.volte > 1) r.volte = d.volte; else delete r.volte;
     },
@@ -1875,6 +1936,7 @@ function unitaDetta(u){ return u === 'mq' ? 'mq' : u === 'm' ? 'm' : u === 'pezz
 /* le unita' di misura fra cui scegliere quando una lavorazione entra a listino:
    le stesse che il listino sa leggere, dette come le direbbe un giardiniere */
 const UNITA_LISTINO = [
+  ['a corpo', 'A corpo — prezzo fisso per tutto il lavoro'],
   ['ogni 100 mq', 'Ogni 100 mq — prato, superfici grandi'],
   ['al mq', 'Al metro quadro'],
   ['al metro', 'Al metro — siepi, bordure'],
@@ -1882,6 +1944,14 @@ const UNITA_LISTINO = [
   ['a viaggio', 'A viaggio'],
   ['a intervento', 'A intervento — prezzo unico']
 ];
+/* l'elenco delle unita' da scegliere, con dentro anche quella che la voce ha gia'
+   (un listino importato da un preventivo vecchio puo' avere unita' sue) */
+function unitaConLaSua(u){
+  const sua = String(u || '').trim();
+  const lista = UNITA_LISTINO.slice();
+  if(sua && !lista.some(x => x[0].toLowerCase() === sua.toLowerCase())) lista.unshift([sua, sua]);
+  return lista;
+}
 /* l'unita' che il parlato suggerisce: si e' sentito "venti metri" o "duecento mq" */
 function unitaSuggerita(u, q){
   if(u === 'mq') return q >= 150 ? 'ogni 100 mq' : 'al mq';
@@ -1925,11 +1995,43 @@ function mettiAListino(idSopralluogo, indice){
 }
 const primaMaiuscola = t => String(t || '').charAt(0).toUpperCase() + String(t || '').slice(1);
 
+/* Una lavorazione che a listino non c'e', scritta sul posto mentre si lavora.
+   Entra fra quelle riconosciute del sopralluogo e nel listino, cosi' la prossima
+   volta la riconosce anche a voce. */
+function lavorazioneNuovaQui(idSopralluogo, indice){
+  const s = sopr(idSopralluogo); if(!s) return;
+  s._trovate = s._trovate || [];
+  scheda({
+    titolo: 'Una lavorazione nuova',
+    sotto: 'Quella che non hai a listino. Scrivila adesso col suo prezzo: entra in questo sopralluogo e resta nel tuo listino.',
+    valori: {u:'a corpo', q:1},
+    campi:[
+      {k:'nome', l:'Come si chiama', p:'Rifacimento vialetto in ghiaia'},
+      {k:'u', l:'Come la conti', t:'scelta', opzioni:UNITA_LISTINO},
+      {k:'p', l:'Prezzo in euro', t:'numero', p:'450'},
+      {k:'q', l:'Quanta ne serve qui', t:'numero', m:true, p:'A corpo non conta'},
+      {k:'detti', l:'Come la chiami a voce (facoltativo)', m:true, p:'rifare il vialetto'}
+    ],
+    controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
+      : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.' : null,
+    testoSalva: 'Aggiungila',
+    salva: d => {
+      const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p};
+      if(d.detti) nuova.detti = d.detti;
+      S.listino.push(nuova);
+      const riga = {voce: nuova.id, q: (d.q > 0 ? d.q : 1), aMano: true};
+      if(indice === null || indice === undefined || !s._trovate[indice]) s._trovate.push(riga);
+      else s._trovate[indice] = riga;
+    },
+    messaggio: 'Aggiunta, e messa nel tuo listino: la prossima volta la riconosco anche a voce.'
+  });
+}
+
 function schedaLavorazione(idSopralluogo, indice){
   const s = sopr(idSopralluogo);
   s._trovate = s._trovate || [];
   if(indice !== null && s._trovate[indice] && s._trovate[indice].nuova){ mettiAListino(idSopralluogo, indice); return; }
-  const t = indice === null ? {voce:S.listino[0].id, q:1} : s._trovate[indice];
+  const t = indice === null ? {voce:(S.listino[0] ? S.listino[0].id : '__nuova'), q:1} : s._trovate[indice];
   const primaVoce = t.voce, detto = indice === null ? '' : (t.detto || '');
   const o = {
     titolo: indice === null ? 'Aggiungi una lavorazione' : 'Modifica la lavorazione',
@@ -1937,11 +2039,15 @@ function schedaLavorazione(idSopralluogo, indice){
                            : 'Quello che il parlato ha preso storto.',
     valori: t,
     campi:[
-      {k:'voce', l:'Lavorazione', t:'scelta', opzioni:S.listino.map(v => [v.id, v.nome + ' — ' + euro(v.p) + ' ' + v.u])},
+      {k:'voce', l:'Lavorazione', t:'scelta',
+       opzioni: S.listino.map(v => [v.id, v.nome + ' — ' + euro(v.p) + ' ' + v.u])
+                .concat([['__nuova', '＋ Non ce l\'ho a listino: la scrivo adesso']])},
       {k:'q', l:'Quantità', t:'numero'}
     ].concat(indice === null ? [{k:'detti', l:'Come l\'hai chiamata a voce? (facoltativo)', p:'taglio dell\'erba'}] : []),
-    controlla: d => d.q > 0 ? null : 'Serve una quantità.',
+    controlla: d => (d.voce === '__nuova' || d.q > 0) ? null : 'Serve una quantità.',
     salva: d => {
+      /* "non ce l'ho a listino": si passa alla scheda che la scrive per intero */
+      if(d.voce === '__nuova'){ setTimeout(() => lavorazioneNuovaQui(idSopralluogo, indice), 0); return; }
       if(indice === null){
         s._trovate.push({voce:d.voce, q:d.q, aMano:true});
         if(d.detti && ricordaFrase(d.voce, d.detti))
@@ -2695,7 +2801,8 @@ PAGINE.sopralluogo = {
     ${fotoHtml(s)}
 
     <div class="azioni" style="margin-top:24px">
-      ${p ? `<a class="bottone" href="#preventivo/${p.id}">Apri il preventivo</a>`
+      ${p ? `<a class="bottone" href="#preventivo/${p.id}">Apri il preventivo</a>
+            ${p.stato === 'bozza' ? `<button class="bottone vuoto" onclick="rifaiPreventivo('${s.id}')">Rifai il preventivo</button>` : ''}`
           : `<button class="bottone" id="btn-genera" onclick="generaPreventivo('${s.id}')">Genera il preventivo</button>`}
       <button class="bottone vuoto" onclick="azzera('${s.id}')">Cancella e ridetta</button>
     </div>`;
@@ -2846,12 +2953,20 @@ function preparaRilievo(idSopralluogo){
   const r = richiesta(s.richiesta);
   scheda({
     titolo:'Prepara il rilievo',
-    sotto:'Scrivi l\'indirizzo come lo scriveresti a una persona. Ci pensa Rilievo a trovare la particella, la foto dall\'alto e i metri quadri.',
-    valori:{indirizzo: s.luogo || (r ? r.dove : '') || ''},
-    campi:[{k:'indirizzo', l:'Indirizzo', p:'Via Galileo Galilei 7, Rivolta d\'Adda'}],
-    controlla: d => d.indirizzo ? null : 'Senza indirizzo non si parte.',
+    sotto:'Scrivi l\'indirizzo come lo scriveresti a una persona: se il posto è una frazione, scrivila prima del comune. Il CAP non serve quasi mai, ma nei paesini piccoli toglie ogni dubbio.',
+    valori:{indirizzo: s.luogo || (r ? r.dove : '') || '', cap: s.cap || ''},
+    campi:[
+      {k:'indirizzo', l:'Indirizzo', p:'Via Galileo Galilei 7, Rivolta d\'Adda'},
+      {k:'cap', l:'CAP (facoltativo)', m:true, p:'48124'}
+    ],
+    controlla: d => d.indirizzo ? null
+      : 'Senza indirizzo non si parte.',
     testoSalva:'Prepara',
-    salva: d => chiediRilievo(idSopralluogo, d.indirizzo)
+    salva: d => {
+      const cap = (d.cap || '').replace(/\D/g, '').slice(0, 5);
+      s.cap = cap;                      // resta scritto: il prossimo tentativo lo riusa
+      chiediRilievo(idSopralluogo, d.indirizzo, 0, false, cap);
+    }
   });
 }
 
@@ -2888,7 +3003,7 @@ function disegnaDaVicino(idSopralluogo){
   chiediRilievo(idSopralluogo, t.dove, lato, true);
 }
 
-function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto){
+function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
   /* vale solo la risposta all'ultima domanda: se si preme due volte (prima un
      indirizzo sbagliato, poi quello giusto) la prima puo' arrivare per ultima */
   if(senzaRete()){ avvisa(SENZA_RETE); return; }
@@ -2900,12 +3015,16 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto){
   const sveglia = setTimeout(() => { if(!superata()) avvisa('Il servizio del rilievo si sta svegliando: la prima volta ci mette fino a un minuto. Resta qui.'); }, 8000);
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
+  const capDetto = (cap || (sopr(idSopralluogo) || {}).cap || '').replace(/\D/g, '').slice(0, 5);
   fetch(SPORTELLO_RILIEVO + (soloFoto ? '/foto?indirizzo=' : '/rilievo?indirizzo=') + encodeURIComponent(indirizzo) +
-        (lato > 0 ? '&lato=' + Math.round(lato) : ''), {signal: basta.signal})
+        (lato > 0 ? '&lato=' + Math.round(lato) : '') + (capDetto ? '&cap=' + capDetto : ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
       if(superata()) return;
-      if(!ok || !d || d.errore){ rilievoNonDisponibile(idSopralluogo); return; }
+      if(!ok || !d || d.errore){
+        rilievoNonDisponibile(idSopralluogo, (d && d.errore) || '', (d && d.suggerimenti) || [], indirizzo);
+        return;
+      }
       const problema = rilievoValido(d);
       if(problema){ avvisa('Non riuscito: il servizio ha mandato misure che non tornano (' + problema + '). Il rilievo di prima resta com\'era.'); return; }
       /* il comune trovato deve essere quello scritto: il 15 settembre 2026 "Via Dante 10,
@@ -2939,18 +3058,73 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto){
       usaRilievo(idSopralluogo, d);
       avvisa('Rilievo pronto: ' + cifra(d.lotto_mq, 0) + ' mq di lotto, ' + cifra(d.scoperto_mq, 0) + ' scoperti.');
     })
-    .catch(() => { if(!superata()) rilievoNonDisponibile(idSopralluogo); })
+    .catch(() => { if(!superata()) rilievoNonDisponibile(idSopralluogo, '', [], indirizzo); })
     .finally(() => { clearTimeout(sveglia); clearTimeout(scade); });
 }
-function rilievoNonDisponibile(idSopralluogo){
+/* Gli indirizzi possibili, da toccare. Sono la seconda risposta per un indirizzo
+   scritto in un modo che il servizio non riconosce, o che esiste in piu' paesi:
+   invece di un errore secco, si vede la lista e si tocca quello giusto
+   (chiesto da Andrea il 19 settembre 2026). */
+function elencoSuggerimenti(idSopralluogo, suggerimenti){
+  const lista = (suggerimenti || []).filter(x => x && x.testo && typeof x.lat === 'number').slice(0, 6);
+  if(!lista.length) return '';
+  suggeritiOra = lista;
+  return `<div class="suggeriti">
+    <div class="lbl">Forse è uno di questi</div>
+    ${lista.map((x, i) => `<button type="button" class="riga-suggerita" onclick="usaSuggerimento('${idSopralluogo}',${i})">
+      <span class="dove">${esc(x.testo)}</span>
+      <span class="chi">${esc([x.comune, x.provincia && x.provincia !== x.comune ? x.provincia : '', x.cap].filter(Boolean).join(' · '))}${x.preciso ? ' · civico esatto' : ''}</span>
+    </button>`).join('')}
+    <p class="nota-suggeriti">Tocca quello giusto: faccio il rilievo lì, senza riscrivere niente.</p>
+  </div>`;
+}
+let suggeritiOra = [];
+function usaSuggerimento(idSopralluogo, i){
+  const x = suggeritiOra[i]; if(!x) return;
+  chiudiScheda();
+  rilievoDaPunto(idSopralluogo, x.lat, x.lon, x.testo);
+}
+/* il rilievo fatto partendo da un punto scelto a mano, non da un indirizzo scritto */
+function rilievoDaPunto(idSopralluogo, lat, lon, comeSiChiama){
+  if(senzaRete()){ avvisa(SENZA_RETE); return; }
+  const turno = turniRilievo[idSopralluogo] = (turniRilievo[idSopralluogo] || 0) + 1;
+  const superata = () => turniRilievo[idSopralluogo] !== turno;
+  avvisa('Sto preparando il rilievo di ' + comeSiChiama + '…');
+  const basta = new AbortController();
+  const scade = setTimeout(() => basta.abort(), 100000);
+  fetch(SPORTELLO_RILIEVO + '/particelle?punti=' + encodeURIComponent(lat.toFixed(7) + ',' + lon.toFixed(7)) +
+        '&indirizzo=' + encodeURIComponent(comeSiChiama || ''), {signal: basta.signal})
+    .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
+    .then(({ok, d}) => {
+      if(superata()) return;
+      if(!ok || !d || d.errore){
+        avvisa('Non riuscito: ' + ((d && d.errore) || 'il servizio del rilievo non ha risposto. Riprova fra poco.'));
+        return;
+      }
+      const nuovo = Object.assign({}, d, {preciso:true, casa_a_mano:true, indirizzo: comeSiChiama || d.indirizzo});
+      const problema = rilievoValido(nuovo);
+      if(problema){ avvisa('Non riuscito: il servizio ha mandato misure che non tornano (' + problema + ').'); return; }
+      usaRilievo(idSopralluogo, nuovo);
+      avvisa('Rilievo pronto: ' + cifra(nuovo.lotto_mq, 0) + ' mq di lotto, ' + cifra(nuovo.scoperto_mq, 0) + ' scoperti. Controlla sulla foto che sia il posto giusto.');
+    })
+    .catch(() => { if(!superata()) avvisa('Il servizio del rilievo non risponde. Riprova fra un minuto.'); })
+    .finally(() => clearTimeout(scade));
+}
+function rilievoNonDisponibile(idSopralluogo, errore, suggerimenti, indirizzo){
   /* la riga in alto resta ferma su "sto preparando" finche' non le si dice come e'
      finita: chi guarda lo schermo crede che stia ancora lavorando */
-  avvisa('Il rilievo dall\'indirizzo non è riuscito. Puoi scrivere le misure a mano e andare avanti.');
+  const lista = elencoSuggerimenti(idSopralluogo, suggerimenti);
+  avvisa(lista ? 'Quell\'indirizzo non si trova com\'è scritto: guarda gli indirizzi possibili.'
+               : 'Il rilievo dall\'indirizzo non è riuscito. Puoi scrivere le misure a mano e andare avanti.');
   scheda({
-    titolo:'Il rilievo automatico non è disponibile',
-    sotto:'Puoi continuare a raccontare le lavorazioni e preparare il preventivo. Le misure automatiche non sono state aggiornate. Usa solo quelle che hai verificato sul posto.',
+    titolo: lista ? 'Quell\'indirizzo non si trova' : 'Il rilievo automatico non è disponibile',
+    sotto: (errore && errore.length < 240 ? errore + ' ' : '') +
+      'Puoi continuare a raccontare le lavorazioni e preparare il preventivo: le misure le scrivi a mano.',
     campi:[],
-    extra:'<p style="padding:0 24px">Chiudi questa finestra per continuare il sopralluogo, oppure inserisci le misure che hai preso.</p>',
+    extra: lista + `<p style="padding:0 24px">Chiudi questa finestra per continuare il sopralluogo,
+      oppure scrivi le misure che hai preso. Puoi anche riscrivere l'indirizzo, con la frazione
+      prima del comune e il CAP se lo sai.
+      <button type="button" class="bottone vuoto piccolo" style="margin-left:8px" onclick="chiudiScheda();setTimeout(function(){preparaRilievo('${idSopralluogo}')},60)">Riscrivi l'indirizzo</button></p>`,
     testoSalva:'Inserisci le misure',
     salva:() => rilievoAMano(idSopralluogo)
   });
@@ -3019,6 +3193,7 @@ function confermaRilievo(idSopralluogo, d, perche){
       ${d.preciso === false && puoSpostare(d) ? `<p style="font-size:15.5px;color:var(--soft);margin-bottom:18px">
         Il civico non è stato trovato: quella accesa può essere la casa accanto, o la strada.
         <button class="bottone vuoto piccolo" style="margin-top:10px" onclick="usaEToccaLaCasa()">Tocca la casa giusta sulla foto</button></p>` : ''}
+      ${d.preciso === false ? elencoSuggerimenti(idSopralluogo, d.suggerimenti) : ''}
       ${ora && ora.corretto ? '<p style="color:var(--tenue);font-size:15.5px;margin-bottom:18px">Se usi quello nuovo, le misure che hai corretto a mano si perdono.</p>' : ''}
       ${disegnate ? '<p style="color:var(--tenue);font-size:15.5px;margin-bottom:18px">Se usi quello nuovo, le parti del giardino disegnate si perdono: andranno ridisegnate sulla foto nuova.</p>' : ''}`,
     campi: [],
@@ -3201,7 +3376,15 @@ function usaRilievo(idSopralluogo, d){
   S.rilievi[id] = d;
   s.rilievo = id;
   if(r) r.rilievo = id;
-  if(!salva()) avvisa('Salvato solo per adesso: la memoria del telefono è piena.');
+  if(!salva()){
+    /* la memoria del telefono e' piena: la prima cosa che si butta e' la foto senza
+       confini dei rilievi vecchi. Si riprende rifacendo il rilievo, e intanto il
+       lavoro di adesso non va perso */
+    Object.keys(S.rilievi).forEach(k => {
+      if(k !== id && S.rilievi[k] && S.rilievi[k].foto_pulita) delete S.rilievi[k].foto_pulita;
+    });
+    if(!salva()) avvisa('Salvato solo per adesso: la memoria del telefono è piena.');
+  }
   vai();
 }
 
@@ -3515,11 +3698,67 @@ function larghezzaBaseFoto(){
   const largo = foglio.clientWidth - padX, alto = foglio.clientHeight - padY;
   return Math.max(200, Math.min(largo, alto > 0 ? alto : largo));
 }
-/* la foto grande quanto deve essere adesso: la misura di base per lo zoom */
+/* La foto senza i confini del catasto disegnati sopra.
+
+   I confini del catasto non combaciano mai al pixel con la foto dall'alto: la foto
+   ha qualche metro di scarto e i tetti "cadono" di lato, perche' l'aereo non era a
+   piombo sulla casa. Disegnare sopra quelle righe sbagliate porta a segnare il
+   giardino dove non e'. Percio' si disegna sulla foto pulita, e i confini si
+   accendono solo quando servono (Andrea, 19 settembre 2026). */
+const fotoPulita = ril => (ril && !ril.da_disegnare && fotoSicura(ril.foto_pulita)) ? ril.foto_pulita : '';
+function fotoDaDisegnare(ril){
+  const pulita = fotoPulita(ril);
+  return (pulita && D && D.confini === false) ? pulita : ril.foto;
+}
+function cambiaConfini(){
+  if(!D || !fotoPulita(D.ril)) return;
+  D.confini = !D.confini;
+  const img = document.getElementById('disegno-img');
+  if(img) img.setAttribute('src', fotoDaDisegnare(D.ril));
+  ridisegna();
+}
+/* Il confine del catasto ricalcato, come punti che si spostano: il punto di
+   partenza piu' veloce per segnare il giardino, da tirare dove sta davvero. */
+function ricalcaConfine(){
+  if(!D || D.particelle || D.casa) return;
+  const c = (D.ril && Array.isArray(D.ril.contorno)) ? D.ril.contorno : [];
+  if(c.length < 3){
+    avvisa('Questo rilievo non ha il confine del catasto da ricalcare: rifallo dall\'indirizzo.');
+    return;
+  }
+  if(D.punti.length && formaCompleta()) salvaForma();
+  if(TIPI_ZONA[D.tipo].forma !== 'area') D.tipo = 'prato';
+  D.punti = c.map(p => [Math.min(1, Math.max(0, p[0])), Math.min(1, Math.max(0, p[1]))]).slice(0, 40);
+  D.salti = []; D.tagli = false; D.taglio = null;
+  ridisegna();
+  avvisa('Confine del catasto ricalcato. Trascina i punti fin dove sta il giardino vero: i metri li conto da lì.');
+}
+/* la foto grande quanto deve essere adesso: la misura di base per lo zoom.
+   Girata, la sua cassa cresce, se no gli angoli restano fuori dallo scorrimento. */
 function misuraLaFoto(){
   const foto = document.getElementById('disegno-foto');
   if(!foto || !D) return;
-  foto.style.width = Math.round(larghezzaBaseFoto() * (D.zoom || 1)) + 'px';
+  const largo = Math.round(larghezzaBaseFoto() * (D.zoom || 1));
+  foto.style.width = largo + 'px';
+  const a = ((D.giro || 0) % 360) * Math.PI / 180;
+  foto.style.transform = D.giro ? 'rotate(' + D.giro + 'deg)' : '';
+  const cassa = document.getElementById('disegno-gira');
+  if(cassa){
+    const ingombro = Math.ceil(largo * (Math.abs(Math.cos(a)) + Math.abs(Math.sin(a))));
+    cassa.style.width = ingombro + 'px';
+    cassa.style.height = ingombro + 'px';
+  }
+}
+/* girare la foto: davanti a un giardino storto si mette il muro dritto sullo
+   schermo e i punti si mettono molto piu' facilmente */
+function gira(gradi){
+  if(!D) return;
+  D.giro = Math.round((((D.giro || 0) + gradi) % 360 + 360) % 360);
+  ridisegna();
+}
+function raddrizza(){
+  if(!D || !D.giro) return;
+  D.giro = 0; ridisegna();
 }
 /* lo zoom con due dita ingrandisce tutta la pagina, non la foto: la foto resta larga
    uguale, ma sullo schermo diventa piu' grande. I pallini si misurano sullo schermo,
@@ -3542,7 +3781,8 @@ function apriDisegno(idSopralluogo, idZona){
   chiudiScheda(); chiudiDisegno(false, true);
   D = {sop:idSopralluogo, ril, tipo: z ? z.tipo : 'prato', punti: z ? copia(z.punti) : [],
        salti: z && z.salti ? copia(z.salti) : [], tagli:false, taglio:null,
-       modifica: z ? z.id : null, zoom:1, trascina:null, trascinato:false};
+       modifica: z ? z.id : null, zoom:1, giro:0, trascina:null, trascinato:false,
+       scorri:null, confini: !fotoPulita(ril)};
   const velo = document.createElement('div');
   velo.className = 'velo-disegno'; velo.id = 'disegno';
   velo.innerHTML = `
@@ -3559,9 +3799,11 @@ function apriDisegno(idSopralluogo, idZona){
     ${z ? '' : `<div class="attrezzi">${Object.keys(TIPI_ZONA).map(k =>
       `<button data-tipo="${k}" onclick="scegliAttrezzo('${k}')">${TIPI_ZONA[k].nome}</button>`).join('')}</div>`}
     <div class="disegno-foglio" id="disegno-foglio">
-      <div class="disegno-foto" id="disegno-foto">
-        <img src="${ril.foto}" alt="Foto dall'alto su cui disegnare" draggable="false">
-        <svg id="disegno-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+      <div class="disegno-gira" id="disegno-gira">
+        <div class="disegno-foto" id="disegno-foto">
+          <img id="disegno-img" src="${fotoDaDisegnare(ril)}" alt="Foto dall'alto su cui disegnare" draggable="false">
+          <svg id="disegno-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+        </div>
       </div>
     </div>
     <div class="disegno-piede">
@@ -3572,6 +3814,13 @@ function apriDisegno(idSopralluogo, idZona){
           <button onclick="ingrandisci(-1)" aria-label="Foto più piccola" title="Foto più piccola">−</button>
           <button onclick="ingrandisci(1)" aria-label="Foto più grande" title="Foto più grande">+</button>
         </div>
+        <div class="zoom">
+          <button onclick="gira(-15)" aria-label="Gira a sinistra" title="Gira la foto a sinistra">⟲</button>
+          <button onclick="gira(15)" aria-label="Gira a destra" title="Gira la foto a destra">⟳</button>
+        </div>
+        <button class="bottone vuoto piccolo" id="d-raddrizza" onclick="raddrizza()">Rimetti dritta</button>
+        <button class="bottone vuoto piccolo" id="d-confini" onclick="cambiaConfini()">Mostra i confini</button>
+        <button class="bottone vuoto piccolo" id="d-ricalca" onclick="ricalcaConfine()">Ricalca il confine</button>
         <button class="bottone vuoto piccolo" id="d-togli" onclick="togliPunto()">Togli l'ultimo punto</button>
         <button class="bottone vuoto piccolo" id="d-tagli" onclick="attivaTagli()">Interrompi la siepe</button>
         <button class="bottone piccolo" id="d-salva" onclick="salvaForma()">Salva la forma</button>
@@ -3629,11 +3878,31 @@ function scegliAttrezzo(tipo){
   D.tipo = tipo; D.tagli = false; D.taglio = null;
   ridisegna();
 }
+/* Dal dito sullo schermo al punto sulla foto (0..1). Con la foto girata il
+   riquadro che il browser restituisce e' l'ingombro della foto storta, non la foto:
+   si parte dal centro, che girando non si muove, e si torna indietro dell'angolo. */
 function puntoDaEvento(e){
   const svg = document.getElementById('disegno-svg'); if(!svg) return null;
   const r = svg.getBoundingClientRect();
   if(!r.width || !r.height) return null;
-  const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  const giro = (D && D.giro) || 0;
+  if(!giro){
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    if(!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return null;
+    return [Math.round(x * 10000) / 10000, Math.round(y * 10000) / 10000];
+  }
+  /* girata, quello che il browser restituisce e' l'ingombro della foto storta, non
+     la foto: si parte dal centro, che girando non si muove, si torna indietro
+     dell'angolo, e si misura sui lati veri della foto */
+  const foto = document.getElementById('disegno-foto');
+  const largo = (foto && foto.offsetWidth) || r.width;
+  const alto  = (foto && foto.offsetHeight) || r.height;
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const a = -giro * Math.PI / 180;
+  const dx = e.clientX - cx, dy = e.clientY - cy;
+  const ux = dx * Math.cos(a) - dy * Math.sin(a);
+  const uy = dx * Math.sin(a) + dy * Math.cos(a);
+  const x = ux / largo + 0.5, y = uy / alto + 0.5;
   if(!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return null;
   return [Math.round(x * 10000) / 10000, Math.round(y * 10000) / 10000];
 }
@@ -3671,23 +3940,45 @@ function toccoDisegno(e){
   if(p) aggiungiPunto(p);
 }
 function prendiPunto(e){
+  if(!D) return;
   const t = e.target && e.target.closest ? e.target.closest('[data-i]') : null;
-  if(!D || !t) return;
-  D.trascina = Number(t.getAttribute('data-i'));
-  D.trascinato = false;
+  if(t){
+    D.trascina = Number(t.getAttribute('data-i'));
+    D.trascinato = false;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
+    e.preventDefault();
+    return;
+  }
+  /* niente punto sotto il dito: il dito fa scorrere la foto. Prima si poteva solo
+     ingrandire, e della foto ingrandita si raggiungeva solo il pezzo in mezzo:
+     il resto del giardino non si poteva disegnare (Andrea, 19 settembre 2026). */
+  const foglio = document.getElementById('disegno-foglio');
+  if(!foglio) return;
+  D.scorri = {x: e.clientX, y: e.clientY, sx: foglio.scrollLeft, sy: foglio.scrollTop, mosso: false};
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
-  e.preventDefault();
 }
 function muoviPunto(e){
-  if(!D || D.trascina === null) return;
-  const p = puntoDaEvento(e); if(!p) return;
-  D.trascinato = true;
-  spostaPunto(D.trascina, p);
+  if(!D) return;
+  if(D.trascina !== null && D.trascina !== undefined){
+    const p = puntoDaEvento(e); if(!p) return;
+    D.trascinato = true;
+    spostaPunto(D.trascina, p);
+    return;
+  }
+  if(!D.scorri) return;
+  const foglio = document.getElementById('disegno-foglio'); if(!foglio) return;
+  const dx = e.clientX - D.scorri.x, dy = e.clientY - D.scorri.y;
+  if(!D.scorri.mosso && Math.hypot(dx, dy) < 6) return;
+  D.scorri.mosso = true;
+  foglio.scrollLeft = D.scorri.sx - dx;
+  foglio.scrollTop  = D.scorri.sy - dy;
+  e.preventDefault();
 }
 function lasciaPunto(){
   if(!D) return;
-  if(D.trascinato) D.finito = Date.now();
-  D.trascina = null; D.trascinato = false;
+  /* la foto appena scorsa non deve lasciare un punto dove il dito si e' alzato */
+  if(D.trascinato || (D.scorri && D.scorri.mosso)) D.finito = Date.now();
+  D.trascina = null; D.trascinato = false; D.scorri = null;
 }
 function ingrandisci(verso){
   portaZoomA((D ? D.zoom || 1 : 1) * (verso > 0 ? 1.6 : 1 / 1.6));
@@ -3716,10 +4007,18 @@ function portaZoomA(quanto, ancora){
    scritte crescevano insieme alla foto e lo spazio utile restava quello. */
 let pinch = null;
 const distanzaDita = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+const angoloDita = t => Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX) * 180 / Math.PI;
+const mezzoDita = t => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
 function pinchInizio(e){
   if(!D || e.touches.length !== 2) return;
-  pinch = {d: distanzaDita(e.touches), zoom: D.zoom || 1};
+  const m = mezzoDita(e.touches);
+  pinch = {d: distanzaDita(e.touches), zoom: D.zoom || 1,
+           a: angoloDita(e.touches), giro: D.giro || 0, gira: false,
+           mx: m[0], my: m[1]};
 }
+/* due dita sulla foto: si allarga, si stringe, si gira e si sposta, come in una
+   qualunque applicazione di foto. La rotazione parte solo dopo dodici gradi, se no
+   ingrandendo la foto si storce da sola. */
 function pinchMuovi(e){
   if(!D || !pinch || e.touches.length !== 2) return;
   const d = distanzaDita(e.touches);
@@ -3727,9 +4026,22 @@ function pinchMuovi(e){
   e.preventDefault();
   const foglio = document.getElementById('disegno-foglio');
   const r = foglio ? foglio.getBoundingClientRect() : null;
-  const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-  const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-  portaZoomA(pinch.zoom * (d / pinch.d), r ? [mx - r.left, my - r.top] : null);
+  const m = mezzoDita(e.touches);
+  if(!D.particelle && !D.casa){
+    let giro = angoloDita(e.touches) - pinch.a;
+    while(giro > 180) giro -= 360;
+    while(giro < -180) giro += 360;
+    if(!pinch.gira && Math.abs(giro) > 12) pinch.gira = true;
+    if(pinch.gira) D.giro = Math.round((((pinch.giro + giro) % 360) + 360) % 360);
+  }
+  portaZoomA(pinch.zoom * (d / pinch.d), r ? [m[0] - r.left, m[1] - r.top] : null);
+  if(foglio){
+    /* il punto in mezzo alle dita si porta dietro la foto */
+    foglio.scrollLeft -= (m[0] - pinch.mx);
+    foglio.scrollTop  -= (m[1] - pinch.my);
+  }
+  pinch.mx = m[0]; pinch.my = m[1];
+  if(pinch.gira) ridisegna();
 }
 function pinchFine(e){ if(!e.touches || e.touches.length < 2) pinch = null; }
 /* i tre fogli da disegno si comportano tutti allo stesso modo */
@@ -3865,6 +4177,16 @@ function ridisegna(){
     tagli.textContent = D.tagli ? 'Fatto con le interruzioni' : 'Interrompi la siepe';
     tagli.classList.toggle('attivo', !!D.tagli);
   }
+  const dritta = document.getElementById('d-raddrizza');
+  if(dritta) dritta.style.display = D.giro ? '' : 'none';
+  const conf = document.getElementById('d-confini');
+  if(conf){
+    conf.style.display = fotoPulita(D.ril) ? '' : 'none';
+    conf.textContent = D.confini ? 'Togli i confini' : 'Mostra i confini';
+    conf.classList.toggle('attivo', !!D.confini);
+  }
+  const ric = document.getElementById('d-ricalca');
+  if(ric) ric.style.display = (D.ril && Array.isArray(D.ril.contorno) && D.ril.contorno.length >= 3 && !D.modifica) ? '' : 'none';
 }
 
 /* ---- scegliere le particelle del cliente, toccandole sulla foto ----
@@ -5495,8 +5817,13 @@ PAGINE.preventivo = {
   voce:'#preventivi',
   testata(id){
     const p = prev(id); if(!p) throw 0;
+    /* il tasto per tornare al sopralluogo: senza, chi si accorge davanti al cliente
+       che una lavorazione e' stata sentita male deve rifare tutto da capo
+       (Andrea, 19 settembre 2026) */
+    const s = p.sopralluogo ? sopr(p.sopralluogo) : null;
     return {occhiello: esc(p.nome) + ' · n. ' + esc(p.numero), titolo:'Preventivo',
             destra:`<div class="azioni">
+              ${s ? `<a class="torna" href="#sopralluogo/${s.id}" style="margin:0">← Torna al sopralluogo</a>` : ''}
               <a class="torna" href="#preventivi" style="margin:0">← Tutti i preventivi</a>
               <button class="bottone vuoto piccolo" onclick="duplicaPreventivo('${p.id}')">Rifallo uguale</button>
               <button class="bottone piccolo" onclick="schedaPreventivo('${p.id}')">Intestazione</button>
@@ -5505,6 +5832,7 @@ PAGINE.preventivo = {
   corpo(id){
     const p = prev(id);
     const c = conti(p);
+    const sop = p.sopralluogo ? sopr(p.sopralluogo) : null;
     const disponibili = S.listino.filter(v => !p.righe.some(r => r.v === v.id));
     return `
     <div class="griglia2">
@@ -5513,13 +5841,16 @@ PAGINE.preventivo = {
         <div id="voci"></div>
         <p class="aiuto-voci">Il cliente chiede di togliere qualcosa? Sposta l&rsquo;interruttore della voce: esce dal totale e resta lì, per rimetterla se cambia idea. Il cestino la cancella. Tocca il nome per cambiarla, ripeterla più volte nell&rsquo;anno o proporla come facoltativa.</p>
 
-        ${disponibili.length ? `
         <div class="azioni" style="margin-top:16px">
-          <select class="campo" id="agg-voce" style="max-width:320px">
+          ${disponibili.length ? `<select class="campo" id="agg-voce" style="max-width:320px">
             ${disponibili.map(v => `<option value="${v.id}">${esc(v.nome)} — ${euro(v.p)} ${esc(v.u)}</option>`).join('')}
           </select>
-          <button class="bottone vuoto piccolo" onclick="aggiungiRiga('${p.id}')">Aggiungi</button>
-        </div>` : ''}
+          <button class="bottone vuoto piccolo" onclick="aggiungiRiga('${p.id}')">Aggiungi</button>` : ''}
+          <button class="bottone vuoto piccolo" onclick="rigaNuovaQui('${p.id}')">+ Lavorazione nuova</button>
+        </div>
+        ${sop ? `<p class="aiuto-voci" style="margin-top:10px">Una lavorazione è stata sentita male?
+          <a href="#sopralluogo/${sop.id}" style="color:var(--accento)">Torna al sopralluogo</a>, correggila,
+          e da lì rifai il preventivo: quello che hai aggiunto a mano resta.</p>` : ''}
 
         <div class="sconto">
           <span class="lbl" style="white-space:nowrap">Sconto <b id="scontoval" style="font-family:'Cormorant',serif;font-size:19px;letter-spacing:0">${p.sconto||0}%</b></span>
@@ -5588,9 +5919,9 @@ function disegnaVoci(id){
         <div class="det">${euro(r.p)} ${esc(r.u)}${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <div class="qta">
+        ${aCorpo(r) ? '<div class="a-corpo">prezzo fisso</div>' : `<div class="qta">
           <button onclick="qta('${id}',${k},-1)" aria-label="Meno">−</button><span id="q-${k}">${cifra(r.q)}</span><button onclick="qta('${id}',${k},1)" aria-label="Più">+</button>
-        </div>
+        </div>`}
         <div class="interr ${r.on?'on':''}" id="i-${k}" role="switch" aria-checked="${r.on?'true':'false'}"
              aria-label="${r.on ? 'Togli dal totale' : 'Rimetti nel totale'}: ${esc(r.nome)}"
              title="${r.on ? 'Togli questa voce dal totale, senza cancellarla' : 'Rimetti questa voce nel totale'}"
@@ -5630,8 +5961,41 @@ function aggiungiRiga(id){
   const p = prev(id);
   const v = voce(document.getElementById('agg-voce').value);
   if(!v) return;
-  p.righe.push({v:v.id, q:1, p:v.p, nome:v.nome, u:v.u, on:true});
+  p.righe.push({v:v.id, q:1, p:v.p, nome:v.nome, u:v.u, on:true, aMano:true});
   salva(); vai();
+}
+/* Una lavorazione nuova mentre il cliente e' davanti: non ce l'hai a listino, la
+   scrivi adesso col suo prezzo ed entra subito nel preventivo. Se vuoi, resta anche
+   nel listino per le prossime volte. Chiesto da Andrea il 19 settembre 2026:
+   "ancora non posso aggiungere nuove lavorazioni mentre sono a lavoro". */
+function rigaNuovaQui(id){
+  const p = prev(id); if(!p) return;
+  scheda({
+    titolo: 'Una lavorazione nuova',
+    sotto: 'Quella che non hai a listino. Scrivila adesso: entra in questo preventivo, e se vuoi resta nel listino per le prossime volte.',
+    valori: {u:'a corpo', q:1, tieni:'si'},
+    campi:[
+      {k:'nome', l:'Lavorazione', p:'Rifacimento vialetto in ghiaia'},
+      {k:'u', l:'Come la conti', t:'scelta', opzioni:UNITA_LISTINO},
+      {k:'p', l:'Prezzo in euro', t:'numero', p:'450'},
+      {k:'q', l:'Quantità', t:'numero', m:true, p:'A corpo non conta'},
+      {k:'tieni', l:'Nel listino', t:'scelta', m:true,
+       opzioni:[['si','Tienila anche nel listino'],['no','Solo per questo preventivo']]}
+    ],
+    controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
+      : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.' : null,
+    testoSalva: 'Mettila nel preventivo',
+    salva: d => {
+      const q = (d.q > 0) ? d.q : 1;
+      let idVoce = null;
+      if(d.tieni !== 'no'){
+        const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p};
+        S.listino.push(nuova); idVoce = nuova.id;
+      }
+      p.righe.push({v:idVoce, q, p:d.p, nome:d.nome, u:d.u, on:true, aMano:true});
+    },
+    messaggio: 'Lavorazione aggiunta al preventivo.'
+  });
 }
 function calcola(id){
   const p = prev(id); if(!p) return;
@@ -5824,6 +6188,7 @@ PAGINE.documento = {
     const rate = Number.isInteger(p.rate) && p.rate > 1 ? p.rate : 0;
     /* "1,36 ogni 100 mq" al cliente non dice niente: sotto si scrive quanti mq sono */
     const dettaglio = r => { const t = tipoUnita(r.u);
+      if(aCorpo(r)) return 'tutto compreso';
       return esc(r.u) + (t.per > 1 ? ' · ' + cifra(Math.round(r.q * t.per), 0) + ' mq' : ''); };
     const firma = firmaBuona(p) ? p.firma : null;
     return `<div class="foglio">
@@ -5853,7 +6218,7 @@ PAGINE.documento = {
         <tbody>
           ${righe.map(r => `<tr>
             <td>${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}</div></td>
-            <td class="n" data-l="Quantità">${cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
+            <td class="n" data-l="Quantità">${aCorpo(r) ? 'a corpo' : cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
             <td class="n" data-l="Prezzo">${euro(r.p)}</td>
             <td class="n" data-l="Importo">${euro(importoRiga(r))}</td>
           </tr>`).join('')}
