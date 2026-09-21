@@ -241,6 +241,24 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
 
 .riquadro{background:var(--bianco);border:1px solid var(--filetto);padding:22px;box-shadow:var(--ombra);
   margin-bottom:24px}
+/* le barre dei numeri: niente colori, solo l'accento e i suoi toni piu' chiari */
+.mese{display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center;
+  padding:7px 0;border-bottom:1px solid var(--filetto)}
+.mese:last-child{border-bottom:0}
+.mese.larga{grid-template-columns:minmax(0,1.1fr) 1fr auto}
+.mese.larga .nome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mese .nome{font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--tenue)}
+.mese .barre{display:grid;gap:3px}
+.mese .barra{height:7px;background:var(--filetto2);min-width:1px}
+.mese .barra.pieno{background:var(--accento)}
+.mese .cifre{font-family:'Cormorant',serif;font-size:19px;text-align:right;white-space:nowrap;
+  font-feature-settings:"lnum" 1,"tnum" 1}
+.legenda{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-family:'Jost',sans-serif;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--tenue)}
+.legenda span{display:inline-flex;align-items:center;gap:7px}
+.legenda i{width:16px;height:7px;display:inline-block;background:var(--filetto2)}
+.legenda i.pieno{background:var(--accento)}
 .riquadro.aperto{animation:entra .3s ease both}
 
 .torna{display:inline-flex;align-items:center;gap:7px;font-family:'Jost',sans-serif;font-size:10px;
@@ -292,6 +310,9 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
 .foglio .logo-doc{display:block;width:auto;height:auto;max-height:64px;max-width:170px;object-fit:contain}
 .foglio .dati{font-size:14.5px;color:var(--tenue);text-align:right;line-height:1.6}
 .foglio .a-chi{display:flex;justify-content:space-between;gap:24px;margin:24px 0 6px;flex-wrap:wrap}
+.foglio .programma-lavoro{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:18px 0 4px;
+  padding:13px 0;border-top:1px solid var(--filetto);border-bottom:1px solid var(--filetto)}
+.foglio .programma-lavoro .valore{font-family:'Cormorant',serif;font-size:20px;margin-top:2px}
 .foglio table{margin-top:16px}
 .foglio .chiusura{margin-top:26px;padding-top:16px;border-top:2px solid var(--inchiostro);
   display:grid;gap:7px;justify-items:end}
@@ -619,10 +640,6 @@ body.disegno-aperto{overflow:hidden}
 .logo-anteprima img{max-width:112px;max-height:56px;object-fit:contain}
 .logo-nota{font-size:14.5px;color:var(--soft);max-width:40ch;margin-top:3px}
 .logo-riquadro .riga-azione{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.invito{display:flex;justify-content:space-between;align-items:center;gap:14px 22px;flex-wrap:wrap;
-  padding:16px 0 18px;margin-bottom:26px;border-top:1px solid var(--accento);border-bottom:1px solid var(--filetto)}
-.invito p{font-size:16px;color:var(--soft);max-width:56ch;margin-top:4px}
-.invito .riga-azione{display:flex;gap:8px;flex-wrap:wrap}
 .file-doc{display:flex;justify-content:space-between;align-items:center;gap:10px 16px;flex-wrap:wrap;
   padding:12px 14px;margin-bottom:16px;border:1px solid var(--filetto2);background:var(--bianco)}
 .file-doc .riga-azione{display:flex;gap:8px}
@@ -641,6 +658,7 @@ body.disegno-aperto{overflow:hidden}
   .foglio .firma-data{margin-top:8px}
   /* sul telefono numero e data vanno sotto il nome del cliente: allineati a sinistra come lui */
   .foglio .a-chi > div:last-child{text-align:left!important}
+  .foglio .programma-lavoro{grid-template-columns:1fr;gap:12px}
 }
 
 @media print{
@@ -676,6 +694,7 @@ body.disegno-aperto{overflow:hidden}
       <a class="voce" href="#clienti"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.6-3.6 4-5.4 7-5.4s5.4 1.8 7 5.4"/></svg>Clienti</a>
       <a class="voce" href="#documenti"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>Documenti</a>
       <div class="gruppo lbl">La tua ditta</div>
+      <a class="voce" href="#numeri"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>I tuoi numeri</a>
       <a class="voce" href="#impostazioni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>Impostazioni</a>
     </nav>
     <div class="utente">
@@ -853,19 +872,26 @@ function proponiAggiornamento(){
 }
 const giaInstallata = () => (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches) ||
   (typeof navigator !== 'undefined' && navigator.standalone === true);
-/* in Oggi, finche' non e' installata: Android ha il suo tasto, l'iPhone vuole due tocchi a mano */
-function invitoTelefono(){
-  if(!dalServer() || S.telefono_chiuso || giaInstallata()) return '';
+/* In Impostazioni, non piu' in Oggi: Android ha il suo tasto, l'iPhone vuole due
+   tocchi a mano, e chi l'ha gia' messa deve vederlo scritto invece di trovare il
+   vuoto. Spostata qui su segnalazione di Matteo, 20 settembre 2026. */
+function bloccoTelefono(){
   const iphone = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent || '');
-  if(!invitoInstalla && !iphone) return '';
-  return `<div class="invito">
-      <div><span class="lbl">Mettila sul telefono</span>
-        <p>${invitoInstalla ? 'Rilievo diventa un\'icona sul telefono e si apre anche dove non prende: clienti, sopralluoghi, preventivi e firma funzionano lo stesso. Per il rilievo dall\'indirizzo serve la rete.'
-            : 'In Safari tocca il tasto Condividi, poi «Aggiungi alla schermata Home». Rilievo diventa un\'icona e si apre anche dove non prende.'}</p></div>
-      <div class="riga-azione">
-        ${invitoInstalla ? '<button class="bottone piccolo" onclick="installa()">Mettila sul telefono</button>' : ''}
-        <button class="bottone vuoto piccolo" onclick="chiudiTelefono()">Non ora</button>
-      </div>
+  const testo = giaInstallata()
+      ? 'Ci sei già: stai usando Rilievo dall\'icona del telefono.'
+    : !dalServer()
+      ? 'Per metterla sul telefono apri Rilievo dal suo indirizzo, non da un file salvato.'
+    : invitoInstalla
+      ? 'Rilievo diventa un\'icona sul telefono e si apre anche dove non prende: clienti, sopralluoghi, preventivi e firma funzionano lo stesso. Per il rilievo dall\'indirizzo serve la rete.'
+    : iphone
+      ? 'In Safari tocca il tasto Condividi, poi «Aggiungi alla schermata Home». Rilievo diventa un\'icona e si apre anche dove non prende.'
+      : 'Aprila dal telefono: lì il browser ti propone di aggiungerla fra le icone.';
+  return `<div class="riquadro">
+      <div class="lbl" style="margin-bottom:12px">Mettila sul telefono</div>
+      <p style="font-size:16px;color:var(--soft)">${testo}</p>
+      ${invitoInstalla && !giaInstallata() ? `<div class="azioni" style="margin-top:16px">
+        <button class="bottone" onclick="installa()">Mettila sul telefono</button>
+      </div>` : ''}
     </div>`;
 }
 function installa(){
@@ -874,7 +900,6 @@ function installa(){
   e.prompt();
   Promise.resolve(e.userChoice).then(r => { if(r && r.outcome === 'accepted') avvisa('Fatto: trovi Rilievo fra le icone del telefono.'); vai(); }, () => vai());
 }
-function chiudiTelefono(){ S.telefono_chiuso = true; salva(); vai(); }
 /* il nome e le iniziali in fondo alla colonna di sinistra */
 function intestaUtente(){
   document.getElementById('utente-nome').textContent = S.azienda.nome;
@@ -891,9 +916,33 @@ function intestaUtente(){
 const iniziali = n => (String(n||'').trim().split(/\s+/).filter(Boolean)
   .map(x => x[0]).join('').slice(0,2).toUpperCase()) || 'IO';
 const copia = o => JSON.parse(JSON.stringify(o));
+/* Il giorno non si salva insieme ai dati. Prima qui tornava il salvataggio
+   com'era, con dentro il giorno in cui era stato scritto: chi riapriva Rilievo
+   il giorno dopo si trovava l'app convinta che oggi fosse ieri, e da li' il
+   preventivo datato ieri, "fissa per oggi" che metteva ieri, il giorno della
+   settimana sbagliato in cima. La dimostrazione si sposta tutta, perche' davanti
+   al cliente dev'essere sempre di oggi; i dati veri no: un preventivo di ieri
+   resta di ieri, si sposta solo il giorno. */
 function leggiStato(){
-  try{ const g = localStorage.getItem(CHIAVE); if(g) return JSON.parse(g); }catch(e){}
+  try{
+    const g = localStorage.getItem(CHIAVE);
+    if(g){
+      const d = JSON.parse(g);
+      if(d && typeof d === 'object'){
+        if(ancoraLaDimostrazione(d) && d.oggi) attualizza(d);
+        d.oggi = oggiVero();
+      }
+      return d;
+    }
+  }catch(e){}
   return attualizza(copia(DATI));
+}
+/* Si sposta solo finche' e' ancora la ditta di esempio: appena uno ci mette il
+   suo nome sopra, quelle sono date sue e non si toccano piu'. */
+function ancoraLaDimostrazione(d){
+  let scelta = null; try{ scelta = localStorage.getItem(CHIAVE_SCELTA); }catch(e){}
+  return scelta === 'demo' && !!(d && d.azienda && DATI && DATI.azienda)
+         && d.azienda.nome === DATI.azienda.nome;
 }
 function salva(){ try{ localStorage.setItem(CHIAVE, JSON.stringify(S)); return true; }catch(e){ return false; } }
 function ricomincia(){
@@ -1037,10 +1086,19 @@ function normalizza(){
     if(r.nome == null) r.nome = v.nome;
     if(r.u    == null) r.u    = v.u;
     if(r.on   == null) r.on   = true;
+    /* L'aliquota si congela sulla riga come il prezzo. Le righe scritte prima
+       dell'IVA per riga (un salvataggio esportato allora, uno stato messo a mano
+       senza passare da "Consegna") non ne avevano nessuna addosso e ripescavano
+       quella della ditta a ogni conto: il giorno che uno la correggeva in
+       Impostazioni, i preventivi gia' in mano al cliente cambiavano totale in
+       silenzio. Qui si ferma il valore di adesso, che e' quello con cui il
+       preventivo e' stato consegnato. */
+    if(typeof r.iva !== 'number' || !isFinite(r.iva)) r.iva = aliquotaRiga(p, r);
   }));
   S.sopralluoghi.forEach(s => {
     if(!Array.isArray(s.foto)) s.foto = [];
     if(s.ora !== undefined && s.ora !== '' && !oraBuona(s.ora)) delete s.ora;
+    s.stato = statoSopralluogo(s);
   });
   S.preventivi.forEach(p => { if(p.lavoro !== undefined && !lavoroBuono(p.lavoro)) delete p.lavoro; });
   /* il logo e i file dei preventivi di prima: si tiene solo quello scritto bene */
@@ -1057,6 +1115,14 @@ function normalizza(){
 /* ---------------- attrezzi ---------------- */
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* La riga sotto un nome e' fatta di pezzi separati da un puntino. Attaccarli con
+   il piu' lasciava il puntino anche quando un pezzo non c'era: "Dove" non e'
+   obbligatorio nella scheda del sopralluogo, e chi la compila in fretta davanti al
+   cliente si ritrovava " · era il 18 settembre". Qui i pezzi vuoti si buttano. */
+function sotto(...pezzi){
+  return pezzi.filter(x => x !== null && x !== undefined && String(x).trim() !== '')
+              .map(esc).join(' · ');
+}
 function cifra(n, decimali){
   n = Math.round(Number(n) * 100) / 100;
   const meno = n < 0; n = Math.abs(n);
@@ -1073,6 +1139,14 @@ function dataLunga(iso){ if(!iso) return '—'; const d = gg(iso); return d.getD
 function dataCorta(iso){ if(!iso) return '—'; const d = gg(iso);
   return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear(); }
 function giorniDa(iso){ return Math.round((gg(S.oggi) - gg(iso))/86400000); }
+/* "da otto mesi", "da più di un anno": in Oggi serve il tempo a colpo d'occhio */
+function daQuantoTempo(giorni){
+  if(!(giorni > 0)) return 'mai sentito';
+  if(giorni >= 730) return 'da più di due anni';
+  if(giorni >= 365) return 'da più di un anno';
+  const mesi = Math.floor(giorni / 30);
+  return 'da ' + mesi + ' mesi';
+}
 
 /* ---- la dimostrazione e' sempre di oggi ----
    Nei dati la giornata e' fissata al 5 settembre 2026. Se restasse ferma li',
@@ -1125,6 +1199,9 @@ const prev      = id => S.preventivi.find(p => p.id === id);
 /* una voce ripetuta nell'anno (lo sfalcio di una manutenzione, dodici passaggi)
    vale prezzo x quantita' x volte. Le voci facoltative stanno fuori dal totale:
    sono proposte a parte, che il cliente sceglie quando firma. */
+/* Preso vuol dire che il lavoro e' tuo, pagato o no. Serve in piu' posti, quindi
+   sta qui una volta sola. */
+const preso = p => p.stato === 'accettato' || p.stato === 'pagato';
 const volteRiga   = r => (typeof r.volte === 'number' && r.volte > 1) ? r.volte : 1;
 /* "a corpo": prezzo fisso per tutto il lavoro, la quantita' non conta.
    Chiesto da Andrea il 19 settembre 2026: certe lavorazioni davanti al cliente si
@@ -1132,21 +1209,73 @@ const volteRiga   = r => (typeof r.volte === 'number' && r.volte > 1) ? r.volte 
    a metri o a pezzi e' un conto che non si fa mai. */
 const A_CORPO = 'a corpo';
 const aCorpo  = r => /\ba corpo\b/.test(String((r && r.u) || '').toLowerCase());
-const importoRiga = r => Math.round((aCorpo(r) ? r.p : r.p * r.q) * volteRiga(r) * 100) / 100;
+/* i soldi si fermano al centesimo: e' l'unita' piu' piccola che finisce stampata */
+const cent = n => Math.round(Number(n) * 100) / 100;
+const importoRiga = r => cent((aCorpo(r) ? r.p : r.p * r.q) * volteRiga(r));
 function conti(p){
   let imponibile = 0, facoltative = 0;
+  const basi = {};
   p.righe.forEach(r => {
     if(!r.on) return;
-    if(r.facoltativa) facoltative += importoRiga(r); else imponibile += importoRiga(r);
+    const importo = importoRiga(r);
+    if(r.facoltativa) facoltative += importo;
+    else {
+      imponibile += importo;
+      const aliquota = aliquotaRiga(p, r);
+      basi[aliquota] = (basi[aliquota] || 0) + importo;
+    }
   });
-  const sconto = imponibile * (p.sconto||0) / 100;
-  const netto  = imponibile - sconto;
-  /* l'IVA si ferma il giorno della consegna: se domani cambi l'aliquota,
-     i documenti gia' consegnati non cambiano, come i prezzi */
-  const aliquota = (typeof p.iva === 'number' && isFinite(p.iva)) ? p.iva : (Number(S.azienda.iva) || 0);
-  const iva    = netto * aliquota / 100;
-  return {imponibile, sconto, netto, iva, totale: netto + iva, aliquota, facoltative};
+  /* Ogni cifra si ferma al centesimo qui, non solo quando viene stampata. Prima
+     il totale si faceva con i numeri interi e le righe sopra si arrotondavano una
+     per una: il cliente col foglio in mano sommava 227,52 + 1,13 + 47,58, veniva
+     276,23, e sotto c'era scritto 276,22. Un foglio che non torna e' il contrario
+     di quello che questa app deve far vedere. */
+  imponibile  = cent(imponibile);
+  facoltative = cent(facoltative);
+  const sconto = cent(imponibile * (p.sconto||0) / 100);
+  const netto  = cent(imponibile - sconto);
+  const fattore = imponibile ? netto / imponibile : 0;
+  const aliquote = Object.keys(basi).map(Number).sort((a,b) => a-b)
+    .map(aliquota => ({aliquota, base: cent(basi[aliquota] * fattore)}));
+  /* lo sconto spalmato sulle aliquote lascia un centesimo che non sta da nessuna
+     parte: va sulla base piu' grande, se no le basi scritte non fanno il netto */
+  if(aliquote.length){
+    const avanzo = cent(netto - aliquote.reduce((t, x) => t + x.base, 0));
+    if(avanzo){
+      const grossa = aliquote.reduce((a, b) => b.base > a.base ? b : a);
+      grossa.base = cent(grossa.base + avanzo);
+    }
+  }
+  aliquote.forEach(x => { x.iva = cent(x.base * x.aliquota / 100); });
+  const iva = cent(aliquote.reduce((t, x) => t + x.iva, 0));
+  return {imponibile, sconto, netto, iva, totale: cent(netto + iva),
+          aliquota: aliquote.length === 1 ? aliquote[0].aliquota : null, aliquote, facoltative};
 }
+/* L'aliquota viaggia con la riga, come il prezzo. Le righe dei preventivi vecchi
+   usano l'aliquota congelata sul preventivo: cosi' non cambiano di un centesimo. */
+function aliquotaRiga(p, r){
+  if(typeof r.iva === 'number' && isFinite(r.iva)) return r.iva;
+  if(typeof p.iva === 'number' && isFinite(p.iva)) return p.iva;
+  return Number(S.azienda.iva) || 0;
+}
+/* Le rate mensili. Due cose che il foglio sbagliava: l'acconto sta in
+   Impostazioni e vale per tutti, le rate si scelgono preventivo per preventivo,
+   e chi aveva tutti e due si portava dal cliente una carta che prometteva
+   l'acconto alla firma piu' il totale intero a rate. E le rate, arrotondate al
+   centesimo e moltiplicate, non facevano il totale scritto sopra. Qui le rate
+   si dividono quello che resta dopo l'acconto, e l'ultima si tiene i centesimi
+   che avanzano. */
+function rateDi(c, rate, acconto){
+  if(!(Number.isInteger(rate) && rate > 1)) return null;
+  const anticipo = acconto > 0 ? cent(c.totale * acconto / 100) : 0;
+  const resto    = cent(c.totale - anticipo);
+  const prima    = cent(resto / rate);
+  const ultima   = cent(resto - prima * (rate - 1));
+  return {quante: rate, anticipo, resto, prima, ultima, pari: prima === ultima};
+}
+const rateScritte = r => euro(r.prima) + (r.pari ? '' : ' (l’ultima di ' + euro(r.ultima) + ')');
+const righeIvaHtml = (c, id) => c.aliquote.map((x, k) =>
+  `<div class="riga-tot"><span>IVA ${cifra(x.aliquota)}% su ${euro(x.base)}</span><span${id && k === 0 ? ` id="${id}"` : ''}>${euro(x.iva)}</span></div>`).join('');
 function usata(idVoce){
   return S.preventivi.filter(p => p.righe.some(r => r.v === idVoce && r.on)).length;
 }
@@ -1180,8 +1309,15 @@ const ETICHETTE = {
   bozza:              {t:'Bozza',              c:''},
   inviato:            {t:'In attesa',          c:'o'},
   accettato:          {t:'Accettato',          c:'v'},
+  /* dopo "accettato" il lavoro si fa e poi si incassa: finche' non e' incassato,
+     il preventivo accettato e' solo una promessa (Matteo, 20/09/2026) */
+  pagato:             {t:'Pagato',             c:'v'},
   rifiutato:          {t:'Non accettato',      c:''},
   firmato:            {t:'Firmato',            c:'v'},
+  /* Due cose diverse che prima si chiamavano tutte e due "Archiviato" (trovato da
+     Matteo il 20 settembre 2026): un preventivo che tolgo di mezzo e' "Messo via",
+     un file vecchio che ho caricato nel cassetto e' "Archiviato". */
+  messo_via:          {t:'Messo via',          c:''},
   archiviato:         {t:'Archiviato',         c:''},
   da_fissare:         {t:'Da fissare',         c:''},
   fissato:            {t:'Fissato',            c:'v'},
@@ -1197,7 +1333,19 @@ function menu(apri){
   document.getElementById('lato').classList.toggle('aperta', apri);
   document.querySelector('.velo').classList.toggle('on', apri);
 }
+/* L'app installata sul telefono resta aperta per giorni: senza questo, chi la
+   riprende in mano la mattina dopo lavora ancora dentro la giornata di ieri.
+   Ogni cambio di schermata controlla se e' passata la mezzanotte. */
+function giornataNuova(){
+  const vero = oggiVero();
+  if(!S || S.oggi === vero) return;
+  if(ancoraLaDimostrazione(S)) attualizza(S);
+  S.oggi = vero;
+  (S.sopralluoghi || []).forEach(x => { x.stato = statoSopralluogo(x); });
+  salva();
+}
 function vai(){
+  giornataNuova();
   const grezzo = (location.hash || '#oggi').slice(1);
   const pezzi  = grezzo.split('/');
   const nome   = pezzi[0] || 'oggi';
@@ -1222,7 +1370,6 @@ function vai(){
     </div>
     <div class="contenuto">
       ${P.guida === false ? '' : guidaHtml(nome, arg)}
-      ${P.spiega && !suaDitta() ? spiegaHtml(P.spiega) : ''}
       ${corpo}
     </div>`;
   if(P.poi) P.poi(arg);
@@ -1275,12 +1422,30 @@ function guidaHtml(nome, arg){
 }
 
 /* ---------------- azioni ---------------- */
-function fissaSopralluogo(idRichiesta){
-  const r = richiesta(idRichiesta);
-  let s = S.sopralluoghi.find(x => x.richiesta === idRichiesta);
+function statoSopralluogo(s){
+  if(!s || !s.quando) return 'da_fissare';
+  if(s.quando >= S.oggi) return 'fissato';
+  return s.preventivo ? 'fatto' : 'fissato';
+}
+function fissaSopralluogo(origine, data){
+  const r = richiesta(origine);
+  let s = r ? S.sopralluoghi.find(x => x.richiesta === r.id) : sopr(origine);
+  if(data === undefined){
+    scheda({
+      titolo:'Quando fai il sopralluogo?',
+      sotto:'Scegli il giorno. Puoi cambiarlo anche dopo.',
+      valori:{quando:(s && s.quando) || S.oggi},
+      campi:[{k:'quando', l:'Giorno', t:'data'}],
+      controlla:d => SOLO_DATA.test(d.quando) ? null : 'Scegli il giorno del sopralluogo.',
+      salva:d => fissaSopralluogo(origine, d.quando),
+      testoSalva:'Fissa il sopralluogo'
+    });
+    return;
+  }
   if(!s){
+    if(!r){ avvisa('Questo sopralluogo non si trova più.'); return; }
     s = copia(S.sopralluogo_predefinito);
-    s.id = nuovoId('s'); s.richiesta = idRichiesta;
+    s.id = nuovoId('s'); s.richiesta = r.id;
     if(r.prova && S.esempio_parlato){        // solo il giro di prova parte col parlato di esempio
       s.testo = S.esempio_parlato.testo; s.trovate = copia(S.esempio_parlato.trovate);
     }
@@ -1288,10 +1453,10 @@ function fissaSopralluogo(idRichiesta){
     s.cliente = r.cliente || null; s.preventivo = null;
     S.sopralluoghi.push(s);
   }
-  s.quando = S.oggi; s.stato = 'fissato';
-  r.stato = 'sopralluogo_fissato';
+  s.quando = data; s.stato = statoSopralluogo(s);
+  if(r) r.stato = 'sopralluogo_fissato';
   salva();
-  avvisa('Sopralluogo fissato per oggi. Lo trovi in Oggi e in Sopralluogo.');
+  avvisa('Sopralluogo fissato per ' + (data === S.oggi ? 'oggi' : dataLunga(data)) + '.');
   location.hash = '#sopralluogo/' + s.id;
 }
 function nuovaRichiesta(){
@@ -1336,7 +1501,7 @@ function righeDalSopralluogo(s){
     }
     const g = righe.find(x => x.v === v.id);
     if(g){ g.q += q; return; }
-    righe.push({v:v.id, q, p:v.p, nome:v.nome, u:v.u, on:true});
+    righe.push({v:v.id, q, p:v.p, nome:v.nome, u:v.u, iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true});
   });
   /* quello che ha detto e che a listino non c'e' non entra nel preventivo: se sparisse
      in silenzio, l'artigiano se ne accorgerebbe davanti al cliente */
@@ -1405,6 +1570,7 @@ function inviaPreventivo(id, come){
   p.stato = 'inviato'; p.data = S.oggi;
   p.consegna = {come: come || 'a mano', quando: S.oggi};
   if(typeof p.iva !== 'number') p.iva = Number(S.azienda.iva) || 0;
+  p.righe.forEach(r => { if(typeof r.iva !== 'number') r.iva = aliquotaRiga(p, r); });
   if(!p.cliente){
     const s = p.sopralluogo ? sopr(p.sopralluogo) : null;
     const r = s ? richiesta(s.richiesta) : null;
@@ -1431,6 +1597,45 @@ function accettaPreventivo(id){
   if(r) r.stato = 'lavoro_accettato';
   salva(); vai();
   avvisa('Segnato come accettato. Il lavoro è tuo.');
+}
+/* Incassato. Dopo "accettato" manca ancora il pezzo che conta: i soldi. Finche'
+   non e' pagato, il preventivo accettato resta nei "da incassare" (Matteo, 20/09/2026). */
+function segnaPagato(id){
+  const p = prev(id);
+  if(p.stato !== 'accettato') return;
+  p.stato = 'pagato';
+  p.pagato = {quando: S.oggi};
+  salva(); vai();
+  avvisa('Segnato come pagato. Questo lavoro è chiuso.');
+}
+function tornaNonPagato(id){
+  const p = prev(id);
+  if(p.stato !== 'pagato') return;
+  p.stato = 'accettato';
+  delete p.pagato;
+  salva(); vai();
+  avvisa('Rimesso fra quelli da incassare.');
+}
+/* Mettere via un preventivo: sparisce dai numeri e dai solleciti, ma resta nel
+   cassetto e si riprende con un tocco. Da non confondere con un documento vecchio
+   caricato, che nel cassetto e' "Archiviato" (difetto trovato da Matteo, 20/09/2026).
+   Lo stato di prima si tiene da parte, cosi' "Riprendilo" lo rimette dov'era. */
+function mettiViaPreventivo(id){
+  const p = prev(id);
+  if(p.stato === 'messo_via') return;
+  p.stato_prima = p.stato;
+  p.stato = 'messo_via';
+  salva(); vai();
+  avvisa('Messo via. Lo trovi nella linguetta «Messi via».');
+}
+function riprendiPreventivo(id){
+  const p = prev(id);
+  if(p.stato !== 'messo_via') return;
+  p.stato = STATI_PREVENTIVO.some(x => x[0] === p.stato_prima) && p.stato_prima !== 'messo_via'
+    ? p.stato_prima : 'bozza';
+  delete p.stato_prima;
+  salva(); vai();
+  avvisa('Ripreso: torna «' + (ETICHETTE[p.stato] || {t:p.stato}).t.toLowerCase() + '».');
 }
 function cambiaPrezzo(idVoce, valore){
   const v = voce(idVoce);
@@ -1656,11 +1861,17 @@ function schedaCliente(id){
       else S.clienti.push(Object.assign({id:nuovoId('c')}, d));
     },
     elimina: c ? () => {
+      /* si stacca, non si butta. Prima i documenti del cliente sparivano dal
+         cassetto insieme a lui: il rapportino firmato, il resoconto, i
+         preventivi di prima caricati uno per uno. Il tasto intanto prometteva
+         il contrario, e il file restava nella memoria grande del browser senza
+         piu' niente che lo mostrasse. Per buttare un documento c'e' il suo
+         tasto, che porta via anche il file. */
       S.preventivi.forEach(p => { if(p.cliente === id) p.cliente = null; });
-      S.documenti = S.documenti.filter(d => d.cliente !== id);
+      S.documenti.forEach(d => { if(d.cliente === id) d.cliente = null; });
       S.clienti = S.clienti.filter(x => x.id !== id);
     } : null,
-    testoElimina: 'Cancello il cliente. I suoi preventivi restano, ma senza scheda cliente attaccata.',
+    testoElimina: 'Cancello il cliente. I suoi preventivi e i suoi documenti restano nel cassetto, senza la sua scheda attaccata.',
     dopoElimina: c ? '#clienti' : null,
     messaggio: c ? 'Cliente aggiornato.' : 'Cliente aggiunto alla rubrica.'
   });
@@ -1670,17 +1881,19 @@ function schedaCliente(id){
 function schedaVoce(id){
   const v = id ? voce(id) : null;
   scheda({
-    titolo: v ? 'Modifica la lavorazione' : 'Nuova lavorazione',
+    titolo: v ? 'Modifica la voce di listino' : 'Nuova voce di listino',
     sotto: (v ? 'Il prezzo nuovo vale dal prossimo preventivo. Quelli già mandati non cambiano. ' : '') +
-      'In «Come la chiami a voce» scrivi le parole che usi tu in sopralluogo, separate da una virgola: così Rilievo riconosce la lavorazione quando parli.',
-    valori: v || {u:'a intervento'},
+      'Nel listino ci vanno sia le lavorazioni sia i materiali. In «Come la chiami a voce» scrivi le parole che usi tu in sopralluogo, separate da una virgola: così Rilievo la riconosce quando parli.',
+    valori: v || {u:'a intervento', iva:Number(S.azienda.iva)||0},
     campi:[
-      {k:'nome', l:'Lavorazione', p:'Abbattimento pianta'},
+      {k:'nome', l:'Lavorazione o materiale', p:'Abbattimento pianta, terriccio, staccionata…'},
       {k:'u', l:'Unità', p:'a pianta'},
       {k:'p', l:'Prezzo in euro', t:'numero', p:'180'},
+      {k:'iva', l:'IVA %', t:'numero', m:true, p:String(Number(S.azienda.iva)||0)},
       {k:'detti', l:'Come la chiami a voce', t:'lungo', p:'taglio dell\'erba, rasatura, tosatura'}
     ],
-    controlla: d => !d.nome ? 'Serve il nome della lavorazione.' : (d.p > 0 ? null : 'Serve un prezzo.'),
+    controlla: d => !d.nome ? 'Serve il nome della voce.' : !(d.p > 0) ? 'Serve un prezzo.'
+      : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.' : null,
     salva: d => {
       /* le frasi tenute in ordine: una virgola fra l'una e l'altra, niente spazi doppi */
       d.detti = String(d.detti || '').split(/[,;\n]+/).map(x => x.trim().replace(/\s+/g, ' ')).filter(Boolean).join(', ');
@@ -1697,13 +1910,17 @@ function schedaVoce(id){
 /* ---------------- preventivi ---------------- */
 const STATI_PREVENTIVO = [
   ['bozza','Bozza'], ['inviato','Consegnato, in attesa'],
-  ['accettato','Accettato'], ['rifiutato','Non accettato']
+  ['accettato','Accettato'], ['pagato','Pagato'], ['rifiutato','Non accettato'],
+  ['messo_via','Messo via']
 ];
-function schedaPreventivo(id){
+function schedaPreventivo(id, idCliente){
   const p = id ? prev(id) : null;
+  const cl = !p && idCliente ? cliente(idCliente) : null;
   scheda({
     titolo: p ? 'Intestazione del preventivo' : 'Nuovo preventivo',
-    valori: p || {data:S.oggi, stato:'bozza', numero:nuovoNumero(), sconto:0},
+    sotto: cl ? 'Per ' + cl.nome + '. Il preventivo resterà nella sua scheda.' : '',
+    valori: p || {data:S.oggi, stato:'bozza', numero:nuovoNumero(), sconto:0,
+                  nome:cl ? cl.nome : '', luogo:cl ? (cl.indirizzo || cl.luogo || '') : ''},
     campi:[
       {k:'nome', l:'Per chi', p:'Villa Ranieri'},
       {k:'luogo', l:'Dove', p:'Via Bellini 12, Pandino'},
@@ -1717,8 +1934,15 @@ function schedaPreventivo(id){
       : (d.rate !== null && d.rate !== undefined && !(Number.isInteger(d.rate) && d.rate >= 1 && d.rate <= 36)
          ? 'Le rate vanno da 1 a 36, un numero intero. Lascia vuoto se si paga tutto insieme.' : null),
     salva: d => {
-      if(p){ Object.assign(p, d); return; }
-      const nuovo = Object.assign({id:nuovoId('p'), cliente:null, righe:[], sopralluogo:null}, d);
+      /* se lo stato lo cambia a mano, il "dov'era prima" non serve piu' */
+      if(p){
+        Object.assign(p, d);
+        if(p.stato !== 'messo_via') delete p.stato_prima;
+        if(p.stato === 'pagato' && !p.pagato) p.pagato = {quando: S.oggi};
+        if(p.stato !== 'pagato') delete p.pagato;
+        return;
+      }
+      const nuovo = Object.assign({id:nuovoId('p'), cliente:cl ? cl.id : null, righe:[], sopralluogo:null}, d);
       nuovo.sconto = 0;
       S.preventivi.unshift(nuovo);
       location.hash = '#preventivo/' + nuovo.id;
@@ -1738,7 +1962,7 @@ function duplicaPreventivo(id){
   n.id = nuovoId('p'); n.numero = nuovoNumero(); n.data = S.oggi;
   n.stato = 'bozza'; n.sopralluogo = null;
   /* la copia e' un preventivo nuovo: niente firma, solleciti o esito di quello vecchio */
-  ['firma','solleciti','motivo','motivo_nota','consegna','iva'].forEach(k => { delete n[k]; });
+  ['firma','solleciti','motivo','motivo_nota','consegna','iva','stato_prima','pagato'].forEach(k => { delete n[k]; });
   n.note = 'Ripreso dal preventivo n. ' + p.numero + '.';
   S.preventivi.unshift(n); salva();
   location.hash = '#preventivo/' + n.id;
@@ -1754,21 +1978,23 @@ function schedaRiga(id, k){
   scheda({
     titolo: 'Modifica la voce',
     sotto: 'Vale solo su questo preventivo. Il listino non si tocca.',
-    valori: Object.assign({}, r, {facoltativa: r.facoltativa ? 'si' : 'no', volte: volteRiga(r) > 1 ? r.volte : ''}),
+    valori: Object.assign({}, r, {iva:aliquotaRiga(p,r), facoltativa: r.facoltativa ? 'si' : 'no', volte: volteRiga(r) > 1 ? r.volte : ''}),
     campi:[
       {k:'nome', l:'Lavorazione'},
       {k:'u', l:'Unità', t:'scelta', m:true, opzioni: unitaConLaSua(r.u)},
       {k:'p', l:'Prezzo in euro', t:'numero', m:true},
+      {k:'iva', l:'IVA %', t:'numero', m:true},
       {k:'q', l:'Quantità', t:'numero', m:true, facoltativo:true, p:'A corpo non conta'},
       {k:'volte', l:'Volte nell\'anno', t:'numero', m:true, facoltativo:true, p:'Vuoto se si fa una volta'},
       {k:'facoltativa', l:'Nel preventivo', t:'scelta',
        opzioni:[['no','Compresa nel totale'], ['si','Facoltativa: la proponi a parte, il cliente sceglie']]}
     ],
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
+      : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.'
       : (d.volte !== null && !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60)
          ? 'Le volte nell\'anno sono un numero intero, da 1 a 60.' : null),
     salva: d => {
-      Object.assign(r, {nome:d.nome, u:d.u, p:d.p, q: (d.q > 0 ? d.q : 1)});
+      Object.assign(r, {nome:d.nome, u:d.u, p:d.p, iva:d.iva, q: (d.q > 0 ? d.q : 1)});
       r.facoltativa = d.facoltativa === 'si';
       if(d.volte > 1) r.volte = d.volte; else delete r.volte;
     },
@@ -1790,7 +2016,7 @@ function schedaSopralluogo(id){
   const s = id ? sopr(id) : null;
   scheda({
     titolo: s ? 'Modifica il sopralluogo' : 'Nuovo sopralluogo',
-    valori: s || {quando:S.oggi, stato:'fissato'},
+    valori: s || {quando:S.oggi},
     campi:[
       /* i suggerimenti non sono i dati della dimostrazione: nel proprio giro
          "Condominio Le Querce, Rivolta d'Adda" sembra un cliente di qualcun altro.
@@ -1798,19 +2024,18 @@ function schedaSopralluogo(id){
       {k:'nome', l:'Per chi', p:'Es. Sig. Rossi, oppure Condominio Il Parco'},
       {k:'luogo', l:'Dove', p:'Es. Via Roma 10' + (comuneDitta() ? ', ' + comuneDitta() : '')},
       {k:'quando', l:'Quando', t:'data'},
-      {k:'ora', l:'A che ora', t:'ora'},
-      {k:'stato', l:'A che punto è', t:'scelta',
-       opzioni:[['da_fissare','Da fissare'],['fissato','Fissato'],['fatto','Fatto']]}
+      {k:'ora', l:'A che ora', t:'ora'}
     ],
     controlla: d => !d.nome ? 'Serve il nome di chi lo riceve.'
       : (d.ora && !oraScritta(d.ora)) ? 'L\'ora si scrive così: 9:30.' : null,
     salva: d => {
       d.ora = oraScritta(d.ora) || '';
-      if(s){ Object.assign(s, d); return; }
+      if(s){ Object.assign(s, d); s.stato = statoSopralluogo(s); return; }
       const n = copia(S.sopralluogo_predefinito);
       /* `suo`: se lo e' aperto lui col tasto, non viene dai dati di partenza.
          Serve alla guida dei primi passi per farsi da parte (vedi passoCorrente). */
       Object.assign(n, d, {id:nuovoId('s'), richiesta:null, cliente:null, preventivo:null, suo:true});
+      n.stato = statoSopralluogo(n);
       S.sopralluoghi.push(n);
       location.hash = '#sopralluogo/' + n.id;
     },
@@ -2345,26 +2570,6 @@ function metteLogo(src, dove){
 /* in cima al documento: il logo, se c'e', e accanto il nome della ditta */
 const marchioDoc = (a, sotto) => `<div class="marchio-doc">${logoSicuro(a.logo) ? `<img class="logo-doc" src="${a.logo}" alt="">` : ''}
           <div><h2>${esc(a.nome)}</h2><div class="lbl" style="margin-top:4px">${sotto}</div></div></div>`;
-/* chi prova con la sua ditta: l'invito a metterla a nome suo, finche' non l'ha fatto */
-function invitoMateriale(){
-  if(!suaDitta() || S.invito_chiuso) return '';
-  const logo = logoSicuro(S.azienda.logo), vecchi = S.documenti.some(d => fileBuono(d.file));
-  if(logo && vecchi) return '';
-  return `<div class="invito">
-      <div><span class="lbl">Mettila a nome tuo</span>
-        <p>${!logo && !vecchi ? 'Carica il tuo logo e i preventivi che hai già fatto. Il logo esce stampato sui preventivi, quelli di prima restano nel cassetto, attaccati ai clienti.'
-            : !logo ? 'Carica il tuo logo: esce stampato in cima a ogni preventivo.'
-            : 'Carica i preventivi che hai già fatto: restano nel cassetto, attaccati ai clienti.'}</p></div>
-      <div class="riga-azione">
-        ${logo ? '' : `<button class="bottone piccolo" onclick="document.getElementById('scelta-logo-subito').click()">Carica il logo</button>
-          <input type="file" id="scelta-logo-subito" accept="image/*" style="display:none" onchange="caricaLogo(this,'subito')">`}
-        ${vecchi ? '' : `<button class="bottone${logo ? '' : ' vuoto'} piccolo" onclick="document.getElementById('scelta-archivio').click()">Carica i preventivi di prima</button>`}
-        <button class="bottone vuoto piccolo" onclick="chiudiInvito()">Non ora</button>
-      </div>
-      ${inputArchivio()}
-    </div>`;
-}
-function chiudiInvito(){ S.invito_chiuso = true; salva(); vai(); }
 /* un'immagine caricata da "Ricarica un salvataggio": si chiede se e' il logo o un preventivo */
 function doveImmagine(file){
   scheda({
@@ -2634,35 +2839,57 @@ PAGINE.oggi = {
     const orario = s => oraBuona(s.ora) ? s.ora : '24';
     const inGiornata = S.sopralluoghi.filter(s => s.quando === S.oggi)
                         .sort((a, b) => orario(a).localeCompare(orario(b)));
+    /* matteo 1: il sopralluogo di ieri che non e' stato chiuso e' lavoro di oggi.
+       Se resta fuori da qui, la mattina non lo vede nessuno. */
+    const inRitardo  = S.sopralluoghi.filter(s => s.quando && s.quando < S.oggi && s.stato !== 'fatto')
+                        .sort((a, b) => a.quando.localeCompare(b.quando));
     const daFissare  = S.sopralluoghi.filter(s => s.stato === 'da_fissare');
     const attesa     = S.preventivi.filter(p => p.stato === 'inviato')
                         .sort((a,b) => giorniDa(b.data) - giorniDa(a.data));
-    const settimana  = S.preventivi.filter(p => p.stato !== 'bozza' && giorniDa(p.data) <= 7 && giorniDa(p.data) >= 0);
+    /* matteo 8: la scheda di un preventivo messo via promette «non conta nei numeri».
+       Vale anche per questi, se no l'app si smentisce da sola la mattina dopo. */
+    const settimana  = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via'
+                                             && giorniDa(p.data) <= 7 && giorniDa(p.data) >= 0);
     const fatti      = settimana.reduce((t,p) => t + conti(p).netto, 0);
-    const chiusi     = settimana.filter(p => p.stato === 'accettato').reduce((t,p) => t + conti(p).netto, 0);
+    const chiusi     = settimana.filter(preso).reduce((t,p) => t + conti(p).netto, 0);
+    /* matteo 12: chi non ti chiama da sei mesi e' lavoro che c'e' gia', e che perdi
+       stando zitto. Finche' stava solo in Clienti, nessuno andava a guardarlo. */
+    const daRisentire = S.clienti.filter(c => statoCliente(c) === 'richiamare')
+      .map(c => {
+        const ultimo = lavoriDi(c.id).map(x => x.data).sort().slice(-1)[0];
+        return {c, ultimo, giorni: giorniDa(ultimo)};
+      })
+      .sort((a,b) => b.giorni - a.giorni);
 
-    const programma = inGiornata.length || daFissare.length
+    const programma = inGiornata.length || inRitardo.length || daFissare.length
       ? `<div class="elenco">
+          ${inRitardo.map(s => `
+            <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
+              <div><div class="tit">${esc(s.nome)}</div>
+                   <div class="sub">${sotto('In ritardo', 'era il ' + dataLunga(s.quando), s.luogo)}</div></div>
+              ${tag('fissato')}
+            </div>`).join('')}
           ${inGiornata.map(s => `
             <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
               <div><div class="tit">${esc(s.nome)}</div>
-                   <div class="sub">${oraBuona(s.ora) ? 'Alle ' + oraBella(s.ora) + ' · ' : ''}${esc(s.luogo)}</div></div>
+                   <div class="sub">${sotto(oraBuona(s.ora) ? 'Alle ' + oraBella(s.ora) : '', s.luogo)}</div></div>
               ${tag(s.stato === 'fatto' ? 'fatto' : 'fissato')}
             </div>`).join('')}
           ${daFissare.map(s => `
             <div class="r"><div><div class="tit">${esc(s.nome)}</div>
               <div class="sub">Da richiamare per la data</div></div>
-              <button class="bottone vuoto piccolo" onclick="fissaSopralluogo('${s.richiesta}')">Fissa</button>
+              <button class="bottone vuoto piccolo" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Fissa</button>
             </div>`).join('')}
          </div>`
       : '<div class="niente">Oggi non hai sopralluoghi. Le richieste che arrivano finiscono in Richieste.</div>';
 
-    return `${invitoTelefono()}${invitoMateriale()}
+    return `
     <div class="riga-numeri">
-      <div class="numero"><div class="val">${inGiornata.length}</div><div class="lbl">Sopralluoghi oggi</div></div>
+      <div class="numero"><div class="val">${inGiornata.length + inRitardo.length}</div><div class="lbl">Sopralluoghi oggi</div></div>
       <div class="numero"><div class="val">${attesa.length}</div><div class="lbl">Preventivi in attesa</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(fatti, 0)}</div><div class="lbl">Preventivato in sette giorni</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(chiusi, 0)}</div><div class="lbl">Accettato</div></div>
+      <div class="numero"><div class="val">${daRisentire.length}</div><div class="lbl">Clienti da risentire</div></div>
     </div>
     <div class="griglia2">
       <div>
@@ -2684,6 +2911,21 @@ PAGINE.oggi = {
           <p style="font-size:15px;color:var(--tenue);margin-top:14px">Un preventivo fermo da più di quattro giorni te lo ricordo qui, con il messaggio già scritto. Si perdono più lavori per il silenzio che per il prezzo.</p>`
         : '<div class="niente" style="padding:20px 0">Nessuno ti deve una risposta.</div>'}
       </div>
+    </div>
+    <div style="margin-top:30px">
+      <div class="lbl" style="margin-bottom:12px">Clienti da risentire</div>
+      ${daRisentire.length ? `<div class="elenco">
+        ${daRisentire.map(({c, ultimo, giorni}) => `
+          <div class="r cliccabile" onclick="location.hash='#cliente/${c.id}'">
+            <div><div class="tit">${esc(c.nome)}</div>
+              <div class="sub">${sotto(c.luogo || c.indirizzo || '', ultimo ? 'ultimo lavoro ' + quando(ultimo) : '', daQuantoTempo(giorni))}</div></div>
+            <div class="riga-azione">
+              ${c.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(c.tel).replace(/[^+\d]/g, ''))}" onclick="event.stopPropagation()">Chiamalo</a>` : ''}
+              <button class="bottone piccolo" onclick="event.stopPropagation();schedaPreventivo(null,'${c.id}')">Nuovo preventivo</button>
+            </div>
+          </div>`).join('')}
+        </div>`
+        : '<div class="niente" style="padding:20px 0">Nessuno da risentire: hai sentito tutti negli ultimi sei mesi.</div>'}
     </div>`;
   }
 };
@@ -2815,25 +3057,45 @@ PAGINE.sopralluogo = {
     if(s._trovate && s._trovate.length) disegnaRilevate(arg);
   }
 };
+let filtroSopralluoghi = 'tutti';
+function setFiltroSopralluoghi(f){ filtroSopralluoghi = f; vai(); }
 function elencoSopralluoghi(){
   const oggi   = S.sopralluoghi.filter(s => s.quando === S.oggi && s.stato !== 'fatto');
-  const fissa  = S.sopralluoghi.filter(s => s.stato === 'da_fissare');
+  const fissa  = S.sopralluoghi.filter(s => !s.quando);
+  const prossimi = S.sopralluoghi.filter(s => s.quando > S.oggi);
+  /* matteo 1: una data passata con il lavoro ancora aperto non e' «fatto» e non e'
+     «prossimo». Senza un gruppo suo non cadeva in nessuna linguetta e spariva,
+     mentre il contatore «Tutti» continuava a contarlo. */
+  const tardi  = S.sopralluoghi.filter(s => s.quando && s.quando < S.oggi && s.stato !== 'fatto');
   const fatti  = S.sopralluoghi.filter(s => s.stato === 'fatto');
-  const riga = (s, sotto, azione) => `<div class="r">
-    <div><div class="tit">${esc(s.nome)}</div><div class="sub">${esc(sotto)}</div>
+  const riga = (s, sottoRiga, azione) => `<div class="r">
+    <div><div class="tit">${esc(s.nome)}</div><div class="sub">${sottoRiga}</div>
       <div class="azioni">${azione}</div></div>${tag(s.stato)}</div>`;
   return `
-  ${oggi.length ? `<div class="lbl" style="margin-bottom:12px">Oggi</div><div class="elenco" style="margin-bottom:28px">
-    ${oggi.map(s => riga(s, s.luogo, `<a class="bottone piccolo" href="#sopralluogo/${s.id}">Apri</a>`)).join('')}
+  <div class="filtri">
+    ${[['tutti','Tutti',S.sopralluoghi.length],['oggi','Oggi',oggi.length + tardi.length],['fissare','Da fissare',fissa.length],['prossimi','Prossimi',prossimi.length],['fatti','Già fatti',fatti.length]]
+      .map(([k,n,c]) => `<button class="${filtroSopralluoghi===k?'attivo':''}" onclick="setFiltroSopralluoghi('${k}')">${n} (${c})</button>`).join('')}
+  </div>
+  ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'oggi') && tardi.length ? `<div class="lbl" style="margin-bottom:12px">In ritardo</div><div class="elenco" style="margin-bottom:28px">
+    ${tardi.slice().sort((a,b) => a.quando.localeCompare(b.quando)).map(s => riga(s, sotto(s.luogo, 'era il ' + dataLunga(s.quando)),
+        `<a class="bottone piccolo" href="#sopralluogo/${s.id}">Apri</a>` +
+        `<button class="bottone vuoto piccolo" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Sposta la data</button>`)).join('')}
   </div>` : ''}
-  ${fissa.length ? `<div class="lbl" style="margin-bottom:12px">Da fissare</div><div class="elenco" style="margin-bottom:28px">
-    ${fissa.map(s => riga(s, s.luogo, `<button class="bottone vuoto piccolo" onclick="fissaSopralluogo('${s.richiesta}')">Fissa per oggi</button>`)).join('')}
+  ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'oggi') && oggi.length ? `<div class="lbl" style="margin-bottom:12px">Oggi</div><div class="elenco" style="margin-bottom:28px">
+    ${oggi.map(s => riga(s, sotto(s.luogo), `<a class="bottone piccolo" href="#sopralluogo/${s.id}">Apri</a>`)).join('')}
   </div>` : ''}
-  ${fatti.length ? `<div class="lbl" style="margin-bottom:12px">Già fatti</div><div class="elenco">
-    ${fatti.map(s => riga(s, s.luogo + ' · ' + (s.quando ? dataLunga(s.quando) : ''),
-        s.preventivo ? `<a class="bottone vuoto piccolo" href="#preventivo/${s.preventivo}">Vedi il preventivo</a>` : '')).join('')}
+  ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'fissare') && fissa.length ? `<div class="lbl" style="margin-bottom:12px">Da fissare</div><div class="elenco" style="margin-bottom:28px">
+    ${fissa.map(s => riga(s, sotto(s.luogo), `<button class="bottone vuoto piccolo" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Fissa</button>`)).join('')}
   </div>` : ''}
-  ${!oggi.length && !fissa.length && !fatti.length ? '<div class="niente">Ancora nessun sopralluogo. Sei da un cliente adesso? Tocca «Nuovo sopralluogo» qui sopra.</div>' : ''}`;
+  ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'prossimi') && prossimi.length ? `<div class="lbl" style="margin-bottom:12px">Prossimi</div><div class="elenco" style="margin-bottom:28px">
+    ${prossimi.sort((a,b) => a.quando.localeCompare(b.quando)).map(s => riga(s, sotto(s.luogo, dataLunga(s.quando)), `<a class="bottone piccolo" href="#sopralluogo/${s.id}">Apri</a>`)).join('')}
+  </div>` : ''}
+  ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'fatti') && fatti.length ? `<div class="lbl" style="margin-bottom:12px">Già fatti</div><div class="elenco">
+    ${fatti.map(s => riga(s, sotto(s.luogo, s.quando ? dataLunga(s.quando) : ''),
+        `<a class="bottone vuoto piccolo" href="#sopralluogo/${s.id}">Apri il sopralluogo</a>` +
+        (s.preventivo ? `<a class="bottone vuoto piccolo" href="#preventivo/${s.preventivo}">Vedi il preventivo</a>` : ''))).join('')}
+  </div>` : ''}
+  ${!S.sopralluoghi.length ? '<div class="niente">Ancora nessun sopralluogo. Sei da un cliente adesso? Tocca «Nuovo sopralluogo» qui sopra.</div>' : ''}`;
 }
 function intestazioneSopralluogo(s, r){
   return `<div style="margin-bottom:18px">
@@ -5777,13 +6039,17 @@ PAGINE.preventivi = {
   },
   corpo(){
     const gruppi = {tutti:()=>true, bozza:p=>p.stato==='bozza', inviato:p=>p.stato==='inviato',
-                    accettato:p=>p.stato==='accettato', rifiutato:p=>p.stato==='rifiutato'};
+                    accettato:p=>p.stato==='accettato', pagato:p=>p.stato==='pagato',
+                    rifiutato:p=>p.stato==='rifiutato', messo_via:p=>p.stato==='messo_via'};
     const conta = f => S.preventivi.filter(gruppi[f]).length;
     const lista = S.preventivi.filter(gruppi[filtroPrev] || gruppi.tutti)
       .slice().sort((a,b) => (a.data < b.data ? 1 : -1));
     /* com'e' andata: quanti ne prendi fra quelli consegnati, e perche' perdi gli altri */
-    const consegnati = S.preventivi.filter(p => p.stato !== 'bozza');
-    const presi = consegnati.filter(p => p.stato === 'accettato');
+    /* uno messo via non dice niente su come vanno le trattative: sta fuori dai conti */
+    const consegnati = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via');
+    const presi = consegnati.filter(preso);
+    const daIncassare = consegnati.filter(p => p.stato === 'accettato')
+      .reduce((t,p) => t + conti(p).totale, 0);
     const persi = consegnati.filter(p => p.stato === 'rifiutato');
     const motivi = {};
     persi.forEach(p => { if(p.motivo) motivi[p.motivo] = (motivi[p.motivo] || 0) + 1; });
@@ -5793,10 +6059,11 @@ PAGINE.preventivi = {
       <div class="numero"><div class="val">${presi.length} <small>su ${consegnati.length}</small></div><div class="lbl">Accettati fra i consegnati</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(presi.reduce((t,p) => t + conti(p).netto, 0), 0)}</div><div class="lbl">Lavoro preso</div></div>
       <div class="numero"><div class="val">${conta('inviato')}</div><div class="lbl">Aspettano una risposta</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Ancora da incassare</div></div>
       <div class="numero"><div class="val">${persi.length}</div><div class="lbl">${spesso ? 'Non andati · più spesso: ' + esc(nomeMotivo(spesso).toLowerCase()) : 'Non andati'}</div></div>
     </div>` : ''}
     <div class="filtri">
-      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['rifiutato','Non andati']]
+      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['pagato','Pagati'],['rifiutato','Non andati'],['messo_via','Messi via']]
         .map(([k,n]) => `<button class="${filtroPrev===k?'attivo':''}" onclick="setFiltroPrev('${k}')">${n} (${conta(k)})</button>`).join('')}
     </div>
     ${lista.length ? `<div class="elenco">${lista.map(p => `
@@ -5846,7 +6113,7 @@ PAGINE.preventivo = {
             ${disponibili.map(v => `<option value="${v.id}">${esc(v.nome)} — ${euro(v.p)} ${esc(v.u)}</option>`).join('')}
           </select>
           <button class="bottone vuoto piccolo" onclick="aggiungiRiga('${p.id}')">Aggiungi</button>` : ''}
-          <button class="bottone vuoto piccolo" onclick="rigaNuovaQui('${p.id}')">+ Lavorazione nuova</button>
+          <button class="bottone vuoto piccolo" onclick="rigaNuovaQui('${p.id}')">+ Voce nuova</button>
         </div>
         ${sop ? `<p class="aiuto-voci" style="margin-top:10px">Una lavorazione è stata sentita male?
           <a href="#sopralluogo/${sop.id}" style="color:var(--accento)">Torna al sopralluogo</a>, correggila,
@@ -5862,10 +6129,11 @@ PAGINE.preventivo = {
           <div class="cifra" id="totale">${euro(c.netto)}</div>
         </div>
         <div style="margin-top:12px">
-          <div class="riga-tot"><span>IVA ${cifra(c.aliquota)}%</span><span id="riga-iva">${euro(c.iva)}</span></div>
+          <div id="righe-iva">${righeIvaHtml(c, 'riga-iva')}</div>
           <div class="riga-tot" style="color:var(--inchiostro)"><span>Totale documento</span><span id="riga-totale"><b>${euro(c.totale)}</b></span></div>
           ${p.righe.some(r => r.on && r.facoltativa) ? `<div class="riga-tot"><span>Facoltative, proposte a parte</span><span id="riga-fac">${euro(c.facoltative)}</span></div>` : ''}
-          ${p.rate > 1 ? `<div class="riga-tot"><span>${p.rate} rate mensili da</span><span id="riga-rata">${euro(c.totale / p.rate)}</span></div>` : ''}
+          ${(() => { const rr = rateDi(c, p.rate, Number(S.azienda.acconto) > 0 ? Number(S.azienda.acconto) : 0);
+             return rr ? `<div class="riga-tot"><span>${rr.anticipo ? 'Dopo l’acconto, ' : ''}${rr.quante} rate mensili da</span><span id="riga-rata">${rateScritte(rr)}</span></div>` : ''; })()}
         </div>
 
         <label style="display:block;margin-top:24px">
@@ -5877,7 +6145,9 @@ PAGINE.preventivo = {
       <div class="scheda">
         <div class="lbl" style="margin-bottom:12px">${p.stato === 'bozza' ? 'Quando è pronto' : 'A che punto è'}</div>
         <p style="font-size:16px;color:var(--soft)">${
-          p.stato === 'accettato' ? (p.firma ? 'Firmato da ' + esc(p.firma.nome) + ' il ' + dataLunga(p.firma.quando) + '. Il lavoro è tuo.' : 'Accettato. Il lavoro è tuo.')
+          p.stato === 'messo_via' ? 'Messo via: resta nel cassetto ma non ti gira piu\u2019 fra i piedi, e non conta nei numeri. Riprendilo quando vuoi.'
+          : p.stato === 'pagato' ? 'Pagato' + (p.pagato && p.pagato.quando ? ' il ' + dataLunga(p.pagato.quando) : '') + '. Questo è chiuso: il lavoro fatto e i soldi incassati.'
+          : p.stato === 'accettato' ? (p.firma ? 'Firmato da ' + esc(p.firma.nome) + ' il ' + dataLunga(p.firma.quando) + '. Il lavoro è tuo.' : 'Accettato. Il lavoro è tuo.')
           : p.stato === 'rifiutato' ? 'Non è andata' + (p.motivo ? ': ' + esc(((MOTIVI_NO.find(x => x[0] === p.motivo) || [0, ''])[1]).toLowerCase()) : '') + '. Resta nel cassetto: se il cliente ci ripensa, lo rifai uguale con un tocco.'
           : p.stato === 'inviato' ? 'Consegnato ' + quando(p.data) + (p.consegna ? ' (' + esc(p.consegna.come) + ')' : '') + '. Se non risponde, risentilo: il messaggio è già scritto.'
           : 'Esce un documento ordinato con il tuo nome, i tuoi dati e le voci come le avete decise insieme.'}</p>
@@ -5894,7 +6164,14 @@ PAGINE.preventivo = {
                  <button class="bottone vuoto piccolo" onclick="accettaPreventivo('${p.id}')">Ha detto sì</button>
                  <button class="bottone tenue piccolo" onclick="rifiutaPreventivo('${p.id}')">Ha detto no</button>
                </div>` : ''}
-          ${p.stato === 'accettato' ? lavoroHtml(p) : ''}
+          ${preso(p) ? lavoroHtml(p) : ''}
+          ${p.stato === 'accettato'
+            ? `<button class="bottone vuoto" onclick="segnaPagato('${p.id}')">L’ha pagato</button>` : ''}
+          ${p.stato === 'pagato'
+            ? `<button class="bottone tenue piccolo" onclick="tornaNonPagato('${p.id}')">Non l’ha ancora pagato</button>` : ''}
+          ${p.stato === 'messo_via'
+            ? `<button class="bottone vuoto" onclick="riprendiPreventivo('${p.id}')">Riprendilo</button>`
+            : `<button class="bottone tenue piccolo" onclick="mettiViaPreventivo('${p.id}')">Mettilo via</button>`}
         </div>
         <div style="margin-top:18px;border-top:1px solid var(--filetto);padding-top:14px">
           <div class="riga-tot"><span>Stato</span><span>${tag(p.stato)}</span></div>
@@ -5916,7 +6193,7 @@ function disegnaVoci(id){
     <div class="voce ${r.on?'':'spenta'}" id="v-${k}">
       <div class="sotto-voce">
         <div class="nome modificabile" onclick="schedaRiga('${id}',${k})" title="Cambia nome, prezzo, volte nell'anno, o rendila facoltativa">${esc(r.nome)}</div>
-        <div class="det">${euro(r.p)} ${esc(r.u)}${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}</div>
+        <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${aCorpo(r) ? '<div class="a-corpo">prezzo fisso</div>' : `<div class="qta">
@@ -5961,7 +6238,7 @@ function aggiungiRiga(id){
   const p = prev(id);
   const v = voce(document.getElementById('agg-voce').value);
   if(!v) return;
-  p.righe.push({v:v.id, q:1, p:v.p, nome:v.nome, u:v.u, on:true, aMano:true});
+  p.righe.push({v:v.id, q:1, p:v.p, nome:v.nome, u:v.u, iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true, aMano:true});
   salva(); vai();
 }
 /* Una lavorazione nuova mentre il cliente e' davanti: non ce l'hai a listino, la
@@ -5971,30 +6248,32 @@ function aggiungiRiga(id){
 function rigaNuovaQui(id){
   const p = prev(id); if(!p) return;
   scheda({
-    titolo: 'Una lavorazione nuova',
-    sotto: 'Quella che non hai a listino. Scrivila adesso: entra in questo preventivo, e se vuoi resta nel listino per le prossime volte.',
-    valori: {u:'a corpo', q:1, tieni:'si'},
+    titolo: 'Una voce nuova',
+    sotto: 'Lavorazione o materiale che non hai a listino. Scrivila adesso: entra in questo preventivo, e se vuoi resta nel listino per le prossime volte.',
+    valori: {u:'a corpo', q:1, iva:Number(S.azienda.iva)||0, tieni:'si'},
     campi:[
-      {k:'nome', l:'Lavorazione', p:'Rifacimento vialetto in ghiaia'},
+      {k:'nome', l:'Lavorazione o materiale', p:'Rifacimento vialetto in ghiaia'},
       {k:'u', l:'Come la conti', t:'scelta', opzioni:UNITA_LISTINO},
       {k:'p', l:'Prezzo in euro', t:'numero', p:'450'},
+      {k:'iva', l:'IVA %', t:'numero', m:true, p:String(Number(S.azienda.iva)||0)},
       {k:'q', l:'Quantità', t:'numero', m:true, p:'A corpo non conta'},
       {k:'tieni', l:'Nel listino', t:'scelta', m:true,
        opzioni:[['si','Tienila anche nel listino'],['no','Solo per questo preventivo']]}
     ],
-    controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
-      : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.' : null,
+    controlla: d => !d.nome ? 'Serve il nome della voce.'
+      : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.'
+      : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.' : null,
     testoSalva: 'Mettila nel preventivo',
     salva: d => {
       const q = (d.q > 0) ? d.q : 1;
       let idVoce = null;
       if(d.tieni !== 'no'){
-        const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p};
+        const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p, iva:d.iva};
         S.listino.push(nuova); idVoce = nuova.id;
       }
-      p.righe.push({v:idVoce, q, p:d.p, nome:d.nome, u:d.u, on:true, aMano:true});
+      p.righe.push({v:idVoce, q, p:d.p, nome:d.nome, u:d.u, iva:d.iva, on:true, aMano:true});
     },
-    messaggio: 'Lavorazione aggiunta al preventivo.'
+    messaggio: 'Voce aggiunta al preventivo.'
   });
 }
 function calcola(id){
@@ -6006,7 +6285,7 @@ function calcola(id){
   const c = conti(p);
   const f = document.getElementById('riga-fac'); if(f) f.textContent = euro(c.facoltative) + ' + IVA';
   const t = document.getElementById('totale');   if(t) t.textContent = euro(c.netto);
-  const i = document.getElementById('riga-iva'); if(i) i.textContent = euro(c.iva);
+  const i = document.getElementById('righe-iva'); if(i) i.innerHTML = righeIvaHtml(c, 'riga-iva');
   const g = document.getElementById('riga-totale'); if(g) g.innerHTML = '<b>' + euro(c.totale) + '</b>';
 }
 
@@ -6017,13 +6296,13 @@ PAGINE.listino = {
     destra:'<div class="azioni"><button class="bottone vuoto" onclick="apriListinoDaVecchi()">Prendilo da un preventivo vecchio</button>' +
       '<button class="bottone" onclick="schedaVoce(null)">+ Nuova voce</button></div>'}; },
   spiega:{
-    testo:'Le tue lavorazioni, con i tuoi prezzi. Quando parli in sopralluogo Rilievo le riconosce dal nome e dalle parole che scrivi in «Come la chiami a voce», e ogni preventivo parte già con i tuoi numeri.',
+    testo:'Le tue lavorazioni e i tuoi materiali, con i tuoi prezzi. Quando parli in sopralluogo Rilievo le riconosce dal nome e dalle parole che scrivi in «Come la chiami a voce», e ogni preventivo parte già con i tuoi numeri.',
     punti:['Cambi un prezzo qui e vale per tutti i preventivi futuri','I documenti già mandati restano com\'erano, con il prezzo di quel giorno','Nessuno vede il tuo listino tranne te']
   },
   corpo(){
     return `
     <table>
-      <thead><tr><th>Lavorazione</th><th>Unità</th><th class="n">Prezzo</th><th class="n">Usata</th><th></th></tr></thead>
+      <thead><tr><th>Lavorazione o materiale</th><th>Unità</th><th class="n">Prezzo</th><th class="n">IVA</th><th class="n">Usata</th><th></th></tr></thead>
       <tbody>
         ${S.listino.map(v => `<tr>
           <td>${esc(v.nome)}${v.detti
@@ -6033,6 +6312,7 @@ PAGINE.listino = {
           <td class="n"><span style="color:var(--tenue)">€</span>
               <input class="campo" style="width:96px;text-align:right;padding:6px 8px;display:inline-block"
               value="${v.p}" inputmode="decimal" onchange="cambiaPrezzo('${v.id}',this.value)"></td>
+          <td class="n">${cifra(typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0))}%</td>
           <td class="n">${usata(v.id)} ${usata(v.id) === 1 ? 'volta' : 'volte'}</td>
           <td class="n" style="width:40px">${comandi([{t:'Modifica o cancella', i:MATITA, f:`schedaVoce('${v.id}')`}])}</td>
         </tr>`).join('')}
@@ -6048,6 +6328,14 @@ PAGINE.listino = {
 
 /* ===== CLIENTI ===== */
 function lavoriDi(idCliente){ return S.preventivi.filter(p => p.cliente === idCliente); }
+let filtroClienti = 'tutti';
+function statoCliente(c){
+  const l = lavoriDi(c.id), ultimo = l.map(p => p.data).sort().slice(-1)[0];
+  if(!ultimo) return 'nuovi';
+  if(giorniDa(ultimo) > 180) return 'richiamare';
+  return l.length > 1 ? 'fissi' : 'attivi';
+}
+function setFiltroClienti(f){ filtroClienti = f; vai(); }
 PAGINE.clienti = {
   guida:false,
   testata(){ return {occhiello:'Chi sono e cosa gli hai fatto', titolo:'Clienti',
@@ -6058,19 +6346,25 @@ PAGINE.clienti = {
   },
   corpo(){
     if(!S.clienti.length) return '<div class="niente">Nessun cliente ancora.</div>';
-    return `${campoCerca('Cerca per nome, paese o telefono')}<div class="elenco">${S.clienti.map(c => {
+    const gruppi = {tutti:()=>true, attivi:c=>statoCliente(c)==='attivi', fissi:c=>statoCliente(c)==='fissi', richiamare:c=>statoCliente(c)==='richiamare', nuovi:c=>statoCliente(c)==='nuovi'};
+    const conta = f => S.clienti.filter(gruppi[f]).length;
+    const lista = S.clienti.filter(gruppi[filtroClienti] || gruppi.tutti);
+    return `<div class="filtri">
+      ${[['tutti','Tutti'],['attivi','Attivi'],['fissi','Clienti fissi'],['richiamare','Da risentire'],['nuovi','Senza lavori']]
+        .map(([k,n]) => `<button class="${filtroClienti===k?'attivo':''}" onclick="setFiltroClienti('${k}')">${n} (${conta(k)})</button>`).join('')}
+    </div>${campoCerca('Cerca per nome, paese o telefono')}<div class="elenco">${lista.map(c => {
       const l = lavoriDi(c.id);
       const ultimo = l.map(p => p.data).sort().slice(-1)[0];
       const g = ultimo ? giorniDa(ultimo) : 999;
       return `<div class="r cliccabile" data-cerca="${esc(chiaveCerca(c.nome, c.luogo, c.indirizzo, c.tel, c.mail, c.note))}" onclick="location.hash='#cliente/${c.id}'">
         <div><div class="tit">${esc(c.nome)}</div>
-          <div class="sub">${esc(c.luogo)} · ${l.length} ${l.length === 1 ? 'lavoro' : 'lavori'}${ultimo ? ' · ultimo ' + quando(ultimo) : ''}</div></div>
+          <div class="sub">${sotto(c.luogo, l.length + (l.length === 1 ? ' lavoro' : ' lavori'), ultimo ? 'ultimo ' + quando(ultimo) : '')}</div></div>
         <div class="riga-azione">
           ${g > 180 ? '<span class="tag o">Da risentire</span>' : (l.length > 1 ? '<span class="tag v">Cliente fisso</span>' : '')}
           ${comandi([{t:'Modifica o cancella', i:MATITA, f:`schedaCliente('${c.id}')`}])}
         </div>
       </div>`;
-    }).join('')}</div>`;
+    }).join('')}</div>${!lista.length ? '<div class="niente">Nessun cliente con questo filtro.</div>' : ''}`;
   }
 };
 PAGINE.cliente = {
@@ -6081,18 +6375,21 @@ PAGINE.cliente = {
     return {occhiello:'Scheda cliente', titolo:esc(c.nome),
             destra:`<div class="azioni">
               <a class="torna" href="#clienti" style="margin:0">← Tutti i clienti</a>
-              <button class="bottone piccolo" onclick="schedaCliente('${c.id}')">Modifica</button>
+              <button class="bottone vuoto piccolo" onclick="schedaCliente('${c.id}')">Modifica</button>
+              <button class="bottone piccolo" onclick="schedaPreventivo(null,'${c.id}')">+ Nuovo preventivo</button>
             </div>`};
   },
   corpo(id){
     const c = cliente(id);
     const l = lavoriDi(id).slice().sort((a,b) => (a.data < b.data ? 1 : -1));
-    const accettato = l.filter(p => p.stato === 'accettato').reduce((t,p) => t + conti(p).netto, 0);
+    const accettato = l.filter(preso).reduce((t,p) => t + conti(p).netto, 0);
+    const incassato = l.filter(p => p.stato === 'pagato').reduce((t,p) => t + conti(p).totale, 0);
     const docs = S.documenti.filter(d => d.cliente === id);
     return `
     <div class="riga-numeri">
       <div class="numero"><div class="val">${l.length}</div><div class="lbl">Preventivi</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(accettato, 0)}</div><div class="lbl">Lavori accettati</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(accettato, 0)}</div><div class="lbl">Lavori presi</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Già incassato</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${c.dal ? dataCorta(c.dal) : '—'}</div><div class="lbl">Cliente dal</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${esc(c.tel || '—')}</div><div class="lbl">Telefono</div></div>
     </div>
@@ -6113,6 +6410,138 @@ PAGINE.cliente = {
         <p style="font-size:16.5px;color:var(--soft)">${esc(c.indirizzo || c.luogo)}</p>
         ${c.mail ? `<p style="font-size:16px;color:var(--soft);margin-top:8px">${esc(c.mail)}</p>` : ''}
         ${c.note ? `<p style="font-size:15px;color:var(--tenue);margin-top:14px;border-top:1px solid var(--filetto);padding-top:12px">${esc(c.note)}</p>` : ''}
+      </div>
+    </div>`;
+  }
+};
+
+/* ===== I TUOI NUMERI =====
+   L'ultimo dei tredici pezzi di Matteo, e per forza l'ultimo: finche' non c'era lo
+   stato "pagato" (punto 10) qui dentro non c'era niente da mostrare sull'incassato.
+   Tutti i numeri escono dai preventivi veri: nessun conto scritto a mano. */
+function meseIso(iso){ return String(iso || '').slice(0, 7); }
+function ultimiMesi(quanti){
+  const fuori = [], d = gg(S.oggi);
+  d.setDate(1);
+  for(let i = 0; i < quanti; i++){
+    fuori.unshift({chiave: giornoIso(d).slice(0, 7), nome: MESI[d.getMonth()].slice(0, 3), anno: d.getFullYear()});
+    d.setMonth(d.getMonth() - 1);
+  }
+  return fuori;
+}
+/* il giorno in cui i soldi sono entrati davvero. I preventivi vecchi, segnati
+   pagati prima che esistesse il giorno dell'incasso, ripiegano sulla loro data. */
+const quandoIncassato = p => (p.pagato && p.pagato.quando) || p.data;
+/* quanto rende ogni voce di listino nei lavori presi: e' li' che si vede
+   quale lavoro vale la pena cercare, e quale lo fai solo per abitudine */
+function resaDelListino(presi){
+  const somme = {};
+  presi.forEach(p => p.righe.forEach(r => {
+    if(!r.on || r.facoltativa) return;
+    const nome = r.nome || (voce(r.v) || {}).nome;
+    if(!nome) return;
+    somme[nome] = (somme[nome] || 0) + importoRiga(r);
+  }));
+  return Object.keys(somme).map(nome => ({nome, quanto: somme[nome]}))
+    .sort((a, b) => b.quanto - a.quanto);
+}
+PAGINE.numeri = {
+  guida:false,
+  testata(){ return {occhiello:'Come sta andando davvero', titolo:'I tuoi numeri'}; },
+  corpo(){
+    const anno = String(S.oggi).slice(0, 4);
+    const consegnati = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via');
+    const presi   = consegnati.filter(preso);
+    const pagati  = consegnati.filter(p => p.stato === 'pagato');
+    const attesa  = consegnati.filter(p => p.stato === 'inviato');
+    const persi   = consegnati.filter(p => p.stato === 'rifiutato');
+    /* i soldi si contano nell'anno in cui sono arrivati, non in quello in cui
+       e' uscito il preventivo: un lavoro consegnato a dicembre e incassato a
+       gennaio e' incasso dell'anno nuovo. Contandolo per la data del preventivo,
+       la cifra in cima e le barre mese per mese si smentivano a vicenda. */
+    const incassato   = pagati.filter(p => String(quandoIncassato(p)).slice(0, 4) === anno)
+                              .reduce((t, p) => t + conti(p).totale, 0);
+    const daIncassare = consegnati.filter(p => p.stato === 'accettato')
+                              .reduce((t, p) => t + conti(p).totale, 0);
+    const inAttesa    = attesa.reduce((t, p) => t + conti(p).netto, 0);
+    const quota  = consegnati.length ? Math.round(presi.length * 100 / consegnati.length) : 0;
+    const medio  = presi.length ? presi.reduce((t, p) => t + conti(p).netto, 0) / presi.length : 0;
+
+    /* mese per mese: quanto e' uscito come preventivo consegnato, e quanto e' stato incassato */
+    const mesi = ultimiMesi(12).map(m => ({
+      nome: m.nome,
+      anno: m.anno,
+      fatto: consegnati.filter(p => meseIso(p.data) === m.chiave).reduce((t, p) => t + conti(p).netto, 0),
+      incassato: pagati.filter(p => meseIso(quandoIncassato(p)) === m.chiave)
+                       .reduce((t, p) => t + conti(p).totale, 0)
+    }));
+    const alto = Math.max(1, ...mesi.map(m => Math.max(m.fatto, m.incassato)));
+    const resa = resaDelListino(presi).slice(0, 6);
+    const totResa = resa.reduce((t, x) => t + x.quanto, 0);
+    const motivi = {};
+    persi.forEach(p => { if(p.motivo) motivi[p.motivo] = (motivi[p.motivo] || 0) + 1; });
+    const perche = Object.keys(motivi).sort((a, b) => motivi[b] - motivi[a]);
+    const daRisentire = S.clienti.filter(c => statoCliente(c) === 'richiamare').length;
+    const fissi = S.clienti.filter(c => statoCliente(c) === 'fissi').length;
+
+    if(!consegnati.length) return `<div class="niente">Ancora nessun preventivo consegnato: qui non c’è niente da contare. Torna dopo il primo.</div>`;
+
+    return `
+    <div class="riga-numeri">
+      <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Incassato nel ${anno}</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Lavoro preso, ancora da incassare</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(inAttesa, 0)}</div><div class="lbl">Fermo in attesa di risposta</div></div>
+      <div class="numero"><div class="val">${quota}<small>%</small></div><div class="lbl">Ne prendi ${presi.length} su ${consegnati.length}</div></div>
+    </div>
+    <div class="griglia2">
+      <div class="riquadro">
+        <div class="lbl" style="margin-bottom:14px">Mese per mese, gli ultimi dodici</div>
+        ${mesi.map(m => `
+          <div class="mese">
+            <div class="nome">${m.nome} ${String(m.anno).slice(2)}</div>
+            <div class="barre">
+              <div class="barra" style="width:${Math.max(1, Math.round(m.fatto * 100 / alto))}%"></div>
+              <div class="barra pieno" style="width:${Math.max(1, Math.round(m.incassato * 100 / alto))}%"></div>
+            </div>
+            <div class="cifre">${cifra(m.fatto, 0)}<br><span style="color:var(--accento)">${cifra(m.incassato, 0)}</span></div>
+          </div>`).join('')}
+        <div class="legenda">
+          <span><i></i> Preventivi consegnati</span>
+          <span><i class="pieno"></i> Soldi incassati</span>
+        </div>
+      </div>
+      <div>
+        <div class="riquadro">
+          <div class="lbl" style="margin-bottom:12px">Da dove arrivano i soldi</div>
+          ${resa.length ? resa.map(x => `
+            <div class="mese larga">
+              <div class="nome">${esc(x.nome)}</div>
+              <div class="barre"><div class="barra pieno" style="width:${Math.max(1, Math.round(x.quanto * 100 / (resa[0].quanto || 1)))}%"></div></div>
+              <div class="cifre">${cifra(x.quanto, 0)}</div>
+            </div>`).join('') + `
+            <p style="font-size:15px;color:var(--tenue);margin-top:12px">${resa.length === 1
+              ? `Questa voce vale ${euro(totResa)} del lavoro che hai preso.`
+              : `Queste ${['','una','due','tre','quattro','cinque','sei'][resa.length] || resa.length} voci valgono ${euro(totResa)} del lavoro che hai preso.`}</p>`
+            : '<div class="niente" style="padding:14px 0">Nessun lavoro preso ancora.</div>'}
+        </div>
+        <div class="riquadro">
+          <div class="lbl" style="margin-bottom:12px">Il preventivo medio</div>
+          <div style="font-family:'Cormorant',serif;font-size:38px;line-height:1">${euro(medio)}</div>
+          <p style="font-size:15.5px;color:var(--soft);margin-top:8px">Quanto vale, in media, un lavoro che ti dicono di sì. Per fare mille euro in più al mese ne servono ${Math.max(1, Math.ceil(1000 / (medio || 1)))} in più.</p>
+        </div>
+        <div class="riquadro">
+          <div class="lbl" style="margin-bottom:12px">Perché li perdi</div>
+          ${perche.length ? `<div>${perche.map(k => `
+            <div class="riga-tot"><span>${esc(nomeMotivo(k))}</span><span><b>${motivi[k]}</b></span></div>`).join('')}</div>`
+            : '<div class="niente" style="padding:14px 0">Nessuno ti ha ancora detto di no.</div>'}
+        </div>
+        <div class="riquadro" style="margin-bottom:0">
+          <div class="lbl" style="margin-bottom:12px">I tuoi clienti</div>
+          <div class="riga-tot"><span>In rubrica</span><span><b>${S.clienti.length}</b></span></div>
+          <div class="riga-tot"><span>Clienti fissi</span><span><b>${fissi}</b></span></div>
+          <div class="riga-tot"><span>Da risentire</span><span><b>${daRisentire}</b></span></div>
+          ${daRisentire ? `<div class="azioni" style="margin-top:14px"><a class="bottone vuoto piccolo" href="#clienti">Vai a risentirli</a></div>` : ''}
+        </div>
       </div>
     </div>`;
   }
@@ -6186,6 +6615,7 @@ PAGINE.documento = {
     const giorni = Number(a.validita) > 0 ? Number(a.validita) : 30;
     const acconto = Number(a.acconto) > 0 ? Number(a.acconto) : 0;
     const rate = Number.isInteger(p.rate) && p.rate > 1 ? p.rate : 0;
+    const rateCarta = rateDi(c, rate, acconto);
     /* "1,36 ogni 100 mq" al cliente non dice niente: sotto si scrive quanti mq sono */
     const dettaglio = r => { const t = tipoUnita(r.u);
       if(aCorpo(r)) return 'tutto compreso';
@@ -6196,7 +6626,7 @@ PAGINE.documento = {
         ${marchioDoc(a, esc(a.sotto || ''))}
         <div class="dati">
           ${esc(a.via)}<br>${esc(a.citta)}<br>
-          P. IVA ${esc(a.piva)}<br>${esc(a.tel)} · ${esc(a.mail)}
+          P. IVA ${esc(a.piva)}<br>${sotto(a.tel, a.mail)}
         </div>
       </div>
 
@@ -6213,6 +6643,11 @@ PAGINE.documento = {
         </div>
       </div>
 
+      ${lavoroBuono(p.lavoro) ? `<div class="programma-lavoro">
+        <div><div class="lbl">Inizio del lavoro</div><div class="valore">${esc(dataLunga(p.lavoro.quando))}${p.lavoro.ora ? ' alle ' + esc(oraBella(p.lavoro.ora)) : ''}</div></div>
+        <div><div class="lbl">Programma</div><div class="valore">${esc(ripetizione(p.lavoro))}</div></div>
+      </div>` : ''}
+
       <table>
         <thead><tr><th>Lavorazione</th><th class="n">Quantità</th><th class="n">Prezzo</th><th class="n">Importo</th></tr></thead>
         <tbody>
@@ -6228,9 +6663,9 @@ PAGINE.documento = {
       <div class="chiusura">
         <div class="riga"><span class="lbl">Imponibile</span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(c.imponibile)}</span></div>
         ${p.sconto ? `<div class="riga"><span class="lbl">Sconto ${p.sconto}%</span><span style="font-family:'Cormorant',serif;font-size:22px">− ${euro(c.sconto)}</span></div>` : ''}
-        <div class="riga"><span class="lbl">IVA ${cifra(c.aliquota)}%</span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(c.iva)}</span></div>
+        ${c.aliquote.map(x => `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}% su ${euro(x.base)}</span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(x.iva)}</span></div>`).join('')}
         <div class="riga" style="margin-top:6px"><span class="lbl">Totale</span><span class="grande">${euro(c.totale)}</span></div>
-        ${rate ? `<div class="riga"><span class="lbl">In ${rate} rate mensili da</span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(Math.round(c.totale / rate * 100) / 100)}</span></div>` : ''}
+        ${rateCarta ? `<div class="riga"><span class="lbl">${rateCarta.anticipo ? 'Dopo l’acconto, in' : 'In'} ${rateCarta.quante} rate mensili da</span><span style="font-family:'Cormorant',serif;font-size:22px">${rateScritte(rateCarta)}</span></div>` : ''}
       </div>
 
       ${fac.length ? `<div class="facoltative-doc">
@@ -6244,8 +6679,8 @@ PAGINE.documento = {
       <div class="condizioni-doc">
         <div class="lbl">Condizioni</div>
         <p>Il preventivo vale fino al ${dataLunga(dopoGiorni(p.data, giorni))}.${acconto
-          ? ` Alla firma si versa un acconto del ${cifra(acconto)}%, cioè ${euro(Math.round(c.totale * acconto) / 100)}; il saldo a fine lavori.` : ''}${rate
-          ? ` Il totale si paga in ${rate} rate mensili da ${euro(Math.round(c.totale / rate * 100) / 100)}.` : ''}</p>
+          ? ` Alla firma si versa un acconto del ${cifra(acconto)}%, cioè ${euro(rateCarta ? rateCarta.anticipo : cent(c.totale * acconto / 100))}${rateCarta ? '.' : '; il saldo a fine lavori.'}` : ''}${rateCarta
+          ? ` ${acconto ? 'Il resto' : 'Il totale'} si paga in ${rateCarta.quante} rate mensili da ${rateScritte(rateCarta)}.` : ''}</p>
         ${a.condizioni ? `<p>${esc(a.condizioni)}</p>` : ''}
         ${p.note ? `<p>${esc(p.note)}</p>` : ''}
       </div>
@@ -6340,6 +6775,11 @@ function testoPreventivo(p){
   return ['Buongiorno, come d\'accordo le mando il preventivo n. ' + p.numero + (p.luogo ? ' per ' + p.luogo : '') + '.', '']
     .concat(righe.map(riga))
     .concat(p.sconto ? ['Sconto ' + p.sconto + '%: − ' + euro(c.sconto)] : [])
+    /* senza queste righe il cliente sommava le voci, toglieva lo sconto, e il
+       totale in fondo era un altro numero: l'IVA non era scritta da nessuna
+       parte. Su un preventivo si controlla, e questo e' il messaggio con cui il
+       lavoro si chiude. */
+    .concat(c.aliquote.map(x => 'IVA ' + cifra(x.aliquota) + '%: ' + euro(x.iva)))
     .concat(['', 'Totale ' + euro(c.totale) + ', IVA compresa.'])
     .concat(fac.length ? ['', 'Se le interessa, a parte (più IVA):'].concat(fac.map(riga)) : [])
     .concat(['', 'Per accettare basta rispondere a questo messaggio. Resto a disposizione per qualsiasi domanda.', '', firmaDitta()])
@@ -6766,14 +7206,7 @@ PAGINE.impostazioni = {
           </div>
         </div>
 
-        <div class="riquadro">
-          <div class="lbl" style="margin-bottom:12px">I preventivi che hai fatto prima</div>
-          <p style="font-size:16px;color:var(--soft)">PDF, foto, Word o Excel, anche tanti insieme. Finiscono nei Documenti: dici di chi erano e quanto valevano, e li riapri quando serve. Viaggiano anche nel file esportato.</p>
-          <div class="azioni" style="margin-top:16px">
-            <button class="bottone vuoto" onclick="document.getElementById('scelta-archivio').click()">Carica preventivi di prima</button>
-          </div>
-          ${inputArchivio()}
-        </div>
+        ${bloccoTelefono()}
 
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Cosa c'è dentro adesso</div>
