@@ -3499,6 +3499,7 @@ function rilievoValido(d){
   }
   const lotto = n('lotto_mq'), scop = n('scoperto_mq');
   if(lotto === null || scop === null) return 'mancano i metri quadri del lotto o dello scoperto';
+  if(lotto < 20) return 'il lotto è troppo piccolo per essere una misura credibile';
   if(!c(d.coperto_mq) && n('coperto_mq') === null) return 'il coperto non è un numero';
   if(!c(d.verde_mq) && n('verde_mq') === null) return 'il verde non è un numero';
   const cop = n('coperto_mq'), verde = n('verde_mq');
@@ -4092,16 +4093,7 @@ function apriDisegno(idSopralluogo, idZona){
   document.body.classList.add('disegno-aperto');
   ascoltaLeDueDita(velo);
   addEventListener('keydown', tastoDisegno);
-  const svg = velo.querySelector('#disegno-svg');
-  svg.addEventListener('click', toccoDisegno);
-  svg.addEventListener('pointerdown', prendiPunto);
-  svg.addEventListener('pointermove', muoviPunto);
-  svg.addEventListener('pointerup', lasciaPunto);
-  svg.addEventListener('pointercancel', lasciaPunto);
-  /* sul telefono, un dito su un punto lo sposta invece di far scorrere la foto */
-  svg.addEventListener('touchstart', e => {
-    if(e.target && e.target.closest && e.target.closest('[data-i]')) e.preventDefault();
-  }, {passive:false});
+  ascoltaGestiFoto(velo);
   ridisegna();
 }
 /* salvare: la forma finita che c'e' sul foglio entra nel disegno. Chiudere senza
@@ -4115,7 +4107,7 @@ function chiudiDisegno(salvare, zitto){
   if(v) v.remove();
   document.body.classList.remove('disegno-aperto');
   removeEventListener('keydown', tastoDisegno);
-  const eraAperto = !!D; D = null;
+  const eraAperto = !!D; D = null; pinch = null;
   if(eraAperto && !zitto) vai();
 }
 function tastoDisegno(e){
@@ -4201,46 +4193,52 @@ function toccoDisegno(e){
   const p = puntoDaEvento(e);
   if(p) aggiungiPunto(p);
 }
+// All photo editors share tap, drag and cancellation handling.
+function ascoltaGestiFoto(velo){
+  const svg = velo.querySelector('#disegno-svg');
+  svg.addEventListener('click', e => {
+    if(e.detail === 0 && D && !D.gesto && !(D.finito && Date.now() - D.finito < 400)) toccoDisegno(e);
+  });
+  svg.addEventListener('pointerdown', prendiPunto);
+  svg.addEventListener('pointermove', muoviPunto);
+  svg.addEventListener('pointerup', lasciaPunto);
+  svg.addEventListener('pointercancel', lasciaPunto);
+}
 function prendiPunto(e){
-  if(!D) return;
+  if(!D || (e.button !== undefined && e.button !== 0)) return;
+  if(D.gesto){ D.gesto.annullato = true; return; }
   const t = e.target && e.target.closest ? e.target.closest('[data-i]') : null;
-  if(t){
-    D.trascina = Number(t.getAttribute('data-i'));
-    D.trascinato = false;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
-    e.preventDefault();
-    return;
-  }
-  /* niente punto sotto il dito: il dito fa scorrere la foto. Prima si poteva solo
-     ingrandire, e della foto ingrandita si raggiungeva solo il pezzo in mezzo:
-     il resto del giardino non si poteva disegnare (Andrea, 19 settembre 2026). */
   const foglio = document.getElementById('disegno-foglio');
   if(!foglio) return;
-  D.scorri = {x: e.clientX, y: e.clientY, sx: foglio.scrollLeft, sy: foglio.scrollTop, mosso: false};
+  D.finito = 0;
+  D.gesto = {id:e.pointerId, x:e.clientX, y:e.clientY, target:e.target,
+    sx:foglio.scrollLeft, sy:foglio.scrollTop, mosso:false, annullato:false};
+  D.trascina = t && !D.casa && !D.particelle ? Number(t.getAttribute('data-i')) : null;
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
 }
 function muoviPunto(e){
-  if(!D) return;
+  if(!D || !D.gesto || D.gesto.id !== e.pointerId || D.gesto.annullato || pinch) return;
+  const g = D.gesto, dx = e.clientX - g.x, dy = e.clientY - g.y;
+  if(!g.mosso && Math.hypot(dx, dy) < 8) return;
+  g.mosso = true;
   if(D.trascina !== null && D.trascina !== undefined){
-    const p = puntoDaEvento(e); if(!p) return;
-    D.trascinato = true;
-    spostaPunto(D.trascina, p);
-    return;
+    const p = puntoDaEvento(e);
+    if(p) spostaPunto(D.trascina, p);
+  } else {
+    const foglio = document.getElementById('disegno-foglio');
+    if(foglio){ foglio.scrollLeft = g.sx - dx; foglio.scrollTop = g.sy - dy; }
   }
-  if(!D.scorri) return;
-  const foglio = document.getElementById('disegno-foglio'); if(!foglio) return;
-  const dx = e.clientX - D.scorri.x, dy = e.clientY - D.scorri.y;
-  if(!D.scorri.mosso && Math.hypot(dx, dy) < 6) return;
-  D.scorri.mosso = true;
-  foglio.scrollLeft = D.scorri.sx - dx;
-  foglio.scrollTop  = D.scorri.sy - dy;
   e.preventDefault();
 }
-function lasciaPunto(){
-  if(!D) return;
-  /* la foto appena scorsa non deve lasciare un punto dove il dito si e' alzato */
-  if(D.trascinato || (D.scorri && D.scorri.mosso)) D.finito = Date.now();
-  D.trascina = null; D.trascinato = false; D.scorri = null;
+function lasciaPunto(e){
+  if(!D || !D.gesto || D.gesto.id !== e.pointerId) return;
+  const g = D.gesto;
+  const tocco = e.type !== 'pointercancel' && !g.annullato && !g.mosso && !pinch;
+  D.gesto = null; D.trascina = null;
+  if(!tocco) D.finito = Date.now();
+  try { e.currentTarget.releasePointerCapture(e.pointerId); } catch(_){}
+  // Use the original target: pointer capture retargets pointerup to the SVG.
+  if(tocco) toccoDisegno({clientX:e.clientX, clientY:e.clientY, target:g.target});
 }
 function ingrandisci(verso){
   portaZoomA((D ? D.zoom || 1 : 1) * (verso > 0 ? 1.6 : 1 / 1.6));
@@ -4273,6 +4271,8 @@ const angoloDita = t => Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t
 const mezzoDita = t => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
 function pinchInizio(e){
   if(!D || e.touches.length !== 2) return;
+  if(D.gesto) D.gesto.annullato = true;
+  D.trascina = null;
   const m = mezzoDita(e.touches);
   pinch = {d: distanzaDita(e.touches), zoom: D.zoom || 1,
            a: angoloDita(e.touches), giro: D.giro || 0, gira: false,
@@ -4507,7 +4507,7 @@ function apriParticelle(idSopralluogo){
   document.body.classList.add('disegno-aperto');
   ascoltaLeDueDita(velo);
   addEventListener('keydown', tastoDisegno);
-  velo.querySelector('#disegno-svg').addEventListener('click', toccoDisegno);
+  ascoltaGestiFoto(velo);
   ridisegna();
 }
 function toccoParticelle(e){
@@ -4645,9 +4645,13 @@ function apriSposta(idSopralluogo){
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('disegno-aperto');
-  ascoltaLeDueDita(velo);
+  /* Qui il gesto deve dire una cosa sola: quale tetto. Niente trascinamento e
+     niente rotazione; per cambiare inquadratura ci sono gia' i tasti - e +. */
+  const foglioCasa = velo.querySelector('#disegno-foglio');
+  foglioCasa.style.overflow = 'hidden';
+  foglioCasa.style.touchAction = 'manipulation';
   addEventListener('keydown', tastoDisegno);
-  velo.querySelector('#disegno-svg').addEventListener('click', toccoDisegno);
+  ascoltaGestiFoto(velo);
   ridisegna();
 }
 function fotoCasaMancante(){ if(D && D.casa){ D.senzaFoto = true; ridisegna(); } }

@@ -43,6 +43,13 @@ PHOTON       = "https://photon.komoot.io/api/"
 INDIRIZZI_ESRI = ("https://geocode.arcgis.com/arcgis/rest/services/World/"
                   "GeocodeServer/findAddressCandidates")
 CATASTO      = "https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php"
+# La seconda porta del catasto, su un altro indirizzo di rete. Dà le stesse
+# particelle dello sportello "che cosa c'e' in questo punto", ma con il confine
+# disegnato punto per punto invece del solo riquadro. Serve soprattutto perche'
+# e' una porta diversa: il 20 settembre 2026 la prima ha iniziato a rispondere
+# "InvalidFormat ERRX-2" alle domande che partivano da Render, mentre le stesse
+# domande, identiche, passavano da qualunque altra rete.
+CATASTO_WFS  = "https://wfs.cartografia.agenziaentrate.gov.it/inspire/wfs/owfs01.php"
 SATELLITE    = ("https://services.arcgisonline.com/arcgis/rest/services/"
                 "World_Imagery/MapServer")
 AGENTE       = "Rilievo/1.0 (applicazione per artigiani del verde)"
@@ -648,8 +655,14 @@ class CatastoOccupato(RuntimeError):
 
 ULTIMO_RIFIUTO = {"quando": "", "testo": "", "ora": 0}
 
+# quando ha detto di no l'ultima volta, porta per porta. Se ne tiene uno per
+# ciascuna: il 21 settembre 2026 un solo registro faceva si' che il no della
+# seconda porta mettesse in pausa anche la prima, cioe' proprio quella su cui si
+# stava ripiegando.
+ULTIMO_NO = {"wms": 0.0, "wfs": 0.0}
 
-def registra_errore_catasto(testo):
+
+def registra_errore_catasto(testo, porta="wms"):
     try:
         root = ET.fromstring(testo)
         errors = [e for e in root.iter()
@@ -662,7 +675,9 @@ def registra_errore_catasto(testo):
     ULTIMO_RIFIUTO["quando"] = time.strftime("%Y-%m-%d %H:%M:%S")
     ULTIMO_RIFIUTO["testo"] = details
     ULTIMO_RIFIUTO["ora"] = time.time()
-    logging.getLogger(__name__).error('Cadastral service rejected request: %s', details)
+    ULTIMO_NO[porta] = time.time()
+    logging.getLogger(__name__).error('Cadastral service rejected request (%s): %s',
+                                      porta, details)
 
 
 # un punto di prova sempre uguale: una particella qualunque, in aperta campagna
@@ -670,39 +685,72 @@ PUNTO_DI_PROVA = (45.3273257, 9.3542738)
 
 
 def catasto_risponde():
-    """Una sola domanda di prova al catasto, e si dice com'e' andata.
+    """Una sola domanda di prova a ogni porta del catasto, e si dice com'e' andata.
 
     Quando un rilievo non riesce, la domanda vera e': e' rotta la nostra
     applicazione o e' l'Agenzia che non risponde? Questa e' la risposta, e si
     legge da fuori senza entrare nei registri del server.
+
+    Le porte sono due e si guastano separatamente, quindi si provano tutt'e due:
+    "risponde" vuol dire che almeno una da' foglio e particella, che e' quello
+    che conta per chi sta facendo un sopralluogo.
     """
     partito = time.time()
+    esito = {"wfs": "", "wms": "", "particella": ""}
+
+    try:
+        trovata = _particella_dal_wfs(PUNTO_DI_PROVA[0], PUNTO_DI_PROVA[1],
+                                      insisti=True)
+        esito["wfs"] = "risponde"
+        if trovata:
+            esito["particella"] = trovata["codice"]
+    except CatastoOccupato:
+        esito["wfs"] = "rifiuta"
+    except Exception as e:                          # noqa: BLE001
+        esito["wfs"] = "non raggiungibile: " + str(e)[:150]
+
     try:
         html = _chiedi_al_catasto(PUNTO_DI_PROVA[0], PUNTO_DI_PROVA[1],
                                   "CP.CadastralParcel", "text/html", insisti=True)
+        esito["wms"] = "risponde"
         trovato = re.search(r"NationalCadastralReference</th><td>([^<]*)<", html)
-        return {"catasto": "risponde", "secondi": round(time.time() - partito, 1),
-                "particella": (trovato.group(1).strip() if trovato else ""),
-                "ultimo_rifiuto": dict(ULTIMO_RIFIUTO)}
+        if trovato and not esito["particella"]:
+            esito["particella"] = trovato.group(1).strip()
     except CatastoOccupato:
-        return {"catasto": "rifiuta", "secondi": round(time.time() - partito, 1),
-                "ultimo_rifiuto": dict(ULTIMO_RIFIUTO)}
+        esito["wms"] = "rifiuta"
     except Exception as e:                          # noqa: BLE001
-        return {"catasto": "non raggiungibile", "secondi": round(time.time() - partito, 1),
-                "motivo": str(e)[:300], "ultimo_rifiuto": dict(ULTIMO_RIFIUTO)}
+        esito["wms"] = "non raggiungibile: " + str(e)[:150]
+
+    porte = [esito["wfs"], esito["wms"]]
+    if "risponde" in porte:
+        stato = "risponde"
+    elif "rifiuta" in porte:
+        stato = "rifiuta"
+    else:
+        stato = "non raggiungibile"
+    return {"catasto": stato, "secondi": round(time.time() - partito, 1),
+            "particella": esito["particella"],
+            "porte": {"confini (WFS)": esito["wfs"], "punto (WMS)": esito["wms"]},
+            "ultimo_rifiuto": dict(ULTIMO_RIFIUTO)}
 
 
 RIPOSO_CATASTO = 90.0
 
+# di quanto si allarga la scatola a ogni tentativo, in metri. Il primo giro e'
+# la scatola voluta; gli altri sono la stessa domanda scritta con numeri un po'
+# diversi, che e' l'unica cosa che smuove un rifiuto sempre uguale.
+SCARTI = (0.0, 1.0, 2.0, 5.0)
 
-def catasto_in_pausa():
-    """Da quanto il catasto ci ha detto di no l'ultima volta.
 
-    Quando rifiuta, rifiuta per un po': continuare a interrogarlo fa aspettare
+def catasto_in_pausa(porta="wms"):
+    """Da quanto questa porta del catasto ci ha detto di no l'ultima volta.
+
+    Quando rifiuta, rifiuta per un po': continuare a interrogarla fa aspettare
     l'artigiano dieci secondi per sentirsi dire di no un'altra volta. Meglio
-    passare subito alla foto da disegnare, e riprovare qualche minuto dopo.
+    passare subito all'altra porta, o alla foto da disegnare, e riprovare
+    qualche minuto dopo.
     """
-    quando = ULTIMO_RIFIUTO.get("ora") or 0
+    quando = ULTIMO_NO.get(porta) or 0
     return quando and (time.time() - quando) < RIPOSO_CATASTO
 
 
@@ -719,31 +767,168 @@ def _chiedi_al_catasto(lat, lon, strato, formato, lato_m=180.0, lati=700, insist
         "WIDTH": lati, "HEIGHT": lati, "I": lati // 2, "J": lati // 2,
         "INFO_FORMAT": formato, "FEATURE_COUNT": 1,
     }
-    for attesa in (2.0, None):
+    for scarto in SCARTI:
+        if scarto:
+            # Il no del catasto non dipende solo dal fatto che sia occupato: a
+            # parita' di tutto il resto, certe scatole vengono rifiutate sempre e
+            # la stessa scatola larga un metro di piu' passa (verificato il 21
+            # settembre 2026 su Genova e su Rivolta d'Adda). Quindi non si
+            # ripete la domanda identica: si sposta di un metro e si richiede.
+            y0, x0, y1, x1 = _riquadro(lat, lon, (lato_m + scarto) / 2)
+            domanda["BBOX"] = "%f,%f,%f,%f" % (y0, x0, y1, x1)
         testo = prendi(CATASTO, domanda).decode("utf-8", "replace")
         if "ServiceException" not in testo:
             return testo
-        registra_errore_catasto(testo)
-        if attesa:
-            time.sleep(attesa)
+    # si segna il no solo quando si rinuncia davvero: un rifiuto a cui si e'
+    # rimediato al secondo tentativo non deve mettere in pausa il minuto dopo
+    registra_errore_catasto(testo)
     raise CatastoOccupato(
         "Non siamo riusciti a ottenere i confini dal catasto. "
         "Puoi continuare il sopralluogo e inserire le misure prese sul posto.")
 
 
+def _leggi_codice_catastale(codice):
+    """Il codice scritto dal catasto -> comune, sezione, foglio, particella.
+
+    Due forme: F801_001300.416 (comune F801, nessuna sezione, foglio 0013,
+    allegato 00, particella 416) e D969A006900.479 (Genova, sezione A, foglio
+    0069, particella 479). Il trattino basso sta al posto della sezione nei
+    comuni che non ne hanno. Prima si leggeva solo la prima forma: a Genova e a
+    Bari il foglio restava vuoto e l'app scartava tutto il rilievo (14 settembre
+    2026).
+    """
+    m = re.match(r"^([A-Z]\d{3})([A-Z_]?)(\d{4})(\w*)\.(.+)$", codice)
+    if m:
+        return (m.group(1), m.group(2).strip("_"), str(int(m.group(3))), m.group(5))
+    # una forma mai vista: si tiene quello che si riconosce, mai un foglio vuoto
+    cifre = re.search(r"(\d{4})\w*\.", codice)
+    return (codice[:4], "",
+            str(int(cifre.group(1))) if cifre else "?",
+            codice.rsplit(".", 1)[-1] or codice)
+
+
+def _e_una_particella_vera(particella):
+    """Strade e acque non sono lotti.
+
+    Il catasto disegna anche la sede stradale e i corsi d'acqua, e li chiama
+    STRADA001, ACQUA002 e cosi' via. Se il punto dell'indirizzo cade in mezzo
+    alla via non si deve rispondere "questa e' la tua particella": si dice che
+    li' non c'e' nulla, e chi ha chiamato cerca poco piu' in la'.
+    """
+    return bool(re.match(r"^\d", (particella or "").strip()))
+
+
+def _dentro_il_confine(punti, lat, lon):
+    """Il punto sta dentro questo confine? Il raggio che attraversa il bordo."""
+    dentro = False
+    n = len(punti)
+    for i in range(n):
+        y1, x1 = punti[i]
+        y2, x2 = punti[(i + 1) % n]
+        if (x1 > lon) != (x2 > lon):
+            taglio = y1 + (lon - x1) * (y2 - y1) / (x2 - x1)
+            if taglio > lat:
+                dentro = not dentro
+    return dentro
+
+
+def _chiedi_al_wfs(lat, lon, lato_m=14.0, insisti=False):
+    """La seconda porta del catasto: le particelle dentro un quadratino.
+
+    Si chiede il minimo indispensabile, perche' il filtro che sta davanti al
+    catasto rifiuta le domande con parametri che non si aspetta: aggiungere
+    COUNT, per dire, fa tornare "Richiesta non valida" al posto dei dati.
+    """
+    if not insisti and catasto_in_pausa("wfs"):
+        raise CatastoOccupato(
+            "La seconda porta del catasto ha appena rifiutato: aspetto un minuto "
+            "prima di richiedere.")
+    for scarto in SCARTI:
+        d = ((lato_m + scarto) / 2) / 111320.0
+        dlon = d / max(0.2, math.cos(math.radians(lat)))
+        try:
+            # due tentativi di rete e non tre: qui si puo' ripiegare sull'altra
+            # porta, e far aspettare l'artigiano mezzo minuto per ogni punto
+            # toccato sulla foto sarebbe peggio del guasto
+            grezzo = prendi(CATASTO_WFS, {
+                "SERVICE": "WFS", "VERSION": "2.0.0", "REQUEST": "GetFeature",
+                "TYPENAMES": "CP:CadastralParcel",
+                "BBOX": "%f,%f,%f,%f,urn:ogc:def:crs:EPSG::6706"
+                        % (lat - d, lon - dlon, lat + d, lon + dlon),
+            }, tentativi=2, tempo=25)
+        except Exception:                           # noqa: BLE001
+            # irraggiungibile: vale come un no, se no ogni punto ricomincia da capo
+            ULTIMO_NO["wfs"] = time.time()
+            raise
+        testo = grezzo.decode("utf-8", "replace")
+        if "ServiceException" not in testo and "ExceptionReport" not in testo:
+            return testo
+    registra_errore_catasto(testo, "wfs")
+    raise CatastoOccupato(
+        "La seconda porta del catasto non manda le particelle in questo momento.")
+
+
+def _particella_dal_wfs(lat, lon, insisti=False):
+    """Il punto -> la particella che lo contiene, letta dalla seconda porta.
+
+    Torna lo stesso foglietto della prima porta (codice, comune, sezione,
+    foglio, particella, riquadro), piu' il confine disegnato punto per punto.
+    None se li' non c'e' nessun lotto. Se la porta non risponde alza
+    CatastoOccupato, cosi' chi ha chiamato sa che deve provare l'altra.
+    """
+    radice = ET.fromstring(_chiedi_al_wfs(lat, lon, insisti=insisti))
+    for pezzo in radice.iter():
+        if not pezzo.tag.endswith("}CadastralParcel"):
+            continue
+        codice = ""
+        for campo in pezzo:
+            if campo.tag.endswith("NATIONALCADASTRALREFERENCE"):
+                codice = (campo.text or "").strip()
+        if not codice:
+            continue
+        confini = [e for e in pezzo.iter() if e.tag.endswith("}posList")]
+        for confine in confini:
+            n = [float(v) for v in (confine.text or "").split()]
+            punti = list(zip(n[0::2], n[1::2]))       # il catasto scrive lat poi lon
+            if len(punti) < 3 or not _dentro_il_confine(punti, lat, lon):
+                continue
+            comune, sezione, foglio, part = _leggi_codice_catastale(codice)
+            if not _e_una_particella_vera(part):
+                return None
+            lats = [q[0] for q in punti]
+            lons = [q[1] for q in punti]
+            return {"codice": codice, "comune": comune, "sezione": sezione,
+                    "foglio": foglio, "particella": part,
+                    "riquadro": {"lon0": min(lons), "lat0": min(lats),
+                                 "lon1": max(lons), "lat1": max(lats)},
+                    "confine": punti}
+    return None
+
+
 def particella_nel_punto(lat, lon, atteso=None):
-    """Il punto -> foglio, particella, comune, ingombro. None se lì non c'è nulla.
+    """Il punto -> foglio, particella, comune, ingombro. None se li' non c'e' nulla.
     Con `atteso`, se il punto cade su un'altra particella si risponde col solo
-    codice, senza chiedere anche l'ingombro: una domanda al catasto in meno."""
+    codice, senza chiedere anche l'ingombro: una domanda al catasto in meno.
+
+    Si bussa prima alla seconda porta (WFS): risponde con una domanda sola
+    invece di due, e da' il confine vero invece del riquadro. Se quella tace si
+    torna alla prima, che e' quella che si usava fino al 20 settembre 2026.
+    """
+    try:
+        trovata = _particella_dal_wfs(lat, lon)
+    except Exception:                               # noqa: BLE001
+        pass                                        # la porta e' chiusa: si prova l'altra
+    else:
+        if trovata is None:
+            return None
+        if atteso and trovata["codice"] != atteso:
+            return {"codice": trovata["codice"], "riquadro": None}
+        return trovata
+
     html = _chiedi_al_catasto(lat, lon, "CP.CadastralParcel", "text/html")
     rif = re.search(r"NationalCadastralReference</th><td>([^<]+)<", html)
     if not rif:
         return None
-    # due forme: F801_001300.416 (comune F801, nessuna sezione, foglio 0013, allegato 00,
-    # particella 416) e D969A006900.479 (Genova, sezione A, foglio 0069, particella 479).
-    # Il trattino basso sta al posto della sezione nei comuni che non ne hanno.
-    # Prima si leggeva solo la prima forma: a Genova e a Bari il foglio restava vuoto e
-    # l'app scartava tutto il rilievo (14 settembre 2026).
     codice = rif.group(1).strip()
     if not codice:
         # il catasto sotto carico a volte manda la casella vuota: meglio "qui non c'e'
@@ -752,16 +937,7 @@ def particella_nel_punto(lat, lon, atteso=None):
         return None
     if atteso and codice != atteso:
         return {"codice": codice, "riquadro": None}
-    m = re.match(r"^([A-Z]\d{3})([A-Z_]?)(\d{4})(\w*)\.(.+)$", codice)
-    if m:
-        comune, sezione, foglio, part = (m.group(1), m.group(2).strip("_"),
-                                         str(int(m.group(3))), m.group(5))
-    else:
-        # una forma mai vista: si tiene quello che si riconosce, mai un foglio vuoto
-        comune, sezione = codice[:4], ""
-        cifre = re.search(r"(\d{4})\w*\.", codice)
-        foglio = str(int(cifre.group(1))) if cifre else "?"
-        part = codice.rsplit(".", 1)[-1] or codice
+    comune, sezione, foglio, part = _leggi_codice_catastale(codice)
 
     gml = _chiedi_al_catasto(lat, lon, "CP.CadastralParcel",
                              "application/vnd.ogc.gml")
@@ -792,6 +968,22 @@ def cerca_la_particella(lat, lon, passo_m=6.0, giri=4):
 
 
 # ------------------------------------------------- dalle mappe ai metri quadri
+
+def area_confine_mq(punti):
+    """Area in metri quadri di un confine catastale [lat, lon].
+
+    Su distanze da particella basta proiettare localmente latitudine e longitudine:
+    la longitudine viene accorciata col coseno della latitudine media. La formula
+    del laccio calcola poi il poligono, senza dipendere dal punto toccato.
+    """
+    if not punti or len(punti) < 3:
+        return 0.0
+    lat0 = sum(p[0] for p in punti) / len(punti)
+    kx = 111320.0 * math.cos(math.radians(lat0))
+    ky = 111320.0
+    xy = [(p[1] * kx, p[0] * ky) for p in punti]
+    return abs(sum(x1 * y2 - x2 * y1
+                   for (x1, y1), (x2, y2) in zip(xy, xy[1:] + xy[:1]))) / 2.0
 
 def _mappa_catastale(y0, x0, y1, x1, strati, lati, trasparente="TRUE"):
     dati = prendi(CATASTO, {
@@ -951,7 +1143,7 @@ def quanti_pixel(lato_m):
     return max(900, min(1400, int(lato_m / 0.30)))
 
 
-def misura(semi, riquadri, lati=None, lato_m=None):
+def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
     """Conta i metri quadri del lotto: una particella o piu', ognuna col suo punto.
 
     Il conto si fa sui pixel della mappa che disegna l'Agenzia delle Entrate.
@@ -970,6 +1162,16 @@ def misura(semi, riquadri, lati=None, lato_m=None):
     """
     # il riquadro da disegnare: quello di tutte le particelle insieme, con un po' di aria
     buoni = [q for q in riquadri if q]
+    confini = confini or []
+    confini_buoni = []
+    visti_confini = set()
+    for confine in confini:
+        if not confine or len(confine) < 3:
+            continue
+        chiave = tuple((round(p[0], 8), round(p[1], 8)) for p in confine)
+        if chiave not in visti_confini:
+            visti_confini.add(chiave)
+            confini_buoni.append(confine)
     if buoni:
         la0 = min(q["lat0"] for q in buoni); la1 = max(q["lat1"] for q in buoni)
         lo0 = min(q["lon0"] for q in buoni); lo1 = max(q["lon1"] for q in buoni)
@@ -1002,9 +1204,21 @@ def misura(semi, riquadri, lati=None, lato_m=None):
         return (max(0, min(lati - 1, int(round((lo - x0) / (x1 - x0) * (lati - 1))))),
                 max(0, min(lati - 1, int(round((y1 - la) / (y1 - y0) * (lati - 1))))))
 
+    # Il recinto vero. Quando il WFS lo manda, tutto quello che si conta resta qui
+    # dentro e il lotto viene dalla geometria, non dalla macchia partita dal tocco.
+    poligono = bytearray(lati * lati)
+    if confini_buoni:
+        tela = Image.new("L", (lati, lati), 0)
+        penna = ImageDraw.Draw(tela)
+        for confine in confini_buoni:
+            penna.polygon([a_pixel(la, lo) for la, lo in confine], fill=1)
+        poligono = bytearray(tela.tobytes())
+
     # sulla mappa dell'Agenzia i fabbricati sono arancioni pieni
     edifici = _maschera(fabb, lambda p: p[0] > 150 and p[1] < 190 and p[2] < 120
                                         and p[0] - p[2] > 60)
+    if confini_buoni:
+        edifici = bytearray(e & p for e, p in zip(edifici, poligono))
     # sulla mappa delle particelle il terreno è color carta, i confini sono neri,
     # e quello che particella non è (strade, acqua) resta vuoto. Il terreno libero
     # e' quello senza un fabbricato sopra.
@@ -1090,10 +1304,24 @@ def misura(semi, riquadri, lati=None, lato_m=None):
     colori = foto.getdata()
     verde_px = sum(1 for i in range(lati * lati) if aperto[i] and _e_verde(colori[i]))
 
-    lotto_mq    = (aperto_px + coperto_px) * mq_px
-    coperto_mq  = coperto_px * mq_px
-    scoperto_mq = aperto_px * mq_px
-    verde_mq    = verde_px * mq_px
+    if confini_buoni:
+        lotto_mq = sum(area_confine_mq(c) for c in confini_buoni)
+        poligono_px = sum(poligono)
+        # Le classi della foto restano stime, ma sono rapportate all'area vera del
+        # confine. Cosi' coperto + scoperto fa sempre esattamente il lotto.
+        coperto_px_confine = sum(1 for e, p in zip(edifici, poligono) if e and p)
+        coperto_mq = lotto_mq * coperto_px_confine / max(1, poligono_px)
+        scoperto_mq = max(0.0, lotto_mq - coperto_mq)
+        verde_px_confine = sum(1 for i, p in enumerate(poligono)
+                               if p and not edifici[i] and _e_verde(colori[i]))
+        scoperto_px_confine = max(1, poligono_px - coperto_px_confine)
+        verde_mq = scoperto_mq * verde_px_confine / scoperto_px_confine
+        dentro = poligono
+    else:
+        lotto_mq    = (aperto_px + coperto_px) * mq_px
+        coperto_mq  = coperto_px * mq_px
+        scoperto_mq = aperto_px * mq_px
+        verde_mq    = verde_px * mq_px
 
     largo = (estremi[2] - estremi[0] + 1) * m_per_px
     alto  = (estremi[3] - estremi[1] + 1) * m_per_px
@@ -1118,6 +1346,10 @@ def misura(semi, riquadri, lati=None, lato_m=None):
     tocca_il_bordo = bool(parti) and (estremi[0] <= 2 or estremi[1] <= 2 or
                                       estremi[2] >= lati - 3 or estremi[3] >= lati - 3)
 
+    lotto_intero = int(round(lotto_mq))
+    coperto_intero = min(lotto_intero, int(round(coperto_mq)))
+    scoperto_intero = lotto_intero - coperto_intero
+    verde_intero = min(int(round(verde_mq)), scoperto_intero)
     disegno = componi(foto, mappa, dentro, lati)
     return {
         "tocca_il_bordo": tocca_il_bordo,
@@ -1125,12 +1357,13 @@ def misura(semi, riquadri, lati=None, lato_m=None):
         # e spostarlo finche' non sta sul giardino vero
         "foto_pulita": foto,
         "contorno": contorno_punti(dentro, lati),
-        "lotto_mq": int(round(lotto_mq)),
-        "coperto_mq": int(round(coperto_mq)),
-        "scoperto_mq": int(round(scoperto_mq)),
-        "verde_mq": min(int(round(verde_mq)), int(round(scoperto_mq))),
+        "lotto_mq": lotto_intero,
+        "coperto_mq": coperto_intero,
+        "scoperto_mq": scoperto_intero,
+        "verde_mq": verde_intero,
         "ingombro": "%d × %d m" % (round(largo), round(alto)),
         "sospetto": sospetto,
+        "dal_confine": bool(confini_buoni),
         "senza_scoperto": aperto_px == 0,
         "metri_per_pixel": round(m_per_px, 4),
         # gli angoli della foto sulla terra e quanti metri e' larga: servono
@@ -1450,7 +1683,13 @@ def rilievo(indirizzo, lato_m=None, cap=""):
                 "delle Province autonome). Segna il giardino sulla foto: "
                 "i metri quadri li conto io.", indirizzo, cap)
         semi, riquadri = _intorno_stessa_particella(part, lat, lon)
-        m = misura(semi, riquadri, lato_m=lato_m)
+        m = misura(semi, riquadri, lato_m=lato_m,
+                   confini=[part.get("confine")])
+        if m["lotto_mq"] < 20:
+            return rilievo_da_disegnare(
+                p, lato_m,
+                "Qui il catasto non ha dato una misura credibile. Segna il giardino "
+                "a mano sulla foto: i metri quadri li conto io.", indirizzo, cap)
     except CatastoOccupato:
         # lo sportello che dice il nome della particella tace. Se quello che disegna
         # le mappe risponde ancora, il lotto si misura lo stesso; se no restano la
@@ -1556,6 +1795,10 @@ def _avvisi_misura(m):
     if m["senza_scoperto"]:
         avvisi.append("Nella particella trovata c'è solo il fabbricato: il giardino è "
                       "su un'altra particella. Toccala sulla foto per aggiungerla al lotto.")
+    if not m.get("dal_confine"):
+        avvisi.append("Il catasto non ha mandato il confine vero: questa misura è "
+                      "stimata dalla mappa. Controllala oppure segna il giardino "
+                      "a mano sulla foto.")
     if m["sospetto"]:
         avvisi.append("Il lotto misurato è molto più piccolo del suo ingombro: "
                       "forse un muro lo taglia in due e ne è stato contato solo "
@@ -1573,11 +1816,13 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None):
     Ogni punto diventa la sua particella, e si misurano tutte insieme."""
     trovate, semi, riquadri, avvisi, toccati = [], [], [], [], []
     for la, lo in punti[:MAX_PUNTI]:
-        part = particella_nel_punto(la, lo)
+        part, presa_lat, presa_lon = cerca_la_particella(la, lo, passo_m=3.0, giri=3)
         if not part:
-            avvisi.append("Un punto toccato non cade su nessuna particella (forse una "
-                          "strada): l'ho lasciato fuori.")
+            avvisi.append("In quel punto il catasto non trova terreno da misurare. "
+                          "Segna il giardino a mano sulla foto.")
             continue
+        if abs(presa_lat - la) > 1e-9 or abs(presa_lon - lo) > 1e-9:
+            avvisi.append("Il punto era sul bordo: ho preso la particella più vicina.")
         toccati.append((la, lo))
         if not semi and part["riquadro"]:
             # il primo punto e' quello dell'indirizzo e cade spesso sul tetto: come nel
@@ -1593,7 +1838,11 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None):
             trovate.append(part)
     if not trovate:
         raise RuntimeError("Nessuno dei punti toccati cade su una particella del catasto.")
-    m = misura(semi, riquadri, lato_m=lato_m)
+    confini = [t.get("confine") for t in trovate]
+    m = misura(semi, riquadri, lato_m=lato_m, confini=confini)
+    if m["lotto_mq"] < 20:
+        raise RuntimeError("Qui non sono riuscito a misurare un lotto vero. "
+                           "Segna il giardino a mano sulla foto.")
     avvisi += _avvisi_misura(m)
     fogli = list(dict.fromkeys(t["foglio"] for t in trovate))
     return {
