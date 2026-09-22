@@ -1843,6 +1843,39 @@ function scheda(o){
     rifai();
   }
 
+  /* Campi che si riempiono da soli quando ne cambi un altro: scegli "Potatura siepe"
+     e la quantita' diventa i 247 metri di siepe che stanno sulla foto, senza contarli
+     a mano (Andrea, 22 settembre 2026). Quello che l'artigiano ha scritto di suo non
+     viene mai sovrascritto: si tocca solo un campo che non ha ancora toccato lui. */
+  if(o.ricalcola){
+    const suoi = new Set();
+    const leggiTutto = () => {
+      const d = {};
+      o.campi.forEach(c => {
+        const e = document.getElementById('c-' + c.k);
+        const x = e ? e.value : '';
+        d[c.k] = c.t === 'numero' ? numeroScritto(x) : String(x).trim();
+      });
+      return d;
+    };
+    o.campi.forEach(c => {
+      const e = document.getElementById('c-' + c.k); if(!e) return;
+      e.addEventListener('input', () => suoi.add(c.k));
+      e.addEventListener('change', () => {
+        let nuovi = null;
+        try { nuovi = o.ricalcola(c.k, leggiTutto()); } catch(_){ nuovi = null; }
+        if(!nuovi) return;
+        Object.keys(nuovi).forEach(k => {
+          if(k === c.k || suoi.has(k) || nuovi[k] === null || nuovi[k] === undefined) return;
+          const campo = document.getElementById('c-' + k); if(!campo) return;
+          campo.value = nuovi[k];
+          campo.dispatchEvent(new Event('input'));
+          suoi.delete(k);
+        });
+      });
+    });
+  }
+
   velo.querySelector('#btn-salva').onclick = () => {
     const dati = {};
     let sbagliato = null;
@@ -2372,6 +2405,10 @@ function lavorazioneNuovaQui(idSopralluogo, indice){
       {k:'q', l:'Quanta ne serve qui', t:'numero', m:true, p:'A corpo non conta'},
       {k:'detti', l:'Come la chiami a voce (facoltativo)', m:true, p:'rifare il vialetto'}
     ],
+    /* scritto il nome e scelto come si conta, la quantita' la mette il giardino:
+       "Potatura siepe" + "al metro" prende i metri di siepe che stanno sulla foto */
+    ricalcola: (k, d) => (k === 'u' || k === 'nome')
+      ? {q: quantitaProposta({nome:d.nome, u:d.u, p:d.p}, rilievoDelSopralluogo(s))} : null,
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
       : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.' : null,
     testoSalva: 'Aggiungila',
@@ -2391,7 +2428,12 @@ function schedaLavorazione(idSopralluogo, indice){
   const s = sopr(idSopralluogo);
   s._trovate = s._trovate || [];
   if(indice !== null && s._trovate[indice] && s._trovate[indice].nuova){ mettiAListino(idSopralluogo, indice); return; }
-  const t = indice === null ? {voce:(S.listino[0] ? S.listino[0].id : '__nuova'), q:1} : s._trovate[indice];
+  /* la quantita' parte da quello che il giardino dice gia', non da 1 */
+  const rilQui = rilievoDelSopralluogo(s);
+  const t = indice === null
+    ? {voce:(S.listino[0] ? S.listino[0].id : '__nuova'),
+       q: quantitaProposta(S.listino[0] ? voce(S.listino[0].id) : null, rilQui)}
+    : s._trovate[indice];
   const primaVoce = t.voce, detto = indice === null ? '' : (t.detto || '');
   const o = {
     titolo: indice === null ? 'Aggiungi una lavorazione' : 'Modifica la lavorazione',
@@ -2406,8 +2448,14 @@ function schedaLavorazione(idSopralluogo, indice){
     ].concat(indice === null ? [{k:'detti', l:'Come l\'hai chiamata a voce? (facoltativo)', p:'taglio dell\'erba'}] : []),
     conto: d => {
       const v = voce(d.voce); if(!v) return '';
-      return contoDellaRiga({u:v.u, p:v.p, q:d.q}, null);
+      const s = quantitaNota(v, rilQui);
+      /* la provenienza si scrive solo finche' il numero e' quello che diciamo noi:
+         appena lui lo cambia, la riga sparisce e resta il conto */
+      const provenienza = s && Math.abs(Number(d.q) - s.q) < 0.005
+        ? '<div style="color:var(--tenue);font-size:14.5px">' + esc(daDoveViene(s)) + '</div>' : '';
+      return contoDellaRiga({u:v.u, p:v.p, q:d.q}, null) + provenienza;
     },
+    ricalcola: (k, d) => k === 'voce' ? {q: quantitaProposta(voce(d.voce), rilQui)} : null,
     controlla: d => (d.voce === '__nuova' || d.q > 0) ? null : 'Serve una quantità.',
     salva: d => {
       /* "non ce l'ho a listino": si passa alla scheda che la scrive per intero */
@@ -4005,6 +4053,52 @@ function parteDellaVoce(v){
   if(tipo.k === 'm')  return /siep/.test(n) ? 'siepe' : null;
   if(tipo.k === 'mq') return /aiuol/.test(n) ? 'aiuola' : 'prato';
   return /alber|piant/.test(n) ? 'albero' : null;
+}
+/* un prezzo fisso per tutto il lavoro: la quantita' non si conta e vale sempre 1 */
+const aPrezzoFisso = u => /corpo|intervento|viaggio|forfait/.test(senzaAccenti(String(u || '').toLowerCase()));
+
+/* ===== LA QUANTITA' LA METTE L'APP, NON L'ARTIGIANO =====
+   Andrea, 22 settembre 2026: «se so che il prato e' 900 mq perche' mi da come unita' di
+   misura 1? Dovrebbe mettermi 9, visto che e' 35 euro ogni 100 mq», e per la siepe «se e'
+   9 euro al metro e ho 247 metri mi dai uno: il cliente perde la voglia di cliccare 247
+   volte il +». Prima questo conto si faceva solo per le lavorazioni sentite a voce senza
+   misura; una lavorazione aggiunta a mano partiva sempre da 1.
+   Adesso vale ovunque: sopralluogo, preventivo, voce nuova scritta li' per li'.
+   Torna null quando non si sa niente, perche' 1 e' meglio di un numero inventato. */
+function quantitaNota(v, ril){
+  if(!v || !ril || aPrezzoFisso(v.u)) return null;
+  const tipo = tipoUnita(v.u);
+  const tot = totaliZone(ril), parte = parteDellaVoce(v);
+  /* il disegno sulla foto vince sempre: e' la misura piu' vera che abbiamo */
+  if(parte && tot[parte] > 0)
+    return {q: tipo.k === 'mq' ? Math.round(tot[parte] / tipo.per * 100) / 100 : tot[parte],
+            misura: tot[parte], parte, da: 'disegno'};
+  /* una voce che parla di una cosa precisa (un'aiuola, una siepe, gli alberi) e quella
+     cosa sulla foto non c'e': non si ripiega sul verde di tutto il giardino. Trovato
+     provando dal vivo il 22 settembre 2026: "Rifacimento aiuola" al metro quadro
+     prendeva i 101 mq di verde e faceva una riga da 4.242 euro per un'aiuola che non
+     esiste. Meglio 1 da correggere che un numero grosso e sbagliato. */
+  if(parte && parte !== 'prato') return null;
+  /* niente disegno: per le superfici resta il rilievo, il verde se c'e', se no lo scoperto */
+  if(tipo.k === 'mq'){
+    const base = ril.verde_mq > 0 ? ril.verde_mq : (ril.scoperto_mq > 0 ? ril.scoperto_mq : 0);
+    if(base > 0) return {q: Math.round(base / tipo.per * 100) / 100, misura: base,
+                         parte: null, da: ril.verde_mq > 0 ? 'verde' : 'scoperto'};
+  }
+  return null;
+}
+/* da dove viene quel numero, detto all'artigiano: lo consegna a un cliente e deve
+   potersi fidare a colpo d'occhio, o correggerlo subito */
+function daDoveViene(s){
+  if(!s) return '';
+  if(s.da === 'disegno') return 'Dal disegno sulla foto: ' + scriviMisura(s.parte, s.misura) + '.';
+  return 'Dal rilievo: ' + cifra(Math.round(s.misura), 0) + ' mq '
+       + (s.da === 'verde' ? 'di verde' : 'di scoperto') + '. Controllala.';
+}
+/* la quantita' da proporre in una scheda, gia' pronta da mettere nel campo */
+function quantitaProposta(v, ril){
+  const s = quantitaNota(v, ril);
+  return s && s.q > 0 ? s.q : 1;
 }
 
 /* ---- il disegno, in SVG sopra la foto: le coordinate vanno da 0 a 1000 ---- */
@@ -6951,8 +7045,13 @@ function aggiungiRiga(id){
   const p = prev(id);
   const v = voce(document.getElementById('agg-voce').value);
   if(!v) return;
-  p.righe.push({v:v.id, q:1, p:v.p, nome:v.nome, u:v.u, iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true, aMano:true});
+  /* la quantita' viene dal giardino di questo preventivo: prato 900 mq su una voce
+     "ogni 100 mq" entra come 9, non come 1 (Andrea, 22 settembre 2026) */
+  const g = giardinoDelPreventivo(p);
+  const s = quantitaNota(v, g && g.ril);
+  p.righe.push({v:v.id, q: s && s.q > 0 ? s.q : 1, p:v.p, nome:v.nome, u:v.u, iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true, aMano:true});
   salva(); vai();
+  if(s) avvisa(v.nome + ': ' + cifra(s.q, 2) + ' ' + v.u + '. ' + daDoveViene(s));
 }
 /* Una lavorazione nuova mentre il cliente e' davanti: non ce l'hai a listino, la
    scrivi adesso col suo prezzo ed entra subito nel preventivo. Se vuoi, resta anche
@@ -6973,6 +7072,11 @@ function rigaNuovaQui(id){
       {k:'tieni', l:'Nel listino', t:'scelta', m:true,
        opzioni:[['si','Tienila anche nel listino'],['no','Solo per questo preventivo']]}
     ],
+    ricalcola: (k, d) => {
+      if(k !== 'u' && k !== 'nome') return null;
+      const g = giardinoDelPreventivo(p);
+      return {q: quantitaProposta({nome:d.nome, u:d.u, p:d.p}, g && g.ril)};
+    },
     controlla: d => !d.nome ? 'Serve il nome della voce.'
       : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.'
       : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.' : null,
