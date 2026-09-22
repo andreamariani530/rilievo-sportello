@@ -1373,7 +1373,9 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
         # la foto pulita e il confine come punti: servono per ricalcare il lotto
         # e spostarlo finche' non sta sul giardino vero
         "foto_pulita": foto,
-        "contorno": contorno_punti(dentro, lati),
+        # il confine vero del catasto quando c'e', se no il bordo della macchia
+        "contorno": (contorno_dal_confine(confini_buoni, y0, x0, y1, x1)
+                     or contorno_punti(dentro, lati)),
         "lotto_mq": lotto_intero,
         "coperto_mq": coperto_intero,
         "scoperto_mq": scoperto_intero,
@@ -1477,6 +1479,73 @@ def _semplifica(punti, tolleranza):
     if lontano <= tolleranza:
         return [a, b]
     return _semplifica(punti[:quale + 1], tolleranza)[:-1] + _semplifica(punti[quale:], tolleranza)
+
+
+def _semplifica_anello(punti, tolleranza):
+    """Douglas-Peucker su una forma chiusa.
+
+    Un anello non ha un inizio e una fine: se lo si semplifica come una linea,
+    il primo punto e l'ultimo coincidono, la distanza fra i due estremi e' zero
+    e il taglio cade a caso. Si spezza invece in due tratti fra il primo punto e
+    quello piu' lontano da lui, e si semplificano separatamente.
+    """
+    anello = list(punti)
+    if len(anello) > 1 and anello[0] == anello[-1]:
+        anello.pop()
+    if len(anello) < 4:
+        return anello
+    a = anello[0]
+    lontano = max(range(1, len(anello)),
+                  key=lambda i: math.hypot(anello[i][0] - a[0], anello[i][1] - a[1]))
+    primo  = _semplifica(anello[:lontano + 1], tolleranza)
+    secondo = _semplifica(anello[lontano:] + [a], tolleranza)
+    return primo[:-1] + secondo[:-1]
+
+
+def contorno_dal_confine(confini, y0, x0, y1, x1, quanti=120):
+    """Il confine vero del catasto, portato direttamente in frazioni della foto.
+
+    Prima questo contorno si ricavava ridisegnando il poligono su una griglia di
+    pixel e poi ritracciandone il bordo: due passaggi che smussano gli angoli,
+    spostano i lati e buttano via i pezzi staccati. Il catasto pero' il poligono
+    ce lo manda gia' come punti (a Via Torino 5, Casalmaiocco, sono 89 vertici),
+    quindi basta convertirlo. Andrea, 23 settembre 2026: "la forma dei metri
+    quadri fuori quel punto viene riprodotta male".
+
+    Fra piu' particelle si prende la piu' grande, perche' l'applicazione disegna
+    una forma sola. I punti del confine sono (latitudine, longitudine).
+    """
+    if not confini or x1 == x0 or y1 == y0:
+        return []
+    piu_grande, quanto = None, -1.0
+    for confine in confini:
+        if not confine or len(confine) < 3:
+            continue
+        area = area_confine_mq(confine)
+        if area > quanto:
+            piu_grande, quanto = confine, area
+    if not piu_grande:
+        return []
+    frazioni = [((lo - x0) / (x1 - x0), (y1 - la) / (y1 - y0)) for la, lo in piu_grande]
+    # la tolleranza e' in frazioni del lato della foto: 0,0008 su un'inquadratura
+    # di 100 metri vale otto centimetri, cioe' meno di mezzo pixel della foto
+    tolleranza = 0.0008
+    semplice = _semplifica_anello(frazioni, tolleranza)
+    for _ in range(8):
+        if len(semplice) <= quanti:
+            break
+        tolleranza *= 1.6
+        semplice = _semplifica_anello(frazioni, tolleranza)
+    fuori = []
+    for x, y in semplice[:quanti]:
+        q = [round(x, 5), round(y, 5)]
+        if fuori and math.hypot(q[0] - fuori[-1][0], q[1] - fuori[-1][1]) < 0.0004:
+            continue
+        fuori.append(q)
+    if len(fuori) > 3 and math.hypot(fuori[0][0] - fuori[-1][0],
+                                     fuori[0][1] - fuori[-1][1]) < 0.0004:
+        fuori.pop()
+    return fuori if len(fuori) >= 3 else []
 
 
 def contorno_punti(dentro, lati, quanti=40):

@@ -4314,7 +4314,10 @@ function segnaInterruttore(el, acceso, nome){
     : 'Le righe del catasto sono spente. Toccami per rimetterle.');
 }
 /* Il confine del catasto ricalcato, come punti che si spostano: il punto di
-   partenza piu' veloce per segnare il giardino, da tirare dove sta davvero. */
+   partenza piu' veloce per segnare il giardino, da tirare dove sta davvero.
+   Il contorno arriva dal poligono vero del catasto, non dal bordo di una macchia
+   di pixel, e puo' avere decine di vertici: tagliarlo a 40 ne deformava la forma
+   (Andrea, 23 settembre 2026). Le zone reggono fino a 400 punti. */
 function ricalcaConfine(){
   if(!D || D.particelle || D.casa) return;
   const c = (D.ril && Array.isArray(D.ril.contorno)) ? D.ril.contorno : [];
@@ -4324,7 +4327,7 @@ function ricalcaConfine(){
   }
   if(D.punti.length && formaCompleta()) salvaForma();
   if(TIPI_ZONA[D.tipo].forma !== 'area') D.tipo = 'prato';
-  D.punti = c.map(p => [Math.min(1, Math.max(0, p[0])), Math.min(1, Math.max(0, p[1]))]).slice(0, 40);
+  D.punti = c.map(p => [Math.min(1, Math.max(0, p[0])), Math.min(1, Math.max(0, p[1]))]).slice(0, 160);
   D.salti = []; D.tagli = false; D.taglio = null;
   ridisegna();
   avvisa('Confine del catasto ricalcato. Trascina i punti fin dove sta il giardino vero: i metri li conto da lì.');
