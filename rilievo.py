@@ -136,7 +136,9 @@ def _stesso_civico(scritto, trovato):
     return False
 
 
-CAMPI_ESRI = "Addr_type,Match_addr,City,AddNum,Subregion,StName"
+# District e Nbrhd sono la frazione: Esri scrive "Longana" li' e "Ravenna" in City,
+# e senza leggerli la casa giusta veniva buttata via (vedi _stesso_posto).
+CAMPI_ESRI = "Addr_type,Match_addr,City,District,Nbrhd,AddNum,Subregion,StName"
 
 
 def _punto_esri(c):
@@ -484,6 +486,21 @@ def _posti(posto, sigla="", cap=""):
     return trovati
 
 
+def _stesso_posto(posto, a):
+    """Il candidato sta nel posto cercato?
+
+    Vale il comune, ma vale anche la frazione. Esri, per una casa di Longana, scrive
+    "Ravenna" in City e "Longana" in District: guardando solo City, la casa giusta di
+    Via del Borgo Longana 13 veniva buttata via, e al suo posto usciva un'altra Via del
+    Borgo a San Marco, **a 1,8 km**. E' l'errore che Andrea ha segnalato il 23 settembre
+    2026 ("longana che manda in un altro posto")."""
+    voluto = _pulito(posto["comune"])
+    if not voluto:
+        return False
+    return voluto in {_pulito(a.get("City")), _pulito(a.get("District")),
+                      _pulito(a.get("Nbrhd"))}
+
+
 def _via_nel_posto(via, posto, civico):
     """La via cercata solo intorno al comune trovato, e poi tenuta solo se e' proprio
     in quel comune. Civico uguale -> preciso; altro civico della via -> la casa accanto;
@@ -495,7 +512,7 @@ def _via_nel_posto(via, posto, civico):
             "SingleLine": via + ", " + posto["comune"], "searchExtent": riquadro,
             "category": "Point Address,Subaddress,Street Address,Street Name"}, 20) or []:
         a = c.get("attributes", {})
-        if _pulito(a.get("City")) != _pulito(posto["comune"]) or c.get("score", 0) < 80:
+        if not _stesso_posto(posto, a) or c.get("score", 0) < 80:
             continue
         if a.get("StName") and not _stessa_strada(via, a.get("StName")):
             continue
@@ -540,6 +557,31 @@ def _via_da_osm(via, posto, civico, scritto):
     return None
 
 
+def _la_via_da_tutte_le_porte(via, posto, civico, nome, cap=""):
+    """La via cercata in tutte le porte che abbiamo, e vince chi ha trovato **proprio
+    il civico scritto**.
+
+    Prima si prendeva la prima risposta che arrivava, nell'ordine Esri, Photon,
+    OpenStreetMap. Cosi' una risposta approssimativa di Esri (la via giusta ma il civico
+    sbagliato) fermava la ricerca, e non si chiedeva nemmeno a chi il civico giusto ce
+    l'aveva. Caso vero: "Via del Borgo Longana 13/O" a Longana. Esri conosce solo il 13 e
+    rispondeva a **35 metri**, sulla particella del vicino; OpenStreetMap ha il 13/O ed e'
+    a **2 metri**, sulla casa. Adesso, se la prima porta non trova il civico esatto, si
+    bussa anche alle altre, e se una lo trova vince lei.
+
+    Quando nessuno trova il civico esatto non cambia niente: resta l'ordine di prima."""
+    esri = _via_nel_posto(via, posto, civico)
+    if esri and esri.get("preciso"):
+        return esri
+    photon = _via_da_photon(via, posto, civico, cap)
+    if photon and photon.get("preciso"):
+        return photon
+    osm = _via_da_osm(via, posto, civico, nome)
+    if osm and osm.get("preciso"):
+        return osm
+    return esri or photon or osm
+
+
 def punto_dall_indirizzo(indirizzo, cap=""):
     """Indirizzo scritto a mano -> latitudine, longitudine, indirizzo per esteso.
 
@@ -567,9 +609,7 @@ def punto_dall_indirizzo(indirizzo, cap=""):
             # un posto lontano da quello dove si e' gia' trovato qualcosa e' un omonimo: basta
             if trovati and _distanza_km(p["dove"], trovati[0][0]["dove"]) > 5:
                 break
-            t = (_via_nel_posto(via, p, civico)
-                 or _via_da_photon(via, p, civico, cap)
-                 or _via_da_osm(via, p, civico, nome))
+            t = _la_via_da_tutte_le_porte(via, p, civico, nome, cap)
             if t:
                 trovati.append((p, t))
                 if t["preciso"]:
@@ -984,6 +1024,49 @@ def area_confine_mq(punti):
     xy = [(p[1] * kx, p[0] * ky) for p in punti]
     return abs(sum(x1 * y2 - x2 * y1
                    for (x1, y1), (x2, y2) in zip(xy, xy[1:] + xy[:1]))) / 2.0
+
+def forma_del_confine(punti):
+    """Quanto e' grande e che forma ha un confine catastale: area, lato piu' lungo
+    dell'ingombro, e compattezza (4*pi*area diviso perimetro al quadrato).
+
+    La compattezza vale 1 per un cerchio e scende verso zero per una striscia lunga
+    e stretta. Sulle case vere di Andrea sta fra 0,70 e 0,79; la particella che il
+    catasto restituisce a Via Torino 5 di Casalmaiocco vale 0,17."""
+    if not punti or len(punti) < 3:
+        return 0.0, 0.0, 0.0
+    lat0 = sum(p[0] for p in punti) / len(punti)
+    kx = 111320.0 * math.cos(math.radians(lat0))
+    area = area_confine_mq(punti)
+    giro = 0.0
+    for (a, b) in zip(punti, punti[1:] + punti[:1]):
+        giro += math.hypot((a[1] - b[1]) * kx, (a[0] - b[0]) * 111320.0)
+    lati_ = [p[0] for p in punti]
+    lungh = [p[1] for p in punti]
+    piu_lungo = max((max(lati_) - min(lati_)) * 111320.0,
+                    (max(lungh) - min(lungh)) * kx)
+    return area, piu_lungo, (4 * math.pi * area / (giro * giro) if giro else 0.0)
+
+
+def e_una_strada(confine):
+    """Quella particella e' una strada (o una fascia di parcheggi), non il lotto di
+    una casa.
+
+    Serve perche' a Via Torino 5 di Casalmaiocco il catasto, sotto il civico, non ha
+    la palazzina: ha **la carreggiata coi parcheggi**, 16.086 mq lunghi 349 metri, e
+    l'applicazione li mostrava come se fossero il giardino del cliente. Andrea lo ha
+    segnalato il 22 settembre 2026: "non segna proprio la palazzina, il catasto segna
+    la strada, i parcheggi, nulla di palazzina".
+
+    Si riconosce dalla forma, senza conoscere il posto: grande, lunghissima e per
+    niente compatta. Le tre condizioni valgono insieme apposta, cosi' un lotto di
+    campagna grande ma ben fatto (Monticelli d'Ongina, 4.238 mq con compattezza 0,29)
+    non ci finisce dentro. La soglia della compattezza e' 0,35 e non 0,25 perche'
+    la particella vera di Via Torino vale 0,17 solo grazie al suo bordo frastagliato:
+    una strada disegnata come un rettangolo pulito di 349 x 46 metri vale 0,32, ed e'
+    una strada uguale."""
+    area, piu_lungo, compattezza = forma_del_confine(confine)
+    return area >= 5000.0 and piu_lungo >= 150.0 and compattezza < 0.35
+
 
 def _mappa_catastale(y0, x0, y1, x1, strati, lati, trasparente="TRUE"):
     dati = prendi(CATASTO, {
@@ -1758,6 +1841,11 @@ def _suggerimenti_calmi(indirizzo, cap=""):
         return []
 
 
+def _col_punto(numero):
+    """12345.6 -> "12.346", come si scrivono i numeri in italiano."""
+    return "{:,}".format(int(round(numero))).replace(",", ".")
+
+
 def rilievo(indirizzo, lato_m=None, cap=""):
     p = punto_dall_indirizzo(indirizzo, cap)
     try:
@@ -1768,6 +1856,16 @@ def rilievo(indirizzo, lato_m=None, cap=""):
                 "(succede su una strada, o a Trento e Bolzano, dove il catasto è "
                 "delle Province autonome). Segna il giardino sulla foto: "
                 "i metri quadri li conto io.", indirizzo, cap)
+        if e_una_strada(part.get("confine")):
+            # il catasto, sotto il civico, ha la carreggiata e non la casa: meglio
+            # nessun numero che il numero della strada spacciato per giardino
+            area, piu_lungo, _forma = forma_del_confine(part["confine"])
+            return rilievo_da_disegnare(
+                p, lato_m,
+                "Sotto questo civico il catasto non ha la casa: ha la strada coi "
+                "parcheggi, %s metri quadri lunghi %d metri. Segna il giardino sulla "
+                "foto: i metri quadri li conto io."
+                % (_col_punto(area), int(round(piu_lungo))), indirizzo, cap)
         semi, riquadri = _intorno_stessa_particella(part, lat, lon)
         m = misura(semi, riquadri, lato_m=lato_m,
                    confini=[part.get("confine")])
