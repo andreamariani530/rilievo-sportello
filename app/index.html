@@ -86,6 +86,14 @@ main{flex:1;min-width:0;display:flex;flex-direction:column}
 .numero .lbl{margin-top:4px}
 
 .scheda{background:var(--bianco);border:1px solid var(--filetto);padding:20px 22px;box-shadow:var(--ombra)}
+/* le misure del giardino che restano attaccate al cliente: due colonne di numeri
+   composti come quelli grandi, con i filetti sottili al posto dei riquadri */
+.misure-giardino{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--filetto2)}
+.misure-giardino > div{padding:11px 0 10px;border-bottom:1px solid var(--filetto)}
+.misure-giardino > div:nth-child(2n){padding-left:16px;border-left:1px solid var(--filetto)}
+.misure-giardino .val{font-family:'Cormorant',serif;font-size:27px;line-height:1;
+  font-feature-settings:"lnum" 1,"tnum" 1}
+.misure-giardino .lbl{margin-top:3px}
 .griglia2{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;align-items:start}
 .elenco{border-top:1px solid var(--filetto2)}
 .elenco .r{display:flex;gap:14px;align-items:baseline;justify-content:space-between;
@@ -177,7 +185,7 @@ th.n{text-align:right;padding-right:0}
 .finestra h3{font-size:28px;margin-bottom:4px}
 .finestra .sopra{margin-bottom:20px}
 .finestra .piede{display:flex;gap:10px;align-items:center;margin-top:24px;padding-top:18px;
-  border-top:1px solid var(--filetto);flex-wrap:wrap}
+  border-top:1px solid var(--filetto);flex-wrap:wrap;position:relative;z-index:3;background:var(--bianco)}
 .finestra .piede .a-destra{margin-left:auto}
 .pericolo{background:none;border:0;cursor:pointer;font-family:'Jost',sans-serif;font-size:10px;
   letter-spacing:.14em;text-transform:uppercase;color:#8C4A3F;padding:8px 0}
@@ -484,8 +492,14 @@ polyline.z-lavoro{fill:none}
 }
 
 /* il foglio da disegno: tutto lo schermo, la foto al centro, gli attrezzi sopra */
+/* touch-action:pan-x pan-y su tutto il velo: due dita qui dentro ingrandiscono la
+   foto e basta. Prima il divieto stava solo sulla foto, quindi un pinch che partiva
+   dalla testata, dalla striscia degli attrezzi o dal piede lo prendeva il browser e
+   ingrandiva tutta la pagina: cresceva la foto ma crescevano anche le scritte e i
+   tasti, e lo spazio utile restava quello di prima (Andrea, 21 settembre 2026).
+   Un dito solo continua a scorrere: pan-x e pan-y restano permessi. */
 .velo-disegno{position:fixed;inset:0;z-index:66;background:var(--carta);display:flex;
-  flex-direction:column;animation:entra .25s ease both}
+  flex-direction:column;animation:entra .25s ease both;touch-action:pan-x pan-y}
 body.disegno-aperto{overflow:hidden}
 .disegno-testa{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;
   padding:16px 20px 13px;border-bottom:1px solid var(--filetto2);background:var(--bianco)}
@@ -549,13 +563,38 @@ body.disegno-aperto{overflow:hidden}
 }
 .zoom{display:inline-flex;border:1px solid var(--filetto2)}
 .zoom button{background:none;border:0;width:40px;height:34px;font-size:19px;line-height:1;cursor:pointer;color:var(--soft)}
+.zoom button:disabled{opacity:.35;cursor:default}
+/* «+ terreno» e «− terreno»: sono tasti con una parola dentro, non un segno solo */
+.zoom.col-scritta button{width:auto;padding:0 11px;font-family:'Jost',sans-serif;font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase}
 .zoom button + button{border-left:1px solid var(--filetto2)}
 .zoom button:hover{color:var(--accento)}
 /* la casa giusta: foto larga dall'alto, coi confini del catasto stampati sopra */
-.sposta-foto{aspect-ratio:1/1;background:#2B2A27}
+/* align-self e margin: senza, la foto della casa e' figlia diretta di .disegno-foglio
+   (display:flex) e il flex la stira in altezza: a 390 px veniva 374x620 invece che
+   374x374, cioe' la foto dall'alto si allungava e le case non si riconoscevano piu'.
+   Il conto dei metri restava giusto, ma il tetto da toccare no. */
+.sposta-foto{aspect-ratio:1/1;background:#2B2A27;align-self:center;margin:auto;height:auto}
 .sposta-foto img{position:absolute;inset:0;width:100%;height:100%}
 .sposta-foto img.confini{mix-blend-mode:multiply;filter:grayscale(1) brightness(1.4);opacity:.85}
+/* il conto della riga, mentre si cambia la quantita': il numero grande e' quello
+   che conta, il resto e' la moltiplicazione scritta in chiaro */
+/* attaccato in fondo alla finestra mentre si scorre: il conto deve stare sotto gli
+   occhi proprio mentre si cambia il numero, non due schermate piu' giu' */
+.conto-vivo{position:sticky;bottom:-30px;margin:6px -32px -30px;padding:14px 32px 16px;
+  background:var(--carta2);border-top:1px solid var(--filetto2);display:flex;
+  align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;z-index:2}
+.conto-vivo .quanto{font-family:'Cormorant',serif;font-size:31px;line-height:1;white-space:nowrap}
+.conto-vivo .come{font-size:14.5px;color:var(--tenue)}
 .mirino line,.mirino circle{vector-effect:non-scaling-stroke;stroke-linecap:round}
+/* invisibile, ma largo quanto un polpastrello: e' il bersaglio per togliere il segno */
+.mirino .presa{fill:transparent;stroke:none}
+.interruttore{display:inline-flex;align-items:center;gap:8px}
+.interruttore .stato{font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;padding:3px 8px 2px;border:1px solid var(--filetto2);
+  color:var(--tenue);background:var(--carta2)}
+.interruttore.acceso{border-color:var(--accento);color:var(--accento)}
+.interruttore.acceso .stato{border-color:var(--accento);background:var(--accento);color:var(--bianco)}
 .mirino .alone{stroke:rgba(27,25,23,.72);stroke-width:4}
 .mirino .segno{stroke:#F8F5EF;stroke-width:2}
 .mirino circle{fill:#D8BE86;stroke:#1B1917;stroke-width:1}
@@ -1459,6 +1498,45 @@ function fissaSopralluogo(origine, data){
   avvisa('Sopralluogo fissato per ' + (data === S.oggi ? 'oggi' : dataLunga(data)) + '.');
   location.hash = '#sopralluogo/' + s.id;
 }
+/* Il preventivo nuovo a un cliente che c'e' gia' non parte da zero: parte dal suo
+   giardino. Nasce un sopralluogo suo, con dentro la foto, il disegno e le misure
+   dell'ultima volta, cosi' si detta il lavoro di stavolta e si corregge il disegno
+   invece di riscrivere tutto a mano. */
+function nuovoSopralluogoDalCliente(idCliente){
+  const c = cliente(idCliente); if(!c) return null;
+  const g = giardinoDelCliente(idCliente);
+  const s = copia(S.sopralluogo_predefinito);
+  s.id = nuovoId('s'); s.richiesta = null;
+  s.nome = c.nome; s.luogo = c.indirizzo || c.luogo || '';
+  s.cliente = c.id; s.preventivo = null;
+  s.quando = S.oggi; s.stato = 'fissato';
+  /* il parlato di esempio vale solo per il giro di prova: qui si detta da capo */
+  s.testo = ''; s.trovate = []; s.foto = [];
+  delete s._trovate;
+  if(g){
+    S.rilievi = S.rilievi || {};
+    const id = 'ril-' + Date.now().toString(36) + '-' + Math.floor(Math.random()*1000).toString(36);
+    /* una copia sua: correggendo il disegno di oggi non si tocca il preventivo di allora */
+    S.rilievi[id] = copia(g.ril);
+    s.rilievo = id;
+  }
+  S.sopralluoghi.push(s);
+  salva();
+  return s;
+}
+function nuovoPreventivoCliente(idCliente){
+  const c = cliente(idCliente); if(!c) return;
+  const g = giardinoDelCliente(idCliente);
+  if(!g || !misureGiardino(g.ril).length){ schedaPreventivo(null, idCliente); return; }
+  chiedi('Il giardino di ' + c.nome + ' lo hai gi\u00e0 misurato' + (g.quando ? ' il ' + dataLunga(g.quando) : '') +
+    ': ' + misureGiardinoScritte(g.ril) + '. Riparto da l\u00ec: foto, disegno e misure sono gi\u00e0 dentro, tu detti il lavoro di stavolta.',
+    () => {
+      const s = nuovoSopralluogoDalCliente(idCliente);
+      if(!s){ schedaPreventivo(null, idCliente); return; }
+      avvisa('Sopralluogo aperto sul suo giardino. Detta il lavoro, poi fai il preventivo.');
+      location.hash = '#sopralluogo/' + s.id;
+    }, 'S\u00ec, riparti dal suo giardino');
+}
 function nuovaRichiesta(){
   const d = id => (document.getElementById(id).value || '').trim();
   const nome = d('nr-nome');
@@ -1725,6 +1803,7 @@ function scheda(o){
       <div class="form">
         ${righeCampi(o.campi, campo)}
       </div>
+      ${o.conto ? '<div class="conto-vivo" id="scheda-conto"></div>' : ''}
       <div class="piede">
         ${o.elimina ? `<button class="pericolo" id="btn-elimina">Cancella</button>` : ''}
         <div class="a-destra riga-azione">
@@ -1736,6 +1815,33 @@ function scheda(o){
   document.body.appendChild(velo);
   addEventListener('keydown', tastoScheda);
   schedaAperta = o;
+
+  /* Quanto fa, mentre si cambia il numero.
+
+     Andrea, 21 settembre 2026: «potatura siepe 9 euro al metro, ma non ho il dato di
+     quanti sono in quella schermata». Cioe': si correggeva la quantita' al buio, e
+     quanto veniva la riga si scopriva solo dopo, tornando nel preventivo. Adesso il
+     conto sta li' sotto e si rifa' a ogni tasto. */
+  if(o.conto){
+    const leggi = () => {
+      const d = {};
+      o.campi.forEach(c => {
+        const e = document.getElementById('c-' + c.k);
+        const x = e ? e.value : '';
+        d[c.k] = c.t === 'numero' ? numeroScritto(x) : String(x).trim();
+      });
+      return d;
+    };
+    const rifai = () => {
+      const riga = document.getElementById('scheda-conto'); if(!riga) return;
+      let testo = '';
+      try { testo = o.conto(leggi()) || ''; } catch(_){ testo = ''; }
+      riga.innerHTML = testo;
+      riga.style.display = testo ? '' : 'none';
+    };
+    velo.querySelectorAll('.campo').forEach(e => { e.addEventListener('input', rifai); e.addEventListener('change', rifai); });
+    rifai();
+  }
 
   velo.querySelector('#btn-salva').onclick = () => {
     const dati = {};
@@ -1944,6 +2050,9 @@ function schedaPreventivo(id, idCliente){
       }
       const nuovo = Object.assign({id:nuovoId('p'), cliente:cl ? cl.id : null, righe:[], sopralluogo:null}, d);
       nuovo.sconto = 0;
+      /* anche il preventivo scritto a mano a un cliente noto si porta dietro le sue
+         misure: se no il giardino non finisce nel PDF e il cliente non lo ritrova */
+      if(cl){ const g = giardinoDelCliente(cl.id); if(g) nuovo.rilievo = g.id; }
       S.preventivi.unshift(nuovo);
       location.hash = '#preventivo/' + nuovo.id;
     },
@@ -1973,6 +2082,31 @@ function eliminaRiga(id, k){
   p.righe.splice(k, 1); salva(); vai();
   avvisa('Voce tolta dal preventivo.');
 }
+/* Quanto fa questa riga, scritto mentre si cambia il numero.
+
+   «Potatura siepe 9 euro al metro, ma non ho il dato di quanti sono in quella
+   schermata» (Andrea, 21 settembre 2026). Si vede la moltiplicazione per intero,
+   cosi' il conto si controlla a occhio: 23 m x 9,00 = 207,00. A corpo la quantita'
+   non entra nel conto e si dice. Le voci facoltative fanno il loro importo lo
+   stesso, ma stanno fuori dal totale del preventivo, e anche questo si dice. */
+function contoDellaRiga(d, r){
+  const aCorpoQui = /\ba corpo\b/.test(String(d.u || '').toLowerCase());
+  const prezzo = Number(d.p) || 0;
+  const quanti = Number(d.q) || 0;
+  const volte = (Number.isInteger(d.volte) && d.volte > 1) ? d.volte : 1;
+  if(!prezzo) return '';
+  if(!aCorpoQui && !quanti) return '<span class="come">Metti la quantità e ti dico quanto fa.</span>';
+  const importo = cent((aCorpoQui ? prezzo : prezzo * quanti) * volte);
+  const unita = String(d.u || '').trim();
+  const come = aCorpoQui
+    ? 'A corpo: ' + euro(prezzo) + ', la quantità non entra nel conto.'
+    : cifra(quanti) + (unita ? ' ' + unita.replace(/^ogni\s+/, 'ogni ') : '') + ' × ' + euro(prezzo);
+  const iva = (typeof d.iva === 'number' && d.iva >= 0) ? d.iva : null;
+  return '<span class="come">' + esc(come) + (volte > 1 ? esc(' × ' + volte + ' volte nell\'anno') : '') +
+         (iva !== null ? esc(' · più IVA ' + cifra(iva, 0) + '%') : '') +
+         ((d.facoltativa === 'si') ? ' · <b>facoltativa: fuori dal totale</b>' : '') +
+         '</span><span class="quanto">' + esc(euro(importo)) + '</span>';
+}
 function schedaRiga(id, k){
   const p = prev(id), r = p.righe[k];
   scheda({
@@ -1989,6 +2123,7 @@ function schedaRiga(id, k){
       {k:'facoltativa', l:'Nel preventivo', t:'scelta',
        opzioni:[['no','Compresa nel totale'], ['si','Facoltativa: la proponi a parte, il cliente sceglie']]}
     ],
+    conto: d => contoDellaRiga(d, r),
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
       : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.'
       : (d.volte !== null && !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60)
@@ -2269,6 +2404,10 @@ function schedaLavorazione(idSopralluogo, indice){
                 .concat([['__nuova', '＋ Non ce l\'ho a listino: la scrivo adesso']])},
       {k:'q', l:'Quantità', t:'numero'}
     ].concat(indice === null ? [{k:'detti', l:'Come l\'hai chiamata a voce? (facoltativo)', p:'taglio dell\'erba'}] : []),
+    conto: d => {
+      const v = voce(d.voce); if(!v) return '';
+      return contoDellaRiga({u:v.u, p:v.p, q:d.q}, null);
+    },
     controlla: d => (d.voce === '__nuova' || d.q > 0) ? null : 'Serve una quantità.',
     salva: d => {
       /* "non ce l'ho a listino": si passa alla scheda che la scrive per intero */
@@ -3540,10 +3679,79 @@ function puntiBuoni(p){
 function fotoSicura(f){
   return typeof f === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(f);
 }
-function rilievoDelSopralluogo(s){
+function idRilievoDelSopralluogo(s){
+  if(!s || !S.rilievi) return null;
+  if(s.rilievo && S.rilievi[s.rilievo]) return s.rilievo;
   const r = richiesta(s.richiesta);
-  const id = (s.rilievo && S.rilievi && S.rilievi[s.rilievo]) ? s.rilievo : (r && r.rilievo);
-  return (id && S.rilievi && S.rilievi[id]) || null;
+  return (r && r.rilievo && S.rilievi[r.rilievo]) ? r.rilievo : null;
+}
+function rilievoDelSopralluogo(s){
+  const id = idRilievoDelSopralluogo(s);
+  return (id && S.rilievi[id]) || null;
+}
+/* ===== IL GIARDINO RESTA ATTACCATO AL CLIENTE =====
+   «Se un cliente ha 100 mq di giardino, quel dato deve restare attaccato al cliente,
+   comparire quando gli si rifa' un preventivo, e finire nel PDF» (Andrea, 21 settembre
+   2026). Prima le misure stavano solo dentro il sopralluogo di quella volta: dalla
+   scheda del cliente, "+ Nuovo preventivo" ripartiva da un foglio bianco, senza foto,
+   senza disegno e senza un numero. Qui si va a riprendere l'ultimo giardino misurato
+   di quel cliente, da qualunque parte sia arrivato.                                   */
+function giardinoDelCliente(idCliente){
+  if(!idCliente || !S.rilievi) return null;
+  let meglio = null;
+  const guarda = (id, quando, s, p) => {
+    if(!id || !S.rilievi[id]) return;
+    const q = quando || '';
+    if(!meglio || q >= meglio.quando) meglio = {id, ril:S.rilievi[id], quando:q, sopralluogo:s || null, preventivo:p || null};
+  };
+  (S.sopralluoghi || []).forEach(s => {
+    const suo = s.cliente === idCliente ||
+      (s.preventivo && (prev(s.preventivo) || {}).cliente === idCliente);
+    if(suo) guarda(idRilievoDelSopralluogo(s), s.quando || (prev(s.preventivo) || {}).data, s, null);
+  });
+  /* e anche i preventivi nati senza sopralluogo, che il giardino se lo portano dietro */
+  (S.preventivi || []).forEach(p => { if(p.cliente === idCliente) guarda(p.rilievo, p.data, null, p); });
+  return meglio;
+}
+/* il giardino che vale per questo preventivo: prima il suo, poi quello del
+   sopralluogo da cui e' nato, poi l'ultimo del cliente */
+function giardinoDelPreventivo(p){
+  if(!p) return null;
+  if(p.rilievo && S.rilievi && S.rilievi[p.rilievo]) return {id:p.rilievo, ril:S.rilievi[p.rilievo], quando:p.data};
+  const s = S.sopralluoghi.find(x => x.preventivo === p.id) || (p.sopralluogo ? sopr(p.sopralluogo) : null);
+  const id = s ? idRilievoDelSopralluogo(s) : null;
+  if(id) return {id, ril:S.rilievi[id], quando:s.quando || p.data, sopralluogo:s};
+  return p.cliente ? giardinoDelCliente(p.cliente) : null;
+}
+/* le misure del giardino scritte come le direbbe lui, pronte da mettere a schermo */
+function misureGiardino(ril){
+  const fuori = [];
+  if(!ril) return fuori;
+  const metti = (k, q, u) => { if(q > 0) fuori.push({k, v: cifra(Math.round(q), 0) + ' ' + u}); };
+  metti('Lotto', ril.lotto_mq, 'mq');
+  metti('Coperto', ril.coperto_mq, 'mq');
+  metti('Scoperto', ril.scoperto_mq, 'mq');
+  metti('Verde', ril.verde_mq, 'mq');
+  const tot = latoFoto(ril) ? totaliZone(ril) : null;
+  if(tot){
+    metti('Prato disegnato', tot.prato, 'mq');
+    metti('Aiuole', tot.aiuola, 'mq');
+    metti('Siepe', tot.siepe, 'm');
+    if(tot.albero > 0) fuori.push({k:'Alberi', v: cifra(tot.albero, 0) + (tot.albero === 1 ? ' pianta' : ' piante')});
+  }
+  return fuori;
+}
+const misureGiardinoScritte = ril => misureGiardino(ril).map(x => x.k.toLowerCase() + ' ' + x.v).join(', ');
+function giardinoHtml(g, titolo){
+  const m = misureGiardino(g && g.ril);
+  if(!m.length) return '';
+  return `<div class="scheda" style="margin-top:16px">
+    <div class="lbl" style="margin-bottom:10px">${esc(titolo || 'Il suo giardino')}</div>
+    <div class="misure-giardino">${m.map(x =>
+      `<div><div class="val">${esc(x.v)}</div><div class="lbl">${esc(x.k)}</div></div>`).join('')}</div>
+    <p style="font-size:14.5px;color:var(--tenue);margin-top:12px">Misurato${g.quando ? ' il ' + dataLunga(g.quando) : ''} e tenuto qui: il prossimo preventivo parte da questi numeri, che finiscono anche nel PDF.</p>
+    ${g.sopralluogo ? `<a href="#sopralluogo/${g.sopralluogo.id}" style="color:var(--accento);font-size:15px">Apri il rilievo e il disegno</a>` : ''}
+  </div>`;
 }
 
 function caricaRilievo(idSopralluogo, input){
@@ -3968,7 +4176,16 @@ function larghezzaBaseFoto(){
    piombo sulla casa. Disegnare sopra quelle righe sbagliate porta a segnare il
    giardino dove non e'. Percio' si disegna sulla foto pulita, e i confini si
    accendono solo quando servono (Andrea, 19 settembre 2026). */
-const fotoPulita = ril => (ril && !ril.da_disegnare && fotoSicura(ril.foto_pulita)) ? ril.foto_pulita : '';
+/* La foto senza le righe. Di solito la manda il servizio insieme al rilievo. Se non
+   c'e' (i rilievi vecchi, salvati prima che il servizio la mandasse) si prende dal
+   satellite la stessa identica finestra di terreno: i punti gia' disegnati sono
+   frazioni della finestra, quindi restano al loro posto. Cosi' l'interruttore c'e'
+   sempre, invece di esserci solo sui rilievi fatti di recente. */
+function fotoPulita(ril){
+  if(!ril || ril.da_disegnare) return '';
+  if(fotoSicura(ril.foto_pulita)) return ril.foto_pulita;
+  return angoliBuoni(ril.angoli) ? fotoCasa(ril.angoli, latoFoto(ril)) : '';
+}
 function fotoDaDisegnare(ril){
   const pulita = fotoPulita(ril);
   return (pulita && D && D.confini === false) ? pulita : ril.foto;
@@ -3979,6 +4196,28 @@ function cambiaConfini(){
   const img = document.getElementById('disegno-img');
   if(img) img.setAttribute('src', fotoDaDisegnare(D.ril));
   ridisegna();
+}
+/* L'interruttore dei confini del catasto.
+
+   Prima era un tasto come gli altri cinque del piede, e diceva solo cosa sarebbe
+   successo premendolo: "Mostra i confini". In mezzo agli altri non si trovava, e
+   soprattutto non si capiva se in quel momento erano accesi o spenti. Andrea, il 21
+   settembre 2026: le righe del catasto "danno molto fastidio soprattutto se non
+   viene centrata", cioe' quando cadono storte sopra il tetto che stai cercando.
+   Adesso e' un interruttore: dice il nome della cosa, e accanto se e' acceso o
+   spento. Sta in tutte e due le schermate con la foto, anche in quella della casa,
+   dove prima non c'era proprio modo di toglierli. */
+function interruttoreConfini(id, azione){
+  return `<button class="bottone vuoto piccolo interruttore" id="${id}" onclick="${azione}"
+    role="switch" aria-checked="true">I confini del catasto <span class="stato">accesi</span></button>`;
+}
+function segnaInterruttore(el, acceso, nome){
+  el.classList.toggle('acceso', !!acceso);
+  el.setAttribute('aria-checked', acceso ? 'true' : 'false');
+  el.innerHTML = esc(nome) + ' <span class="stato">' + (acceso ? 'accesi' : 'spenti') + '</span>';
+  el.setAttribute('title', acceso
+    ? 'Le righe del catasto sono sopra la foto. Toccami per toglierle: non combaciano mai al pixel e coprono il tetto.'
+    : 'Le righe del catasto sono spente. Toccami per rimetterle.');
 }
 /* Il confine del catasto ricalcato, come punti che si spostano: il punto di
    partenza piu' veloce per segnare il giardino, da tirare dove sta davvero. */
@@ -4045,7 +4284,11 @@ function apriDisegno(idSopralluogo, idZona){
   D = {sop:idSopralluogo, ril, tipo: z ? z.tipo : 'prato', punti: z ? copia(z.punti) : [],
        salti: z && z.salti ? copia(z.salti) : [], tagli:false, taglio:null,
        modifica: z ? z.id : null, zoom:1, giro:0, trascina:null, trascinato:false,
-       scorri:null, confini: !fotoPulita(ril)};
+       /* si parte dalla foto che sta gia' nel telefono. Se il servizio aveva mandato
+          anche quella senza righe si parte da quella, come prima; se invece la foto
+          pulita va chiesta al satellite si parte con le righe, perche' in cortile
+          senza campo una foto da scaricare e' un riquadro vuoto */
+       scorri:null, confini: !fotoSicura(ril.foto_pulita)};
   const velo = document.createElement('div');
   velo.className = 'velo-disegno'; velo.id = 'disegno';
   velo.innerHTML = `
@@ -4073,16 +4316,21 @@ function apriDisegno(idSopralluogo, idZona){
       <div class="disegno-istruzione" id="disegno-istruzione"></div>
       <div class="disegno-misura" id="disegno-misura"></div>
       <div class="azioni">
-        <div class="zoom">
+        <div class="zoom" title="Quanto grande si vede la foto sullo schermo">
           <button onclick="ingrandisci(-1)" aria-label="Foto più piccola" title="Foto più piccola">−</button>
           <button onclick="ingrandisci(1)" aria-label="Foto più grande" title="Foto più grande">+</button>
+        </div>
+        <div class="zoom col-scritta" title="Quanto terreno entra dentro la foto">
+          <button id="d-meno-terreno" onclick="cambiaTerreno(-1)" aria-label="Meno terreno nella foto">− terreno</button>
+          <button id="d-piu-terreno" onclick="cambiaTerreno(1)" aria-label="Più terreno nella foto">+ terreno</button>
         </div>
         <div class="zoom">
           <button onclick="gira(-15)" aria-label="Gira a sinistra" title="Gira la foto a sinistra">⟲</button>
           <button onclick="gira(15)" aria-label="Gira a destra" title="Gira la foto a destra">⟳</button>
         </div>
+        <button class="bottone vuoto piccolo" id="d-inquadra" onclick="inquadraAltrove()">Sposta la foto</button>
         <button class="bottone vuoto piccolo" id="d-raddrizza" onclick="raddrizza()">Rimetti dritta</button>
-        <button class="bottone vuoto piccolo" id="d-confini" onclick="cambiaConfini()">Mostra i confini</button>
+        ${fotoPulita(ril) ? interruttoreConfini('d-confini', 'cambiaConfini()') : ''}
         <button class="bottone vuoto piccolo" id="d-ricalca" onclick="ricalcaConfine()">Ricalca il confine</button>
         <button class="bottone vuoto piccolo" id="d-togli" onclick="togliPunto()">Togli l'ultimo punto</button>
         <button class="bottone vuoto piccolo" id="d-tagli" onclick="attivaTagli()">Interrompi la siepe</button>
@@ -4188,6 +4436,7 @@ function toccoDisegno(e){
   if(D.casa){ toccoCasa(e); return; }
   /* il tocco che chiude uno spostamento non e' un punto nuovo */
   if(D.finito && Date.now() - D.finito < 400) return;
+  if(D.inquadra){ const p = puntoDaEvento(e); if(p) rifaiFoto(aTerra(D.ril.angoli, p), null); return; }
   if(D.tagli){ const p = puntoDaEvento(e); if(p) tocchiTaglio(p); return; }
   if(e.target && e.target.closest && e.target.closest('[data-i]')) return;
   const p = puntoDaEvento(e);
@@ -4239,6 +4488,100 @@ function lasciaPunto(e){
   try { e.currentTarget.releasePointerCapture(e.pointerId); } catch(_){}
   // Use the original target: pointer capture retargets pointerup to the SVG.
   if(tocco) toccoDisegno({clientX:e.clientX, clientY:e.clientY, target:g.target});
+}
+/* ---- spostare l'inquadratura sul terreno ----
+
+   Il tasto + ingrandisce la foto sullo schermo, e basta: il pezzo di terreno
+   inquadrato resta quello deciso al momento del rilievo. Se il giardino vero sta
+   fuori da quel quadrato, con + non ci si arriva in nessun modo. E' la segnalazione
+   numero due di Andrea, 21 settembre 2026: «i tasti + e − non portano sul giardino
+   giusto». Un tasto che ingrandisce quando la persona si aspetta di spostarsi e'
+   come un tasto rotto.
+
+   Adesso ci sono due cose diverse, e si chiamano in due modi diversi:
+   - «+» e «−» : quanto grande si vede la foto sullo schermo. Non chiede niente.
+   - «+ terreno» e «− terreno», e «Sposta la foto»: quanto terreno entra dentro la
+     foto e dove sta il suo centro. Questi rifanno la foto, quindi chiedono al
+     servizio, e le parti di giardino gia' disegnate si spostano al loro posto sulla
+     foto nuova (riportaZone, che e' la stessa cosa che si fa quando si rimisura il
+     lotto). Le righe del catasto, che erano stampate sulla foto vecchia, sulla foto
+     nuova non ci sono: lo si dice, invece di lasciare credere che siano sparite. */
+const LATI_TERRENO = [60, 100, 150, 240, 380, 600, 900];
+function passoTerreno(lato){
+  let i = 0;
+  LATI_TERRENO.forEach((v, k) => { if(Math.abs(v - lato) < Math.abs(LATI_TERRENO[i] - lato)) i = k; });
+  return i;
+}
+function cambiaTerreno(verso){
+  if(!D || D.casa || D.particelle || D.rifacendo) return;
+  const ora = latoFoto(D.ril) || 150;
+  const i = Math.max(0, Math.min(LATI_TERRENO.length - 1, passoTerreno(ora) + verso));
+  if(Math.abs(LATI_TERRENO[i] - ora) < 1){
+    avvisa(verso > 0 ? 'Più largo di così la foto non va: a quel punto non si distingue più un prato da un tetto.'
+                     : 'Più stretto di così non si scende: sotto i sessanta metri la foto non guadagna niente.');
+    return;
+  }
+  rifaiFoto(null, LATI_TERRENO[i]);
+}
+function inquadraAltrove(){
+  if(!D || D.casa || D.particelle || D.rifacendo) return;
+  D.inquadra = !D.inquadra;
+  if(D.inquadra){ D.tagli = false; D.taglio = null; }
+  ridisegna();
+}
+/* la foto rifatta: centro nuovo, o larghezza nuova, o tutti e due */
+function rifaiFoto(centro, lato){
+  if(!D || D.rifacendo) return;
+  const ril = D.ril, vecchi = ril.angoli;
+  if(!angoliBuoni(vecchi)){ avvisa('Questo rilievo non sa dove sta la sua foto: rifallo dall\'indirizzo.'); return; }
+  const c = centro || [(vecchi.lat0 + vecchi.lat1) / 2, (vecchi.lon0 + vecchi.lon1) / 2];
+  const largo = lato || latoFoto(ril) || 150;
+  D.rifacendo = true; D.inquadra = false;
+  ridisegna();
+  const idSop = D.sop;
+  const basta = new AbortController();
+  const scade = setTimeout(() => basta.abort(), 100000);
+  fetch(SPORTELLO_RILIEVO + '/foto?punto=' + encodeURIComponent(c[0].toFixed(7) + ',' + c[1].toFixed(7)) +
+        '&lato=' + encodeURIComponent(Math.round(largo)) +
+        '&indirizzo=' + encodeURIComponent(ril.indirizzo || ''), {signal: basta.signal})
+    .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
+    .then(({ok, d}) => {
+      if(!D || D.sop !== idSop){ return; }
+      D.rifacendo = false;
+      if(!ok || !d || d.errore || !fotoSicura(d.foto) || !angoliBuoni(d.angoli) || !(d.lato_m > 0)){
+        ridisegna();
+        avvisa('La foto nuova non è arrivata: ' + ((d && d.errore) || 'il servizio non ha risposto bene.') + ' Resta quella di prima.');
+        return;
+      }
+      const zone = zoneDi(ril);
+      ril.foto = d.foto;
+      delete ril.foto_pulita;                 /* la foto nuova e' gia' senza le righe */
+      ril.angoli = d.angoli;
+      ril.metri_per_pixel = d.metri_per_pixel;
+      ril.lato_m = d.lato_m;
+      ril.zone = riportaZone(zone, vecchi, d.angoli);
+      if(Array.isArray(ril.contorno) && ril.contorno.length)
+        ril.contorno = ril.contorno.map(p => {
+          const q = sullaFoto(d.angoli, aTerra(vecchi, p));
+          return [tondo(q[0]), tondo(q[1])];
+        }).filter(q => q[0] >= -0.2 && q[0] <= 1.2 && q[1] >= -0.2 && q[1] <= 1.2);
+      D.punti = D.punti.map(p => {
+        const q = sullaFoto(d.angoli, aTerra(vecchi, p));
+        return [tondo(Math.min(1, Math.max(0, q[0]))), tondo(Math.min(1, Math.max(0, q[1])))];
+      });
+      D.confini = false;
+      const img = document.getElementById('disegno-img');
+      if(img) img.setAttribute('src', ril.foto);
+      salva();
+      ridisegna();
+      const perse = zone.length - zoneDi(ril).length;
+      avvisa('Foto rifatta: ' + Math.round(d.lato_m) + ' m di lato. I disegni si sono spostati al loro posto.' +
+             (perse > 0 ? ' ' + perse + (perse === 1 ? ' parte è rimasta' : ' parti sono rimaste') + ' fuori dalla foto nuova.' : '') +
+             ' Le righe del catasto non ci sono più: erano stampate sulla foto di prima.');
+    })
+    .catch(() => { if(D && D.sop === idSop){ D.rifacendo = false; ridisegna();
+      avvisa('Il servizio della foto non risponde. Riprova tra un minuto.'); } })
+    .finally(() => clearTimeout(scade));
 }
 function ingrandisci(verso){
   portaZoomA((D ? D.zoom || 1 : 1) * (verso > 0 ? 1.6 : 1 / 1.6));
@@ -4306,14 +4649,16 @@ function pinchMuovi(e){
   if(pinch.gira) ridisegna();
 }
 function pinchFine(e){ if(!e.touches || e.touches.length < 2) pinch = null; }
-/* i tre fogli da disegno si comportano tutti allo stesso modo */
+/* i tre fogli da disegno si comportano tutti allo stesso modo.
+   Si ascolta tutto il velo, non solo il riquadro della foto: due dita appoggiate
+   sul piede o sulla testata devono ingrandire la foto lo stesso, se no la pagina
+   sembra rotta proprio dove il pollice finisce piu' spesso. */
 function ascoltaLeDueDita(velo){
-  const foglio = velo.querySelector('#disegno-foglio');
-  if(!foglio) return;
-  foglio.addEventListener('touchstart', pinchInizio, {passive:true});
-  foglio.addEventListener('touchmove', pinchMuovi, {passive:false});
-  foglio.addEventListener('touchend', pinchFine, {passive:true});
-  foglio.addEventListener('touchcancel', pinchFine, {passive:true});
+  if(!velo) return;
+  velo.addEventListener('touchstart', pinchInizio, {passive:true});
+  velo.addEventListener('touchmove', pinchMuovi, {passive:false});
+  velo.addEventListener('touchend', pinchFine, {passive:true});
+  velo.addEventListener('touchcancel', pinchFine, {passive:true});
 }
 /* ---- la siepe che si interrompe: un ingresso, un cancello ----
    Si tocca sulla siepe dove si apre e dove riprende: i due punti entrano nella
@@ -4416,7 +4761,11 @@ function ridisegna(){
   const lato = latoFoto(D.ril), f = TIPI_ZONA[D.tipo].forma;
   svg.innerHTML = svgZone(D.ril, D.modifica, k) + svgLavoro(D.tipo, D.punti, lato, k);
   velo.querySelectorAll('.attrezzi button').forEach(b => b.classList.toggle('attivo', b.getAttribute('data-tipo') === D.tipo));
-  document.getElementById('disegno-istruzione').textContent = D.tagli
+  document.getElementById('disegno-istruzione').textContent = D.rifacendo
+    ? 'Sto chiedendo la foto nuova…'
+    : D.inquadra
+    ? 'Tocca sulla foto il punto che vuoi al centro: la rifaccio intorno a lì. I disegni già fatti si spostano al loro posto.'
+    : D.tagli
     ? (D.taglio ? 'Ora tocca dove la siepe riprende.'
                 : 'Tocca sulla siepe dove si interrompe (un ingresso, un cancello), poi dove riprende: quel tratto non si conta. Un tocco su un tratto a puntini lo rimette.')
     : D.modifica
@@ -4444,11 +4793,21 @@ function ridisegna(){
   const conf = document.getElementById('d-confini');
   if(conf){
     conf.style.display = fotoPulita(D.ril) ? '' : 'none';
-    conf.textContent = D.confini ? 'Togli i confini' : 'Mostra i confini';
-    conf.classList.toggle('attivo', !!D.confini);
+    segnaInterruttore(conf, D.confini, 'I confini del catasto');
   }
   const ric = document.getElementById('d-ricalca');
   if(ric) ric.style.display = (D.ril && Array.isArray(D.ril.contorno) && D.ril.contorno.length >= 3 && !D.modifica) ? '' : 'none';
+  /* i tre comandi che rifanno la foto: quanto terreno, e dove sta il centro */
+  const inq = document.getElementById('d-inquadra');
+  if(inq){
+    inq.textContent = D.inquadra ? 'Lascia stare, non spostarla' : 'Sposta la foto';
+    inq.classList.toggle('attivo', !!D.inquadra);
+    inq.disabled = !!D.rifacendo;
+  }
+  const passo = passoTerreno(lato || 150);
+  const meno = document.getElementById('d-meno-terreno'), piu = document.getElementById('d-piu-terreno');
+  if(meno) meno.disabled = !!D.rifacendo || passo === 0;
+  if(piu)  piu.disabled  = !!D.rifacendo || passo === LATI_TERRENO.length - 1;
 }
 
 /* ---- scegliere le particelle del cliente, toccandole sulla foto ----
@@ -4591,12 +4950,27 @@ function riquadroCasa(c, meta){
   const dlat = meta / 111320, dlon = dlat / Math.max(0.2, Math.cos(c[0] * Math.PI / 180));
   return {lat0:c[0] - dlat, lon0:c[1] - dlon, lat1:c[0] + dlat, lon1:c[1] + dlon};
 }
+/* Quanti pixel chiedere a Esri, e perche' non sempre mille.
+
+   Esri non consegna una foto piu' fine di circa venti centimetri per pixel: sotto
+   quella soglia non manda una foto sgranata, risponde 500 e non manda niente.
+   Misurato il 21 settembre 2026 in sette posti d'Italia, da Bormio a Palermo: il
+   passo piu' fine accettato e' 0,180 m/px quasi ovunque e 0,200 a Lecce.
+
+   Prima chiedevamo sempre mille pixel. Sul riquadro stretto, quello da 90 metri di
+   lato, voleva dire nove centimetri per pixel: Esri rispondeva 500 e la schermata
+   "Tocca la casa giusta" restava un quadrato nero. Cioe' proprio quando si premeva
+   "vedi piu' vicino" per riconoscere il tetto, il tetto spariva. Adesso i pixel si
+   chiedono in base a quanto terreno c'e' dentro, con un po' di margine. */
+const FINEZZA_MAX = 0.22;               // metri di terreno per pixel: piu' fine non arriva
+const pixelFoto = lato_m => Math.max(256, Math.min(1000, Math.round((lato_m || 180) / FINEZZA_MAX)));
 /* la foto e i confini arrivano dritti al telefono: per guardarli non serve il
    server, serve solo per contare i metri */
-function fotoCasa(a){
+function fotoCasa(a, lato_m){
+  const px = pixelFoto(lato_m);
   return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=' +
     [a.lon0, a.lat0, a.lon1, a.lat1].map(n => n.toFixed(7)).join(',') +
-    '&bboxSR=4326&imageSR=4326&size=1000,1000&format=jpg&f=image';
+    '&bboxSR=4326&imageSR=4326&size=' + px + ',' + px + '&format=jpg&f=image';
 }
 function confiniCasa(a){
   return 'https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap' +
@@ -4616,8 +4990,8 @@ function apriSposta(idSopralluogo){
   if(!puoSpostare(ril)){ avvisa('Per spostarti sulla casa giusta rifai prima il rilievo dall\'indirizzo.'); return; }
   chiudiScheda(); chiudiDisegno(false, true);
   const trovato = centroRilievo(ril);
-  D = {sop:idSopralluogo, ril, casa:true, trovato, centro:trovato, lato:1, scelto:null,
-       disegnate:zoneDi(ril).length, senzaFoto:false, punti:[]};
+  D = {sop:idSopralluogo, ril, casa:true, trovato, centro:trovato, lato:1, scelti:[],
+       confini:true, disegnate:zoneDi(ril).length, senzaFoto:false, ripieghi:0, punti:[]};
   const velo = document.createElement('div');
   velo.className = 'velo-disegno'; velo.id = 'disegno';
   velo.innerHTML = `
@@ -4640,6 +5014,8 @@ function apriSposta(idSopralluogo){
           <button onclick="allargaCasa(1)" aria-label="Vedi più lontano" title="Vedi più lontano">−</button>
           <button onclick="allargaCasa(-1)" aria-label="Vedi più vicino" title="Vedi più vicino">+</button>
         </div>
+        ${interruttoreConfini('d-confini-casa', 'cambiaConfiniCasa()')}
+        <button class="bottone vuoto piccolo" id="d-togli" onclick="togliCasa()">Togli l'ultimo segno</button>
         <button class="bottone piccolo" id="d-salva" onclick="misuraCasa()">Misura questa casa</button>
       </div>
     </div>`;
@@ -4654,11 +5030,40 @@ function apriSposta(idSopralluogo){
   ascoltaGestiFoto(velo);
   ridisegna();
 }
-function fotoCasaMancante(){ if(D && D.casa){ D.senzaFoto = true; ridisegna(); } }
+/* I confini del catasto su questa schermata: prima stavano sempre accesi e non si
+   potevano togliere. Non combaciano mai al pixel con la foto (l'aereo non era a
+   piombo sulla casa), quindi quando la griglia cade storta copre proprio il tetto
+   che si sta cercando di riconoscere (Andrea, 21 settembre 2026). */
+function cambiaConfiniCasa(){
+  if(!D || !D.casa) return;
+  D.confini = !D.confini;
+  ridisegna();
+}
+function togliCasa(){
+  if(!D || !D.casa || !D.scelti.length) return;
+  D.scelti.pop();
+  ridisegna();
+}
+/* Un tocco sulla foto: il primo segna la casa, quelli dopo aggiungono il giardino.
+
+   Due cose che Andrea ha chiesto il 21 settembre 2026. La prima: dopo aver toccato
+   la casa si deve poter misurare anche partendo dal giardino, perche' in tanti lotti
+   il verde e' una particella staccata da quella del fabbricato, e misurando solo il
+   tetto il giardino sparisce dal conto. I punti si mandano tutti insieme, come fa
+   gia' la schermata delle particelle. La seconda: il primo tocco deve rimettere la
+   foto in centro sul punto scelto, "cosi' l'immagine satellitare raddrizza il tiro".
+   Un tocco su un segno gia' messo lo toglie. */
 function toccoCasa(e){
+  const segno = e.target && e.target.closest ? e.target.closest('[data-s]') : null;
+  if(segno){ D.scelti.splice(Number(segno.getAttribute('data-s')), 1); ridisegna(); return; }
   const p = puntoDaEvento(e); if(!p || !D.angoli) return;
+  if(D.scelti.length >= 8){ avvisa('Otto punti al massimo: per un lotto più grande scrivi le misure a mano.'); return; }
   const t = aTerra(D.angoli, p);
-  D.scelto = [Math.round(t[0] * 1e7) / 1e7, Math.round(t[1] * 1e7) / 1e7];
+  const punto = [Math.round(t[0] * 1e7) / 1e7, Math.round(t[1] * 1e7) / 1e7];
+  const primo = !D.scelti.length;
+  D.scelti.push(punto);
+  /* il primo tocco rimette la foto in centro sulla casa scelta */
+  if(primo){ D.centro = punto.slice(); D.senzaFoto = false; D.ripieghi = 0; }
   ridisegna();
 }
 /* piu' lontano o piu' vicino: la foto si rifa' intorno alla casa scelta, cosi'
@@ -4668,37 +5073,65 @@ function allargaCasa(verso){
   const i = Math.max(0, Math.min(LATI_CASA.length - 1, D.lato + verso));
   if(i === D.lato) return;
   D.lato = i;
-  if(D.scelto) D.centro = D.scelto.slice();
-  D.senzaFoto = false;
+  if(D.scelti.length) D.centro = D.scelti[0].slice();
+  D.senzaFoto = false; D.ripieghi = 0;
   ridisegna();
 }
 function ridisegnaCasa(){
   const svg = document.getElementById('disegno-svg'); if(!svg) return;
   misuraLaFoto();
+  const lato = LATI_CASA[D.lato] * 2;
   const a = D.angoli = riquadroCasa(D.centro, LATI_CASA[D.lato]);
   const foto = document.getElementById('casa-foto'), confini = document.getElementById('casa-confini');
-  if(foto && foto.getAttribute('src') !== fotoCasa(a)) foto.setAttribute('src', fotoCasa(a));
-  if(confini && confini.getAttribute('src') !== confiniCasa(a)) confini.setAttribute('src', confiniCasa(a));
+  /* se Esri ha gia' detto di no una volta si richiede piu' grossa, invece di lasciare
+     il quadrato nero: meglio una foto meno fine di nessuna foto */
+  const src = fotoCasa(a, lato * (1 + D.ripieghi));
+  if(foto && foto.getAttribute('src') !== src) foto.setAttribute('src', src);
+  if(confini){
+    confini.style.display = D.confini ? '' : 'none';
+    if(D.confini && confini.getAttribute('src') !== confiniCasa(a)) confini.setAttribute('src', confiniCasa(a));
+  }
   const largo = largoSulloSchermo(svg), k = largo ? 1000 / largo : 2.4;
-  const segno = (t, pieno) => {
+  const dove = t => {
     const q = sullaFoto(a, t);
-    if(!(q[0] >= 0 && q[0] <= 1 && q[1] >= 0 && q[1] <= 1)) return '';
-    const x = (q[0] * 1000).toFixed(1), y = (q[1] * 1000).toFixed(1);
-    if(!pieno) return `<circle cx="${x}" cy="${y}" r="${(9 * k).toFixed(1)}" fill="none" stroke="#F8F5EF" stroke-width="2" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`;
-    /* un mirino, non un disco: i bracci stanno fuori e il centro resta libero, cosi'
-       si vede proprio il tetto toccato anche su una particella piccola */
-    const braccio = cl => [[0, -1], [0, 1], [-1, 0], [1, 0]].map(([a, b]) =>
-      `<line class="${cl}" x1="${(+x + a * 4 * k).toFixed(1)}" y1="${(+y + b * 4 * k).toFixed(1)}" x2="${(+x + a * 14 * k).toFixed(1)}" y2="${(+y + b * 14 * k).toFixed(1)}"/>`).join('');
-    return `<g class="mirino">${braccio('alone')}${braccio('segno')}<circle cx="${x}" cy="${y}" r="${(1.8 * k).toFixed(1)}"/></g>`;
+    return (q[0] >= 0 && q[0] <= 1 && q[1] >= 0 && q[1] <= 1) ? [(q[0] * 1000).toFixed(1), (q[1] * 1000).toFixed(1)] : null;
   };
-  svg.innerHTML = segno(D.trovato, false) + (D.scelto ? segno(D.scelto, true) : '');
+  const cerchio = t => {
+    const q = dove(t); if(!q) return '';
+    return `<circle cx="${q[0]}" cy="${q[1]}" r="${(9 * k).toFixed(1)}" fill="none" stroke="#F8F5EF" stroke-width="2" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`;
+  };
+  /* un mirino, non un disco: i bracci stanno fuori e il centro resta libero, cosi'
+     si vede proprio il tetto toccato anche su una particella piccola */
+  const mirino = (t, i) => {
+    const q = dove(t); if(!q) return '';
+    const x = +q[0], y = +q[1];
+    const braccio = cl => [[0, -1], [0, 1], [-1, 0], [1, 0]].map(([dx, dy]) =>
+      `<line class="${cl}" x1="${(x + dx * 4 * k).toFixed(1)}" y1="${(y + dy * 4 * k).toFixed(1)}" x2="${(x + dx * 14 * k).toFixed(1)}" y2="${(y + dy * 14 * k).toFixed(1)}"/>`).join('');
+    return `<g class="mirino" data-s="${i}"><circle class="presa" cx="${q[0]}" cy="${q[1]}" r="${(15 * k).toFixed(1)}"/>` +
+           `${braccio('alone')}${braccio('segno')}<circle cx="${q[0]}" cy="${q[1]}" r="${(1.8 * k).toFixed(1)}"/></g>`;
+  };
+  svg.innerHTML = cerchio(D.trovato) + D.scelti.map(mirino).join('');
+  const n = D.scelti.length;
   document.getElementById('disegno-istruzione').textContent =
     (D.senzaFoto ? 'La foto dall\'alto non si è caricata: controlla la connessione e riprova. '
-     : D.scelto ? 'Casa segnata. Tocca «Misura questa casa», oppure tocca un altro tetto. '
+     : n > 1 ? 'Casa e giardino segnati: ' + n + ' punti. Li conto tutti insieme. Tocca un segno per toglierlo. '
+     : n ? 'Casa segnata. Se il giardino è un pezzo staccato, toccalo anche: lo conto insieme. '
      : 'Tocca il tetto della casa del cliente. Il cerchio tratteggiato è dove è caduto l\'indirizzo; con − vedi più lontano. ') +
     (D.disegnate ? 'Le parti del giardino disegnate si tolgono: erano sulla casa di prima.' : '');
-  document.getElementById('disegno-misura').textContent = Math.round(LATI_CASA[D.lato] * 2) + ' m di lato';
-  document.getElementById('d-salva').disabled = !D.scelto;
+  document.getElementById('disegno-misura').textContent = lato + ' m di lato';
+  document.getElementById('d-salva').disabled = !n;
+  document.getElementById('d-salva').textContent = n > 1 ? 'Misura casa e giardino' : 'Misura questa casa';
+  const togli = document.getElementById('d-togli'); if(togli) togli.disabled = !n;
+  const conf = document.getElementById('d-confini-casa');
+  if(conf) segnaInterruttore(conf, D.confini, 'I confini del catasto');
+}
+/* La foto non e' arrivata. Prima di dire che non c'e', si riprova chiedendola meno
+   fine: Esri rifiuta le richieste troppo ravvicinate e risponde 500, e un quadrato
+   nero davanti al cliente e' la fine del rilievo. Due tentativi, poi si dice. */
+function fotoCasaMancante(){
+  if(!D || !D.casa) return;
+  if(D.ripieghi < 2){ D.ripieghi++; ridisegna(); return; }
+  D.senzaFoto = true; ridisegna();
 }
 /* la casa nuova tiene l'indirizzo come l'hai scritto; il civico ora e' giusto
    perche' l'hai indicato tu, e il disegno fatto sulla casa di prima non vale piu' */
@@ -4713,16 +5146,17 @@ function rilievoSpostato(vecchio, d){
 let turnoCasa = 0;
 function misuraCasa(){
   if(!D || !D.casa) return;
-  if(!D.scelto){ avvisa('Tocca prima sulla foto la casa del cliente.'); return; }
-  const idSop = D.sop, vecchio = D.ril, punto = D.scelto;
+  if(!D.scelti.length){ avvisa('Tocca prima sulla foto la casa del cliente.'); return; }
+  const idSop = D.sop, vecchio = D.ril, quanti = D.scelti.length;
+  const punti = D.scelti.map(t => t[0].toFixed(7) + ',' + t[1].toFixed(7)).join(';');
   const tasto = document.getElementById('d-salva');
-  const rimetti = () => { const b = document.getElementById('d-salva'); if(b){ b.disabled = false; b.textContent = 'Misura questa casa'; } };
+  const rimetti = () => { const b = document.getElementById('d-salva'); if(b){ b.disabled = false; b.textContent = quanti > 1 ? 'Misura casa e giardino' : 'Misura questa casa'; } };
   tasto.disabled = true; tasto.textContent = 'Sto misurando…';
   const turno = ++turnoCasa;
   const sveglia = setTimeout(() => { if(turno === turnoCasa) avvisa('Il servizio del rilievo si sta svegliando: la prima volta ci mette fino a un minuto. Resta qui.'); }, 8000);
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
-  fetch(SPORTELLO_RILIEVO + '/particelle?punti=' + encodeURIComponent(punto[0].toFixed(7) + ',' + punto[1].toFixed(7)) +
+  fetch(SPORTELLO_RILIEVO + '/particelle?punti=' + encodeURIComponent(punti) +
         '&indirizzo=' + encodeURIComponent(vecchio.indirizzo || ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
@@ -4733,7 +5167,9 @@ function misuraCasa(){
       if(problema){ rimetti(); avvisa('Non riuscito: il servizio ha mandato misure che non tornano (' + problema + ').'); return; }
       chiudiDisegno(false, true);
       usaRilievo(idSop, nuovo);
-      avvisa('Casa spostata: foglio ' + nuovo.foglio + ', particella ' + nuovo.particella + ', ' + cifra(nuovo.lotto_mq, 0) + ' mq di lotto.');
+      const np = (nuovo.particelle || []).length || 1;
+      avvisa('Casa spostata: foglio ' + nuovo.foglio + ', particella ' + nuovo.particella + ', ' +
+             cifra(nuovo.lotto_mq, 0) + ' mq di lotto' + (np > 1 ? ' su ' + np + ' particelle.' : '.'));
     })
     .catch(() => { if(turno === turnoCasa){ rimetti(); avvisa('Il servizio del rilievo non risponde. Riprova tra un minuto.'); } })
     .finally(() => { clearTimeout(sveglia); clearTimeout(scade); });
@@ -4836,6 +5272,10 @@ const CONCETTI = [
             'capitozzare','capitozzatura','capitozzo','abbattere','abbattimento','abbattuto',
             'arbusto','arbusti','cespuglio','cespugli','potare','potatura','potata'] },
   { chiavi: ['smaltimento','smaltire','discarica','rifiuti','asporto'],
+    /* "portiamo via il verde" e' come si dice davvero, ma "via" da sola non puo'
+       valere: ogni indirizzo dettato ("abita in via Roma") diventerebbe uno
+       smaltimento. Vale solo la coppia intera, verbo piu' "via".                */
+    frasi: [['portare','via'],['buttare','via'],['caricare','via']],
     dette: ['smaltimento','smaltire','smaltiti','smaltiamo','smaltisco','smaltisce','smaltita',
             'discarica','discariche','risulta','risulte',
             'rifiuti','rifiuto','ramaglie','ramaglia','viaggio','viaggi','sgombero','sgomberare',
@@ -4911,6 +5351,50 @@ function numeriDetti(tok){
     }
     return null;
   };
+  /* "due AIUOLE": il due conta le aiuole, non dice quanti metri quadri sono. Se la
+     lavorazione si paga a superficie o a metro, un conteggio cosi' non e' la sua
+     misura e non deve prendere il posto dei venti metri quadri detti dopo. */
+  const contaCose = i => {
+    for(let j = i + 1; j < tok.length && j <= i + 2; j++){
+      if(RIEMPITIVI.has(tok[j]) || ARTICOLI.has(tok[j])) continue;
+      if(UNITA_DOPO[tok[j]]) return false;
+      return PAROLE_CONCETTO.some(m => somiglia(tok[j], m));
+    }
+    return false;
+  };
+  /* "la siepe e ALTA tre metri e lunga venti metri": l'altezza non e' quello che si
+     fattura, la siepe si paga a metro di lunghezza. Senza questo, il preventivo
+     usciva di tre metri invece che di venti. */
+  const ALTEZZA = new Set(['alta','alto','alte','alti','altezza','altezze','profonda','profondo']);
+  const diAltezza = i => {
+    for(let j = i - 1; j >= 0 && j >= i - 2; j--){
+      if(RIEMPITIVI.has(tok[j]) || ARTICOLI.has(tok[j]) || CIRCA[tok[j]] != null) continue;
+      return ALTEZZA.has(tok[j]);
+    }
+    return false;
+  };
+  /* "il prato davanti centocinquanta metri quadri QUELLO DIETRO duecentocinquanta":
+     il secondo numero non corregge il primo, e' un altro pezzo di giardino e si somma.
+     Si riconosce dal pronome che guarda indietro ("quello", "quella", "l'altro"), con
+     in mezzo soltanto parole di posto. Senza questo i duecentocinquanta sparivano e il
+     prato usciva della meta'. "duecento metri quadri O FORSE duecentocinquanta" non e'
+     questo caso: li' la misura e' una sola, detta due volte.                        */
+  const RIFERIMENTO = new Set(['quello','quella','quelli','quelle','altro','altra','altri','altre']);
+  const POSTO = new Set(['davanti','dietro','retro','fronte','lato','laterale','fianco','sopra',
+    'sotto','vicino','intorno','attorno','est','ovest','nord','sud','casa','garage','piscina',
+    'confine','ingresso','cancello','strada','giardino','cortile','destra','sinistra','fondo']);
+  const altroPosto = i => {
+    for(let j = i - 1; j >= 0 && j >= i - 5; j--){
+      const w = tok[j];
+      if(RIFERIMENTO.has(w)) return true;
+      /* "e davanti UNO DI trecento": qui "uno" sta per "un altro prato". Vale solo
+         con il "di" attaccato, se no ogni "un viaggio" diventerebbe un secondo pezzo. */
+      if((w === 'uno' || w === 'una') && (tok[j + 1] === 'di' || tok[j + 1] === 'da')) return true;
+      if(PICCOLE.has(w) || RIEMPITIVI.has(w) || ARTICOLI.has(w) || POSTO.has(w)) continue;
+      return false;
+    }
+    return false;
+  };
   const fuori = [];
   tok.forEach((w, i) => {
     let v;
@@ -4919,7 +5403,12 @@ function numeriDetti(tok){
       if(CIRCA[tok[i+1]] != null || !unitaDopo(i)) return;   // "una siepe": e' un articolo
       v = 1;
     } else v = numeroDetto(w);
-    if(v != null) fuori.push({v, u: unitaDopo(i)});
+    if(v == null) return;
+    const n = {v, u: unitaDopo(i)};
+    if(n.u === null && contaCose(i)) n.conteggio = true;
+    if(diAltezza(i)) n.altezza = true;
+    if(altroPosto(i)) n.altroPosto = true;
+    fuori.push(n);
   });
   return fuori;
 }
@@ -4950,8 +5439,16 @@ function frasiScritte(v){
 function concettiDellaVoce(v){
   const sue = (senzaAccenti(String(v.nome || '').toLowerCase()).match(/[a-z]+/g) || [])
     .concat(...frasiScritte(v));
-  return CONCETTI.filter(c => c.chiavi.some(k =>
-    k.split(' ').every(p => sue.some(w => somiglia(w, p)))));
+  const presi = CONCETTI.map(c => ({c, chiavi: c.chiavi.filter(k =>
+    k.split(' ').every(p => sue.some(w => somiglia(w, p))))})).filter(x => x.chiavi.length);
+  /* "Potatura siepe" non e' una voce degli alberi. Il concetto degli alberi se la
+     prendeva lo stesso, perche' fra le sue chiavi c'e' "potatura", che e' un verbo
+     buono per tutto: cosi' quella voce si portava dietro albero, tiglio, quercia, e
+     in un discorso dettato si mangiava la potatura delle piante. Regola: se un
+     concetto si e' preso la voce solo con un verbo del genere, e un altro se l'e'
+     presa col nome di una cosa (siepe, prato, aiuola), vale solo il secondo.       */
+  const conCosa = presi.filter(x => x.chiavi.some(k => !VERBI_GENERICI.has(k)));
+  return (conCosa.length ? conCosa : presi).map(x => x.c);
 }
 /* le parole che valgono per questa voce, ognuna col suo peso.
    Peso 1: decide da sola. Peso PESO_DEBOLE: aiuta, ma da sola non sceglie niente.
@@ -4968,6 +5465,9 @@ function paroleDellaVoce(v){
   return Array.from(fuori, ([p, peso]) => ({p, peso}));
 }
 const frasiDellaVoce = v => frasiScritte(v).filter(f => f.length > 1);
+/* le coppie di parole che i concetti del mestiere si portano dietro ("portare via"):
+   valgono come una frase scritta dall'artigiano, ma non serve che l'abbia scritta lui. */
+const frasiDeiConcetti = v => concettiDellaVoce(v).reduce((f, c) => f.concat(c.frasi || []), []);
 /* la frase intera, in ordine, con al massimo tre parole in mezzo: dove comincia, o -1 */
 function trovaFrase(tok, f){
   for(let i = 0; i < tok.length; i++){
@@ -4980,10 +5480,41 @@ function trovaFrase(tok, f){
   }
   return -1;
 }
+/* Nel dizionario i verbi stanno all'infinito ("concimare", "sfalciare", "irrigare"),
+   ma chi detta il sopralluogo parla in prima persona plurale: "concimiamo il prato",
+   "sfalciamo duecento metri quadri", "irrighiamo il giardino". Rimettiamo la coda
+   dell'infinito e proviamo: "concimiamo" -> "concimare". Non si inventa niente, perche'
+   quello che esce vale solo se e' una parola che nel dizionario c'e' gia'.
+   Due accortezze dell'italiano:
+   - "sfalciamo" viene da "sfalciare", dove la i del gambo si mangia la i di -iamo:
+     quindi si prova sia togliendo "iamo" sia togliendo solo "amo";
+   - "irrighiamo" viene da "irrigare": la h serve solo a tenere dura la g, e va tolta.  */
+function infinitiPossibili(w){
+  if(w.length < 6) return [];
+  const gambi = [];
+  const metti = g => { if(g.length >= 3){ gambi.push(g);
+    if(/(gh|ch)$/.test(g)) gambi.push(g.slice(0, -2) + g.slice(-2, -1)); } };
+  if(/iamo$/.test(w)){ metti(w.slice(0, -4)); metti(w.slice(0, -3)); }
+  else if(/(amo|ano|ate|iate)$/.test(w)) metti(w.replace(/(iate|amo|ano|ate)$/, ''));
+  else if(/(ato|ata|ati|ate)$/.test(w)) metti(w.slice(0, -3));
+  else if(/(ito|ita|iti|ite)$/.test(w)) return [w.slice(0, -3) + 'ire'];
+  else return [];
+  const fuori = [];
+  gambi.forEach(g => { fuori.push(g + 'are'); fuori.push(g + 'ire'); });
+  return fuori;
+}
 /* uguali, oppure diverse solo nell'ultima lettera: siepe/siepi, albero/alberi.
    Con le prime cinque lettere e basta, "allora" diventava "alloro". */
-const somiglia = (w, p) => w === p ||
+const ugualiQuasi = (w, p) => w === p ||
   (w.length >= 5 && w.length === p.length && w.slice(0,-1) === p.slice(0,-1));
+const somiglia = (w, p) => ugualiQuasi(w, p) ||
+  infinitiPossibili(w).some(i => i === p);
+/* la parola nomina il lavoro facendolo ("concimiamo", "irrighiamo", "concimare")
+   oppure e' il nome di una cosa ("prato", "siepe", "potatura")? Serve a capire chi
+   e' il lavoro e chi e' l'oggetto del lavoro. Le lunghezze tengono fuori i nomi che
+   finiscono come un verbo senza esserlo: "prato" finisce in -ato ma e' una cosa.  */
+const sembraVerbo = w => (/(are|ire|iamo|amo|ano)$/.test(w) && w.length >= 6) ||
+                         (/(ato|ata|ati|uto|uta)$/.test(w) && w.length >= 7);
 function scegliVoce(tok, voci){
   const unita = new Set(numeriDetti(tok).map(n => n.u).filter(Boolean));
   let meglio = null;
@@ -5014,17 +5545,29 @@ function scegliVoce(tok, voci){
    metri", non "metri quadri". Se la voce si misura a superficie e nel pezzo c'e'
    solo una misura in metri, quella e' la superficie: nessuno misura un prato o
    un'aiuola in metri lineari. Trovato il 17 settembre 2026 provando le frasi vere. */
-const misuraDellaVoce = (n, k) => n.u === k || n.u === null || (k === 'mq' && n.u === 'm');
+const misuraDellaVoce = (n, k) =>
+  !n.altezza && (!n.conteggio || k === 'pezzi') &&
+  (n.u === k || n.u === null || (k === 'mq' && n.u === 'm'));
 function quantitaPer(tipo, numeri){
+  /* prima si buttano via le misure che non sono quelle che si fatturano: l'altezza
+     della siepe, e il conteggio delle cose quando il lavoro si paga a superficie.
+     Se pero' resta soltanto quella, meglio quella che niente. */
+  const buone = numeri.filter(n => !n.altezza && (!n.conteggio || tipo.k === 'pezzi'));
+  if(buone.length) numeri = buone;
+  /* alla misura trovata si aggiungono gli altri pezzi di giardino nominati col pronome
+     ("quello dietro duecentocinquanta"), che sono in piu' e non una correzione. */
+  const conGliAltri = n0 => numeri.slice(numeri.indexOf(n0) + 1)
+    .filter(n => n.altroPosto && (n.u === n0.u || n.u === null))
+    .reduce((s, n) => s + n.v, n0.v);
   const giusto = numeri.find(n => n.u === tipo.k);
-  if(giusto) return giusto.v;
+  if(giusto) return conGliAltri(giusto);
   if(tipo.k === 'mq'){
     const lineare = numeri.find(n => n.u === 'm');
-    if(lineare) return lineare.v;
+    if(lineare) return conGliAltri(lineare);
   }
   const nudo = numeri.find(n => n.u === null);
-  if(tipo.k === 'pezzi') return nudo ? nudo.v : 1;
-  return nudo ? nudo.v : null;
+  if(tipo.k === 'pezzi') return nudo ? conGliAltri(nudo) : 1;
+  return nudo ? conGliAltri(nudo) : null;
 }
 /* ===== I CONTRARI =====
    "Il prato dietro non lo tagliamo", "niente siepe", "la potatura senza smaltimento".
@@ -5064,14 +5607,142 @@ function lavorazioneFuoriListino(tok){
   return {nuova:true, nome, detto: parole.slice(0, 5).join(' '),
           q: misura ? misura.v : null, u: misura ? misura.u : null};
 }
+/* ===== IL FLUSSO SENZA PUNTEGGIATURA (Andrea, 21 settembre 2026) =====
+   Dettando col telefono non esce ne' un punto ne' una virgola: tutto il sopralluogo
+   arriva come un flusso unico ("devo tagliare il prato duecento metri quadri potare la
+   siepe venti metri..."). Tagliandolo solo sulla punteggiatura quel flusso restava un
+   pezzo solo: si sceglieva UNA lavorazione per tutto, e mentre la frase cresceva il
+   vincitore cambiava. La lavorazione di prima non veniva cancellata: non era mai stata
+   tenuta. Da qui il taglio non dipende piu' dalla punteggiatura: si scorre il flusso e
+   dove si nomina una lavorazione diversa comincia un pezzo nuovo.                      */
+
+/* parole di servizio: il taglio se le porta dentro il pezzo nuovo. "poi c'e' da potare
+   la siepe" comincia da "potare", non da "siepe"; e soprattutto "niente siepe" deve
+   negare la siepe, non quello che si era detto prima. */
+const SERVIZIO_PRIMA = new Set(['poi','inoltre','anche','pure','adesso','dopo','ora','oltre',
+  'quindi','allora','va','vanno','bisogna','dobbiamo','devo','deve','serve','fare','facciamo',
+  'ce','c','qui','la','li','ancora','magari','pero','ma']);
+const PREPOSIZIONE_DI = new Set(['di','del','dello','della','dei','degli','delle','dell']);
+const diServizio = w => PICCOLE.has(w) || ARTICOLI.has(w) || RIEMPITIVI.has(w) ||
+  VERBI_GENERICI.has(w) || NIENTE.has(w) || SERVIZIO_PRIMA.has(w);
+/* quali voci nomina davvero ogni parola del flusso: solo i segnali di peso pieno
+   (il nome della voce, le frasi scritte dall'artigiano, i nomi delle cose del
+   mestiere). Un verbo generico non attacca niente: "taglio" vale per il prato,
+   per la siepe e per gli alberi, quindi non puo' cominciare un pezzo nuovo. */
+function segnaliForti(tok, voci){
+  const segni = tok.map(() => null);
+  const metti = (i, x) => { (segni[i] || (segni[i] = new Set())).add(x); };
+  voci.forEach(x => {
+    const forti = (x.parole || []).filter(p => p.peso >= 1);
+    if(forti.length) tok.forEach((w, i) => { if(forti.some(p => somiglia(w, p.p))) metti(i, x); });
+    (x.frasi || []).forEach(f => { const da = trovaFrase(tok, f); if(da >= 0) metti(da, x); });
+  });
+  return segni;
+}
+/* il pezzo di prima ha gia' la SUA misura? Non basta che dentro ci sia un numero:
+   "gli alberi sono quattro" ha trenta metri di siepe li' vicino, ma il quattro e'
+   suo e non va spostato. Si guarda la lavorazione che quel pezzo sceglierebbe e se
+   fra i numeri rimasti ce n'e' uno che le serve davvero. */
+function misuraGiaDetta(pezzo, voci){
+  const x = scegliVoce(pezzo, voci);
+  return !!x && numeriDetti(pezzo).some(n => misuraDellaVoce(n, x.tipo.k));
+}
+function tagliaFlusso(tok, voci){
+  const segni = segnaliForti(tok, voci);
+  if(!segni.some(Boolean)) return [tok];
+  const numero = i => i >= 0 && (numeroDetto(tok[i]) != null || CIRCA[tok[i]] != null);
+  /* un numero e la sua unita' non si scavalcano mai: la misura resta attaccata alla
+     lavorazione che la precede, che e' come si parla in giardino ("il prato duecento") */
+  const fermo = i => i < 0 || numero(i) || !!UNITA_DOPO[tok[i]];
+  /* "un viaggio" e' un viaggio, non un numero sciolto: si contano le misure come le
+     conta il resto del programma, cosi' un articolo non fa credere che la misura
+     sia gia' stata detta. */
+  const conNumeri = (da, a) => numeriDetti(tok.slice(da, a)).length > 0;
+  const pezzi = [];
+  let inizio = 0, correnti = null, ultimoForte = -1;
+  for(let i = 0; i < tok.length; i++){
+    const qui = segni[i];
+    if(!qui) continue;
+    if(!correnti){ correnti = new Set(qui); ultimoForte = i; continue; }
+    const comuni = new Set([...qui].filter(x => correnti.has(x)));
+    /* si sta ancora parlando della stessa lavorazione: stesso pezzo. Se pero' la sua
+       misura e' gia' stata detta, questa e' un'altra volta la stessa cosa ("siepe
+       davanti venti metri siepe dietro quindici metri"): due pezzi, e si sommano. */
+    if(comuni.size && !conNumeri(inizio, i)){ correnti = comuni; ultimoForte = i; continue; }
+    let c = i;
+    while(c - 1 > ultimoForte && !fermo(c - 1) && diServizio(tok[c - 1])) c--;
+    /* la misura detta PRIMA del nome ("venti metri di siepe trecento metri quadri di
+       prato"): se il pezzo di prima ha gia' la sua misura, quella rimasta in coda e'
+       di questa lavorazione qui, che e' la piu' vicina. */
+    let n = c, spostata = false;
+    while(n - 1 > ultimoForte && (UNITA_DOPO[tok[n - 1]] || RIEMPITIVI.has(tok[n - 1]))) n--;
+    if(n - 1 > ultimoForte && numero(n - 1) && misuraGiaDetta(tok.slice(inizio, n - 1), voci)){
+      n--;
+      while(n - 1 > ultimoForte && RIEMPITIVI.has(tok[n - 1])) n--;
+      c = n; spostata = true;
+    }
+    /* "concimare trecento metri quadri DI PRATO": qui il prato non e' una lavorazione
+       nuova, dice di cosa e' fatta quella di prima. Si riconosce da tre cose insieme:
+       arriva dopo un "di", quel "di" viene subito dopo una misura, e lui una misura
+       sua non ce l'ha. Se invece la misura serviva a questa qui, e' stata spostata
+       poco fa ed e' un'altra lavorazione per davvero.                               */
+    let fine = tok.length;
+    for(let j = i + 1; j < tok.length; j++) if(segni[j]){ fine = j; break; }
+    if(!spostata && !comuni.size && c > 0 && PREPOSIZIONE_DI.has(tok[c]) &&
+       UNITA_DOPO[tok[c - 1]] && !conNumeri(i, fine)) continue;
+    /* "concimiamo IL PRATO duecento metri quadri": il prato non e' un secondo lavoro,
+       e' la cosa su cui si concima, e i duecento metri quadri sono del concime. Si
+       riconosce da quattro cose insieme: il lavoro di prima e' stato detto con un
+       verbo ("concimiamo", "irrighiamo"), questo qui e' il nome di una cosa, in mezzo
+       ci sono solo parole di servizio, e il lavoro di prima non ha ancora la sua
+       misura. Senza questa regola "concimiamo il prato duecento metri quadri" usciva
+       come due lavori, concime senza misura e taglio del prato: il preventivo
+       sbagliato, non solo incompleto.                                              */
+    /* vale anche quando il lavoro e' detto col suo nome invece che col verbo, con il
+       "di" in mezzo: "la concimazione DEL PRATO" e' una lavorazione sola, e il prato e'
+       la cosa su cui si concima. Senza questo usciva anche una riga di taglio del prato
+       che il cliente non aveva chiesto (trovato il 22 settembre 2026).
+       Attenzione: "la potatura DEGLI ALBERI" non e' lo stesso caso. Li' "potatura" e
+       "alberi" parlano della stessa lavorazione, quindi gli alberi non sono l'oggetto
+       di qualcos'altro: sono la lavorazione, e il pezzo nuovo deve cominciare li'.  */
+    const stessaDiPrima = ultimoForte >= 0 && !!segni[ultimoForte] &&
+      [...qui].some(x => segni[ultimoForte].has(x));
+    const nominaIlLavoro = ultimoForte >= 0 && (sembraVerbo(tok[ultimoForte]) ||
+      (!stessaDiPrima && tok.slice(ultimoForte + 1, i).some(w => PREPOSIZIONE_DI.has(w))));
+    if(!spostata && !comuni.size && nominaIlLavoro &&
+       !sembraVerbo(tok[i]) && !conNumeri(inizio, i) &&
+       tok.slice(ultimoForte + 1, i).every(diServizio)) continue;
+    pezzi.push(tok.slice(inizio, c));
+    inizio = c; correnti = new Set(qui); ultimoForte = i;
+  }
+  pezzi.push(tok.slice(inizio));
+  return pezzi.filter(p => p.length);
+}
 function capisci(testo, listino){
-  const voci = listino.map(v => ({v, parole: paroleDellaVoce(v), frasi: frasiDellaVoce(v), tipo: tipoUnita(v.u)}));
+  const voci = listino.map(v => ({v, parole: paroleDellaVoce(v),
+                                  frasi: frasiDellaVoce(v).concat(frasiDeiConcetti(v)), tipo: tipoUnita(v.u)}));
   const haMisura = g => numeriDetti(g.tok).some(n => misuraDellaVoce(n, g.voce.tipo.k));
   const trovate = [];
+  /* ===== IL TOTALE E POI IL SUO ELENCO (22 settembre 2026) =====
+     "sei alberi da potare due tigli e quattro aceri": i due tigli e i quattro aceri
+     sono l'elenco di quei sei, non altri sei alberi. Sommandoli uscivano dodici piante
+     e un preventivo del doppio. Sommare pero' serve, perche' "siepe davanti venti metri
+     siepe dietro quindici" fa trentacinque. Le due cose si distinguono cosi': vale solo
+     per i lavori che si contano a pezzi, dopo il totale devono arrivare almeno due voci
+     d'elenco, e la loro somma deve fare esattamente il totale. Sui metri e sui metri
+     quadri non si tocca niente: li' due misure uguali sono due pezzi di giardino
+     diversi, non l'elenco di uno solo.                                              */
+  const parti = new Map();
   preparaTesto(testo).split(/[.;!?\n]+/).forEach(frase => {
-    const pezzi = frase.split(/,|\s(?:e\s+poi|poi|inoltre|e\s+anche|anche|e)\s/)
-      .map(p => ({tok: p.match(/[a-z]+|\d+(?:,\d+)?/g) || []}))
-      .filter(p => p.tok.length);
+    const pezzi = [];
+    /* niente taglio sulla "e" da sola: dettando, "la siepe e' da spuntare" perde
+       l'accento e diventa una "e" qualunque, e la siepe restava senza la sua misura.
+       Il taglio vero lo fa tagliaFlusso, che guarda le lavorazioni e non le paroline. */
+    frase.split(/,|\s(?:e\s+poi|poi|inoltre|e\s+anche|anche)\s/)
+      .map(p => p.match(/[a-z]+|\d+(?:,\d+)?/g) || [])
+      .filter(t => t.length)
+      /* e dentro ogni pezzo, il taglio che non dipende dalla punteggiatura */
+      .forEach(t => tagliaFlusso(t, voci).forEach(x => pezzi.push({tok: x})));
     /* i pezzi rifiutati si buttano via qui, prima dei gruppi: se restassero, le loro
        misure ("la siepe di 20 metri non la tocchiamo") finirebbero sulla voce di prima.
        "senza" fa eccezione: nega solo quello che viene dopo, e "la potatura senza
@@ -5120,10 +5791,20 @@ function capisci(testo, listino){
                     : (senzaNumero ? {voce:g.voce.v.id, q, senzaNumero:true} : {voce:g.voce.v.id, q});
         if(detto) nuova.detto = detto;
         trovate.push(nuova);
+        if(!dubbio && !senzaNumero) parti.set(g.voce.v.id, [q]);
       }
-      else if(gia.dubbio && !dubbio){ gia.q = q; delete gia.dubbio; if(senzaNumero) gia.senzaNumero = true; }
-      else if(gia.senzaNumero && !dubbio && !senzaNumero){ gia.q = q; delete gia.senzaNumero; }
-      else if(!dubbio && !senzaNumero) gia.q = Math.round((gia.q + q) * 100) / 100;
+      else if(gia.dubbio && !dubbio){ gia.q = q; delete gia.dubbio; if(senzaNumero) gia.senzaNumero = true;
+                                      if(!senzaNumero) parti.set(g.voce.v.id, [q]); }
+      else if(gia.senzaNumero && !dubbio && !senzaNumero){ gia.q = q; delete gia.senzaNumero; parti.set(g.voce.v.id, [q]); }
+      else if(!dubbio && !senzaNumero){
+        const p = parti.get(g.voce.v.id) || [gia.q];
+        p.push(q); parti.set(g.voce.v.id, p);
+        const somma = p.reduce((s, x) => s + x, 0);
+        /* p[0] * 2 === somma vuol dire: il primo numero e' grande quanto tutti gli altri
+           messi insieme, cioe' era il totale e quelli dopo erano il suo elenco. */
+        const elenco = g.voce.tipo.k === 'pezzi' && p.length >= 3 && Math.abs(p[0] * 2 - somma) < 1e-9;
+        gia.q = Math.round((elenco ? p[0] : somma) * 100) / 100;
+      }
     });
   });
   return trovate;
@@ -5336,14 +6017,39 @@ function ferma(finito, s){
    preventivo": prima del 17 settembre 2026 si chiamava "Ricomincia", non diceva cosa
    ricominciava e cancellava senza chiedere niente. Davanti al cliente un tocco storto
    buttava via tutto il sopralluogo appena dettato. */
+/* Il preventivo nato da quella dettatura se ne va insieme alla dettatura.
+
+   Prima questo tasto svuotava il parlato e le lavorazioni riconosciute, ma il
+   preventivo gia' creato restava attaccato al sopralluogo. E generaPreventivo, se
+   trova un preventivo attaccato, riapre quello invece di farne uno nuovo: quindi
+   dopo "Cancella e ridetta" si ridettava tutto e tornava fuori il preventivo di
+   prima, identico (Andrea, 21 settembre 2026). Adesso la bozza nata da li' si
+   cancella insieme. Un preventivo gia' consegnato al cliente no: quello resta dov'e',
+   si stacca soltanto, perche' il cliente ne ha una copia in mano. */
+function bozzaDelSopralluogo(s){
+  if(!s || !s.preventivo) return null;
+  const p = prev(s.preventivo);
+  return (p && p.stato === 'bozza' && p.sopralluogo === s.id) ? p : null;
+}
 function azzera(id){
   const s = sopr(id);
-  const roba = s && ((s._trovate && s._trovate.length) || (s.testo || '').trim());
+  const bozza = bozzaDelSopralluogo(s);
+  const roba = s && ((s._trovate && s._trovate.length) || (s.testo || '').trim() || bozza);
   if(!roba){ ferma(); vai(); return; }
-  chiedi('Cancello quello che hai dettato e le lavorazioni riconosciute, così ricominci da capo. Il rilievo e le foto restano.', () => {
+  chiedi('Cancello quello che hai dettato e le lavorazioni riconosciute, così ricominci da capo.' +
+         (bozza ? ' Va via anche la bozza di preventivo nata da questa dettatura, se no ridettando tornerebbe fuori quella.'
+                : '') +
+         ' Il rilievo e le foto restano.', () => {
     ferma();
     const x = sopr(id);
-    if(x){ x._trovate = []; x.trovate = []; x.testo = ''; }
+    if(x){
+      const b = bozzaDelSopralluogo(x);
+      if(b) S.preventivi = S.preventivi.filter(q => q.id !== b.id);
+      /* consegnato: resta dov'e', si stacca soltanto */
+      x.preventivo = null;
+      x.stato = statoSopralluogo(x);
+      x._trovate = []; x.trovate = []; x.testo = '';
+    }
     salva(); vai();
   });
 }
@@ -6104,6 +6810,7 @@ PAGINE.preventivo = {
     const p = prev(id);
     const c = conti(p);
     const sop = p.sopralluogo ? sopr(p.sopralluogo) : null;
+    const giardino = giardinoDelPreventivo(p);
     const disponibili = S.listino.filter(v => !p.righe.some(r => r.v === v.id));
     return `
     <div class="griglia2">
@@ -6182,6 +6889,8 @@ PAGINE.preventivo = {
           <div class="riga-tot"><span>Data</span><span>${dataCorta(p.data)}</span></div>
           ${(p.solleciti || []).length ? `<div class="riga-tot"><span>Risentito</span><span>${p.solleciti.length === 1 ? 'una volta' : p.solleciti.length + ' volte'}, l'ultima ${quando(p.solleciti[p.solleciti.length - 1])}</span></div>` : ''}
           ${p.cliente ? `<div class="riga-tot"><span>Cliente</span><a href="#cliente/${p.cliente}" style="color:var(--accento)">in rubrica</a></div>` : ''}
+          ${misureGiardino(giardino && giardino.ril).length
+            ? `<div class="riga-tot"><span>Il suo giardino</span><span>${esc(misureGiardinoScritte(giardino.ril))}</span></div>` : ''}
         </div>
         <p style="font-size:14.5px;color:var(--tenue);margin-top:16px">Il cliente può firmare qui sul telefono, con il dito: la firma finisce stampata sul documento, e il lavoro passa fra quelli accettati.</p>
       </div>
@@ -6354,8 +7063,14 @@ PAGINE.clienti = {
     const conta = f => S.clienti.filter(gruppi[f]).length;
     const lista = S.clienti.filter(gruppi[filtroClienti] || gruppi.tutti);
     return `<div class="filtri">
-      ${[['tutti','Tutti'],['attivi','Attivi'],['fissi','Clienti fissi'],['richiamare','Da risentire'],['nuovi','Senza lavori']]
-        .map(([k,n]) => `<button class="${filtroClienti===k?'attivo':''}" onclick="setFiltroClienti('${k}')">${n} (${conta(k)})</button>`).join('')}
+      ${[['tutti','Tutti',''],['attivi','Attivi','Un lavoro negli ultimi sei mesi.'],
+         ['fissi','Clienti fissi','Più di un lavoro fatto.'],
+         ['richiamare','Da risentire','Non gli fai un lavoro da più di sei mesi.'],
+         /* «Senza lavori» Andrea ha dovuto chiedere cosa volesse dire (21/9/2026):
+            si legge come "clienti che non ti danno lavoro", cioe' un giudizio, mentre
+            vuol dire solo che stanno in rubrica e non gli hai ancora fatto niente. */
+         ['nuovi','Mai un lavoro','Sono in rubrica ma non gli hai ancora fatto nessun lavoro.']]
+        .map(([k,n,tit]) => `<button class="${filtroClienti===k?'attivo':''}" title="${esc(tit)}" onclick="setFiltroClienti('${k}')">${n} (${conta(k)})</button>`).join('')}
     </div>${campoCerca('Cerca per nome, paese o telefono')}<div class="elenco">${lista.map(c => {
       const l = lavoriDi(c.id);
       const ultimo = l.map(p => p.data).sort().slice(-1)[0];
@@ -6368,7 +7083,9 @@ PAGINE.clienti = {
           ${comandi([{t:'Modifica o cancella', i:MATITA, f:`schedaCliente('${c.id}')`}])}
         </div>
       </div>`;
-    }).join('')}</div>${!lista.length ? '<div class="niente">Nessun cliente con questo filtro.</div>' : ''}`;
+    }).join('')}</div>${!lista.length ? `<div class="niente">${filtroClienti === 'nuovi'
+      ? 'Nessun cliente in rubrica senza lavori: a tutti quelli che hai ne hai già fatto almeno uno.'
+      : 'Nessun cliente con questo filtro.'}</div>` : ''}`;
   }
 };
 PAGINE.cliente = {
@@ -6380,7 +7097,7 @@ PAGINE.cliente = {
             destra:`<div class="azioni">
               <a class="torna" href="#clienti" style="margin:0">← Tutti i clienti</a>
               <button class="bottone vuoto piccolo" onclick="schedaCliente('${c.id}')">Modifica</button>
-              <button class="bottone piccolo" onclick="schedaPreventivo(null,'${c.id}')">+ Nuovo preventivo</button>
+              <button class="bottone piccolo" onclick="nuovoPreventivoCliente('${c.id}')">+ Nuovo preventivo</button>
             </div>`};
   },
   corpo(id){
@@ -6389,6 +7106,7 @@ PAGINE.cliente = {
     const accettato = l.filter(preso).reduce((t,p) => t + conti(p).netto, 0);
     const incassato = l.filter(p => p.stato === 'pagato').reduce((t,p) => t + conti(p).totale, 0);
     const docs = S.documenti.filter(d => d.cliente === id);
+    const giardino = giardinoDelCliente(id);
     return `
     <div class="riga-numeri">
       <div class="numero"><div class="val">${l.length}</div><div class="lbl">Preventivi</div></div>
@@ -6409,11 +7127,16 @@ PAGINE.cliente = {
               <div class="sub">${dataLunga(d.data)}${typeof d.importo === 'number' ? ' · ' + euro(d.importo) : ''}${d.nota ? ' · ' + esc(d.nota) : ''}</div></div>${tag(d.stato)}</div>`).join('')}
         </div>` : '<div class="niente">Ancora nessun documento.</div>'}
       </div>
-      <div class="scheda">
-        <div class="lbl" style="margin-bottom:10px">Dove sta</div>
-        <p style="font-size:16.5px;color:var(--soft)">${esc(c.indirizzo || c.luogo)}</p>
-        ${c.mail ? `<p style="font-size:16px;color:var(--soft);margin-top:8px">${esc(c.mail)}</p>` : ''}
-        ${c.note ? `<p style="font-size:15px;color:var(--tenue);margin-top:14px;border-top:1px solid var(--filetto);padding-top:12px">${esc(c.note)}</p>` : ''}
+      <div>
+        <div class="scheda">
+          <div class="lbl" style="margin-bottom:10px">Dove sta</div>
+          <p style="font-size:16.5px;color:var(--soft)">${esc(c.indirizzo || c.luogo)}</p>
+          ${c.mail ? `<p style="font-size:16px;color:var(--soft);margin-top:8px">${esc(c.mail)}</p>` : ''}
+          ${c.note ? `<p style="font-size:15px;color:var(--tenue);margin-top:14px;border-top:1px solid var(--filetto);padding-top:12px">${esc(c.note)}</p>` : ''}
+        </div>
+        ${giardino ? giardinoHtml(giardino) + `<p class="aiuto-voci" style="margin-top:8px">Stavolta serve un preventivo senza sopralluogo?
+          <button class="bottone tenue piccolo" onclick="schedaPreventivo(null,'${c.id}')">Preventivo vuoto</button></p>`
+          : '<div class="scheda" style="margin-top:16px"><div class="lbl" style="margin-bottom:8px">Il suo giardino</div><p style="font-size:15px;color:var(--tenue)">Ancora non l\u2019hai misurato. Al primo rilievo le misure restano qui, e il preventivo dopo parte da queste.</p></div>'}
       </div>
     </div>`;
   }
@@ -6613,8 +7336,11 @@ PAGINE.documento = {
     const fac = p.righe.filter(r => r.on && r.facoltativa);
     const sop = S.sopralluoghi.find(x => x.preventivo === p.id);
     const foto = sop && sop.foto ? sop.foto : [];
-    /* il giardino misurato: la foto con le parti disegnate e la loro misura */
-    const ril = sop ? rilievoDelSopralluogo(sop) : null;
+    /* il giardino misurato: la foto con le parti disegnate e la loro misura. Vale
+       anche per un preventivo scritto a mano a un cliente gia' misurato: il suo
+       giardino gli resta attaccato e finisce stampato (Andrea, 21 settembre 2026). */
+    const g = giardinoDelPreventivo(p);
+    const ril = (sop ? rilievoDelSopralluogo(sop) : null) || (g ? g.ril : null);
     const zone = ril && latoFoto(ril) ? zoneDi(ril) : [];
     const giorni = Number(a.validita) > 0 ? Number(a.validita) : 30;
     const acconto = Number(a.acconto) > 0 ? Number(a.acconto) : 0;

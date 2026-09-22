@@ -1134,13 +1134,30 @@ def lato_inquadratura(alto_m, largo_m):
     return max(22.0, min(2 * (grande * 0.62 + 6.0), 2200.0))
 
 
+# Il passo piu' fine che la fonte delle foto abbia davvero. Misurato il 21 settembre
+# 2026 in dieci posti d'Italia, da Bormio a Palermo e da Milano a Cagliari: le tessere
+# piu' profonde che esistono sono quelle dello zoom 19, cioe' fra 0,206 e 0,235 metri
+# di terreno per pixel. Lo zoom 20 e il 21 non ci sono da nessuna parte: il servizio
+# risponde che quelle tessere non le ha. Quindi piu' dettaglio di cosi' non si puo'
+# chiedere: non e' un limite nostro, e' quanto in alto volava l'aereo.
+FINEZZA_FONTE = 0.21
+
+
 def quanti_pixel(lato_m):
-    """Quanti pixel per lato chiedere alle mappe. Si punta a trenta centimetri di
-    terreno per pixel: su un lotto piccolo vuol dire il minimo (900, cioe' due
-    centimetri per pixel), su uno grande si sale, ma mai oltre 1400, se no il
-    conto dei pixel diventa piu' lento di quanto un artigiano sia disposto ad
-    aspettare davanti al cliente."""
-    return max(900, min(1400, int(lato_m / 0.30)))
+    """Quanti pixel per lato chiedere alle mappe.
+
+    Si punta al passo della fonte, non a uno piu' grosso: chiedere meno pixel di
+    quanti la foto ne abbia davvero vuol dire rimpicciolirla e buttare via dettaglio
+    che avevamo gia' in mano. Prima si puntava a trenta centimetri per pixel, e su un
+    riquadro da 300 metri si consegnavano 1000 pixel dove la fonte ne aveva 1433: un
+    terzo del lato buttato. Sotto i 190 metri di riquadro non cambia niente, perche'
+    il minimo di 900 e' gia' piu' di quanti pixel la fonte abbia.
+
+    Il tetto di 1600 c'e' perche' i metri quadri si contano pixel per pixel, e il
+    conto cresce col quadrato: a 1600 sono un secondo e sette, a 1900 due e mezzo.
+    Davanti al cliente quei secondi si sentono.
+    """
+    return max(900, min(1600, int(lato_m / FINEZZA_FONTE)))
 
 
 def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
@@ -1985,18 +2002,28 @@ def servizio(porta=8787, pubblico=False):
                     self._manda(502, {"errore": str(e), "suggerimenti": []})
                 return
             if u.path == "/foto":
-                # solo la foto dall'alto, da disegnare a mano: non passa dal catasto
+                # solo la foto dall'alto, da disegnare a mano: non passa dal catasto.
+                # Due modi di dire dove: l'indirizzo scritto, oppure un punto gia'
+                # noto. Il punto serve a spostare l'inquadratura mentre si disegna:
+                # il giardino vero sta spesso fuori dal quadrato deciso al rilievo, e
+                # ingrandire sullo schermo non ce lo porta dentro (Andrea, 21/9/2026).
                 indirizzo = (q.get("indirizzo") or [""])[0].strip()
-                if not indirizzo:
-                    self._manda(400, {"errore": "Manca l'indirizzo."})
+                punti = leggi_punti((q.get("punto") or q.get("punti") or [""])[0])
+                if not indirizzo and not punti:
+                    self._manda(400, {"errore": "Manca l'indirizzo o il punto."})
                     return
-                print("  foto di:", indirizzo)
+                print("  foto di:", punti[0] if punti else indirizzo)
                 try:
-                    p = punto_dall_indirizzo(indirizzo, cap_chiesto())
-                    r = rilievo_da_disegnare(p, lato_chiesto(),
-                        "Foto dall'alto di questo indirizzo: segna il giardino "
-                        "sulla foto e i metri quadri li conto io.",
-                        indirizzo, cap_chiesto())
+                    if punti:
+                        p = {"lat": punti[0][0], "lon": punti[0][1], "indirizzo": indirizzo,
+                             "comune_nome": "", "preciso": True}
+                        motivo = ("Foto dall'alto intorno al punto che hai scelto: "
+                                  "segna il giardino e i metri quadri li conto io.")
+                    else:
+                        p = punto_dall_indirizzo(indirizzo, cap_chiesto())
+                        motivo = ("Foto dall'alto di questo indirizzo: segna il giardino "
+                                  "sulla foto e i metri quadri li conto io.")
+                    r = rilievo_da_disegnare(p, lato_chiesto(), motivo, indirizzo, cap_chiesto())
                     self._manda(200, r)
                 except Exception as e:              # noqa: BLE001
                     print("     non riuscita:", e)
