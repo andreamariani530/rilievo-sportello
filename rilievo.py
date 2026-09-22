@@ -1543,10 +1543,10 @@ def componi(foto, mappa, dentro, lati):
     return fondo
 
 
-def in_base64(immagine, lato=1000, qualita=82):
+def in_base64(immagine, lato=1600, qualita=88):
     im = immagine.copy()
-    if im.width > lato:
-        im = im.resize((lato, lato), Image.LANCZOS)
+    # Preserve aspect ratio and never enlarge the source.
+    im.thumbnail((lato, lato), Image.LANCZOS)
     buf = io.BytesIO()
     im.save(buf, "JPEG", quality=qualita, optimize=True)
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
@@ -1671,7 +1671,7 @@ def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap=""):
         # la foto senza i confini disegnati sopra, e il confine come punti
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
-        "foto_pulita": in_base64(m["foto_pulita"], qualita=72) if m.get("foto_pulita") else "",
+        "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
         "contorno": m.get("contorno") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
@@ -1760,7 +1760,7 @@ def rilievo(indirizzo, lato_m=None, cap=""):
         # la foto senza i confini disegnati sopra, e il confine come punti
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
-        "foto_pulita": in_base64(m["foto_pulita"], qualita=72) if m.get("foto_pulita") else "",
+        "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
         "contorno": m.get("contorno") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
@@ -1883,7 +1883,7 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None):
         # la foto senza i confini disegnati sopra, e il confine come punti
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
-        "foto_pulita": in_base64(m["foto_pulita"], qualita=72) if m.get("foto_pulita") else "",
+        "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
         "contorno": m.get("contorno") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
