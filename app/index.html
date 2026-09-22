@@ -5332,9 +5332,23 @@ const CIRCA = Object.assign(Object.create(null), {
   centinaio:100, centinaia:100, migliaio:1000});
 const UNITA_DOPO = Object.assign(Object.create(null), {
   mq:'mq', metri:'m', metro:'m', m:'m', ml:'m',
+  ettaro:'mq', ettari:'mq',
   viaggi:'pezzi', viaggio:'pezzi', alberi:'pezzi', albero:'pezzi', piante:'pezzi', pianta:'pezzi',
   volte:'pezzi', interventi:'pezzi', intervento:'pezzi'});
+/* quanti metri quadri fa una di quelle unita': l'ettaro ne fa diecimila. Senza questo
+   "un prato di due ettari" usciva come DUE metri quadri, cioe' settanta centesimi di
+   preventivo per ventimila metri di prato (Andrea, 22 settembre 2026). */
+const FATTORE_UNITA = Object.assign(Object.create(null), {ettaro:10000, ettari:10000});
+/* "mezzo ettaro", "mezzo metro": vale meta' dell'unita' che viene subito dopo. Solo
+   davanti a un'unita', se no "in mezzo al prato" diventerebbe una misura. */
+const FRAZIONI = Object.assign(Object.create(null), {mezzo:0.5, mezza:0.5});
 const RIEMPITIVI = new Set(['di','del','dello','della','dei','degli','delle','circa','ci','sono']);
+/* "a quindici EURO l'una": il numero che sta davanti a "euro" e' un prezzo, non una misura */
+const SOLDI = new Set(['euro','euri','eur']);
+/* "sfalcio ogni quindici GIORNI": e' ogni quanto si torna, non quanto e' grande il prato.
+   Quel quindici si sommava ai metri quadri e il prato usciva da 615 invece che da 600. */
+const TEMPO = new Set(['giorno','giorni','settimana','settimane','mese','mesi','anno','anni',
+  'ora','ore','minuto','minuti','giornata','giornate','stagione','stagioni']);
 const ARTICOLI   = new Set(['un','uno','una']);
 /* ===== IL DIZIONARIO DEI MODI DI DIRE =====
    Ognuno chiama la stessa lavorazione a modo suo: "sfalcio", "taglio dell'erba",
@@ -5361,6 +5375,7 @@ const CONCETTI = [
   { chiavi: ['albero','alberi','pianta','piante','potatura','abbattimento'],
     dette: ['albero','alberi','pianta','piante','piantone','tiglio','tigli','quercia','querce',
             'pino','pini','ulivo','ulivi','olivo','olivi','platano','platani','acero','aceri',
+            'cipresso','cipressi','frassino','frassini','noce','noci','ciliegio','ciliegi',
             'betulla','betulle','magnolia','magnolie','salice','salici','cedro','cedri','abete',
             'abeti','palma','palme','fruttifero','fruttiferi','chioma','chiome','ramo','rami',
             'capitozzare','capitozzatura','capitozzo','abbattere','abbattimento','abbattuto',
@@ -5438,12 +5453,22 @@ function numeroDetto(w){
   return (prima == null || dopo == null) ? null : prima * 1000 + dopo;
 }
 function numeriDetti(tok){
-  const unitaDopo = i => {
+  /* l'unita' detta subito dopo il numero, col suo fattore: "due ettari" e' mq per 10000 */
+  const misuraDopo = i => {
     for(let j = i + 1; j < tok.length && j <= i + 3; j++){
       if(RIEMPITIVI.has(tok[j])) continue;
-      return UNITA_DOPO[tok[j]] || null;
+      return UNITA_DOPO[tok[j]] ? {u: UNITA_DOPO[tok[j]], f: FATTORE_UNITA[tok[j]] || 1} : null;
     }
     return null;
+  };
+  const unitaDopo = i => { const m = misuraDopo(i); return m ? m.u : null; };
+  /* la prima parola vera dopo il numero: "quindici (di) GIORNI" */
+  const cosaDopo = i => {
+    for(let j = i + 1; j < tok.length && j <= i + 3; j++){
+      if(RIEMPITIVI.has(tok[j])) continue;
+      return tok[j];
+    }
+    return '';
   };
   /* "due AIUOLE": il due conta le aiuole, non dice quanti metri quadri sono. Se la
      lavorazione si paga a superficie o a metro, un conteggio cosi' non e' la sua
@@ -5477,32 +5502,111 @@ function numeriDetti(tok){
   const POSTO = new Set(['davanti','dietro','retro','fronte','lato','laterale','fianco','sopra',
     'sotto','vicino','intorno','attorno','est','ovest','nord','sud','casa','garage','piscina',
     'confine','ingresso','cancello','strada','giardino','cortile','destra','sinistra','fondo']);
+  /* Si guarda indietro fino al numero di prima, non piu' per cinque parole soltanto:
+     "il prato davanti duecento metri quadri e QUELLO DIETRO che e' piu' grande diciamo
+     cinquecento" perdeva i cinquecento, e il prato usciva da 200 invece che da 700.
+     Il pronome e' il segnale, e fra due numeri o c'e' o non c'e': "duecento metri quadri
+     O FORSE duecentocinquanta" non ne ha, e resta una misura sola.                    */
   const altroPosto = i => {
-    for(let j = i - 1; j >= 0 && j >= i - 5; j--){
+    for(let j = i - 1; j >= 0; j--){
       const w = tok[j];
       if(RIFERIMENTO.has(w)) return true;
       /* "e davanti UNO DI trecento": qui "uno" sta per "un altro prato". Vale solo
          con il "di" attaccato, se no ogni "un viaggio" diventerebbe un secondo pezzo. */
       if((w === 'uno' || w === 'una') && (tok[j + 1] === 'di' || tok[j + 1] === 'da')) return true;
-      if(PICCOLE.has(w) || RIEMPITIVI.has(w) || ARTICOLI.has(w) || POSTO.has(w)) continue;
-      return false;
+      if(fuori.some(n => n.i === j)) return false;     // arrivati al numero di prima: basta
     }
     return false;
   };
+  /* ===== UN NUMERO SOLO DETTO IN DUE PAROLE (22 settembre 2026) =====
+     "prato MILLE DUECENTO metri quadri": dettando esce spesso spezzato, e restava solo il
+     secondo pezzo. Milleduecento metri quadri diventavano duecento: un prato fatturato un
+     sesto di quello che e'. Si sommano soltanto se il primo e' tondo (cento, mille,
+     duemila) e il secondo e' piu' piccolo. Cosi' "sui duecento trecento metri quadri",
+     che vuol dire "da duecento a trecento", non si tocca.                             */
+  const unite = new Map(), saltare = new Set();
+  tok.forEach((w, i) => {
+    const a = unite.has(i) ? unite.get(i) : numeroDetto(w);
+    const b = numeroDetto(tok[i + 1] || '');
+    if(a == null || b == null || a < 100 || a % 100 !== 0 || b >= a) return;
+    unite.set(i + 1, a + b); saltare.add(i);
+  });
   const fuori = [];
   tok.forEach((w, i) => {
     let v;
-    if(CIRCA[w] != null) v = CIRCA[w];
+    if(saltare.has(i)) return;                    // sta nel numero unito qui sotto
+    if(unite.has(i)) v = unite.get(i);
+    else if(CIRCA[w] != null) v = CIRCA[w];
     else if(ARTICOLI.has(w)){
       if(CIRCA[tok[i+1]] != null || !unitaDopo(i)) return;   // "una siepe": e' un articolo
       v = 1;
+    } else if(FRAZIONI[w] != null){
+      if(!unitaDopo(i)) return;                              // "in mezzo al prato": non e' una misura
+      v = FRAZIONI[w];
     } else v = numeroDetto(w);
     if(v == null) return;
-    const n = {v, u: unitaDopo(i)};
+    const m = misuraDopo(i);
+    const n = {v: v * (m ? m.f : 1), u: m ? m.u : null, i, f: m ? m.f : 1};
     if(n.u === null && contaCose(i)) n.conteggio = true;
+    if(SOLDI.has(cosaDopo(i))) n.prezzo = true;
+    if(TEMPO.has(cosaDopo(i))) n.tempo = true;
     if(diAltezza(i)) n.altezza = true;
     if(altroPosto(i)) n.altroPosto = true;
     fuori.push(n);
+  });
+  /* "un ettaro E MEZZO": la meta' si aggiunge alla misura di prima, con la sua unita'.
+     Vale solo per le unita' grandi (l'ettaro): su "venti metri e mezzo" non si tocca
+     niente, perche' dettando la "e" puo' essere un "e'" senza accento e sommerebbe
+     mezzo metro a caso. */
+  tok.forEach((w, i) => {
+    if(FRAZIONI[w] == null || tok[i - 1] !== 'e') return;
+    if(fuori.some(n => n.i === i)) return;                   // ha gia' la sua unita' attaccata
+    const prima = fuori.filter(n => n.i < i).pop();
+    if(prima && prima.f > 1) prima.v += FRAZIONI[w] * prima.f;
+  });
+  /* ===== LA MISURA CHE VALE PER OGNI PEZZO (22 settembre 2026) =====
+     "siepe su due lati trenta metri PER LATO" fa sessanta metri, non trenta: quei trenta
+     sono di ognuno dei due lati, e a nove euro al metro erano 270 euro che mancavano nel
+     preventivo. Lo stesso con "l'una" e "ciascuna" ("tre aiuole da venti metri quadri
+     l'una"). Si moltiplica soltanto quando dopo "per" c'e' il nome di una cosa che un
+     numero ha gia' contato prima ("su DUE LATI" ... "per LATO"). Cosi' "nove euro al
+     metro PER QUARANTA METRI", dove dopo "per" c'e' un numero, resta quello che era. */
+  const CIASCUNO = new Set(['ciascuno','ciascuna','ognuno','ognuna','cadauno','cadauna']);
+  /* uguali o diverse solo nell'ultima lettera, anche corte: lati/lato, aiuole/aiuola */
+  const stessaCosa = (a, b) => !!a && !!b && (a === b ||
+    (a.length >= 3 && a.length === b.length && a.slice(0, -1) === b.slice(0, -1)));
+  const contati = (fino, cosa) => {
+    for(let k = fuori.length - 1; k >= 0; k--){
+      const n = fuori[k];
+      if(n.i >= fino || n.u !== null || n.v < 2 || n.moltiplicatore) continue;
+      if(SOLDI.has(tok[n.i + 1] || '')) continue;   // "quindici euro l'una" e' un prezzo, non un conto
+      /* senza il nome della cosa ("l'una", "ciascuna") vale solo un numero che conta
+         davvero delle cose ("tre AIUOLE"), se no ogni numero detto diventa un moltiplicatore */
+      if(!cosa){ if(n.conteggio) return n; continue; }
+      for(let j = n.i + 1; j < tok.length && j <= n.i + 2; j++){
+        if(RIEMPITIVI.has(tok[j]) || ARTICOLI.has(tok[j])) continue;
+        if(stessaCosa(tok[j], cosa)) return n;
+        break;
+      }
+    }
+    return null;
+  };
+  tok.forEach((w, i) => {
+    let cosa = null;
+    if(CIASCUNO.has(w) || ((w === 'uno' || w === 'una') && tok[i - 1] === 'l')) cosa = '';
+    else if(w === 'per' || w === 'a' || w === 'al' || w === 'ad'){
+      const d = tok[i + 1];
+      if(!d || numeroDetto(d) != null || CIRCA[d] != null || FRAZIONI[d] != null ||
+         UNITA_DOPO[d] || PICCOLE.has(d)) return;
+      cosa = d;
+    } else return;
+    const conta = contati(i, cosa);
+    if(!conta) return;
+    const misura = fuori.filter(n => n.i < i && n !== conta && n.u !== null).pop();
+    if(!misura) return;
+    misura.v = Math.round(misura.v * conta.v * 100) / 100;
+    conta.moltiplicatore = true;
+    conta.conteggio = true;     // il "due" dei lati conta i lati, non e' la misura da fatturare
   });
   return fuori;
 }
@@ -5640,9 +5744,33 @@ function scegliVoce(tok, voci){
    solo una misura in metri, quella e' la superficie: nessuno misura un prato o
    un'aiuola in metri lineari. Trovato il 17 settembre 2026 provando le frasi vere. */
 const misuraDellaVoce = (n, k) =>
-  !n.altezza && (!n.conteggio || k === 'pezzi') &&
+  !n.altezza && !n.prezzo && !n.tempo && (!n.conteggio || k === 'pezzi') &&
   (n.u === k || n.u === null || (k === 'mq' && n.u === 'm'));
+/* ===== SI E' CORRETTO, E LA PARTE DI UN TOTALE PIU' GRANDE (22 settembre 2026) =====
+   Due modi di parlare che mettevano nel preventivo un numero che il cliente non ha mai
+   chiesto, trovati dettando senza punteggiatura:
+   - "il prato sara' sui duecento ANZI trecento metri quadri": vale il numero dopo
+     "anzi", non quello che si e' corretto da solo. Prima passava il duecento.
+   - "il giardino e' grande mille metri quadri DI CUI trecento di prato": i mille sono
+     tutto il giardino, il prato e' trecento. Prima lo sfalcio usciva da mille metri
+     quadri: a 35 euro ogni 100 mq, 350 euro invece di 105.
+   Sul "di cui" si sta attenti al caso contrario: "quattro alberi di cui due alti" ha la
+   lavorazione nominata PRIMA, e li' il quattro e' giusto ed e' il totale da fatturare.  */
+function numeriCheContano(tok, voce, numeri){
+  const tieni = (da) => { const d = numeri.filter(n => n.i > da); return d.length ? d : numeri; };
+  const anzi = tok.lastIndexOf('anzi');
+  if(anzi >= 0 && numeri.some(n => n.i < anzi)) numeri = tieni(anzi);
+  const cui = tok.findIndex((w, k) => w === 'di' && tok[k + 1] === 'cui');
+  if(cui < 0) return numeri;
+  const forti = (voce.parole || []).filter(p => p.peso >= 1);
+  const dove = tok.findIndex(w => forti.some(p => somiglia(w, p.p)));
+  if(dove >= 0 && dove < cui) return numeri;   // "quattro alberi di cui due alti"
+  return tieni(cui);
+}
 function quantitaPer(tipo, numeri){
+  /* un prezzo detto a voce ("a quindici euro l'una") non e' una quantita', mai, nemmeno
+     se e' l'unico numero della frase: meglio chiedere la misura che fatturare 15 piante. */
+  numeri = numeri.filter(x => !x.prezzo && !x.tempo);
   /* prima si buttano via le misure che non sono quelle che si fatturano: l'altezza
      della siepe, e il conteggio delle cose quando il lavoro si paga a superficie.
      Se pero' resta soltanto quella, meglio quella che niente. */
@@ -5653,8 +5781,15 @@ function quantitaPer(tipo, numeri){
   const conGliAltri = n0 => numeri.slice(numeri.indexOf(n0) + 1)
     .filter(n => n.altroPosto && (n.u === n0.u || n.u === null))
     .reduce((s, n) => s + n.v, n0.v);
+  /* "due prati UNO davanti DI duecento e UNO dietro DI trecento metri quadri": qui la
+     misura con l'unita' e' la seconda, e il primo pezzo di giardino le sta davanti.
+     Si somma solo quando e' quella misura stessa a dire che e' "un altro" pezzo. */
+  const conQuelliPrima = (n0, somma) => !n0.altroPosto ? somma
+    : numeri.slice(0, numeri.indexOf(n0))
+        .filter(n => !n.altezza && !n.conteggio && (n.u === n0.u || n.u === null))
+        .reduce((s, n) => s + n.v, somma);
   const giusto = numeri.find(n => n.u === tipo.k);
-  if(giusto) return conGliAltri(giusto);
+  if(giusto) return conQuelliPrima(giusto, conGliAltri(giusto));
   if(tipo.k === 'mq'){
     const lineare = numeri.find(n => n.u === 'm');
     if(lineare) return conGliAltri(lineare);
@@ -5738,6 +5873,10 @@ function segnaliForti(tok, voci){
    suo e non va spostato. Si guarda la lavorazione che quel pezzo sceglierebbe e se
    fra i numeri rimasti ce n'e' uno che le serve davvero. */
 function misuraGiaDetta(pezzo, voci){
+  /* "il prato sara' sui duecento ANZI": la misura non e' detta, si sta correggendo, e
+     quella buona arriva subito dopo. Senza questo il numero corretto scavalcava sulla
+     lavorazione seguente e il prato restava con quello sbagliato. */
+  if(pezzo[pezzo.length - 1] === 'anzi') return false;
   const x = scegliVoce(pezzo, voci);
   return !!x && numeriDetti(pezzo).some(n => misuraDellaVoce(n, x.tipo.k));
 }
@@ -5812,6 +5951,41 @@ function tagliaFlusso(tok, voci){
   pezzi.push(tok.slice(inizio));
   return pezzi.filter(p => p.length);
 }
+/* ===== IL NUMERO CHE CONTA LA COSA DOPO (22 settembre 2026) =====
+   "concimazione E TRE ALBERI da potare": il taglio cade fra "tre" e "alberi", perche' e'
+   li' che comincia la lavorazione nuova. Ma il tre conta gli alberi, non la concimazione:
+   restando di qua, la concimazione usciva da TRE metri quadri (54 centesimi) e la potatura
+   da UN albero solo invece che tre. Un numero rimasto in fondo a un pezzo, senza la sua
+   unita' di misura, si sposta sulla lavorazione dopo, ma soltanto se quella si conta a
+   pezzi (alberi, piante, viaggi). Cosi' "il prato duecento siepe trenta metri", dove il
+   duecento e' del prato, non si tocca: la siepe si paga a metro, non a pezzi.          */
+function spostaIlConto(pezzi, voci){
+  for(let k = 0; k < pezzi.length - 1; k++){
+    const p = pezzi[k];
+    let j = p.length - 1;
+    while(j > 0 && (PICCOLE.has(p[j]) || RIEMPITIVI.has(p[j]))) j--;
+    if(j <= 0) continue;
+    const n = numeroDetto(p[j]) != null ? numeroDetto(p[j]) : CIRCA[p[j]];
+    if(n == null || n < 2) continue;
+    const dopo = scegliVoce(pezzi[k + 1], voci);
+    if(!dopo || dopo.tipo.k !== 'pezzi') continue;
+    /* "siepe CINQUANTA alberi TRE": la lavorazione dopo il suo numero ce l'ha gia', quindi
+       il cinquanta e' della siepe e resta dov'e'. Senza questo controllo il cinquanta
+       scavalcava, la siepe restava a 1 e gli alberi diventavano CINQUANTA piante invece
+       di tre: a 45 euro l'una sono 2.115 euro di troppo su un preventivo che si firma.
+       Trovato il 22 settembre 2026 dettando senza punteggiatura. */
+    if(numeriDetti(pezzi[k + 1]).some(x => misuraDellaVoce(x, dopo.tipo.k))) continue;
+    /* "gli alberi sono QUATTRO da potare le ramaglie in discarica": qui il quattro e' gia'
+       degli alberi, che si contano a pezzi, e non va ceduto allo smaltimento. Si cede solo
+       da una lavorazione che si misura a superficie o a metro, dove un numero nudo non e'
+       la sua misura. */
+    const qui = scegliVoce(p.slice(0, j), voci);
+    if(qui && qui.tipo.k === 'pezzi') continue;
+    pezzi[k + 1] = p.slice(j).concat(pezzi[k + 1]);
+    pezzi[k] = p.slice(0, j);
+  }
+  return pezzi.filter(p => p.length);
+}
 function capisci(testo, listino){
   const voci = listino.map(v => ({v, parole: paroleDellaVoce(v),
                                   frasi: frasiDellaVoce(v).concat(frasiDeiConcetti(v)), tipo: tipoUnita(v.u)}));
@@ -5836,7 +6010,7 @@ function capisci(testo, listino){
       .map(p => p.match(/[a-z]+|\d+(?:,\d+)?/g) || [])
       .filter(t => t.length)
       /* e dentro ogni pezzo, il taglio che non dipende dalla punteggiatura */
-      .forEach(t => tagliaFlusso(t, voci).forEach(x => pezzi.push({tok: x})));
+      .forEach(t => spostaIlConto(tagliaFlusso(t, voci), voci).forEach(x => pezzi.push({tok: x})));
     /* i pezzi rifiutati si buttano via qui, prima dei gruppi: se restassero, le loro
        misure ("la siepe di 20 metri non la tocchiamo") finirebbero sulla voce di prima.
        "senza" fa eccezione: nega solo quello che viene dopo, e "la potatura senza
@@ -5867,8 +6041,17 @@ function capisci(testo, listino){
       const nuova = lavorazioneFuoriListino(g.tok);
       if(nuova && !trovate.some(t => t.nuova && t.nome === nuova.nome)) trovate.push(nuova);
     });
-    gruppi.filter(g => g.voce).forEach(g => {
-      const numeri = numeriDetti(g.tok);
+    /* "quattro alberi DI CUI due tigli": il due e' il dettaglio di quei quattro, non
+       altri due alberi. Prima si sommava e uscivano sei piante, 90 euro di troppo.
+       Quando l'elenco ha due voci o piu' ci pensa gia' la regola del totale; con una
+       voce sola serve il "di cui" a dirlo, e sta in fondo al pezzo di prima. */
+    const dettaglioDiPrima = (lista, i) => {
+      const t = i > 0 && lista[i - 1] ? lista[i - 1].tok : null;
+      return !!t && t.length >= 2 && t[t.length - 1] === 'cui' && t[t.length - 2] === 'di';
+    };
+    const conVoce = gruppi.filter(g => g.voce);
+    conVoce.forEach((g, iG) => {
+      const numeri = numeriCheContano(g.tok, g.voce, numeriDetti(g.tok));
       const grezza = quantitaPer(g.voce.tipo, numeri);
       const dubbio = grezza == null;
       /* "potatura degli alberi", senza dire quanti: vale 1, ma si segna, cosi'
@@ -5890,6 +6073,7 @@ function capisci(testo, listino){
       else if(gia.dubbio && !dubbio){ gia.q = q; delete gia.dubbio; if(senzaNumero) gia.senzaNumero = true;
                                       if(!senzaNumero) parti.set(g.voce.v.id, [q]); }
       else if(gia.senzaNumero && !dubbio && !senzaNumero){ gia.q = q; delete gia.senzaNumero; parti.set(g.voce.v.id, [q]); }
+      else if(!dubbio && !senzaNumero && dettaglioDiPrima(conVoce, iG)){ /* e' il dettaglio: il totale resta */ }
       else if(!dubbio && !senzaNumero){
         const p = parti.get(g.voce.v.id) || [gia.q];
         p.push(q); parti.set(g.voce.v.id, p);
