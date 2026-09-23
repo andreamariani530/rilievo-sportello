@@ -1519,6 +1519,9 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
         # il confine vero del catasto quando c'e', se no il bordo della macchia
         "contorno": (contorno_dal_confine(confini_buoni, y0, x0, y1, x1)
                      or contorno_punti(dentro, lati)),
+        # il prato visto dall'alto, gia' in forma di disegno: cosi' il giardiniere
+        # conferma quello che deve tagliare invece di ricalcarlo a mano
+        "contorni_verde": contorni_verde(dentro, edifici, colori, lati, mq_px),
         "lotto_mq": lotto_intero,
         "coperto_mq": coperto_intero,
         "scoperto_mq": scoperto_intero,
@@ -1723,6 +1726,81 @@ def contorno_punti(dentro, lati, quanti=40):
     return fuori
 
 
+def _punti_della_macchia(macchia, quanti_px, lati, quanti):
+    """Il giro di una macchia, ridotto a pochi punti in frazioni della foto (0..1)."""
+    partenza = None
+    for i, b in enumerate(macchia):
+        if b:
+            partenza = (i % lati, i // lati)
+            break
+    if not partenza:
+        return []
+    giro = _traccia_bordo(macchia, lati, partenza, quanti_px)
+    if len(giro) < 8:
+        return []
+    tolleranza = max(1.5, lati / 260.0)
+    semplice = _semplifica_anello(giro, tolleranza)
+    for _ in range(8):
+        if len(semplice) <= quanti:
+            break
+        tolleranza *= 1.7
+        semplice = _semplifica_anello(giro, tolleranza)
+    fuori = []
+    for x, y in semplice[:quanti]:
+        p = [round(x / (lati - 1.0), 4), round(y / (lati - 1.0), 4)]
+        if fuori and math.hypot(p[0] - fuori[-1][0], p[1] - fuori[-1][1]) < 0.004:
+            continue
+        fuori.append(p)
+    if len(fuori) > 3 and math.hypot(fuori[0][0] - fuori[-1][0], fuori[0][1] - fuori[-1][1]) < 0.004:
+        fuori.pop()
+    return fuori if len(fuori) >= 3 else []
+
+
+def _lisciata(maschera, lati, passi=((ImageFilter.MinFilter, 3), (ImageFilter.MaxFilter, 5),
+                                     (ImageFilter.MinFilter, 3))):
+    """Via i puntini isolati, e i buchi piccoli richiusi.
+
+    Il verde contato pixel per pixel e' pieno di granelli: un ciuffo fra due auto,
+    l'ombra di un ramo in mezzo al prato. Ricalcare quei granelli non serve a
+    nessuno: si apre (via i granelli) e si chiude (via i buchi), e resta la forma
+    che un giardiniere riconosce guardando la foto.
+    """
+    m = Image.frombytes("L", (lati, lati), bytes(255 if b else 0 for b in maschera))
+    for filtro, raggio in passi:
+        m = m.filter(filtro(raggio))
+    return bytearray(1 if b else 0 for b in m.tobytes())
+
+
+def contorni_verde(dentro, edifici, colori, lati, mq_px, quante=4, minimo_mq=15.0, quanti=26):
+    """I pezzi di prato visti dall'alto, come forme gia' disegnate.
+
+    Il numero dei metri di verde c'era gia' (`verde_mq`), ma era solo un numero:
+    l'artigiano vedeva "221 mq" e poi doveva ridisegnare a mano dove sta quel
+    verde. Qui lo stesso conto restituisce **la forma**, cosi' l'applicazione puo'
+    proporre il prato gia' segnato e lui deve solo guardarlo e confermare.
+    Resta una stima da foto: prende anche le chiome degli alberi e non vede il
+    prato che ci sta sotto (Andrea, 23 settembre 2026).
+    """
+    verde = bytearray(1 if (dentro[i] and not edifici[i] and _e_verde(colori[i])) else 0
+                      for i in range(lati * lati))
+    verde = _lisciata(verde, lati)
+    pezzi, visti = [], bytearray(lati * lati)
+    for i, b in enumerate(verde):
+        if not b or visti[i]:
+            continue
+        macchia, quanti_px, _est = _riempi(verde, lati, [(i % lati, i // lati)])
+        visti = bytearray(v | m for v, m in zip(visti, macchia))
+        if quanti_px * mq_px >= minimo_mq:
+            pezzi.append((quanti_px, macchia))
+    pezzi.sort(key=lambda p: -p[0])
+    forme = []
+    for quanti_px, macchia in pezzi[:quante]:
+        punti = _punti_della_macchia(macchia, quanti_px, lati, quanti)
+        if punti:
+            forme.append(punti)
+    return forme
+
+
 def componi(foto, mappa, dentro, lati):
     """Foto dall'alto, confini catastali sopra, e il lotto acceso in mezzo.
 
@@ -1885,6 +1963,7 @@ def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap=""):
         # si ricalcano e si tirano al posto giusto
         "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
         "contorno": m.get("contorno") or [],
+        "contorni_verde": m.get("contorni_verde") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "preciso": p["preciso"],
@@ -2012,6 +2091,7 @@ def rilievo(indirizzo, lato_m=None, cap=""):
         # si ricalcano e si tirano al posto giusto
         "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
         "contorno": m.get("contorno") or [],
+        "contorni_verde": m.get("contorni_verde") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "preciso": p["preciso"],
@@ -2135,6 +2215,7 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None):
         # si ricalcano e si tirano al posto giusto
         "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
         "contorno": m.get("contorno") or [],
+        "contorni_verde": m.get("contorni_verde") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "foto": in_base64(m["immagine"]),
