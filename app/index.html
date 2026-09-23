@@ -1148,7 +1148,17 @@ function normalizza(){
   });
   if(!S.rilievi || typeof S.rilievi !== 'object') S.rilievi = {};
   /* le parti disegnate: si tengono solo quelle scritte bene */
-  Object.keys(S.rilievi).forEach(k => { const r = S.rilievi[k]; if(r && r.zone !== undefined) r.zone = zoneDi(r); });
+  Object.keys(S.rilievi).forEach(k => {
+    const r = S.rilievi[k];
+    if(r && r.zone !== undefined) r.zone = zoneDi(r);
+    /* la notte del 23 settembre 2026 l'app segnava da sola il prato visto dall'alto:
+       forme frastagliate, e pezzi che non erano del cliente. Tolto. Qui si portano via
+       anche quelle gia' salvate, se no restano addosso a chi l'aveva provato. */
+    if(r && Array.isArray(r.zone)){
+      r.zone = r.zone.filter(z => z.dallaFoto !== true);
+      r.zone.forEach(z => { if(z.perimetro !== undefined) delete z.perimetro; });
+    }
+  });
 }
 
 /* ---------------- attrezzi ---------------- */
@@ -4071,13 +4081,7 @@ function scriviMisura(tipo, q){
 function totaliZone(ril){
   const lato = latoFoto(ril), tot = {prato:0, aiuola:0, siepe:0, albero:0};
   if(!lato) return tot;
-  /* il contorno del giardino non si conta come prato: quando il prato vero e' segnato
-     dentro (i pezzi visti dall'alto), sommare tutti e due farebbe pagare due volte.
-     Se pero' quei pezzi vengono tolti tutti, il contorno torna a valere: se no
-     l'artigiano resta con zero metri di prato e nessuno gli ha detto perche'. */
-  const zone = zoneDi(ril);
-  const restaPrato = zone.some(z => z.tipo === 'prato' && !z.perimetro);
-  zone.forEach(z => { if(!z.perimetro || !restaPrato) tot[z.tipo] += misuraZona(z, lato); });
+  zoneDi(ril).forEach(z => { tot[z.tipo] += misuraZona(z, lato); });
   Object.keys(tot).forEach(k => { tot[k] = Math.round(tot[k]); });
   return tot;
 }
@@ -4252,10 +4256,8 @@ function zoneHtml(ril, s){
       ${zone.map((z, i) => `<div class="riga-zona">
         <span class="n">${i + 1}</span>
         <div><div class="tit">${esc(z.nome || TIPI_ZONA[z.tipo].nome)}</div>
-          <div class="sub">${z.perimetro ? 'Il contorno del giardino' : TIPI_ZONA[z.tipo].nome} · ${scriviMisura(z.tipo, misuraZona(z, lato))}${(z.salti || []).length
-            ? ' · ' + (z.salti.length === 1 ? 'un tratto aperto, non contato' : z.salti.length + ' tratti aperti, non contati') : ''}${
-            z.perimetro && tot.prato ? ' · non contato nel prato' : ''}${
-            z.dallaFoto ? ' · visto dall’alto' : ''}</div></div>
+          <div class="sub">${TIPI_ZONA[z.tipo].nome} · ${scriviMisura(z.tipo, misuraZona(z, lato))}${(z.salti || []).length
+            ? ' · ' + (z.salti.length === 1 ? 'un tratto aperto, non contato' : z.salti.length + ' tratti aperti, non contati') : ''}</div></div>
         ${comandi([
           {t:'Rinomina o cambia tipo', f:`schedaZona('${s.id}','${z.id}')`,  i:MATITA},
           {t:'Ridisegna sulla foto',   f:`apriDisegno('${s.id}','${z.id}')`, i:FORMA},
@@ -4454,37 +4456,6 @@ function contornoDaConfermare(ril){
 function giardinoConfermato(ril){
   return zoneDi(ril).find(z => z.giardino && TIPI_ZONA[z.tipo] && TIPI_ZONA[z.tipo].forma === 'area') || null;
 }
-/* ---- il prato che si vede dall'alto, segnato da solo ----
-   Andrea, 23 settembre 2026, guardando il rilievo di Via Risorgimento 12: la misura del
-   verde deve essere il prato vero, non la particella intera. Il servizio adesso manda i
-   PEZZI di verde (`contorni_verde`), non solo il numero: qui entrano nel rilievo gia'
-   disegnati, cosi' il preventivo prende quelli e non tutto il lotto.
-   Il verde della foto pero' non sa di chi e' l'erba: prende anche la striscia del vicino
-   e il bordo del parcheggio, che a occhio sono identiche al prato del cliente. Per questo
-   ogni pezzo resta una parte normale, che si toglie dall'elenco con un tocco. */
-const pratiDalVerde = ril => ((ril && Array.isArray(ril.contorni_verde)) ? ril.contorni_verde : [])
-  .filter(c => Array.isArray(c) && c.length >= 3)
-  .slice(0, 6)
-  .map(c => c.slice(0, 60).map(p => [Math.min(1, Math.max(0, p[0])), Math.min(1, Math.max(0, p[1]))]));
-
-function segnaIlPratoVisto(ril){
-  if(!ril || !latoFoto(ril)) return 0;
-  ril.zone = zoneDi(ril);
-  if(ril.zone.some(z => z.tipo === 'prato' && !z.giardino)) return 0;   // c'e' gia' un prato suo
-  const pezzi = pratiDalVerde(ril);
-  if(!pezzi.length) return 0;
-  const lato = latoFoto(ril);
-  let mq = 0;
-  pezzi.forEach(punti => {
-    const z = {id:nuovoId('z'), tipo:'prato', nome:nomeNuovo(ril, 'prato'), punti:copia(punti), dallaFoto:true};
-    ril.zone.push(z);
-    mq += misuraZona(z, lato);
-  });
-  const g = giardinoConfermato(ril);
-  if(g) g.perimetro = true;
-  return Math.round(mq);
-}
-
 function confermaIlGiardino(idSopralluogo){
   const s = sopr(idSopralluogo), ril = s ? rilievoDelSopralluogo(s) : null;
   if(!ril || !latoFoto(ril)){ avvisa('Per guardare il giardino sulla foto rifai prima il rilievo dall\'indirizzo.'); return; }
@@ -4510,15 +4481,9 @@ function confermaGiardino(){
   if(!D || !D.conferma) return;
   if(!formaCompleta()){ avvisa('Per chiudere il giardino servono almeno tre punti.'); return; }
   const mq = misuraPunti(D.tipo, D.punti, latoFoto(D.ril));
-  const ril = D.ril;
   salvaForma(true);
-  const prato = segnaIlPratoVisto(ril);
-  if(prato) salva();
   chiudiDisegno(false);
-  avvisa(prato
-    ? 'Giardino confermato: ' + cifra(Math.round(mq), 0) + ' mq. Ho segnato anche il prato che si vede dall’alto, '
-      + cifra(prato, 0) + ' mq: è quello che va nel preventivo. Quello che non devi tagliare toglilo dall’elenco.'
-    : 'Giardino confermato sulla foto: ' + cifra(Math.round(mq), 0) + ' mq. È il numero che va nel preventivo.');
+  avvisa('Giardino confermato sulla foto: ' + cifra(Math.round(mq), 0) + ' mq. È il numero che va nel preventivo.');
 }
 function apriDisegno(idSopralluogo, idZona, conferma){
   const s = sopr(idSopralluogo), ril = s ? rilievoDelSopralluogo(s) : null;
