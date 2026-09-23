@@ -1068,9 +1068,9 @@ def e_una_strada(confine):
     return area >= 5000.0 and piu_lungo >= 150.0 and compattezza < 0.35
 
 
-def casa_piu_vicina(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0):
-    """Il fabbricato del catasto piu' vicino al punto: dove sta, quanto e' grande,
-    quanto e' lontano. None se li' intorno non c'e' nessun fabbricato.
+def case_vicine(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0, quante=6):
+    """I fabbricati del catasto intorno al punto, dal piu' vicino: dove stanno, quanto
+    sono grandi, quanto sono lontani.
 
     Serve quando il civico cade sull'asfalto. I servizi di indirizzi mettono il punto
     **sul bordo della strada**, davanti al cancello, non sul tetto: dove la strada e'
@@ -1089,7 +1089,7 @@ def casa_piu_vicina(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0):
     minimo_px = minimo_mq / (m_per_px * m_per_px)
     centro = (lati - 1) / 2.0
     visti = bytearray(lati * lati)
-    migliore = None
+    trovate = []
     for partenza in range(lati * lati):
         if not mattoni[partenza] or visti[partenza]:
             continue
@@ -1109,17 +1109,23 @@ def casa_piu_vicina(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0):
         if len(punti) < minimo_px:
             continue
         vicino = min(math.hypot(i % lati - centro, i // lati - centro) for i in punti)
-        if migliore and vicino * m_per_px >= migliore["distanza_m"]:
-            continue
         sx = sum(i % lati for i in punti) / len(punti)
         sy = sum(i // lati for i in punti) / len(punti)
-        migliore = {
-            "lat": y1 - (sy / (lati - 1.0)) * (y1 - y0),
-            "lon": x0 + (sx / (lati - 1.0)) * (x1 - x0),
+        trovate.append({
+            "lat": round(y1 - (sy / (lati - 1.0)) * (y1 - y0), 7),
+            "lon": round(x0 + (sx / (lati - 1.0)) * (x1 - x0), 7),
             "area_mq": round(len(punti) * m_per_px * m_per_px),
-            "distanza_m": vicino * m_per_px,
-        }
-    return migliore
+            "distanza_m": round(vicino * m_per_px, 1),
+        })
+    trovate.sort(key=lambda c: c["distanza_m"])
+    return trovate[:quante]
+
+
+def casa_piu_vicina(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0):
+    """Solo la piu' vicina, o None. E' quella che si prende quando il civico cade
+    sull'asfalto."""
+    vicine = case_vicine(lat, lon, raggio_m, lati, minimo_mq, quante=1)
+    return vicine[0] if vicine else None
 
 
 def _mappa_catastale(y0, x0, y1, x1, strati, lati, trasparente="TRUE"):
@@ -2273,6 +2279,25 @@ def servizio(porta=8787, pubblico=False):
                     print("     non riuscita:", e)
                     self._manda(502, {"errore": str(e),
                                       "suggerimenti": _suggerimenti_calmi(indirizzo, cap_chiesto())})
+                return
+            if u.path == "/case-vicine":
+                # Le case intorno a un punto, per farne toccare una quando il civico
+                # non si trova. Chi risponde e' la mappa dei fabbricati del catasto,
+                # la stessa che serve a misurare il coperto.
+                try:
+                    la = float((q.get("lat") or [""])[0])
+                    lo = float((q.get("lon") or [""])[0])
+                except ValueError:
+                    self._manda(400, {"errore": "Servono lat e lon."})
+                    return
+                try:
+                    vicine = case_vicine(la, lo)
+                    print("  case vicine:", len(vicine))
+                    self._manda(200, {"case": vicine})
+                except CatastoOccupato as e:
+                    self._manda(503, {"errore": str(e)})
+                except Exception as e:              # noqa: BLE001
+                    self._manda(502, {"errore": str(e)})
                 return
             if u.path == "/particelle":
                 punti = leggi_punti((q.get("punti") or [""])[0])
