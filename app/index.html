@@ -3527,6 +3527,47 @@ function elencoSuggerimenti(idSopralluogo, suggerimenti){
     <p class="nota-suggeriti">Tocca quello giusto: faccio il rilievo lì, senza riscrivere niente.</p>
   </div>`;
 }
+/* Le case qui intorno, da toccare.
+   Quando il civico non si trova, il punto dell'indirizzo cade sulla strada e la
+   particella accesa puo' essere quella del vicino. Invece di far cercare la casa
+   sulla foto, il servizio dice dove sono i fabbricati li' attorno (/case-vicine,
+   dalla mappa dei fabbricati del catasto) e qui si mettono in fila, dal piu' vicino:
+   un tocco e il rilievo si rifa' su quella casa. */
+let caseVicineOra = [];
+function elencoCaseVicine(idSopralluogo, d){
+  if(!d || typeof d.lat !== 'number' || typeof d.lon !== 'number') return '';
+  const cassetto = 'case-vicine-' + Math.random().toString(36).slice(2, 9);
+  setTimeout(() => cercaCaseVicine(idSopralluogo, d.lat, d.lon, cassetto), 60);
+  return `<div id="${cassetto}" class="suggeriti" style="display:none"></div>`;
+}
+function cercaCaseVicine(idSopralluogo, lat, lon, cassetto){
+  if(senzaRete()) return;
+  const basta = new AbortController();
+  const scade = setTimeout(() => basta.abort(), 25000);
+  fetch(SPORTELLO_RILIEVO + '/case-vicine?lat=' + encodeURIComponent(lat.toFixed(7)) +
+        '&lon=' + encodeURIComponent(lon.toFixed(7)), {signal: basta.signal})
+    .then(x => x.ok ? x.json() : null)
+    .then(r => {
+      const lista = ((r && r.case) || []).filter(c => c && typeof c.lat === 'number').slice(0, 5);
+      const dove = document.getElementById(cassetto);
+      if(!dove || !lista.length) return;
+      caseVicineOra = lista;
+      dove.innerHTML = `<div class="lbl">Le case qui intorno</div>
+        ${lista.map((c, i) => `<button type="button" class="riga-suggerita" onclick="usaCasaVicina('${idSopralluogo}',${i})">
+          <span class="dove">Casa a ${cifra(Math.round(c.distanza_m), 0)} m</span>
+          <span class="chi">${cifra(c.area_mq, 0)} mq di fabbricato</span>
+        </button>`).join('')}
+        <p class="nota-suggeriti">Tocca la casa del cliente: rifaccio il rilievo lì.</p>`;
+      dove.style.display = '';
+    })
+    .catch(() => {})
+    .finally(() => clearTimeout(scade));
+}
+function usaCasaVicina(idSopralluogo, i){
+  const c = caseVicineOra[i]; if(!c) return;
+  chiudiScheda();
+  rilievoDaPunto(idSopralluogo, c.lat, c.lon, 'la casa a ' + Math.round(c.distanza_m) + ' m');
+}
 let suggeritiOra = [];
 function usaSuggerimento(idSopralluogo, i){
   const x = suggeritiOra[i]; if(!x) return;
@@ -3642,6 +3683,7 @@ function confermaRilievo(idSopralluogo, d, perche){
       ${d.preciso === false && puoSpostare(d) ? `<p style="font-size:15.5px;color:var(--soft);margin-bottom:18px">
         Il civico non è stato trovato: quella accesa può essere la casa accanto, o la strada.
         <button class="bottone vuoto piccolo" style="margin-top:10px" onclick="usaEToccaLaCasa()">Tocca la casa giusta sulla foto</button></p>` : ''}
+      ${d.preciso === false ? elencoCaseVicine(idSopralluogo, d) : ''}
       ${d.preciso === false ? elencoSuggerimenti(idSopralluogo, d.suggerimenti) : ''}
       ${ora && ora.corretto ? '<p style="color:var(--tenue);font-size:15.5px;margin-bottom:18px">Se usi quello nuovo, le misure che hai corretto a mano si perdono.</p>' : ''}
       ${disegnate ? '<p style="color:var(--tenue);font-size:15.5px;margin-bottom:18px">Se usi quello nuovo, le parti del giardino disegnate si perdono: andranno ridisegnate sulla foto nuova.</p>' : ''}`,
