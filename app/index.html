@@ -4612,13 +4612,42 @@ function puntoDaEvento(e){
   if(!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) return null;
   return [Math.round(x * 10000) / 10000, Math.round(y * 10000) / 10000];
 }
+/* Su una forma gia' chiusa, un punto nuovo entra NEL LATO piu' vicino al tocco,
+   non in fondo all'elenco. In fondo vorrebbe dire attaccarlo all'ultimo punto, cioe'
+   farlo partire dal pallino d'oro dall'altra parte del giardino: la forma si
+   attorciglia e per sistemarla servono dieci tocchi invece di uno.
+   Trovato da Andrea il 23 settembre 2026 provando la conferma sulla foto:
+   «i puntini li mette dal punto oro e non tra i punti dell'intersezione».
+   Mentre si disegna da zero l'ordine dei tocchi e' il giro del giardino, quindi
+   li' si continua ad aggiungere in fondo. */
+function latoPiuVicino(p){
+  const n = D.punti.length;
+  let dove = -1, meglio = Infinity;
+  for(let i = 0; i < n; i++){
+    const a = D.punti[i], b = D.punti[(i + 1) % n];
+    const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+    const s = l2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)) : 0;
+    const d = Math.hypot(p[0] - (a[0] + s * dx), p[1] - (a[1] + s * dy));
+    if(d < meglio){ meglio = d; dove = i + 1; }
+  }
+  return dove;
+}
+/* si sistema un contorno che c'e' gia': la conferma sulla foto, o una parte riaperta */
+function formaGiaFatta(){
+  return !!D && TIPI_ZONA[D.tipo].forma === 'area' && D.punti.length >= 3
+         && (D.conferma || D.modifica);
+}
 function aggiungiPunto(p){
   if(!D || !puntoBuono(p)) return;
   if(TIPI_ZONA[D.tipo].forma === 'punto'){
     D.punti = [p];
     if(!D.modifica){ salvaForma(); return; }
   }
-  else if(D.punti.length < 400) D.punti.push(p);
+  else if(D.punti.length < 400){
+    const dove = formaGiaFatta() ? latoPiuVicino(p) : -1;
+    if(dove < 0){ D.punti.push(p); D.ultimo = D.punti.length - 1; }
+    else { D.punti.splice(dove, 0, p); D.ultimo = dove; }
+  }
   ridisegna();
 }
 function spostaPunto(i, p){
@@ -4629,8 +4658,12 @@ function spostaPunto(i, p){
 function togliPunto(){
   if(D && D.particelle){ if(D.semi.length > 1){ D.semi.pop(); ridisegna(); } return; }
   if(!D || !D.punti.length) return;
-  D.punti.pop();
-  D.salti = (D.salti || []).filter(i => i < D.punti.length - 1);
+  /* "l'ultimo punto" e' quello appena messo, che adesso puo' stare in mezzo
+     all'elenco perche' e' entrato nel lato piu' vicino al tocco */
+  const i = (D.ultimo !== undefined && D.ultimo !== null && D.punti[D.ultimo]) ? D.ultimo : D.punti.length - 1;
+  D.punti.splice(i, 1);
+  D.ultimo = null;
+  D.salti = (D.salti || []).filter(x => x < D.punti.length - 1);
   D.taglio = null;
   ridisegna();
 }
