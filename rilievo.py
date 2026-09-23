@@ -1068,6 +1068,60 @@ def e_una_strada(confine):
     return area >= 5000.0 and piu_lungo >= 150.0 and compattezza < 0.35
 
 
+def casa_piu_vicina(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0):
+    """Il fabbricato del catasto piu' vicino al punto: dove sta, quanto e' grande,
+    quanto e' lontano. None se li' intorno non c'e' nessun fabbricato.
+
+    Serve quando il civico cade sull'asfalto. I servizi di indirizzi mettono il punto
+    **sul bordo della strada**, davanti al cancello, non sul tetto: dove la strada e'
+    una particella (Via Torino 5 a Casalmaiocco) la casa del cliente non viene nemmeno
+    sfiorata. Spostandosi sul fabbricato piu' vicino si torna sulla sua particella: a
+    Casalmaiocco da 16.086 mq di carreggiata a 1.577 mq, che e' il pezzo giusto.
+
+    Sulla mappa dell'Agenzia i fabbricati sono arancioni pieni: la stessa maschera che
+    usa misura() per contare il coperto. Le macchie sotto `minimo_mq` non si guardano:
+    sono tettoie, pozzetti e sbavature del disegno."""
+    y0, x0, y1, x1 = _riquadro(lat, lon, raggio_m)
+    fabb = _mappa_catastale(y0, x0, y1, x1, "fabbricati", lati)
+    mattoni = _maschera(fabb, lambda p: p[0] > 150 and p[1] < 190 and p[2] < 120
+                                        and p[0] - p[2] > 60)
+    m_per_px = (2.0 * raggio_m) / lati
+    minimo_px = minimo_mq / (m_per_px * m_per_px)
+    centro = (lati - 1) / 2.0
+    visti = bytearray(lati * lati)
+    migliore = None
+    for partenza in range(lati * lati):
+        if not mattoni[partenza] or visti[partenza]:
+            continue
+        pila, punti = [partenza], []
+        visti[partenza] = 1
+        while pila:
+            i = pila.pop()
+            punti.append(i)
+            ix, iy = i % lati, i // lati
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nx, ny = ix + dx, iy + dy
+                if 0 <= nx < lati and 0 <= ny < lati:
+                    k = ny * lati + nx
+                    if mattoni[k] and not visti[k]:
+                        visti[k] = 1
+                        pila.append(k)
+        if len(punti) < minimo_px:
+            continue
+        vicino = min(math.hypot(i % lati - centro, i // lati - centro) for i in punti)
+        if migliore and vicino * m_per_px >= migliore["distanza_m"]:
+            continue
+        sx = sum(i % lati for i in punti) / len(punti)
+        sy = sum(i // lati for i in punti) / len(punti)
+        migliore = {
+            "lat": y1 - (sy / (lati - 1.0)) * (y1 - y0),
+            "lon": x0 + (sx / (lati - 1.0)) * (x1 - x0),
+            "area_mq": round(len(punti) * m_per_px * m_per_px),
+            "distanza_m": vicino * m_per_px,
+        }
+    return migliore
+
+
 def _mappa_catastale(y0, x0, y1, x1, strati, lati, trasparente="TRUE"):
     dati = prendi(CATASTO, {
         "SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap",
@@ -1856,16 +1910,37 @@ def rilievo(indirizzo, lato_m=None, cap=""):
                 "(succede su una strada, o a Trento e Bolzano, dove il catasto è "
                 "delle Province autonome). Segna il giardino sulla foto: "
                 "i metri quadri li conto io.", indirizzo, cap)
+        avviso_strada = ""
         if e_una_strada(part.get("confine")):
-            # il catasto, sotto il civico, ha la carreggiata e non la casa: meglio
-            # nessun numero che il numero della strada spacciato per giardino
+            # Il civico e' caduto sull'asfalto: il punto dei servizi di indirizzi sta
+            # davanti al cancello, e li' la particella e' la carreggiata. Ci si sposta
+            # sulla casa piu' vicina e si riparte da quella.
             area, piu_lungo, _forma = forma_del_confine(part["confine"])
-            return rilievo_da_disegnare(
-                p, lato_m,
-                "Sotto questo civico il catasto non ha la casa: ha la strada coi "
-                "parcheggi, %s metri quadri lunghi %d metri. Segna il giardino sulla "
-                "foto: i metri quadri li conto io."
-                % (_col_punto(area), int(round(piu_lungo))), indirizzo, cap)
+            casa = None
+            try:
+                casa = casa_piu_vicina(lat, lon)
+            except CatastoOccupato:
+                raise
+            except Exception:                           # noqa: BLE001
+                casa = None
+            nuova = None
+            if casa:
+                nuova, lat2, lon2 = cerca_la_particella(casa["lat"], casa["lon"])
+            if nuova and not e_una_strada(nuova.get("confine")):
+                part, lat, lon = nuova, lat2, lon2
+                avviso_strada = (
+                    "Il civico cade sulla strada, non sulla casa: lì il catasto ha la "
+                    "carreggiata (%s metri quadri). Ho preso la particella della casa "
+                    "più vicina, a %d metri. Controlla il contorno sulla foto e tiralo "
+                    "dove finisce il giardino del cliente."
+                    % (_col_punto(area), int(round(casa["distanza_m"]))))
+            else:
+                return rilievo_da_disegnare(
+                    p, lato_m,
+                    "Sotto questo civico il catasto non ha la casa: ha la strada coi "
+                    "parcheggi, %s metri quadri lunghi %d metri. Segna il giardino sulla "
+                    "foto: i metri quadri li conto io."
+                    % (_col_punto(area), int(round(piu_lungo))), indirizzo, cap)
         semi, riquadri = _intorno_stessa_particella(part, lat, lon)
         m = misura(semi, riquadri, lato_m=lato_m,
                    confini=[part.get("confine")])
@@ -1897,6 +1972,8 @@ def rilievo(indirizzo, lato_m=None, cap=""):
         else:
             avvisi.append("L'indirizzo è stato trovato sulla via, non sul civico: "
                           "controlla che la particella accesa sia quella giusta.")
+    if avviso_strada:
+        avvisi.append(avviso_strada)
     avvisi += _avvisi_misura(m)
     # il civico non e' confermato: insieme al rilievo si mandano gli indirizzi
     # possibili, cosi' l'applicazione puo' farne scegliere un altro invece di
