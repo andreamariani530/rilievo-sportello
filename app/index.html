@@ -4214,10 +4214,15 @@ function svgLavoro(tipo, punti, lato, k){
   else if(f === 'linea') s = svgLinea(punti, D && D.salti, p => `<polyline class="z z-sotto" points="${p}"/><polyline class="z-lavoro-linea" points="${p}"/>`)
     + (D && D.taglio ? `<circle class="z-maniglia prima" cx="${(D.taglio.p[0] * 1000).toFixed(1)}" cy="${(D.taglio.p[1] * 1000).toFixed(1)}" r="${(9 * k).toFixed(1)}"/>` : '');
   else s = svgForma(tipo, punti, lato, '');
+  /* un contorno del catasto puo' avere decine di vertici, e con le maniglie grosse
+     i pallini si coprono a vicenda: della forma non si vede piu' niente, e prendere
+     il punto giusto diventa un terno al lotto. Quando i punti sono fitti, i pallini
+     si fanno piccoli (visto dal vivo su Via Torino 5: 47 punti, 23 settembre 2026). */
+  const fitto = punti.length > 24;
   return s + punti.map((p, i) => {
     const cx = (p[0] * 1000).toFixed(1), cy = (p[1] * 1000).toFixed(1);
-    return `<circle class="z-maniglia${i === 0 ? ' prima' : ''}" cx="${cx}" cy="${cy}" r="${(7 * k).toFixed(1)}"/>` +
-           `<circle class="z-presa" data-i="${i}" cx="${cx}" cy="${cy}" r="${(20 * k).toFixed(1)}"/>`;
+    return `<circle class="z-maniglia${i === 0 ? ' prima' : ''}" cx="${cx}" cy="${cy}" r="${((fitto ? 4 : 7) * k).toFixed(1)}"/>` +
+           `<circle class="z-presa" data-i="${i}" cx="${cx}" cy="${cy}" r="${((fitto ? 11 : 20) * k).toFixed(1)}"/>`;
   }).join('');
 }
 
