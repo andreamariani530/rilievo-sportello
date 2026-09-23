@@ -3345,6 +3345,7 @@ function rilievoHtml(ril, s, r){
           : 'Il giardino è su un\'altra particella, o ne manca un pezzo?'}
         ${angoliBuoni(ril.angoli) || ril.da_disegnare ? '' : ' Per sceglierle sulla foto, rifai prima il rilievo dall\'indirizzo.'}</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${contornoDaConfermare(ril) || giardinoConfermato(ril) ? `<button class="bottone piccolo" onclick="confermaIlGiardino('${s.id}')">${giardinoConfermato(ril) ? 'Ricontrolla il giardino sulla foto' : 'Guarda il giardino sulla foto'}</button>` : ''}
         ${angoliBuoni(ril.angoli) && !ril.da_disegnare ? `<button class="bottone vuoto piccolo" onclick="apriParticelle('${s.id}')">Scegli le particelle</button>` : ''}
         ${puoSpostare(ril) && !ril.da_disegnare ? `<button class="bottone vuoto piccolo" onclick="apriSposta('${s.id}')">Sposta sulla casa giusta</button>` : ''}
         ${ril.indirizzo || s.luogo ? `<button class="bottone vuoto piccolo" onclick="allargaFoto('${s.id}')">Allarga la foto</button>
@@ -3505,6 +3506,13 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
          (magari corretto a mano) si guardano i due uno accanto all'altro */
       if(d.preciso !== true || conDisegno(idSopralluogo)){ confermaRilievo(idSopralluogo, d, altrove ? 'comune' : ''); return; }
       usaRilievo(idSopralluogo, d);
+      /* il rilievo finisce sempre sulla foto: il numero del catasto e' una proposta,
+         quello buono e' quello che il giardiniere ha guardato e confermato */
+      if(contornoDaConfermare(d) && !zoneDi(d).length){
+        avvisa('Rilievo pronto: guarda la foto e conferma il giardino.');
+        setTimeout(() => confermaIlGiardino(idSopralluogo), 400);
+        return;
+      }
       avvisa('Rilievo pronto: ' + cifra(d.lotto_mq, 0) + ' mq di lotto, ' + cifra(d.scoperto_mq, 0) + ' scoperti.');
     })
     .catch(() => { if(!superata()) rilievoNonDisponibile(idSopralluogo, '', [], indirizzo); })
@@ -3692,6 +3700,7 @@ function confermaRilievo(idSopralluogo, d, perche){
     salva: () => {
       usaRilievo(idSopralluogo, d);
       if(senzaCatasto) setTimeout(() => apriDisegno(idSopralluogo), 400);
+      else if(contornoDaConfermare(d) && !zoneDi(d).length) setTimeout(() => confermaIlGiardino(idSopralluogo), 400);
     },
     messaggio: senzaCatasto ? 'Foto in uso. Segna il giardino sulla foto: i metri quadri li conto io.'
              : soloDisegno ? 'Rilievo nuovo in uso. Ridisegna le parti del giardino sulla foto nuova.'
@@ -4362,14 +4371,14 @@ function segnaInterruttore(el, acceso, nome){
    (Andrea, 23 settembre 2026). Le zone reggono fino a 400 punti. */
 function ricalcaConfine(){
   if(!D || D.particelle || D.casa) return;
-  const c = (D.ril && Array.isArray(D.ril.contorno)) ? D.ril.contorno : [];
+  const c = puntiDelContorno(D.ril);
   if(c.length < 3){
     avvisa('Questo rilievo non ha il confine del catasto da ricalcare: rifallo dall\'indirizzo.');
     return;
   }
   if(D.punti.length && formaCompleta()) salvaForma();
   if(TIPI_ZONA[D.tipo].forma !== 'area') D.tipo = 'prato';
-  D.punti = c.map(p => [Math.min(1, Math.max(0, p[0])), Math.min(1, Math.max(0, p[1]))]).slice(0, 160);
+  D.punti = c;
   D.salti = []; D.tagli = false; D.taglio = null;
   ridisegna();
   avvisa('Confine del catasto ricalcato. Trascina i punti fin dove sta il giardino vero: i metri li conto da lì.');
@@ -4413,7 +4422,55 @@ function seguiZoom(){
   setTimeout(() => { ridisegnoInCoda = false; if(D) ridisegna(); }, 30);
 }
 if(window.visualViewport) visualViewport.addEventListener('resize', seguiZoom);
-function apriDisegno(idSopralluogo, idZona){
+/* ===== IL CATASTO PROPONE, LA FOTO DECIDE =====
+   Deciso da Andrea il 23 settembre 2026: «a noi si interessa sapere dove finisce
+   una proprieta'», e il catasto sbaglia troppo spesso per dare lui il numero finale.
+   Quindi il rilievo dall'indirizzo non finisce piu' su un numero stampato: finisce
+   sulla foto dall'alto, col contorno del catasto gia' disegnato sopra. Il giardiniere
+   guarda e fa una cosa sola: conferma con un tocco, oppure tira i punti dove finisce
+   davvero il giardino. Quello che conferma lui e' il numero che va nel preventivo.
+   Il giro esisteva gia' tutto (la foto pulita, il contorno, il foglio da disegno):
+   stava nascosto dietro due passaggi, e qui viene portato in primo piano. */
+const puntiDelContorno = ril => ((ril && Array.isArray(ril.contorno)) ? ril.contorno : [])
+  .map(p => [Math.min(1, Math.max(0, p[0])), Math.min(1, Math.max(0, p[1]))]).slice(0, 160);
+/* c'e' un contorno da far confermare su questa foto? */
+function contornoDaConfermare(ril){
+  return !!(ril && !ril.a_mano && latoFoto(ril) && puntiDelContorno(ril).length >= 3);
+}
+/* il giardino che il giardiniere ha gia' guardato e confermato, se c'e' */
+function giardinoConfermato(ril){
+  return zoneDi(ril).find(z => z.giardino && TIPI_ZONA[z.tipo] && TIPI_ZONA[z.tipo].forma === 'area') || null;
+}
+function confermaIlGiardino(idSopralluogo){
+  const s = sopr(idSopralluogo), ril = s ? rilievoDelSopralluogo(s) : null;
+  if(!ril || !latoFoto(ril)){ avvisa('Per guardare il giardino sulla foto rifai prima il rilievo dall\'indirizzo.'); return; }
+  if(!contornoDaConfermare(ril) && !giardinoConfermato(ril)){
+    avvisa('Di questo posto il catasto non ha dato nessun contorno: segna tu il giardino sulla foto.');
+    apriDisegno(idSopralluogo); return;
+  }
+  apriDisegno(idSopralluogo, null, true);
+}
+/* il foglio da disegno aperto in conferma: il contorno e' gia' li', da guardare.
+   Se il giardino era gia' stato confermato si riparte da quello, non dal catasto:
+   se no il lavoro fatto sul posto si perderebbe a ogni riapertura. */
+function avviaConferma(){
+  if(!D) return;
+  const gia = giardinoConfermato(D.ril);
+  D.conferma = true; D.salti = []; D.tagli = false; D.taglio = null;
+  if(gia){ D.modifica = gia.id; D.tipo = gia.tipo; D.punti = copia(gia.punti); return; }
+  D.tipo = 'prato';
+  D.punti = puntiDelContorno(D.ril);
+}
+/* un tocco solo: quello che si vede sulla foto diventa il giardino del preventivo */
+function confermaGiardino(){
+  if(!D || !D.conferma) return;
+  if(!formaCompleta()){ avvisa('Per chiudere il giardino servono almeno tre punti.'); return; }
+  const mq = misuraPunti(D.tipo, D.punti, latoFoto(D.ril));
+  salvaForma(true);
+  chiudiDisegno(false);
+  avvisa('Giardino confermato sulla foto: ' + cifra(Math.round(mq), 0) + ' mq. È il numero che va nel preventivo.');
+}
+function apriDisegno(idSopralluogo, idZona, conferma){
   const s = sopr(idSopralluogo), ril = s ? rilievoDelSopralluogo(s) : null;
   if(!ril || !latoFoto(ril)){ avvisa('Per disegnare serve la foto dall\'alto di un rilievo preparato dall\'indirizzo.'); return; }
   ril.zone = zoneDi(ril);
@@ -4428,20 +4485,23 @@ function apriDisegno(idSopralluogo, idZona){
           pulita va chiesta al satellite si parte con le righe, perche' in cortile
           senza campo una foto da scaricare e' un riquadro vuoto */
        scorri:null, confini: !fotoSicura(ril.foto_pulita)};
+  if(conferma) avviaConferma();
+  const conf = !!D.conferma;
   const velo = document.createElement('div');
   velo.className = 'velo-disegno'; velo.id = 'disegno';
   velo.innerHTML = `
     <div class="disegno-testa">
       <div>
-        <div class="lbl">${z ? 'Ridisegna' : 'Le parti del giardino'}</div>
-        <h3>${z ? esc(z.nome || TIPI_ZONA[z.tipo].nome) : 'Disegna sulla foto'}</h3>
+        <div class="lbl">${conf ? 'Guarda la foto' : z ? 'Ridisegna' : 'Le parti del giardino'}</div>
+        <h3>${conf ? 'Questo è il giardino?' : z ? esc(z.nome || TIPI_ZONA[z.tipo].nome) : 'Disegna sulla foto'}</h3>
       </div>
       <div class="azioni">
         <button class="bottone vuoto piccolo" onclick="chiudiDisegno(false)">Lascia stare</button>
-        <button class="bottone piccolo" id="d-fatto" onclick="chiudiDisegno(true)">Fatto</button>
+        ${conf ? `<button class="bottone piccolo" id="d-conferma" onclick="confermaGiardino()">Sì, è questo</button>`
+               : `<button class="bottone piccolo" id="d-fatto" onclick="chiudiDisegno(true)">Fatto</button>`}
       </div>
     </div>
-    ${z ? '' : `<div class="attrezzi">${Object.keys(TIPI_ZONA).map(k =>
+    ${z || conf ? '' : `<div class="attrezzi">${Object.keys(TIPI_ZONA).map(k =>
       `<button data-tipo="${k}" onclick="scegliAttrezzo('${k}')">${TIPI_ZONA[k].nome}</button>`).join('')}</div>`}
     <div class="disegno-foglio" id="disegno-foglio">
       <div class="disegno-gira" id="disegno-gira">
@@ -4879,6 +4939,9 @@ function salvaForma(inUscita){
     if(salti.length) z.salti = salti;
     D.ril.zone.push(z);
   }
+  /* la forma guardata e confermata sulla foto e' il giardino del cliente: si
+     riconosce, cosi' riaprendo la conferma si riparte da quella e non dal catasto */
+  if(D.conferma && z){ z.nome = 'Giardino'; z.giardino = true; }
   const eraModifica = !!D.modifica;
   misureDalDisegno(D.ril);
   D.punti = []; D.salti = []; D.tagli = false; D.taglio = null;
@@ -4900,7 +4963,10 @@ function ridisegna(){
   const lato = latoFoto(D.ril), f = TIPI_ZONA[D.tipo].forma;
   svg.innerHTML = svgZone(D.ril, D.modifica, k) + svgLavoro(D.tipo, D.punti, lato, k);
   velo.querySelectorAll('.attrezzi button').forEach(b => b.classList.toggle('attivo', b.getAttribute('data-tipo') === D.tipo));
-  document.getElementById('disegno-istruzione').textContent = D.rifacendo
+  document.getElementById('disegno-istruzione').textContent = D.conferma && !D.inquadra && !D.rifacendo
+    ? 'Questo è il giardino? Tocca «Sì, è questo» per confermare, oppure trascina i punti dove finisce davvero.'
+      + (D.ril.coperto_mq > 0 ? ' Dentro ci sono anche ' + cifra(D.ril.coperto_mq, 0) + ' mq di fabbricato.' : '')
+    : D.rifacendo
     ? 'Sto chiedendo la foto nuova…'
     : D.inquadra
     ? 'Tocca sulla foto il punto che vuoi al centro: la rifaccio intorno a lì. I disegni già fatti si spostano al loro posto.'
@@ -4935,7 +5001,15 @@ function ridisegna(){
     segnaInterruttore(conf, D.confini, 'I confini del catasto');
   }
   const ric = document.getElementById('d-ricalca');
-  if(ric) ric.style.display = (D.ril && Array.isArray(D.ril.contorno) && D.ril.contorno.length >= 3 && !D.modifica) ? '' : 'none';
+  if(ric) ric.style.display = (!D.conferma && D.ril && Array.isArray(D.ril.contorno) && D.ril.contorno.length >= 3 && !D.modifica) ? '' : 'none';
+  /* in conferma il gesto principale e' uno: «Sì, è questo», in alto dove sta il
+     pollice. Il tasto che salva la forma direbbe la stessa cosa con altre parole,
+     e due tasti per lo stesso gesto rallentano davanti al cliente. */
+  if(D.conferma){
+    salvaB.style.display = 'none';
+    const cnf = document.getElementById('d-conferma');
+    if(cnf) cnf.disabled = !formaCompleta();
+  }
   /* i tre comandi che rifanno la foto: quanto terreno, e dove sta il centro */
   const inq = document.getElementById('d-inquadra');
   if(inq){
