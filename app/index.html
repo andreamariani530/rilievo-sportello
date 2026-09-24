@@ -1563,45 +1563,62 @@ function nuovaRichiesta(){
 /* Le voci del preventivo a partire da quello che e' stato detto nel sopralluogo.
    Sta a parte perche' serve due volte: quando il preventivo nasce, e quando si
    rifa' dopo aver corretto una lavorazione sentita male (Andrea, 19/9/2026). */
+/* ===== LA METRATURA DA LAVORARE LA SCEGLIE IL GIARDINIERE =====
+   Andrea, 24 settembre 2026, dopo un giro completo finito con un preventivo da 12.516
+   euro davanti al cliente: «ho disegnato un prato di 5.137 mq ma da la precedenza a
+   tutto il resto... meglio farla scegliere a lui senza tirare a indovinare delle
+   metrature che portano o a rifare mille volte il rilievo o a fallire miseramente e
+   perdere un cliente pagante».
+
+   Prima, una lavorazione a superficie detta senza misura prendeva il verde del
+   rilievo, che e' un numero indovinato contando i pixel verdi della foto, e su una
+   palazzina di ringhiera vale la via intera. Da adesso una quantita' puo' venire solo
+   da due posti: dalla bocca del giardiniere, o dal suo dito sulla foto. Se non c'e'
+   ne' l'una ne' l'altra, la riga esce con 1 e scritto che la misura manca.
+   Lotto, coperto, scoperto e verde restano scritti nel rilievo, perche' fanno vedere
+   al cliente un lavoro serio, ma non entrano piu' in nessun conto. */
 function righeDalSopralluogo(s){
   const trovate = (s._trovate && s._trovate.length) ? s._trovate : s.trovate;
-  /* le lavorazioni a superficie dette senza misura ("e poi lo sfalcio del prato")
-     partono dal rilievo: il verde, se c'e', se no lo scoperto. Da confermare. */
   const ril = rilievoDelSopralluogo(s);
-  const base = !ril ? 0 : (ril.verde_mq > 0 ? ril.verde_mq : (ril.scoperto_mq > 0 ? ril.scoperto_mq : 0));
-  /* se sulla foto sono state disegnate le parti del giardino, le quantita' non
-     dette vengono da li': piu' precise della stima del verde fatta a colori */
   const tot = ril ? totaliZone(ril) : null;
-  const dalRilievo = [], dalDisegno = [];
+  const dalDisegno = [], daMisurare = [];
   const righe = [];
   (trovate || []).forEach(t => {
     const v = voce(t.voce); if(!v) return;
-    let q = t.q;
+    let q = t.q, manca = false;
     const tipo = tipoUnita(v.u);
     const parte = tot && (t.dubbio || t.senzaNumero) && !t.aMano ? parteDellaVoce(v) : null;
     if(parte && tot[parte] > 0){
       q = tipo.k === 'mq' ? Math.round(tot[parte] / tipo.per * 100) / 100 : tot[parte];
       dalDisegno.push(v.nome.toLowerCase() + ' ' + scriviMisura(parte, tot[parte]));
     }
-    else if(t.dubbio && base && tipo.k === 'mq'){
-      q = Math.round(base / tipo.per * 100) / 100;
-      dalRilievo.push(v.nome.toLowerCase());
+    else if(t.dubbio && !aPrezzoFisso(v.u)){
+      q = 1; manca = true;
+      if(daMisurare.indexOf(v.nome.toLowerCase()) < 0) daMisurare.push(v.nome.toLowerCase());
     }
     const g = righe.find(x => x.v === v.id);
-    if(g){ g.q += q; return; }
-    righe.push({v:v.id, q, p:v.p, nome:v.nome, u:v.u, iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true});
+    if(g){
+      /* due misure dette della stessa lavorazione si sommano; una misura che manca
+         non si somma a niente, se no la stessa parola detta due volte raddoppia */
+      if(!manca){ if(g.daMisurare){ g.q = q; delete g.daMisurare; } else g.q += q; }
+      return;
+    }
+    const riga = {v:v.id, q, p:v.p, nome:v.nome, u:v.u,
+                  iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true};
+    if(manca) riga.daMisurare = true;
+    righe.push(riga);
   });
   /* quello che ha detto e che a listino non c'e' non entra nel preventivo: se sparisse
      in silenzio, l'artigiano se ne accorgerebbe davanti al cliente */
-  return {righe, dalRilievo, dalDisegno, base, ril, fuoriListino: (trovate || []).filter(t => t.nuova)};
+  return {righe, dalDisegno, daMisurare, ril, fuoriListino: (trovate || []).filter(t => t.nuova)};
 }
 /* il racconto di come sono venute le quantita': la stessa frase nei due casi */
 function raccontoRighe(d){
   return (d.fuoriListino.length ? ' Fuori è rimasta «' + d.fuoriListino[0].nome + '»: non è a listino.' +
        (d.fuoriListino.length > 1 ? ' E altre ' + (d.fuoriListino.length - 1) + '.' : '') : '')
     + (d.dalDisegno.length ? ' Dal disegno sulla foto: ' + d.dalDisegno.join(', ') + '.' : '')
-    + (d.dalRilievo.length ? ' Per ' + d.dalRilievo.join(' e ') + ' la superficie viene dal rilievo ('
-       + cifra(d.base, 0) + ' mq ' + (d.ril.verde_mq > 0 ? 'di verde' : 'di scoperto') + '): controllala.' : '');
+    + (d.daMisurare.length ? ' Manca la misura di ' + d.daMisurare.join(' e ')
+       + ': segnala sulla foto o scrivila tu, la riga è ferma a 1.' : '');
 }
 function nienteDaMettere(d){
   avvisa(d.fuoriListino.length
@@ -1609,9 +1626,13 @@ function nienteDaMettere(d){
       '» non ce l\'hai: toccala qui sopra e mettile un prezzo.'
     : 'Prima detta il sopralluogo: le voci nascono da lì.');
 }
+/* Se il preventivo c'e' gia', qui si arriva perche' si e' corretto qualcosa nel
+   sopralluogo: si rifa'. Prima si apriva quello vecchio senza dire niente, e chi aveva
+   appena disegnato il prato si ritrovava davanti i numeri di mezz'ora prima
+   (Andrea, 24 settembre 2026: «rifai preventivo non lo rifa di nuovo»). */
 function generaPreventivo(idSopralluogo){
   const s = sopr(idSopralluogo);
-  if(s.preventivo){ location.hash = '#preventivo/' + s.preventivo; return; }
+  if(s.preventivo){ rifaiPreventivo(idSopralluogo); return; }
   const d = righeDalSopralluogo(s);
   if(!d.righe.length){ nienteDaMettere(d); return; }
   const p = {
@@ -3840,8 +3861,12 @@ function misureGiardino(ril){
   metti('Lotto', ril.lotto_mq, 'mq');
   metti('Coperto', ril.coperto_mq, 'mq');
   metti('Scoperto', ril.scoperto_mq, 'mq');
-  metti('Verde', ril.verde_mq, 'mq');
   const tot = latoFoto(ril) ? totaliZone(ril) : null;
+  /* Il verde e' una stima fatta sui colori della foto. Quando il giardiniere ha gia'
+     segnato lui il prato, i due numeri uno accanto all'altro si contraddicono davanti
+     al cliente ("verde 6.055, prato disegnato 5.137"): vince quello che ha segnato lui,
+     e la stima sparisce. */
+  if(!tot || !(tot.prato > 0 || tot.aiuola > 0)) metti('Verde', ril.verde_mq, 'mq');
   if(tot){
     metti('Prato disegnato', tot.prato, 'mq');
     metti('Aiuole', tot.aiuola, 'mq');
@@ -4139,22 +4164,17 @@ function quantitaNota(v, ril){
      provando dal vivo il 22 settembre 2026: "Rifacimento aiuola" al metro quadro
      prendeva i 101 mq di verde e faceva una riga da 4.242 euro per un'aiuola che non
      esiste. Meglio 1 da correggere che un numero grosso e sbagliato. */
-  if(parte && parte !== 'prato') return null;
-  /* niente disegno: per le superfici resta il rilievo, il verde se c'e', se no lo scoperto */
-  if(tipo.k === 'mq'){
-    const base = ril.verde_mq > 0 ? ril.verde_mq : (ril.scoperto_mq > 0 ? ril.scoperto_mq : 0);
-    if(base > 0) return {q: Math.round(base / tipo.per * 100) / 100, misura: base,
-                         parte: null, da: ril.verde_mq > 0 ? 'verde' : 'scoperto'};
-  }
+  /* Niente disegno, niente quantita'. Il verde del rilievo non si usa piu' come
+     ripiego: e' una stima fatta sui colori della foto, e su una palazzina di ringhiera
+     vale la via intera. Meglio un 1 da correggere che un numero grosso e sbagliato
+     consegnato a un cliente (Andrea, 24 settembre 2026). */
   return null;
 }
 /* da dove viene quel numero, detto all'artigiano: lo consegna a un cliente e deve
    potersi fidare a colpo d'occhio, o correggerlo subito */
 function daDoveViene(s){
   if(!s) return '';
-  if(s.da === 'disegno') return 'Dal disegno sulla foto: ' + scriviMisura(s.parte, s.misura) + '.';
-  return 'Dal rilievo: ' + cifra(Math.round(s.misura), 0) + ' mq '
-       + (s.da === 'verde' ? 'di verde' : 'di scoperto') + '. Controllala.';
+  return s.da === 'disegno' ? 'Dal disegno sulla foto: ' + scriviMisura(s.parte, s.misura) + '.' : '';
 }
 /* la quantita' da proporre in una scheda, gia' pronta da mettere nel campo */
 function quantitaProposta(v, ril){
@@ -7351,7 +7371,7 @@ function disegnaVoci(id){
     <div class="voce ${r.on?'':'spenta'}" id="v-${k}">
       <div class="sotto-voce">
         <div class="nome modificabile" onclick="schedaRiga('${id}',${k})" title="Cambia nome, prezzo, volte nell'anno, o rendila facoltativa">${esc(r.nome)}</div>
-        <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}</div>
+        <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${aCorpo(r) ? '<div class="a-corpo">prezzo fisso</div>' : `<div class="qta">
@@ -7371,7 +7391,9 @@ function qta(id,k,d){
   /* 1,36 volte "ogni 100 mq" piu' uno fa 2,36: si arrotonda al centesimo, se no
      a schermo compariva 2,3600000000000003 */
   const p = prev(id); p.righe[k].q = Math.max(0, Math.round((p.righe[k].q + d) * 100) / 100);
-  document.getElementById('q-'+k).textContent = cifra(p.righe[k].q);
+  /* appena la tocca lui, la misura non manca piu' */
+  if(p.righe[k].daMisurare){ delete p.righe[k].daMisurare; disegnaVoci(id); }
+  else document.getElementById('q-'+k).textContent = cifra(p.righe[k].q);
   salva(); calcola(id);
 }
 function accendi(id,k){
