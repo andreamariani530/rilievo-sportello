@@ -1303,6 +1303,25 @@ def quanti_pixel(lato_m):
     return max(900, min(1600, int(lato_m / FINEZZA_FONTE)))
 
 
+# La foto da guardare non e' la griglia su cui si contano i metri quadri, e non deve
+# avere lo stesso tetto. Il conto a pixel costa tempo e resta a 1600; la foto invece
+# va lasciata fine quanto la fonte ce l'ha davvero, se no si butta via dettaglio che
+# avevamo gia' in mano. A Via Torino 5 le tessere di Esri arrivano a 21 cm per pixel
+# (2116 pixel sul riquadro da 444 metri) e la foto veniva consegnata a 28: ingrandendo
+# si vedeva la sfocatura, non la casa. Cafagna l'ha detto con parole sue il 23
+# settembre 2026, "non si ingrandiva abbastanza".
+TETTO_FOTO = 2200
+# Il passo delle tessere cambia con la latitudine: 0,206 metri per pixel a Bormio,
+# 0,235 a Palermo. Qui si prende il piu' fine d'Italia, se no al nord si consegnava
+# qualche pixel in meno di quanti la fonte ne avesse (952 contro 955).
+FINEZZA_FOTO = 0.205
+
+
+def quanti_pixel_foto(lato_m):
+    """Quanti pixel deve avere la foto su cui il giardiniere guarda e disegna."""
+    return max(900, min(TETTO_FOTO, int(math.ceil(lato_m / FINEZZA_FOTO))))
+
+
 def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
     """Conta i metri quadri del lotto: una particella o piu', ognuna col suo punto.
 
@@ -1354,7 +1373,11 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
 
     mappa = _mappa_catastale(y0, x0, y1, x1, "CP.CadastralParcel", lati)
     fabb  = _mappa_catastale(y0, x0, y1, x1, "fabbricati", lati)
-    foto  = _foto_dall_alto(y0, x0, y1, x1, lati)
+    # la foto si chiede fine quanto la fonte, poi si rimpicciolisce per il conteggio:
+    # le tessere scaricate sono le stesse, quindi non costa un giro di rete in piu'
+    lati_foto = max(lati, quanti_pixel_foto(lato))
+    foto_fine = _foto_dall_alto(y0, x0, y1, x1, lati_foto)
+    foto = foto_fine if lati_foto == lati else foto_fine.resize((lati, lati), Image.LANCZOS)
 
     # quanto vale un pixel, in metri e in metri quadri
     m_per_px = (2 * meta) / lati
@@ -1515,7 +1538,7 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
         "tocca_il_bordo": tocca_il_bordo,
         # la foto pulita e il confine come punti: servono per ricalcare il lotto
         # e spostarlo finche' non sta sul giardino vero
-        "foto_pulita": foto,
+        "foto_pulita": foto_fine,
         # il confine vero del catasto quando c'e', se no il bordo della macchia
         "contorno": (contorno_dal_confine(confini_buoni, y0, x0, y1, x1)
                      or contorno_punti(dentro, lati)),
@@ -1833,12 +1856,16 @@ def componi(foto, mappa, dentro, lati):
     return fondo
 
 
-def in_base64(immagine, lato=1600, qualita=88):
+def in_base64(immagine, lato=TETTO_FOTO, qualita=88):
+    """La foto pronta da mandare. Non si rimpicciolisce piu' a 1600: quel taglio
+    buttava via un terzo del dettaglio che le tessere avevano gia'. Sopra i 1600
+    pixel si scende di qualche punto di qualita', cosi' la foto piu' fine pesa
+    poco piu' di quella piu' grossa di prima (954 kB contro 702)."""
     im = immagine.copy()
     # Preserve aspect ratio and never enlarge the source.
     im.thumbnail((lato, lato), Image.LANCZOS)
     buf = io.BytesIO()
-    im.save(buf, "JPEG", quality=qualita, optimize=True)
+    im.save(buf, "JPEG", quality=(qualita if im.width <= 1600 else 85), optimize=True)
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
@@ -1861,7 +1888,7 @@ def solo_foto(lat, lon, lato_m):
     al cliente non puo' aspettare che un ufficio torni a rispondere.
     """
     lato = max(22.0, min(float(lato_m or LATO_SENZA_CATASTO), 2200.0))
-    lati = quanti_pixel(lato)
+    lati = quanti_pixel_foto(lato)
     y0, x0, y1, x1 = _riquadro(lat, lon, lato / 2)
     foto = _foto_dall_alto(y0, x0, y1, x1, lati)
     d = ImageDraw.Draw(foto, "RGBA")
