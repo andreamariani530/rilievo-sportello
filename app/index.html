@@ -7529,19 +7529,14 @@ PAGINE.preventivi = {
     persi.forEach(p => { if(p.motivo) motivi[p.motivo] = (motivi[p.motivo] || 0) + 1; });
     const spesso = Object.keys(motivi).sort((a,b) => motivi[b] - motivi[a])[0];
     return `
-    ${consegnati.length ? `<div class="riga-numeri">
-      <div class="numero"><div class="val">${presi.length} <small>su ${consegnati.length}</small></div><div class="lbl">Accettati fra i consegnati</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(presi.reduce((t,p) => t + conti(p).netto, 0), 0)}</div><div class="lbl">Lavoro preso</div></div>
-      <div class="numero"><div class="val">${conta('inviato')}</div><div class="lbl">Aspettano una risposta</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Ancora da incassare</div></div>
-      <div class="numero"><div class="val">${persi.length}</div><div class="lbl">${spesso ? 'Non andati · più spesso: ' + esc(nomeMotivo(spesso).toLowerCase()) : 'Non andati'}</div></div>
-    </div>` : ''}
+
     <div class="filtri">
       ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['pagato','Pagati'],['finiti','Lavori finiti'],['rifiutato','Non andati'],['messo_via','Messi via']]
         .map(([k,n]) => `<button class="${filtroPrev===k?'attivo':''}" onclick="setFiltroPrev('${k}')">${n} (${conta(k)})</button>`).join('')}
     </div>
+    ${campoCerca('Cerca per nome, numero o luogo')}
     ${lista.length ? `<div class="elenco">${lista.map(p => `
-      <div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'">
+      <div class="r cliccabile" data-cerca="${esc(chiaveCerca(p.nome, p.numero, p.luogo, dataLunga(p.data), p.note))}" onclick="location.hash='#preventivo/${p.id}'">
         <div><div class="tit">${esc(p.nome)}</div>
           <div class="sub">n. ${esc(p.numero)} · ${dataCorta(p.data)} · ${p.righe.filter(r=>r.on).length} voci · <b>${euro(conti(p).netto)}</b></div></div>
         <div class="riga-azione">
@@ -7550,7 +7545,19 @@ PAGINE.preventivi = {
             {t:'Rifallo uguale', i:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11"/><path d="M5 15V4h11"/></svg>', f:`duplicaPreventivo('${p.id}')`},
             {t:'Modifica o cancella', i:MATITA, f:`schedaPreventivo('${p.id}')`}])}
         </div>
-      </div>`).join('')}</div>` : '<div class="niente">Nessun preventivo con questo filtro.</div>'}`;
+      </div>`).join('')}</div>` : '<div class="niente">Nessun preventivo con questo filtro.</div>'}
+    <!-- «Come va» sta SOTTO l'elenco: in cima ci vanno le linguette, la
+         ricerca e i preventivi. Misurato il 24 settembre 2026 a 390x844: coi
+         numeri in testa il primo preventivo cadeva a 907 px, cioe' fuori dallo
+         schermo, e si apriva Preventivi senza vederne uno. -->
+    ${consegnati.length ? `<div class="lbl" style="margin:30px 0 12px">Come sta andando</div>` : ''}
+    ${consegnati.length ? `<div class="riga-numeri">
+      <div class="numero"><div class="val">${presi.length} <small>su ${consegnati.length}</small></div><div class="lbl">Accettati fra i consegnati</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(presi.reduce((t,p) => t + conti(p).netto, 0), 0)}</div><div class="lbl">Lavoro preso</div></div>
+      <div class="numero"><div class="val">${conta('inviato')}</div><div class="lbl">Aspettano una risposta</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Ancora da incassare</div></div>
+      <div class="numero"><div class="val">${persi.length}</div><div class="lbl">${spesso ? 'Non andati · più spesso: ' + esc(nomeMotivo(spesso).toLowerCase()) : 'Non andati'}</div></div>
+    </div>` : ''}`;
   }
 };
 
@@ -8052,13 +8059,16 @@ PAGINE.numeri = {
 };
 
 /* ===== DOCUMENTI ===== */
+/* ---- il cassetto ----
+   Fino al 24 settembre 2026 qui dentro c'erano anche tutti i preventivi, e
+   Documenti era una seconda copia della pagina Preventivi: stesse righe, stesse
+   linguette. Andrea: «non e' confusionaria?». Lo era, e per un motivo solo: lo
+   stesso preventivo si cercava in due posti. Adesso i preventivi stanno soltanto
+   in Preventivi (con la ricerca, che prima stava solo qui), e il cassetto tiene
+   le carte che arrivano da fuori: i preventivi di prima, i rapportini, i
+   resoconti, i file caricati. */
 function cassetto(){
-  const daiPreventivi = S.preventivi.map(p => ({
-    id: p.id, apribile: true, tipo: 'Preventivo',
-    titolo: 'Preventivo · ' + p.nome, data: p.data, stato: p.stato,
-    finito: lavoroFinito(p),
-    nota: 'n. ' + p.numero + ' · ' + euro(conti(p).netto)
-  }));
+  const daiPreventivi = [];
   const altri = S.documenti.map(d => {
     const cl = d.cliente ? cliente(d.cliente) : null;
     return Object.assign({apribile:false}, d, {nota: [d.tipo === 'Preventivo precedente' ? 'Preventivo di prima' : '',
@@ -8070,40 +8080,33 @@ function cassetto(){
    tornano con quello che si vede sotto. Chiesto da Andrea il 24 settembre 2026:
    le etichette in fila una sotto l'altra erano confuse, le linguette dicono
    subito quanti ce n'e' per ogni stato. */
+/* Le linguette del cassetto dicono CHE CARTA E', perche' qui dentro non ci sono
+   piu' gli stati di un preventivo: ci sono le cose che hai caricato tu. */
 function gruppoDocumento(d){
-  if(d.finito) return 'finiti';
-  switch(d.stato){
-    case 'bozza':     return 'bozza';
-    case 'inviato':   return 'inviato';
-    case 'accettato':
-    case 'firmato':   return 'accettato';
-    case 'pagato':    return 'pagato';
-    case 'rifiutato': return 'rifiutato';
-    default:          return 'archivio';
-  }
+  const t = String(d.tipo || '').toLowerCase();
+  if(t.indexOf('preventivo') >= 0) return 'preventivi';
+  if(t.indexOf('rapportino') >= 0) return 'rapportini';
+  if(t.indexOf('resoconto') >= 0)  return 'resoconti';
+  return 'altro';
 }
-const LINGUETTE_DOCUMENTI = [['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],
-  ['accettato','Accettati'],['pagato','Pagati'],['finiti','Lavori finiti'],
-  ['rifiutato','Non andati'],['archivio','Archivio']];
-function etichettaDocumento(d){
-  if(d.finito) return tag(d.stato === 'pagato' ? 'finito_pagato' : 'finito_da_pagare');
-  return tag(d.stato);
-}
+const LINGUETTE_DOCUMENTI = [['tutti','Tutti'],['preventivi','Preventivi di prima'],
+  ['rapportini','Rapportini'],['resoconti','Resoconti'],['altro','Altro']];
+function etichettaDocumento(d){ return tag(d.stato); }
 let filtroDocumenti = 'tutti';
 function setFiltroDocumenti(f){ filtroDocumenti = f; vai(); }
 PAGINE.documenti = {
   guida:false,
-  testata(){ return {occhiello:'Tutto quello che è uscito da qui', titolo:'Documenti',
+  testata(){ return {occhiello:'Le carte che hai caricato', titolo:'Documenti',
     destra:'<div class="azioni"><button class="bottone vuoto" onclick="apriListinoDaVecchi()">Fai il listino da un preventivo</button>' +
       '<button class="bottone vuoto" onclick="document.getElementById(\'scelta-archivio\').click()">Carica preventivi di prima</button>' +
       '<button class="bottone" onclick="schedaDocumento(null)">+ Nuovo documento</button>' + inputArchivio() + '</div>'}; },
   spiega:{
-    testo:'Preventivi, resoconti e rapportini, in ordine di data e cercabili. Se un cliente ti chiede una copia, la trovi mentre sei ancora al telefono.',
-    punti:['Ogni documento resta com\'era il giorno che l\'hai mandato','Lo riapri e lo stampi senza cercarlo nel telefono','Nel pacchetto base la fattura non c\'è ancora: arriva più avanti, compresa']
+    testo:'Le carte che arrivano da fuori: i preventivi che facevi prima, i rapportini, i resoconti. I preventivi fatti con l\'app stanno in Preventivi.',
+    punti:['Da un preventivo di prima si costruisce il tuo listino','Un file caricato si riapre e si gira al cliente','Nel pacchetto base la fattura non c\'è ancora: arriva più avanti, compresa']
   },
   corpo(){
     const l = cassetto();
-    if(!l.length) return '<div class="niente">Il cassetto è vuoto.</div>';
+    if(!l.length) return `<div class="niente">Il cassetto è vuoto. Qui dentro finiscono le carte che carichi tu: i preventivi di prima, i rapportini, i resoconti.<br><br>I preventivi fatti con l'app invece stanno in <a href="#preventivi" style="color:var(--accento)">Preventivi</a>.</div>`;
     const conta = k => k === 'tutti' ? l.length : l.filter(d => gruppoDocumento(d) === k).length;
     const visti = filtroDocumenti === 'tutti' ? l : l.filter(d => gruppoDocumento(d) === filtroDocumenti);
     return `
@@ -8121,7 +8124,7 @@ PAGINE.documenti = {
              f: d.apribile ? `schedaPreventivo('${d.id}')` : `schedaDocumento('${d.id}')`}])}
         </div>
       </div>`).join('')}</div>`
-      : `<div class="niente">Qui dentro non c'è niente${filtroDocumenti === 'finiti' ? ": un lavoro finisce qui quando, passata la data, dici che è stato fatto." : '.'}</div>`}`;
+      : `<div class="niente">Niente di questo tipo nel cassetto.</div>`}`;
   }
 };
 
