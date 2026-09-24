@@ -1856,6 +1856,21 @@ def componi(foto, mappa, dentro, lati):
     return fondo
 
 
+def firma_esri(immagine):
+    """La foto senza catasto, con la fascia della fonte in basso.
+
+    Serve quando si consegna la foto pulita come immagine principale del rilievo:
+    l'attribuzione a Esri va sempre stampata sopra (il prodotto deve restare
+    vendibile legalmente), e `componi` la mette solo sul disegno col catasto.
+    """
+    fondo = immagine.convert("RGB")
+    lati = fondo.size[0]
+    d = ImageDraw.Draw(fondo, "RGBA")
+    d.rectangle([0, lati - 26, lati, lati], fill=(38, 36, 32, 165))
+    d.text((11, lati - 18), "Esri World Imagery", fill=(247, 241, 229, 235))
+    return fondo
+
+
 def in_base64(immagine, lato=TETTO_FOTO, qualita=88):
     """La foto pronta da mandare. Non si rimpicciolisce piu' a 1600: quel taglio
     buttava via un terzo del dettaglio che le tessere avevano gia'. Sopra i 1600
@@ -2042,9 +2057,9 @@ def rilievo(indirizzo, lato_m=None, cap=""):
                 part, lat, lon = nuova, lat2, lon2
                 avviso_strada = (
                     "Il civico cade sulla strada, non sulla casa: lì il catasto ha la "
-                    "carreggiata (%s metri quadri). Ho preso la particella della casa "
-                    "più vicina, a %d metri. Controlla il contorno sulla foto e tiralo "
-                    "dove finisce il giardino del cliente."
+                    "carreggiata (%s metri quadri). Sono partito dalla casa più vicina, "
+                    "a %d metri, ma quella particella non è il giardino del cliente: "
+                    "segna tu sulla foto quello che si lavora."
                     % (_col_punto(area), int(round(casa["distanza_m"]))))
             else:
                 return rilievo_da_disegnare(
@@ -2122,7 +2137,16 @@ def rilievo(indirizzo, lato_m=None, cap=""):
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "preciso": p["preciso"],
-        "foto": in_base64(m["immagine"]),
+        # Quando il civico e' caduto sull'asfalto e la particella e' stata presa dalla
+        # casa accanto, il contorno del catasto NON e' il lotto del cliente: in una
+        # palazzina di ringhiera e' la particella comune di tutti. Disegnarlo sulla foto
+        # mette davanti al giardiniere una forma grossa che non deve fidarsi (Andrea,
+        # 24 settembre 2026, Via Torino 5: "tiene quel pezzo di catasto in vista").
+        # Allora si consegna la foto pulita: il contorno resta nel campo `contorno` e si
+        # riaccende dal foglio da disegno, quando lo vuole lui.
+        "catasto_incerto": bool(avviso_strada),
+        "foto": in_base64(firma_esri(m["foto_pulita"])
+                          if (avviso_strada and m.get("foto_pulita")) else m["immagine"]),
     }
 
 

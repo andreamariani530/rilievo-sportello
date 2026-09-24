@@ -49,6 +49,9 @@ nav a.voce{
 nav a.voce:hover{background:var(--carta2);color:var(--inchiostro)}
 nav a.voce.attiva{background:var(--carta2);color:var(--accento);border-left-color:var(--accento)}
 nav a.voce svg{width:16px;height:16px;flex:0 0 16px;stroke:currentColor;fill:none;stroke-width:1.4;opacity:.8}
+nav a.voce .arrivo{margin-left:auto;font-family:'Jost',sans-serif;font-size:8px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--oro);border:1px solid #CDB48A;padding:2px 6px;white-space:nowrap}
+nav a.voce.attiva .arrivo{color:var(--accento);border-color:var(--accento-chiaro)}
 .utente{margin-top:auto;padding:16px 24px 0;border-top:1px solid var(--filetto);
   display:flex;align-items:center;gap:10px}
 .pallino{width:32px;height:32px;border-radius:50%;background:var(--accento);color:var(--carta);
@@ -732,6 +735,7 @@ body.disegno-aperto{overflow:hidden}
       <div class="gruppo lbl">Archivio</div>
       <a class="voce" href="#clienti"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.6-3.6 4-5.4 7-5.4s5.4 1.8 7 5.4"/></svg>Clienti</a>
       <a class="voce" href="#documenti"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>Documenti</a>
+      <a class="voce" href="#squadra"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M15.5 5.6a3 3 0 0 1 0 4.8"/><path d="M2.5 20c1.4-3.2 3.6-4.8 6.5-4.8s5.1 1.6 6.5 4.8"/><path d="M17.5 15.4c2 .7 3.3 2.2 4 4.6"/></svg>Lavori della squadra<span class="arrivo">in arrivo</span></a>
       <div class="gruppo lbl">La tua ditta</div>
       <a class="voce" href="#numeri"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>I tuoi numeri</a>
       <a class="voce" href="#impostazioni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>Impostazioni</a>
@@ -1141,6 +1145,7 @@ function normalizza(){
     s.stato = statoSopralluogo(s);
   });
   S.preventivi.forEach(p => { if(p.lavoro !== undefined && !lavoroBuono(p.lavoro)) delete p.lavoro; });
+  S.preventivi.forEach(p => { if(p.lavoro_fatto !== undefined && !lavoroFinito(p)) delete p.lavoro_fatto; });
   /* il logo e i file dei preventivi di prima: si tiene solo quello scritto bene */
   if(S.azienda && S.azienda.logo !== undefined && !logoSicuro(S.azienda.logo)) delete S.azienda.logo;
   (S.documenti || []).forEach(d => {
@@ -1364,6 +1369,10 @@ const ETICHETTE = {
   pagato:             {t:'Pagato',             c:'v'},
   rifiutato:          {t:'Non accettato',      c:''},
   firmato:            {t:'Firmato',            c:'v'},
+  /* Il lavoro finito e i soldi incassati sono due cose diverse: si puo' finire un
+     lavoro e aspettare ancora il bonifico (Andrea, 24 settembre 2026). */
+  finito_pagato:      {t:'Finito e pagato',    c:'v'},
+  finito_da_pagare:   {t:'Finito, da incassare', c:'o'},
   /* Due cose diverse che prima si chiamavano tutte e due "Archiviato" (trovato da
      Matteo il 20 settembre 2026): un preventivo che tolgo di mezzo e' "Messo via",
      un file vecchio che ho caricato nel cassetto e' "Archiviato". */
@@ -1376,6 +1385,14 @@ const ETICHETTE = {
 function tag(stato){
   const e = ETICHETTE[stato] || {t:stato||'', c:''};
   return '<span class="tag '+e.c+'">'+esc(e.t)+'</span>';
+}
+/* l'etichetta di un preventivo: quando il lavoro e' chiuso conta quello, non
+   "accettato", perche' la domanda che si fa il giardiniere diventa un'altra
+   (l'ho gia' incassato?). */
+function tagPreventivo(p){
+  if(!p) return '';
+  if(!lavoroFinito(p)) return tag(p.stato);
+  return tag(p.stato === 'pagato' ? 'finito_pagato' : 'finito_da_pagare');
 }
 
 /* ---------------- navigazione ---------------- */
@@ -2129,6 +2146,10 @@ function schedaPreventivo(id, idCliente){
       if(p){
         Object.assign(p, d);
         if(p.stato !== 'messo_via') delete p.stato_prima;
+        /* riportato indietro a bozza o a "non accettato", un lavoro segnato finito
+           non ha piu' senso: se no resta nella linguetta dei lavori finiti un
+           preventivo che il cliente non ha nemmeno preso */
+        if(!preso(p)) delete p.lavoro_fatto;
         if(p.stato === 'pagato' && !p.pagato) p.pagato = {quando: S.oggi};
         if(p.stato !== 'pagato') delete p.pagato;
         return;
@@ -2885,6 +2906,54 @@ function lavoroBuono(l){
     && typeof l.ore === 'number' && l.ore > 0 && l.ore <= 12;
 }
 const ripetizione = l => l.volte > 1 ? l.volte + ' passaggi ' + OGNI[l.ogni] : 'una volta sola';
+/* ---- il lavoro finito ----
+   Chiesto da Andrea il 24 settembre 2026: passata la data, il giardiniere conferma
+   che il lavoro e' stato fatto, e da li' il preventivo esce dalle linguette dove si
+   aspetta qualcosa e va con i lavori finiti. E' un segno a parte, non uno stato:
+   un lavoro puo' essere finito e non ancora pagato, o pagato in anticipo e non
+   ancora fatto. Se fosse uno stato solo, uno dei due fatti andrebbe perso. */
+function lavoroFinito(p){
+  return !!(p && p.lavoro_fatto && SOLO_DATA.test((p.lavoro_fatto.quando) || ''));
+}
+/* l'ultimo giorno in cui si mette piede dal cliente: il primo, piu' i passaggi che
+   si ripetono. Una manutenzione da dodici passaggi non e' finita al primo taglio. */
+function ultimoGiornoLavoro(p){
+  if(!p || !lavoroBuono(p.lavoro)) return '';
+  const l = p.lavoro, d = gg(l.quando);
+  d.setDate(d.getDate() + (Math.max(1, l.volte) - 1) * (OGNI[l.ogni] !== undefined ? l.ogni : 0));
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+                         + '-' + String(d.getDate()).padStart(2,'0');
+}
+/* da chiudere: il lavoro e' tuo, il giorno e' passato, e nessuno ha ancora detto
+   che e' stato fatto */
+function lavoroDaChiudere(p){
+  if(!p || !preso(p) || lavoroFinito(p)) return false;
+  const fine = ultimoGiornoLavoro(p);
+  return !!fine && fine < S.oggi;
+}
+function segnaLavoroFatto(id){
+  const p = prev(id); if(!p || lavoroFinito(p)) return;
+  p.lavoro_fatto = {quando: S.oggi};
+  salva();
+  avvisa(p.stato === 'pagato'
+    ? 'Lavoro chiuso. Lo trovi in Documenti, nella linguetta «Lavori finiti».'
+    : 'Lavoro chiuso. Resta da incassare: lo trovi in Documenti, nella linguetta «Lavori finiti».');
+  vai();
+}
+function riapriLavoro(id){
+  const p = prev(id); if(!p || !lavoroFinito(p)) return;
+  delete p.lavoro_fatto;
+  salva();
+  avvisa('Riaperto: torna fra i lavori da fare.');
+  vai();
+}
+/* la domanda si fa una volta sola, con due tasti, dove il giardiniere e' gia'
+   passato: in Oggi e dentro il preventivo */
+function chiediSeFatto(id){
+  const p = prev(id); if(!p) return;
+  chiedi('Il lavoro da ' + p.nome + ' è stato fatto? L\'ultimo giorno era il '
+    + dataLunga(ultimoGiornoLavoro(p)) + '.', () => segnaLavoroFatto(id), 'Sì, è finito');
+}
 function regolaLavoro(l){
   if(!(l.volte > 1)) return '';
   return (l.ogni === 30 ? 'FREQ=MONTHLY' : 'FREQ=WEEKLY' + (l.ogni === 14 ? ';INTERVAL=2' : '')) + ';COUNT=' + l.volte;
@@ -2970,10 +3039,16 @@ function calendarioHtml(tipo, id){
 }
 function lavoroHtml(p){
   const l = p.lavoro;
+  if(lavoroFinito(p)) return `<div class="lavoro-fissato">
+    <p>Lavoro finito, segnato il ${esc(dataLunga(p.lavoro_fatto.quando))}.${
+      p.stato === 'pagato' ? '' : ' Restano da incassare ' + esc(euro(conti(p).netto)) + '.'}</p>
+    <button class="bottone tenue piccolo" style="margin-top:10px" onclick="riapriLavoro('${p.id}')">Non era finito</button>
+  </div>`;
   if(!lavoroBuono(l)) return `<button class="bottone vuoto" onclick="fissaLavoro('${p.id}')">Fissa il giorno del lavoro</button>`;
   return `<div class="lavoro-fissato">
     <p>Lavoro fissato: ${esc(dataLunga(l.quando))}${l.ora ? ' alle ' + oraBella(l.ora) : ''}, ${esc(ripetizione(l))}.</p>
     ${calendarioHtml('lavoro', p.id)}
+    ${lavoroDaChiudere(p) ? `<button class="bottone" style="margin-top:12px" onclick="segnaLavoroFatto('${p.id}')">Il lavoro è stato fatto</button>` : ''}
     <button class="bottone vuoto piccolo" style="margin-top:10px" onclick="fissaLavoro('${p.id}')">Cambia la data</button>
   </div>`;
 }
@@ -3093,6 +3168,11 @@ PAGINE.oggi = {
     const chiusi     = settimana.filter(preso).reduce((t,p) => t + conti(p).netto, 0);
     /* matteo 12: chi non ti chiama da sei mesi e' lavoro che c'e' gia', e che perdi
        stando zitto. Finche' stava solo in Clienti, nessuno andava a guardarlo. */
+    /* il lavoro di cui e' passato l'ultimo giorno e che nessuno ha ancora chiuso.
+       La domanda si fa qui, la mattina, perche' e' la schermata che il giardiniere
+       apre tutti i giorni (Andrea, 24 settembre 2026). */
+    const daChiudere = S.preventivi.filter(lavoroDaChiudere)
+      .sort((a,b) => ultimoGiornoLavoro(a).localeCompare(ultimoGiornoLavoro(b)));
     const daRisentire = S.clienti.filter(c => statoCliente(c) === 'richiamare')
       .map(c => {
         const ultimo = lavoriDi(c.id).map(x => x.data).sort().slice(-1)[0];
@@ -3130,6 +3210,22 @@ PAGINE.oggi = {
       <div class="numero"><div class="val"><small>€</small> ${cifra(chiusi, 0)}</div><div class="lbl">Accettato</div></div>
       <div class="numero"><div class="val">${daRisentire.length}</div><div class="lbl">Clienti da risentire</div></div>
     </div>
+    ${daChiudere.length ? `<div style="margin-bottom:28px">
+      <div class="lbl" style="margin-bottom:12px">Il lavoro è stato fatto?</div>
+      <div class="elenco">
+        ${daChiudere.map(p => `
+          <div class="r">
+            <div><div class="tit">${esc(p.nome)}</div>
+              <div class="sub">${sotto(p.luogo || '', 'ultimo giorno ' + quando(ultimoGiornoLavoro(p)),
+                 p.stato === 'pagato' ? 'già pagato' : 'da incassare ' + euro(conti(p).netto))}</div>
+              <div class="azioni">
+                <button class="bottone piccolo" onclick="segnaLavoroFatto('${p.id}')">Sì, è finito</button>
+                <button class="bottone vuoto piccolo" onclick="fissaLavoro('${p.id}')">Sposta la data</button>
+              </div></div>
+          </div>`).join('')}
+      </div>
+      <p style="font-size:15px;color:var(--tenue);margin-top:12px">Quando dici che è finito, il preventivo va in Documenti, nella linguetta «Lavori finiti», e smette di girarti fra i piedi.</p>
+    </div>` : ''}
     <div class="griglia2">
       <div>
         <div class="lbl" style="margin-bottom:12px">In programma</div>
@@ -7362,8 +7458,13 @@ PAGINE.preventivi = {
     punti:['Le voci arrivano dal sopralluogo, i prezzi dal tuo listino','Il cliente vede la versione più leggera senza aspettare domani','Quando è a posto esce il documento, con la tua intestazione']
   },
   corpo(){
+    /* un lavoro finito esce dalle linguette dove si aspetta ancora qualcosa e va
+       nella sua: se no «Accettati» diventa un elenco di lavori gia' fatti e non si
+       capisce piu' cosa e' rimasto da fare (Andrea, 24 settembre 2026) */
     const gruppi = {tutti:()=>true, bozza:p=>p.stato==='bozza', inviato:p=>p.stato==='inviato',
-                    accettato:p=>p.stato==='accettato', pagato:p=>p.stato==='pagato',
+                    accettato:p=>p.stato==='accettato' && !lavoroFinito(p),
+                    pagato:p=>p.stato==='pagato' && !lavoroFinito(p),
+                    finiti:p=>lavoroFinito(p),
                     rifiutato:p=>p.stato==='rifiutato', messo_via:p=>p.stato==='messo_via'};
     const conta = f => S.preventivi.filter(gruppi[f]).length;
     const lista = S.preventivi.filter(gruppi[filtroPrev] || gruppi.tutti)
@@ -7387,7 +7488,7 @@ PAGINE.preventivi = {
       <div class="numero"><div class="val">${persi.length}</div><div class="lbl">${spesso ? 'Non andati · più spesso: ' + esc(nomeMotivo(spesso).toLowerCase()) : 'Non andati'}</div></div>
     </div>` : ''}
     <div class="filtri">
-      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['pagato','Pagati'],['rifiutato','Non andati'],['messo_via','Messi via']]
+      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['pagato','Pagati'],['finiti','Lavori finiti'],['rifiutato','Non andati'],['messo_via','Messi via']]
         .map(([k,n]) => `<button class="${filtroPrev===k?'attivo':''}" onclick="setFiltroPrev('${k}')">${n} (${conta(k)})</button>`).join('')}
     </div>
     ${lista.length ? `<div class="elenco">${lista.map(p => `
@@ -7395,7 +7496,7 @@ PAGINE.preventivi = {
         <div><div class="tit">${esc(p.nome)}</div>
           <div class="sub">n. ${esc(p.numero)} · ${dataCorta(p.data)} · ${p.righe.filter(r=>r.on).length} voci · <b>${euro(conti(p).netto)}</b></div></div>
         <div class="riga-azione">
-          ${tag(p.stato)}
+          ${tagPreventivo(p)}
           ${comandi([
             {t:'Rifallo uguale', i:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11"/><path d="M5 15V4h11"/></svg>', f:`duplicaPreventivo('${p.id}')`},
             {t:'Modifica o cancella', i:MATITA, f:`schedaPreventivo('${p.id}')`}])}
@@ -7472,6 +7573,7 @@ PAGINE.preventivo = {
         <p style="font-size:16px;color:var(--soft)">${
           p.stato === 'messo_via' ? 'Messo via: resta nel cassetto ma non ti gira piu\u2019 fra i piedi, e non conta nei numeri. Riprendilo quando vuoi.'
           : p.stato === 'pagato' ? 'Pagato' + (p.pagato && p.pagato.quando ? ' il ' + dataLunga(p.pagato.quando) : '') + '. Questo è chiuso: il lavoro fatto e i soldi incassati.'
+          : lavoroFinito(p) ? 'Lavoro finito il ' + dataLunga(p.lavoro_fatto.quando) + '. ' + (p.stato === 'pagato' ? 'Chiuso: fatto e incassato.' : 'Resta da incassare.')
           : p.stato === 'accettato' ? (p.firma ? 'Firmato da ' + esc(p.firma.nome) + ' il ' + dataLunga(p.firma.quando) + '. Il lavoro è tuo.' : 'Accettato. Il lavoro è tuo.')
           : p.stato === 'rifiutato' ? 'Non è andata' + (p.motivo ? ': ' + esc(((MOTIVI_NO.find(x => x[0] === p.motivo) || [0, ''])[1]).toLowerCase()) : '') + '. Resta nel cassetto: se il cliente ci ripensa, lo rifai uguale con un tocco.'
           : p.stato === 'inviato' ? 'Consegnato ' + quando(p.data) + (p.consegna ? ' (' + esc(p.consegna.come) + ')' : '') + '. Se non risponde, risentilo: il messaggio è già scritto.'
@@ -7499,7 +7601,7 @@ PAGINE.preventivo = {
             : `<button class="bottone tenue piccolo" onclick="mettiViaPreventivo('${p.id}')">Mettilo via</button>`}
         </div>
         <div style="margin-top:18px;border-top:1px solid var(--filetto);padding-top:14px">
-          <div class="riga-tot"><span>Stato</span><span>${tag(p.stato)}</span></div>
+          <div class="riga-tot"><span>Stato</span><span>${tagPreventivo(p)}</span></div>
           <div class="riga-tot"><span>Data</span><span>${dataCorta(p.data)}</span></div>
           ${(p.solleciti || []).length ? `<div class="riga-tot"><span>Risentito</span><span>${p.solleciti.length === 1 ? 'una volta' : p.solleciti.length + ' volte'}, l'ultima ${quando(p.solleciti[p.solleciti.length - 1])}</span></div>` : ''}
           ${p.cliente ? `<div class="riga-tot"><span>Cliente</span><a href="#cliente/${p.cliente}" style="color:var(--accento)">in rubrica</a></div>` : ''}
@@ -7905,6 +8007,7 @@ function cassetto(){
   const daiPreventivi = S.preventivi.map(p => ({
     id: p.id, apribile: true, tipo: 'Preventivo',
     titolo: 'Preventivo · ' + p.nome, data: p.data, stato: p.stato,
+    finito: lavoroFinito(p),
     nota: 'n. ' + p.numero + ' · ' + euro(conti(p).netto)
   }));
   const altri = S.documenti.map(d => {
@@ -7914,6 +8017,31 @@ function cassetto(){
   });
   return daiPreventivi.concat(altri).sort((a,b) => (a.data < b.data ? 1 : -1));
 }
+/* Ogni documento sta in una linguetta sola, se no i conti sopra le linguette non
+   tornano con quello che si vede sotto. Chiesto da Andrea il 24 settembre 2026:
+   le etichette in fila una sotto l'altra erano confuse, le linguette dicono
+   subito quanti ce n'e' per ogni stato. */
+function gruppoDocumento(d){
+  if(d.finito) return 'finiti';
+  switch(d.stato){
+    case 'bozza':     return 'bozza';
+    case 'inviato':   return 'inviato';
+    case 'accettato':
+    case 'firmato':   return 'accettato';
+    case 'pagato':    return 'pagato';
+    case 'rifiutato': return 'rifiutato';
+    default:          return 'archivio';
+  }
+}
+const LINGUETTE_DOCUMENTI = [['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],
+  ['accettato','Accettati'],['pagato','Pagati'],['finiti','Lavori finiti'],
+  ['rifiutato','Non andati'],['archivio','Archivio']];
+function etichettaDocumento(d){
+  if(d.finito) return tag(d.stato === 'pagato' ? 'finito_pagato' : 'finito_da_pagare');
+  return tag(d.stato);
+}
+let filtroDocumenti = 'tutti';
+function setFiltroDocumenti(f){ filtroDocumenti = f; vai(); }
 PAGINE.documenti = {
   guida:false,
   testata(){ return {occhiello:'Tutto quello che è uscito da qui', titolo:'Documenti',
@@ -7927,16 +8055,24 @@ PAGINE.documenti = {
   corpo(){
     const l = cassetto();
     if(!l.length) return '<div class="niente">Il cassetto è vuoto.</div>';
-    return `${campoCerca('Cerca per nome, numero o parola')}<div class="elenco">${l.map(d => `
+    const conta = k => k === 'tutti' ? l.length : l.filter(d => gruppoDocumento(d) === k).length;
+    const visti = filtroDocumenti === 'tutti' ? l : l.filter(d => gruppoDocumento(d) === filtroDocumenti);
+    return `
+    <div class="filtri">
+      ${LINGUETTE_DOCUMENTI.map(([k,n]) => `<button class="${filtroDocumenti===k?'attivo':''}" onclick="setFiltroDocumenti('${k}')">${n} (${conta(k)})</button>`).join('')}
+    </div>
+    ${campoCerca('Cerca per nome, numero o parola')}
+    ${visti.length ? `<div class="elenco">${visti.map(d => `
       <div class="r ${d.apribile || d.file ? 'cliccabile' : ''}" data-cerca="${esc(chiaveCerca(d.titolo, d.nota, d.tipo, dataLunga(d.data), d.file ? d.file.nome : ''))}" ${d.apribile ? `onclick="location.hash='#documento/${d.id}'"` : d.file ? `onclick="apriFile('${d.id}')"` : ''}>
         <div><div class="tit">${esc(d.titolo)}</div>
           <div class="sub">${dataLunga(d.data)}${d.nota ? ' · ' + esc(d.nota) : ''}</div></div>
         <div class="riga-azione">
-          ${tag(d.stato)}
+          ${etichettaDocumento(d)}
           ${comandi([{t:'Modifica o cancella', i:MATITA,
              f: d.apribile ? `schedaPreventivo('${d.id}')` : `schedaDocumento('${d.id}')`}])}
         </div>
-      </div>`).join('')}</div>`;
+      </div>`).join('')}</div>`
+      : `<div class="niente">Qui dentro non c'è niente${filtroDocumenti === 'finiti' ? ": un lavoro finisce qui quando, passata la data, dici che è stato fatto." : '.'}</div>`}`;
   }
 };
 
@@ -8511,6 +8647,100 @@ function filtra(q){
   });
   const n = document.getElementById('cerca-niente'); if(n) n.style.display = visti ? 'none' : '';
 }
+
+/* ===== LAVORI DELLA SQUADRA (in arrivo) =====
+   Il 24 settembre 2026 una ditta di spurghi ha chiesto Rilievo, e quello che voleva
+   non era il rilievo del giardino: era l'elenco dei lavori con lo stato di ognuno,
+   visto da tre persone. Serve identico a un giardiniere con due operai, quindi entra
+   nel prodotto (memoria: rilievo-larchivio-condiviso-allarga-il-target).
+
+   Oggi non c'e': i dati stanno nella memoria del telefono e due telefoni non si
+   vedono. Questa pagina non simula niente e non promette una data. Dice cosa sara',
+   e prende nome e numero di chi lo vuole, mandandoli davvero ad Andrea su WhatsApp:
+   niente elenco che resta chiuso dentro un telefono che nessuno legge. */
+const CONTATTO_RILIEVO = '393289757655';
+const CHIAVE_SQUADRA   = 'rilievo-squadra-2026-09';
+function squadraChiesta(){
+  try{ const d = JSON.parse(localStorage.getItem(CHIAVE_SQUADRA) || 'null');
+       return (d && typeof d === 'object' && d.nome) ? d : null; }catch(e){ return null; }
+}
+function chiediSquadra(){
+  const a = S.azienda || {};
+  scheda({
+    titolo: 'Avvisami quando c\'è',
+    sotto: 'Ti scrivo io il giorno che l\'elenco condiviso è pronto da provare. Il numero serve solo per quello.',
+    valori: {nome: a.nome || '', tel: a.tel || a.telefono || '', quanti: ''},
+    campi:[
+      {k:'nome',   l:'La tua ditta',                  p:'Giardini Conti'},
+      {k:'tel',    l:'Il tuo numero',                 p:'328 000 0000'},
+      {k:'quanti', l:'Quante persone la userebbero',  p:'noi siamo in tre'}
+    ],
+    controlla: d => !d.nome ? 'Serve il nome della ditta.'
+      : String(d.tel).replace(/\D/g,'').length < 8 ? 'Serve un numero dove risentirti.' : null,
+    testoSalva: 'Mandalo',
+    salva: d => {
+      try{ localStorage.setItem(CHIAVE_SQUADRA, JSON.stringify(
+        {nome:d.nome, tel:d.tel, quanti:d.quanti, quando: new Date().toISOString()})); }catch(e){}
+      const testo = 'Rilievo, lavori della squadra: mi interessa.\n' +
+                    'Ditta: ' + d.nome + '\nNumero: ' + d.tel +
+                    (d.quanti ? '\nPersone: ' + d.quanti : '');
+      try{ window.open('https://wa.me/' + CONTATTO_RILIEVO + '?text=' + encodeURIComponent(testo), '_blank'); }catch(e){}
+    },
+    messaggio: 'Segnato. Ti avviso appena è pronto.'
+  });
+}
+PAGINE.squadra = {
+  guida:false,
+  testata(){ return {occhiello:'Non c\'è ancora. Ecco cosa sarà', titolo:'Lavori della squadra'}; },
+  corpo(){
+    const g = squadraChiesta();
+    const pezzo = (n, t, d) => `
+      <div class="scheda" style="padding:18px 20px">
+        <div class="lbl" style="color:var(--accento-chiaro);margin-bottom:6px">${n}</div>
+        <div style="font-family:'Cormorant',serif;font-size:22px;margin-bottom:5px">${t}</div>
+        <div style="font-size:15.5px;color:var(--soft);line-height:1.5">${d}</div>
+      </div>`;
+    const stato = (t, c) => `<span class="tag ${c||''}">${t}</span>`;
+    return `
+    <div class="scheda" style="max-width:720px;border-left:2px solid var(--oro)">
+      <p style="font-size:17.5px;color:var(--soft);line-height:1.6;margin:0">
+        Oggi Rilievo lavora su un telefono solo: quello che scrivi resta lì, e un tuo
+        operaio non lo vede. Stiamo facendo la parte che manca, cioè <b>un elenco dei
+        lavori che stanno tutti nello stesso posto</b>, che tutta la ditta guarda dal
+        proprio telefono. Ci stiamo lavorando adesso. Qui sotto c\'è cosa farà.
+      </p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:20px;max-width:720px">
+      ${pezzo('I','Un elenco solo','Il capo mette dentro il lavoro una volta. Compare sul telefono degli altri senza che nessuno lo debba ricopiare.')}
+      ${pezzo('II','Lo stato di ogni lavoro','Si sposta con un tocco, e chi lo sposta resta scritto. Nessuno richiama un cliente già richiamato.')}
+      ${pezzo('III','Chi vede cosa','Decidi tu. C\'è chi mette dentro i lavori e chi li guarda soltanto.')}
+      ${pezzo('IV','Anche senza campo','In cantiere si continua a lavorare. Quando torna la linea, quello che hai fatto va su da solo.')}
+    </div>
+
+    <div class="scheda" style="margin-top:20px;max-width:720px">
+      <div class="lbl" style="margin-bottom:10px">Gli stati, come li useresti</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${stato('Da chiamare')}${stato('Chiamato','o')}${stato('Preventivo mandato','o')}${stato('Accettato','v')}${stato('Da fare')}${stato('Fatto','v')}${stato('Pagato','v')}
+      </div>
+      <p style="font-size:15.5px;color:var(--tenue);margin:12px 0 0">
+        I nomi li scegli tu: uno che fa spurghi e uno che pota siepi non hanno gli stessi passaggi.
+      </p>
+    </div>
+
+    <div class="scheda" style="margin-top:20px;max-width:720px;text-align:center">
+      ${g ? `
+        <div style="font-family:'Cormorant',serif;font-size:23px;margin-bottom:4px">Sei in lista</div>
+        <p style="font-size:16px;color:var(--soft);margin:0 0 14px">Ti scrivo al ${esc(g.tel)} appena si può provare.</p>
+        <button class="bottone vuoto" onclick="chiediSquadra()">Correggi i dati</button>
+      ` : `
+        <div style="font-family:'Cormorant',serif;font-size:23px;margin-bottom:4px">Lo vuoi appena esce?</div>
+        <p style="font-size:16px;color:var(--soft);margin:0 0 14px">Lasciami nome e numero. Ti avviso io, e chi è in lista lo prova per primo.</p>
+        <button class="bottone" onclick="chiediSquadra()">Avvisami quando c\'è</button>
+      `}
+    </div>`;
+  }
+};
 
 /* ===== IMPOSTAZIONI ===== */
 PAGINE.impostazioni = {
