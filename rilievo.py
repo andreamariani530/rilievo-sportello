@@ -1201,6 +1201,118 @@ def _foto_dall_alto(y0, x0, y1, x1, lati):
     raise RuntimeError("La foto dall'alto non arriva (%s)" % ultimo)
 
 
+# ------------------------------------------------- le foto delle Regioni
+#
+# Le Regioni pubblicano gratis le ortofoto dei voli AGEA. Sulla carta sono gli
+# stessi venti centimetri per pixel delle tessere Esri, ma si leggono molto
+# meglio: sono piu' recenti e meno impastate. A Longana, su Esri c'e' ancora un
+# cantiere dove adesso ci sono case finite (verificato il 24 settembre 2026).
+# Licenza: le ortofoto AGEA sono Creative Commons con attribuzione, quindi si
+# usano anche in un prodotto che si vende, purche' il nome della fonte resti
+# stampato sulla foto.
+#
+# Copertura a macchia di leopardo: si prova quella della zona, e se non c'e' o
+# tace si torna a Esri senza che nessuno se ne accorga. Il riquadro di ogni
+# fonte e' quello dichiarato dal servizio stesso.
+FOTO_REGIONI = [
+    {"chiave": "lombardia",
+     "nome": "Ortofoto 2021 Regione Lombardia (AGEA)",
+     "tipo": "arcgis",
+     "url": ("https://www.cartografia.servizirl.it/arcgis2/rest/services/"
+             "BaseMap/Ortofoto2021/ImageServer/exportImage"),
+     "riquadro": (44.6473, 8.4423, 46.6569, 11.5324)},
+    {"chiave": "emilia-romagna",
+     "nome": "Ortofoto 2020 Regione Emilia-Romagna (AGEA)",
+     "tipo": "wms13",
+     "url": "https://servizigis.regione.emilia-romagna.it/wms/agea2020_rgb",
+     "strato": "Agea2020_RGB",
+     "riquadro": (43.7012, 9.1621, 45.1540, 12.8682)},
+]
+# quanto si aspetta una Regione prima di lasciar perdere: davanti a un cliente
+# non si sta fermi, e la foto di scorta c'e' sempre
+ATTESA_REGIONE = 9
+
+
+def _in_metri_mercatore(lat, lon):
+    """Il punto nella proiezione delle mappe del web."""
+    r = 6378137.0
+    return (r * math.radians(lon),
+            r * math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)))
+
+
+def _foto_vuota(img):
+    """Una foto tutta di un colore solo: la Regione ha risposto, ma con niente."""
+    try:
+        from PIL import ImageStat
+        s = ImageStat.Stat(img.convert("RGB"))
+        return max(s.stddev) < 3.0
+    except Exception:                                  # noqa: BLE001
+        return False
+
+
+def regione_del_punto(lat, lon, chiave=""):
+    """La fonte regionale che copre questo punto, se c'e'."""
+    for r in FOTO_REGIONI:
+        if chiave and r["chiave"] != chiave:
+            continue
+        a, b, c, d = r["riquadro"]
+        if a <= lat <= c and b <= lon <= d:
+            return r
+    return None
+
+
+def fonti_del_punto(lat, lon):
+    """Le foto fra cui si puo' scegliere in questo punto, per il tasto «Cambia
+    la foto». Prima quella che l'app userebbe da sola."""
+    fonti = []
+    r = regione_del_punto(lat, lon)
+    if r:
+        fonti.append({"chiave": r["chiave"], "nome": r["nome"]})
+    fonti.append({"chiave": "esri", "nome": "Esri World Imagery"})
+    return fonti
+
+
+def _foto_dalla_regione(y0, x0, y1, x1, lati, fonte):
+    """La foto dall'alto presa dal servizio della Regione, sullo stesso riquadro."""
+    if fonte["tipo"] == "arcgis":
+        # il servizio parla in metri della proiezione web: il riquadro si converte
+        x_min, y_min = _in_metri_mercatore(y0, x0)
+        x_max, y_max = _in_metri_mercatore(y1, x1)
+        dati = {"bbox": "%f,%f,%f,%f" % (x_min, y_min, x_max, y_max),
+                "bboxSR": "3857", "imageSR": "3857",
+                "size": "%d,%d" % (lati, lati), "format": "jpg", "f": "image"}
+    else:
+        # WMS 1.3.0 in gradi: l'asse va scritto latitudine prima, longitudine dopo
+        dati = {"SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap",
+                "LAYERS": fonte["strato"], "STYLES": "", "CRS": "EPSG:4326",
+                "BBOX": "%f,%f,%f,%f" % (y0, x0, y1, x1),
+                "WIDTH": str(lati), "HEIGHT": str(lati), "FORMAT": "image/jpeg"}
+    grezza = prendi(fonte["url"], dati, tentativi=1, tempo=ATTESA_REGIONE)
+    img = Image.open(io.BytesIO(grezza)).convert("RGB")
+    if img.size != (lati, lati):
+        img = img.resize((lati, lati), Image.LANCZOS)
+    if _foto_vuota(img):
+        raise RuntimeError("la Regione ha risposto con un riquadro vuoto")
+    return img
+
+
+def foto_dall_alto(y0, x0, y1, x1, lati, quale=""):
+    """La foto migliore per questo riquadro, e il nome di chi l'ha fatta.
+
+    `quale` serve solo quando il giardiniere la forza a mano: "esri" resta su
+    Esri, il nome di una Regione prova soltanto quella. Vuoto: sceglie l'app.
+    """
+    if quale != "esri":
+        fonte = regione_del_punto((y0 + y1) / 2, (x0 + x1) / 2,
+                                  "" if quale in ("", "regione") else quale)
+        if fonte:
+            try:
+                return _foto_dalla_regione(y0, x0, y1, x1, lati, fonte), fonte["nome"]
+            except Exception as e:                     # noqa: BLE001
+                print("     la Regione non ha dato la foto:", e)
+    return _foto_dall_alto(y0, x0, y1, x1, lati), "Esri World Imagery"
+
+
 def _riempi(passabile, lati, semi):
     """Riempie la macchia a partire da uno o più semi. Niente ricorsione:
     una lista di pixel da guardare, che si svuota."""
@@ -1322,7 +1434,7 @@ def quanti_pixel_foto(lato_m):
     return max(900, min(TETTO_FOTO, int(math.ceil(lato_m / FINEZZA_FOTO))))
 
 
-def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
+def misura(semi, riquadri, lati=None, lato_m=None, confini=None, foto_da=""):
     """Conta i metri quadri del lotto: una particella o piu', ognuna col suo punto.
 
     Il conto si fa sui pixel della mappa che disegna l'Agenzia delle Entrate.
@@ -1376,7 +1488,7 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
     # la foto si chiede fine quanto la fonte, poi si rimpicciolisce per il conteggio:
     # le tessere scaricate sono le stesse, quindi non costa un giro di rete in piu'
     lati_foto = max(lati, quanti_pixel_foto(lato))
-    foto_fine = _foto_dall_alto(y0, x0, y1, x1, lati_foto)
+    foto_fine, nome_fonte = foto_dall_alto(y0, x0, y1, x1, lati_foto, foto_da)
     foto = foto_fine if lati_foto == lati else foto_fine.resize((lati, lati), Image.LANCZOS)
 
     # quanto vale un pixel, in metri e in metri quadri
@@ -1533,9 +1645,11 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None):
     coperto_intero = min(lotto_intero, int(round(coperto_mq)))
     scoperto_intero = lotto_intero - coperto_intero
     verde_intero = min(int(round(verde_mq)), scoperto_intero)
-    disegno = componi(foto, mappa, dentro, lati)
+    disegno = componi(foto, mappa, dentro, lati, nome_fonte)
     return {
         "tocca_il_bordo": tocca_il_bordo,
+        # chi ha fatto la foto: finisce stampato sotto e scritto nel rilievo
+        "fonte_foto": nome_fonte,
         # la foto pulita e il confine come punti: servono per ricalcare il lotto
         # e spostarlo finche' non sta sul giardino vero
         "foto_pulita": foto_fine,
@@ -1824,7 +1938,7 @@ def contorni_verde(dentro, edifici, colori, lati, mq_px, quante=4, minimo_mq=15.
     return forme
 
 
-def componi(foto, mappa, dentro, lati):
+def componi(foto, mappa, dentro, lati, nome_fonte="Esri World Imagery"):
     """Foto dall'alto, confini catastali sopra, e il lotto acceso in mezzo.
 
     Fuori dal lotto la foto si abbassa di tono, così l'occhio va dove deve.
@@ -1851,12 +1965,12 @@ def componi(foto, mappa, dentro, lati):
     # una firma sobria in basso
     d = ImageDraw.Draw(fondo, "RGBA")
     d.rectangle([0, lati - 26, lati, lati], fill=(38, 36, 32, 165))
-    d.text((11, lati - 18), "Agenzia delle Entrate  ·  Esri World Imagery",
+    d.text((11, lati - 18), "Agenzia delle Entrate  ·  " + nome_fonte,
            fill=(247, 241, 229, 235))
     return fondo
 
 
-def firma_esri(immagine):
+def firma_fonte(immagine, nome_fonte="Esri World Imagery"):
     """La foto senza catasto, con la fascia della fonte in basso.
 
     Serve quando si consegna la foto pulita come immagine principale del rilievo:
@@ -1867,7 +1981,7 @@ def firma_esri(immagine):
     lati = fondo.size[0]
     d = ImageDraw.Draw(fondo, "RGBA")
     d.rectangle([0, lati - 26, lati, lati], fill=(38, 36, 32, 165))
-    d.text((11, lati - 18), "Esri World Imagery", fill=(247, 241, 229, 235))
+    d.text((11, lati - 18), nome_fonte, fill=(247, 241, 229, 235))
     return fondo
 
 
@@ -1895,22 +2009,21 @@ SENZA_CATASTO = (
     "sulla foto e i metri quadri li conto io.")
 
 
-def solo_foto(lat, lon, lato_m):
+def solo_foto(lat, lon, lato_m, foto_da=""):
     """La foto dall'alto del posto, senza chiedere niente al catasto.
 
-    E' la via di scorta quando l'Agenzia delle Entrate tace: la foto arriva da
-    Esri e non dipende da loro, e sulla foto si disegna. Un giardiniere davanti
-    al cliente non puo' aspettare che un ufficio torni a rispondere.
+    E' la via di scorta quando l'Agenzia delle Entrate tace: la foto non dipende
+    da loro, e sulla foto si disegna. Un giardiniere davanti al cliente non puo'
+    aspettare che un ufficio torni a rispondere.
     """
     lato = max(22.0, min(float(lato_m or LATO_SENZA_CATASTO), 2200.0))
     lati = quanti_pixel_foto(lato)
     y0, x0, y1, x1 = _riquadro(lat, lon, lato / 2)
-    foto = _foto_dall_alto(y0, x0, y1, x1, lati)
-    d = ImageDraw.Draw(foto, "RGBA")
-    d.rectangle([0, lati - 26, lati, lati], fill=(38, 36, 32, 165))
-    d.text((11, lati - 18), "Esri World Imagery", fill=(247, 241, 229, 235))
+    foto, nome_fonte = foto_dall_alto(y0, x0, y1, x1, lati, foto_da)
+    foto = firma_fonte(foto, nome_fonte)
     return {
         "immagine": foto,
+        "fonte_foto": nome_fonte,
         "metri_per_pixel": round(lato / lati, 4),
         "angoli": {"lat0": round(y0, 7), "lon0": round(x0, 7),
                    "lat1": round(y1, 7), "lon1": round(x1, 7)},
@@ -1918,9 +2031,9 @@ def solo_foto(lat, lon, lato_m):
     }
 
 
-def rilievo_da_disegnare(p, lato_m=None, motivo="", indirizzo="", cap=""):
+def rilievo_da_disegnare(p, lato_m=None, motivo="", indirizzo="", cap="", foto_da=""):
     """Un rilievo senza misure: la foto giusta, e il giardino da segnare a dito."""
-    f = solo_foto(p["lat"], p["lon"], lato_m)
+    f = solo_foto(p["lat"], p["lon"], lato_m, foto_da)
     avvisi = [motivo or SENZA_CATASTO]
     if p.get("avviso_comune"):
         avvisi.append(p["avviso_comune"])
@@ -1942,7 +2055,9 @@ def rilievo_da_disegnare(p, lato_m=None, motivo="", indirizzo="", cap=""):
         "metri_per_pixel": f["metri_per_pixel"],
         "angoli": f["angoli"],
         "lato_m": f["lato_m"],
-        "fonte": FONTE_FOTO,
+        "fonte": "Foto dall'alto " + f["fonte_foto"] + " · confini segnati a mano",
+        "fonte_foto": f["fonte_foto"],
+        "fonti_foto": fonti_del_punto(p["lat"], p["lon"]),
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
         "preciso": p["preciso"],
@@ -1952,7 +2067,7 @@ def rilievo_da_disegnare(p, lato_m=None, motivo="", indirizzo="", cap=""):
 
 # ------------------------------------------------- il rilievo, tutto insieme
 
-def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap=""):
+def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap="", foto_da=""):
     """Il lotto misurato senza sapere come si chiama.
 
     Il catasto ha due sportelli, e si guastano separatamente: quello che dice
@@ -1966,12 +2081,12 @@ def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap=""):
     che manca e' il numero di foglio e particella, e il recinto che tiene il
     conto dentro l'ingombro dichiarato. Percio' il numero esce con un avviso.
     """
-    m = misura([(p["lat"], p["lon"])], [None], lato_m=lato_m)
+    m = misura([(p["lat"], p["lon"])], [None], lato_m=lato_m, foto_da=foto_da)
     # senza il recinto del catasto l'inquadratura parte da centodieci metri: se il
     # lotto arriva al bordo si riprova una volta sola, piu' larga, se no di un campo
     # si misurerebbe solo il pezzo inquadrato
     if m.get("tocca_il_bordo") and not lato_m:
-        m = misura([(p["lat"], p["lon"])], [None], lato_m=320.0)
+        m = misura([(p["lat"], p["lon"])], [None], lato_m=320.0, foto_da=foto_da)
     avvisi = ["Il catasto non ha dato foglio e particella: i metri quadri sono contati "
               "sui confini disegnati sulla mappa. Guarda la figura e controllali."]
     if p.get("avviso_comune"):
@@ -1999,7 +2114,10 @@ def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap=""):
         "metri_per_pixel": m["metri_per_pixel"],
         "angoli": m["angoli"],
         "lato_m": m["lato_m"],
-        "fonte": FONTE,
+        "fonte": "Cartografia catastale dell'Agenzia delle Entrate · foto dall'alto "
+                 + m.get("fonte_foto", "Esri World Imagery"),
+        "fonte_foto": m.get("fonte_foto", "Esri World Imagery"),
+        "fonti_foto": fonti_del_punto(p["lat"], p["lon"]),
         # la foto senza i confini disegnati sopra, e il confine come punti
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
@@ -2027,7 +2145,7 @@ def _col_punto(numero):
     return "{:,}".format(int(round(numero))).replace(",", ".")
 
 
-def rilievo(indirizzo, lato_m=None, cap=""):
+def rilievo(indirizzo, lato_m=None, cap="", foto_da=""):
     p = punto_dall_indirizzo(indirizzo, cap)
     try:
         part, lat, lon = cerca_la_particella(p["lat"], p["lon"])
@@ -2070,7 +2188,7 @@ def rilievo(indirizzo, lato_m=None, cap=""):
                     % (_col_punto(area), int(round(piu_lungo))), indirizzo, cap)
         semi, riquadri = _intorno_stessa_particella(part, lat, lon)
         m = misura(semi, riquadri, lato_m=lato_m,
-                   confini=[part.get("confine")])
+                   confini=[part.get("confine")], foto_da=foto_da)
         if m["lotto_mq"] < 20:
             return rilievo_da_disegnare(
                 p, lato_m,
@@ -2081,9 +2199,9 @@ def rilievo(indirizzo, lato_m=None, cap=""):
         # le mappe risponde ancora, il lotto si misura lo stesso; se no restano la
         # foto e il dito
         try:
-            return rilievo_senza_riferimenti(p, lato_m, indirizzo, cap)
+            return rilievo_senza_riferimenti(p, lato_m, indirizzo, cap, foto_da)
         except Exception:                           # noqa: BLE001
-            return rilievo_da_disegnare(p, lato_m, "", indirizzo, cap)
+            return rilievo_da_disegnare(p, lato_m, "", indirizzo, cap, foto_da)
     avvisi = [p["avviso_comune"]] if p.get("avviso_comune") else []
     if not p["preciso"]:
         civico = p.get("civico_scritto")
@@ -2127,7 +2245,10 @@ def rilievo(indirizzo, lato_m=None, cap=""):
         "metri_per_pixel": m["metri_per_pixel"],
         "angoli": m["angoli"],
         "lato_m": m["lato_m"],
-        "fonte": FONTE,
+        "fonte": "Cartografia catastale dell'Agenzia delle Entrate · foto dall'alto "
+                 + m.get("fonte_foto", "Esri World Imagery"),
+        "fonte_foto": m.get("fonte_foto", "Esri World Imagery"),
+        "fonti_foto": fonti_del_punto(lat, lon),
         # la foto senza i confini disegnati sopra, e il confine come punti
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
@@ -2145,7 +2266,7 @@ def rilievo(indirizzo, lato_m=None, cap=""):
         # Allora si consegna la foto pulita: il contorno resta nel campo `contorno` e si
         # riaccende dal foglio da disegno, quando lo vuole lui.
         "catasto_incerto": bool(avviso_strada),
-        "foto": in_base64(firma_esri(m["foto_pulita"])
+        "foto": in_base64(firma_fonte(m["foto_pulita"], m.get("fonte_foto", ""))
                           if (avviso_strada and m.get("foto_pulita")) else m["immagine"]),
     }
 
@@ -2207,7 +2328,7 @@ def _avvisi_misura(m):
 MAX_PUNTI = 8
 
 
-def rilievo_da_punti(punti, indirizzo="", lato_m=None):
+def rilievo_da_punti(punti, indirizzo="", lato_m=None, foto_da=""):
     """Il lotto fatto di piu' particelle. Il primo punto e' quello del rilievo
     dall'indirizzo; gli altri li tocca il giardiniere sulla foto, sulle particelle
     che sono del cliente: il giardino accanto alla casa, il pezzo di prato dietro.
@@ -2237,7 +2358,7 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None):
     if not trovate:
         raise RuntimeError("Nessuno dei punti toccati cade su una particella del catasto.")
     confini = [t.get("confine") for t in trovate]
-    m = misura(semi, riquadri, lato_m=lato_m, confini=confini)
+    m = misura(semi, riquadri, lato_m=lato_m, confini=confini, foto_da=foto_da)
     if m["lotto_mq"] < 20:
         raise RuntimeError("Qui non sono riuscito a misurare un lotto vero. "
                            "Segna il giardino a mano sulla foto.")
@@ -2260,7 +2381,10 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None):
         "metri_per_pixel": m["metri_per_pixel"],
         "angoli": m["angoli"],
         "lato_m": m["lato_m"],
-        "fonte": FONTE,
+        "fonte": "Cartografia catastale dell'Agenzia delle Entrate · foto dall'alto "
+                 + m.get("fonte_foto", "Esri World Imagery"),
+        "fonte_foto": m.get("fonte_foto", "Esri World Imagery"),
+        "fonti_foto": fonti_del_punto(toccati[0][0], toccati[0][1]),
         # la foto senza i confini disegnati sopra, e il confine come punti
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
@@ -2456,6 +2580,11 @@ def servizio(porta=8787, pubblico=False):
             def codice_chiesto():
                 return (q.get("codice") or [""])[0]
 
+            def foto_chiesta():
+                # «Cambia la foto»: il giardiniere forza una fonte invece di
+                # lasciar scegliere all'app. Vuoto: sceglie l'app.
+                return (q.get("fonte") or q.get("foto") or [""])[0].strip().lower()[:30]
+
             if u.path in ("/", "/ci-sei"):
                 self._manda(200, {"servizio": "rilievo", "pronto": True,
                                   "versione": VERSIONE,
@@ -2524,7 +2653,8 @@ def servizio(porta=8787, pubblico=False):
                         p = punto_dall_indirizzo(indirizzo, cap_chiesto())
                         motivo = ("Foto dall'alto di questo indirizzo: segna il giardino "
                                   "sulla foto e i metri quadri li conto io.")
-                    r = rilievo_da_disegnare(p, lato_chiesto(), motivo, indirizzo, cap_chiesto())
+                    r = rilievo_da_disegnare(p, lato_chiesto(), motivo, indirizzo,
+                                             cap_chiesto(), foto_chiesta())
                     self._manda(200, r)
                 except Exception as e:              # noqa: BLE001
                     print("     non riuscita:", e)
@@ -2558,7 +2688,7 @@ def servizio(porta=8787, pubblico=False):
                 indirizzo = (q.get("indirizzo") or [""])[0].strip()[:200]
                 print("  particelle:", len(punti), "punti")
                 try:
-                    r = rilievo_da_punti(punti, indirizzo, lato_chiesto())
+                    r = rilievo_da_punti(punti, indirizzo, lato_chiesto(), foto_chiesta())
                     print("     %s mq di lotto, %s particelle" % (r["lotto_mq"], len(r["particelle"])))
                     self._manda(200, r)
                 except Exception as e:              # noqa: BLE001
@@ -2577,7 +2707,7 @@ def servizio(porta=8787, pubblico=False):
                 return
             print("  rilievo di:", indirizzo)
             try:
-                r = rilievo(indirizzo, lato_chiesto(), cap_chiesto())
+                r = rilievo(indirizzo, lato_chiesto(), cap_chiesto(), foto_chiesta())
                 if r.get("da_disegnare"):
                     print("     senza catasto: foto da disegnare")
                 else:

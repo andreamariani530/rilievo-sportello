@@ -4802,6 +4802,7 @@ function apriDisegno(idSopralluogo, idZona, conferma){
           <button onclick="gira(15)" aria-label="Gira a destra" title="Gira la foto a destra">⟳</button>
         </div>
         <button class="bottone vuoto piccolo" id="d-inquadra" onclick="inquadraAltrove()">Sposta la foto</button>
+        <button class="bottone vuoto piccolo" id="d-fonte" onclick="cambiaFonteFoto()">Cambia la foto</button>
         <button class="bottone vuoto piccolo" id="d-raddrizza" onclick="raddrizza()">Rimetti dritta</button>
         ${fotoPulita(ril) ? interruttoreConfini('d-confini', 'cambiaConfini()') : ''}
         <button class="bottone vuoto piccolo" id="d-ricalca" onclick="ricalcaConfine()">Ricalca il confine</button>
@@ -5029,6 +5030,35 @@ function cambiaTerreno(verso){
   }
   rifaiFoto(null, LATI_TERRENO[i]);
 }
+/* ---- cambiare la foto a mano ----
+   L'app sceglie da sola la fonte migliore per quel punto (l'ortofoto della
+   Regione dove c'e', se no Esri). Ma le due foto sono di anni diversi: a volte
+   quella piu' nitida e' anche quella dove il giardino e' ancora un cantiere.
+   Allora si gira all'altra con un tocco, senza rifare il rilievo.
+   Chiesto da Andrea il 24 settembre 2026 insieme alla scelta automatica. */
+function nomeCortoFonte(nome){
+  const n = String(nome || '');
+  if(/esri/i.test(n)) return 'satellite';
+  const m = /Regione ([A-Za-zÀ-ú'\- ]+)/.exec(n);
+  return m ? m[1].trim() : n.slice(0, 18);
+}
+function fontiDellaFoto(ril){
+  const f = (ril && Array.isArray(ril.fonti_foto)) ? ril.fonti_foto.filter(
+    x => x && typeof x.chiave === 'string' && typeof x.nome === 'string') : [];
+  return f.length > 1 ? f : [];
+}
+function prossimaFonte(ril){
+  const f = fontiDellaFoto(ril);
+  if(!f.length) return null;
+  const ora = f.findIndex(x => x.nome === ril.fonte_foto);
+  return f[(ora + 1) % f.length];
+}
+function cambiaFonteFoto(){
+  if(!D || D.casa || D.particelle || D.rifacendo) return;
+  const altra = prossimaFonte(D.ril);
+  if(!altra){ avvisa('Qui c\'è una foto sola: non c\'è un\'altra da provare.'); return; }
+  rifaiFoto(null, null, altra.chiave);
+}
 function inquadraAltrove(){
   if(!D || D.casa || D.particelle || D.rifacendo) return;
   D.inquadra = !D.inquadra;
@@ -5036,7 +5066,7 @@ function inquadraAltrove(){
   ridisegna();
 }
 /* la foto rifatta: centro nuovo, o larghezza nuova, o tutti e due */
-function rifaiFoto(centro, lato){
+function rifaiFoto(centro, lato, fonte){
   if(!D || D.rifacendo) return;
   const ril = D.ril, vecchi = ril.angoli;
   if(!angoliBuoni(vecchi)){ avvisa('Questo rilievo non sa dove sta la sua foto: rifallo dall\'indirizzo.'); return; }
@@ -5049,7 +5079,8 @@ function rifaiFoto(centro, lato){
   const scade = setTimeout(() => basta.abort(), 100000);
   fetch(SPORTELLO_RILIEVO + '/foto?' + col() + 'punto=' + encodeURIComponent(c[0].toFixed(7) + ',' + c[1].toFixed(7)) +
         '&lato=' + encodeURIComponent(Math.round(largo)) +
-        '&indirizzo=' + encodeURIComponent(ril.indirizzo || ''), {signal: basta.signal})
+        '&indirizzo=' + encodeURIComponent(ril.indirizzo || '') +
+        (fonte ? '&fonte=' + encodeURIComponent(fonte) : ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
       if(!D || D.sop !== idSop){ return; }
@@ -5061,6 +5092,9 @@ function rifaiFoto(centro, lato){
       }
       const zone = zoneDi(ril);
       ril.foto = d.foto;
+      /* chi ha fatto questa foto, e fra quali si puo' scegliere qui */
+      if(d.fonte_foto) ril.fonte_foto = d.fonte_foto;
+      if(Array.isArray(d.fonti_foto)) ril.fonti_foto = d.fonti_foto;
       delete ril.foto_pulita;                 /* la foto nuova e' gia' senza le righe */
       ril.angoli = d.angoli;
       ril.metri_per_pixel = d.metri_per_pixel;
@@ -5081,6 +5115,11 @@ function rifaiFoto(centro, lato){
       salva();
       ridisegna();
       const perse = zone.length - zoneDi(ril).length;
+      if(fonte){
+        avvisa('Adesso la foto è ' + (d.fonte_foto || 'un\'altra') + '. I disegni sono rimasti al loro posto.'
+               + ' Le righe del catasto non ci sono più: erano stampate sulla foto di prima.');
+        return;
+      }
       avvisa('Foto rifatta: ' + Math.round(d.lato_m) + ' m di lato. I disegni si sono spostati al loro posto.' +
              (perse > 0 ? ' ' + perse + (perse === 1 ? ' parte è rimasta' : ' parti sono rimaste') + ' fuori dalla foto nuova.' : '') +
              ' Le righe del catasto non ci sono più: erano stampate sulla foto di prima.');
@@ -5323,6 +5362,16 @@ function ridisegna(){
     inq.textContent = D.inquadra ? 'Lascia stare, non spostarla' : 'Sposta la foto';
     inq.classList.toggle('attivo', !!D.inquadra);
     inq.disabled = !!D.rifacendo;
+  }
+  const cam = document.getElementById('d-fonte');
+  if(cam){
+    const altra = prossimaFonte(D.ril);
+    cam.style.display = altra ? '' : 'none';
+    cam.disabled = !!D.rifacendo;
+    /* dice dove si va col tocco, non dove si e': «Foto: satellite» si legge
+       come «questa e' la foto satellite», ed e' il contrario */
+    if(altra) cam.textContent = altra.chiave === 'esri'
+      ? 'Prova col satellite' : 'Prova la ' + nomeCortoFonte(altra.nome);
   }
   const passo = passoTerreno(lato || 150);
   const meno = document.getElementById('d-meno-terreno'), piu = document.getElementById('d-piu-terreno');
