@@ -1612,6 +1612,24 @@ function righeDalSopralluogo(s){
      in silenzio, l'artigiano se ne accorgerebbe davanti al cliente */
   return {righe, dalDisegno, daMisurare, ril, fuoriListino: (trovate || []).filter(t => t.nuova)};
 }
+/* Cosa e' cambiato davvero rifacendo il preventivo. Senza questa riga «Rifai il
+   preventivo» rispondeva sempre la stessa frase, anche quando non si era mosso niente,
+   e sembrava che non avesse fatto il suo lavoro (Andrea, 24 settembre 2026:
+   «rifai preventivo non lo rifa di nuovo»). */
+function cosaECambiato(prima, dopo){
+  const eraQui = new Map(prima.map(r => [r.v, r.q]));
+  let cambiate = 0, nuove = 0;
+  dopo.forEach(r => {
+    if(!eraQui.has(r.v)) nuove++;
+    else if(Math.abs(eraQui.get(r.v) - r.q) > 0.005) cambiate++;
+  });
+  const sparite = prima.filter(r => !dopo.some(x => x.v === r.v)).length;
+  const pezzi = [];
+  if(nuove)    pezzi.push(nuove + (nuove === 1 ? ' voce nuova' : ' voci nuove'));
+  if(cambiate) pezzi.push(cambiate + (cambiate === 1 ? ' quantità cambiata' : ' quantità cambiate'));
+  if(sparite)  pezzi.push(sparite + (sparite === 1 ? ' voce tolta' : ' voci tolte'));
+  return pezzi.length ? pezzi.join(', ') + '.' : 'Non è cambiato niente: è uguale a prima.';
+}
 /* il racconto di come sono venute le quantita': la stessa frase nei due casi */
 function raccontoRighe(d){
   return (d.fuoriListino.length ? ' Fuori è rimasta «' + d.fuoriListino[0].nome + '»: non è a listino.' +
@@ -1662,6 +1680,7 @@ function rifaiPreventivo(idSopralluogo){
   const d = righeDalSopralluogo(s);
   if(!d.righe.length){ nienteDaMettere(d); return; }
   const aMano = p.righe.filter(r => r.aMano);
+  const prima = p.righe.filter(r => !r.aMano);
   chiedi('Rifaccio le voci con quello che hai detto adesso. Le ' + d.righe.length +
          ' voci del parlato si riscrivono' +
          (aMano.length ? ', le ' + aMano.length + ' aggiunte a mano restano' : '') +
@@ -1670,7 +1689,8 @@ function rifaiPreventivo(idSopralluogo){
        quelle che si sta rifacendo */
     p.righe = d.righe.concat(aMano);
     salva(); vai();
-    avvisa('Preventivo rifatto: ' + d.righe.length + ' voci dal parlato.' + raccontoRighe(d));
+    avvisa('Preventivo rifatto: ' + d.righe.length + ' voci dal parlato. ' +
+           cosaECambiato(prima, d.righe) + raccontoRighe(d));
     location.hash = '#preventivo/' + p.id;
   }, 'Sì, rifallo');
 }
@@ -3251,21 +3271,31 @@ PAGINE.sopralluogo = {
       <div class="onde" id="onde"></div>
     </div>
 
-    <div class="trascrizione" id="trascr"><span style="color:var(--tenue)">Qui compare quello che dici, mentre lo dici. Quando ha finito, il testo si corregge a mano.</span></div>
-    <div class="rilevate" id="rilevate"></div>
+    <!-- Riaprendo un sopralluogo gia' dettato qui c'era ancora l'invito a parlare, e
+         di quello che aveva raccontato non si vedeva piu' niente: sembrava che la
+         registrazione fosse andata persa, mentre il testo era salvato e basta non si
+         mostrava. Trovato col telefono a 390x844 il 24 settembre 2026. -->
+    <div class="trascrizione" id="trascr">${s.testo
+      ? esc(s.testo)
+      : `<span style="color:var(--tenue)">Qui compare quello che dici, mentre lo dici. Quando ha finito, il testo si corregge a mano.</span>`}</div>
+    <div class="rilevate" id="rilevate">${s.testo ? rilevateHtml(s) : ''}</div>
     <div class="azioni" style="margin-top:14px">
       <button class="bottone vuoto piccolo" onclick="mostraParlato('${s.id}')">Correggi il testo</button>
       <button class="bottone vuoto piccolo" onclick="schedaLavorazione('${s.id}',null)">+ Aggiungi una lavorazione</button>
     </div>
 
-    ${fotoHtml(s)}
-
+    <!-- Il tasto del preventivo sta PRIMA delle foto del posto. Le foto sono un di piu';
+         il preventivo e' il motivo per cui il giardiniere ha in mano il telefono. Con le
+         foto in mezzo quel tasto finiva due schermate sotto, e davanti al cliente due
+         schermate sono una ricerca (misurato a 390x844 il 24 settembre 2026). -->
     <div class="azioni" style="margin-top:24px">
       ${p ? `<a class="bottone" href="#preventivo/${p.id}">Apri il preventivo</a>
             ${p.stato === 'bozza' ? `<button class="bottone vuoto" onclick="rifaiPreventivo('${s.id}')">Rifai il preventivo</button>` : ''}`
           : `<button class="bottone" id="btn-genera" onclick="generaPreventivo('${s.id}')">Genera il preventivo</button>`}
       <button class="bottone vuoto" onclick="azzera('${s.id}')">Cancella e ridetta</button>
-    </div>`;
+    </div>
+
+    ${fotoHtml(s)}`;
   },
   poi(arg){
     if(!arg || !sopr(arg)) return;
@@ -5460,13 +5490,19 @@ function misuraCasa(){
 function disegnaRilevate(id){
   const s = sopr(id);
   const c = document.getElementById('rilevate'); if(!c) return;
-  const lista = s._trovate || [];
-  c.innerHTML = lista.map((x, i) => {
+  c.innerHTML = rilevateHtml(s);
+}
+/* le lavorazioni riconosciute, in forma di pastiglie. Serve in due momenti: mentre
+   parla, e quando riapre il sopralluogo il giorno dopo. Prima c'era solo il primo. */
+function rilevateHtml(s){
+  const id = s.id;
+  const lista = (s._trovate && s._trovate.length) ? s._trovate : (s.trovate || []);
+  return lista.map((x, i) => {
     if(x.nuova) return `<button class="chip fuori-listino" style="cursor:pointer" onclick="schedaLavorazione('${id}',${i})"
       title="Mettila a listino">+&nbsp; ${esc(x.nome)}${x.q ? ' · ' + x.q + ' ' + esc(unitaDetta(x.u)) : ''} · quanto la fai pagare?</button>`;
     const v = voce(x.voce);
     return `<button class="chip" style="cursor:pointer" onclick="schedaLavorazione('${id}',${i})"
-      title="Cambia o togli">✓&nbsp; ${esc(v ? v.nome : x.voce)} · ${x.q} ${esc(v ? v.u : '')}${x.dubbio ? ' · controlla la quantità' : ''}</button>`;
+      title="Cambia o togli">✓&nbsp; ${esc(v ? v.nome : x.voce)} · ${x.q} ${esc(v ? v.u : '')}${x.dubbio ? ' · metti la misura' : ''}</button>`;
   }).join('') + (s.testo ? `<div style="flex-basis:100%;width:100%;font-size:14px;color:var(--tenue);margin-top:8px">Presa storta? Toccala e correggila: ti chiedo se ricordare le tue parole.
       Non la riconosce? <a href="#listino" style="color:var(--accento)">Nel listino scrivi come la chiami a voce</a>.</div>` : '');
 }
