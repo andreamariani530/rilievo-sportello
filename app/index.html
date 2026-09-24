@@ -871,6 +871,7 @@ async function avvia(){
   preparaInstallazione();
   vai();
   if(primaVolta()) apriPorta();
+  controllaIngresso();     /* se il controllo e' spento non si vede niente */
 }
 /* Servita dal server del rilievo, l'app ha un indirizzo fisso, si mette sul telefono come
    un'icona e si apre anche senza rete (sw.js tiene una copia). Sulla pagina pubblicata
@@ -3443,6 +3444,117 @@ function rilievoHtml(ril, s, r){
    non lascia leggere i suoi dati a una pagina di un altro sito, serve lui in mezzo */
 const SPORTELLO_RILIEVO = 'https://rilievo-sportello.onrender.com';
 
+/* =====================================================================
+   IL CODICE D'INGRESSO
+   Andrea, 24 settembre 2026: «se trovassi dei nuovi giardinieri e volessi
+   fargli provare l'app, poi gli rimane sul telefono? anche quando sara' a
+   pagamento?». Rimane, e prima non c'era niente per chiudere la porta.
+
+   Non e' un account: e' un codice solo, che lui da' a mano a ogni giardiniere.
+   Si incolla una volta all'apertura e poi viaggia con ogni richiesta al server.
+   Chi decide e' il server: se il codice non e' piu' nel suo elenco, la foto e il
+   catasto non arrivano piu' e l'app lo dice chiaro.
+
+   FINCHE' IL SERVER DICE CHE IL CONTROLLO E' SPENTO, QUI NON SUCCEDE NIENTE:
+   nessuna schermata, nessuna domanda, tutto come prima. Si accende dal server,
+   il giorno che si passa a pagamento.
+
+   Senza rete si lavora lo stesso: l'ultimo via libera vale qualche giorno (lo
+   dice il server), e in giardino il telefono non deve chiedere il permesso a
+   nessuno. */
+const CHIAVE_CODICE = 'rilievo-codice-2026-09';
+const CHIAVE_PERMESSO = 'rilievo-permesso-2026-09';
+function codiceMio(){ try{ return localStorage.getItem(CHIAVE_CODICE) || ''; }catch(e){ return ''; } }
+function salvaCodice(c){ try{ localStorage.setItem(CHIAVE_CODICE, String(c||'').trim().toUpperCase()); }catch(e){} }
+/* il pezzetto di indirizzo che porta il codice al server, vuoto se non ce l'ha */
+function col(){ const c = codiceMio(); return c ? 'codice=' + encodeURIComponent(c) + '&' : ''; }
+function permesso(){
+  try{ const p = JSON.parse(localStorage.getItem(CHIAVE_PERMESSO) || 'null');
+       return (p && typeof p === 'object') ? p : null; }catch(e){ return null; }
+}
+function segnaPermesso(p){ try{ localStorage.setItem(CHIAVE_PERMESSO, JSON.stringify(p)); }catch(e){} }
+/* il via libera di prima vale ancora? (serve quando il telefono e' senza rete) */
+function permessoInCorso(){
+  const p = permesso();
+  return !!(p && p.valido && p.fino && Date.now() < p.fino);
+}
+/* Si chiede al server all'apertura. Se il controllo e' spento non fa niente.
+   Senza rete non blocca nessuno: vale l'ultimo via libera finche' non scade. */
+function controllaIngresso(){
+  if(typeof fetch !== 'function') return Promise.resolve();
+  return fetch(SPORTELLO_RILIEVO + '/entra?' + col(), {mode:'cors'})
+    .then(r => r.json())
+    .then(d => {
+      if(!d || typeof d !== 'object') return;
+      if(!d.attivo){ segnaPermesso({valido:true, fino:0, spento:true}); chiudiIngresso(); return; }
+      if(d.valido){
+        segnaPermesso({valido:true, nome:d.nome || '',
+                       fino: Date.now() + Math.max(1, d.giorni || 7) * 24*60*60*1000});
+        chiudiIngresso();
+      } else {
+        segnaPermesso({valido:false, messaggio:d.messaggio || ''});
+        apriIngresso(d.messaggio || '');
+      }
+    })
+    .catch(() => {
+      /* niente rete: se aveva gia' un via libera buono si lavora, se no si chiede
+         il codice, perche' senza server non si misura niente lo stesso */
+      const p = permesso();
+      if(p && p.spento) return;
+      if(!permessoInCorso() && p && p.valido === false) apriIngresso(p.messaggio || '');
+    });
+}
+/* il server ha risposto "questo codice non passa" in mezzo a un lavoro */
+function ingressoRifiutato(d){
+  if(!d || !d.codice_non_valido) return false;
+  segnaPermesso({valido:false, messaggio:d.errore || ''});
+  apriIngresso(d.errore || '');
+  return true;
+}
+function chiudiIngresso(){
+  const v = document.querySelector('.velo-ingresso'); if(v) v.remove();
+  document.body.classList.remove('porta-aperta');
+}
+function apriIngresso(messaggio){
+  chiudiIngresso();
+  const velo = document.createElement('div');
+  velo.className = 'velo-porta velo-ingresso';
+  velo.innerHTML = `
+    <div class="porta">
+      <div class="porta-marchio">
+        <div class="nome">Rilievo</div>
+        <div class="lbl">Il tuo codice</div>
+      </div>
+      <p class="porta-testo">${esc(messaggio || 'Scrivi il codice che ti hanno dato. Si mette una volta sola: da qui in avanti l\'app si apre da sola.')}</p>
+      <input class="campo" id="campo-codice" placeholder="Il codice" autocapitalize="characters"
+             autocomplete="off" spellcheck="false" value="${esc(codiceMio())}"
+             style="text-align:center;letter-spacing:.14em;font-size:20px;margin-bottom:14px">
+      <div class="azioni" style="justify-content:center">
+        <button class="bottone" id="codice-entra">Entra</button>
+      </div>
+      <p class="porta-piede">Il codice serve solo a farti riconoscere. I tuoi preventivi
+        restano su questo telefono e non li vede nessun altro.</p>
+    </div>`;
+  document.body.appendChild(velo);
+  document.body.classList.add('porta-aperta');
+  const campo = velo.querySelector('#campo-codice');
+  const prova = () => {
+    const c = (campo.value || '').trim();
+    if(!c){ campo.focus(); return; }
+    salvaCodice(c);
+    controllaIngresso().then(() => {
+      if(!permessoInCorso() && !(permesso() || {}).spento){
+        const p = permesso() || {};
+        const t = velo.querySelector('.porta-testo');
+        if(t) t.textContent = p.messaggio || 'Questo codice non va. Riprova.';
+      }
+    });
+  };
+  velo.querySelector('#codice-entra').onclick = prova;
+  campo.onkeydown = e => { if(e.key === 'Enter') prova(); };
+  campo.focus();
+}
+
 /* Il servizio del rilievo sta su un piano gratuito e si spegne dopo 15 minuti senza
    richieste; per riaccendersi ci mette fino a un minuto. Aspettare quel minuto col
    cliente davanti e' la cosa che fa sembrare rotta l'applicazione. Allora: appena si
@@ -3456,7 +3568,7 @@ function svegliaRilievo(){
   const ora = Date.now();
   if(ora - ultimaSveglia < 10 * 60 * 1000) return;   // gia' svegliato da poco
   ultimaSveglia = ora;
-  try{ fetch(SPORTELLO_RILIEVO + '/ci-sei', {mode:'cors'}).catch(() => {}); }catch(e){}
+  try{ fetch(SPORTELLO_RILIEVO + '/ci-sei?' + col(), {mode:'cors'}).catch(() => {}); }catch(e){}
 }
 
 function preparaRilievo(idSopralluogo){
@@ -3527,11 +3639,12 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
   const capDetto = (cap || (sopr(idSopralluogo) || {}).cap || '').replace(/\D/g, '').slice(0, 5);
-  fetch(SPORTELLO_RILIEVO + (soloFoto ? '/foto?indirizzo=' : '/rilievo?indirizzo=') + encodeURIComponent(indirizzo) +
+  fetch(SPORTELLO_RILIEVO + (soloFoto ? '/foto?' : '/rilievo?') + col() + 'indirizzo=' + encodeURIComponent(indirizzo) +
         (lato > 0 ? '&lato=' + Math.round(lato) : '') + (capDetto ? '&cap=' + capDetto : ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
       if(superata()) return;
+      if(ingressoRifiutato(d)) return;     /* il codice non passa piu': lo dice la porta */
       if(!ok || !d || d.errore){
         rilievoNonDisponibile(idSopralluogo, (d && d.errore) || '', (d && d.suggerimenti) || [], indirizzo);
         return;
@@ -3613,7 +3726,7 @@ function cercaCaseVicine(idSopralluogo, lat, lon, cassetto){
   if(senzaRete()) return;
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 25000);
-  fetch(SPORTELLO_RILIEVO + '/case-vicine?lat=' + encodeURIComponent(lat.toFixed(7)) +
+  fetch(SPORTELLO_RILIEVO + '/case-vicine?' + col() + 'lat=' + encodeURIComponent(lat.toFixed(7)) +
         '&lon=' + encodeURIComponent(lon.toFixed(7)), {signal: basta.signal})
     .then(x => x.ok ? x.json() : null)
     .then(r => {
@@ -3651,7 +3764,7 @@ function rilievoDaPunto(idSopralluogo, lat, lon, comeSiChiama){
   avvisa('Sto preparando il rilievo di ' + comeSiChiama + '…');
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
-  fetch(SPORTELLO_RILIEVO + '/particelle?punti=' + encodeURIComponent(lat.toFixed(7) + ',' + lon.toFixed(7)) +
+  fetch(SPORTELLO_RILIEVO + '/particelle?' + col() + 'punti=' + encodeURIComponent(lat.toFixed(7) + ',' + lon.toFixed(7)) +
         '&indirizzo=' + encodeURIComponent(comeSiChiama || ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
@@ -4838,7 +4951,7 @@ function rifaiFoto(centro, lato){
   const idSop = D.sop;
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
-  fetch(SPORTELLO_RILIEVO + '/foto?punto=' + encodeURIComponent(c[0].toFixed(7) + ',' + c[1].toFixed(7)) +
+  fetch(SPORTELLO_RILIEVO + '/foto?' + col() + 'punto=' + encodeURIComponent(c[0].toFixed(7) + ',' + c[1].toFixed(7)) +
         '&lato=' + encodeURIComponent(Math.round(largo)) +
         '&indirizzo=' + encodeURIComponent(ril.indirizzo || ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
@@ -5232,7 +5345,7 @@ function rimisuraLotto(){
   const sveglia = setTimeout(() => { if(turno === turnoParticelle) avvisa('Il servizio del rilievo si sta svegliando: la prima volta ci mette fino a un minuto. Resta qui.'); }, 8000);
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
-  fetch(SPORTELLO_RILIEVO + '/particelle?punti=' + encodeURIComponent(punti) +
+  fetch(SPORTELLO_RILIEVO + '/particelle?' + col() + 'punti=' + encodeURIComponent(punti) +
         '&indirizzo=' + encodeURIComponent(vecchio.indirizzo || ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
@@ -5467,7 +5580,7 @@ function misuraCasa(){
   const sveglia = setTimeout(() => { if(turno === turnoCasa) avvisa('Il servizio del rilievo si sta svegliando: la prima volta ci mette fino a un minuto. Resta qui.'); }, 8000);
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
-  fetch(SPORTELLO_RILIEVO + '/particelle?punti=' + encodeURIComponent(punti) +
+  fetch(SPORTELLO_RILIEVO + '/particelle?' + col() + 'punti=' + encodeURIComponent(punti) +
         '&indirizzo=' + encodeURIComponent(vecchio.indirizzo || ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {

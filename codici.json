@@ -1,0 +1,10 @@
+{
+  "_come_funziona": "L'elenco di chi puo' usare Rilievo. Finche' attivo e' false non cambia niente per nessuno: l'app non chiede nessun codice e tutti lavorano come adesso. Si mette true il giorno che si passa a pagamento. Per togliere l'accesso a uno: bloccato true, oppure si cancella la sua riga. Qui dentro NON vanno mail, telefoni o altri dati delle persone: solo un nome per ricordarsi chi e'.",
+  "attivo": false,
+  "giorni": 7,
+  "sconosciuto": "Questo codice non risulta. Controlla di averlo scritto giusto, oppure chiedilo a chi ti ha dato l'applicazione.",
+  "codici": {
+    "ANDREA": {"nome": "Andrea, la sua", "bloccato": false},
+    "CAFAGNA": {"nome": "Alessandro Cafagna", "bloccato": false}
+  }
+}

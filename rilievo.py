@@ -2269,6 +2269,100 @@ def nome_file(indirizzo):
     return (s[:60] or "rilievo")
 
 
+# ------------------------------------------------- chi puo' entrare
+#
+# Andrea, 24 settembre 2026: «se trovassi dei nuovi giardinieri e volessi fargli
+# provare l'app, poi gli rimane sul telefono? anche quando sara' a pagamento?».
+# Oggi si': l'app si installa e nessuno sa nemmeno chi ce l'ha. Quindi serve un
+# modo per sapere chi e' entrato e per chiudere la porta quando smette di pagare.
+#
+# NON e' un sistema di account. E' un CODICE D'INGRESSO per ogni giardiniere, che
+# lui incolla una volta e che poi viaggia con ogni richiesta. Niente mail, niente
+# password, nessun dato personale sul server: solo il codice. I nomi li tiene
+# Andrea sul suo foglio.
+#
+# Il blocco vero sta QUI, non nell'app: anche se uno smonta l'app, senza un codice
+# buono il server non gli manda ne' la foto ne' il catasto, e gli resta
+# un'applicazione che non misura niente.
+#
+# L'elenco sta in `codici.json` accanto a questo file, e si cambia caricandolo:
+# su Render il disco non e' permanente, quindi un file scritto dal server a un
+# riavvio sparisce, mentre quello che arriva col caricamento resta sempre.
+#
+# INTERRUTTORE: finche' `attivo` e' false non cambia niente per nessuno, e l'app
+# non chiede nessun codice. Si accende il giorno che si passa a pagamento.
+
+ELENCO_CODICI = QUI / "codici.json"
+GIORNI_SENZA_RETE = 7          # quanto vale un via libera quando il telefono e' offline
+_codici_letti = {"quando": 0, "roba": None}
+# chi si e' fatto vivo, da quando e quante volte. Sta in memoria e riparte da zero
+# a ogni riavvio del server: il dato che conta si ritrova nel registro stampato.
+REGISTRO = {}
+
+
+def codici():
+    """L'elenco dei codici, riletto dal file quando cambia."""
+    try:
+        quando = ELENCO_CODICI.stat().st_mtime
+    except OSError:
+        return {"attivo": False, "codici": {}}
+    if _codici_letti["roba"] is None or quando != _codici_letti["quando"]:
+        try:
+            _codici_letti["roba"] = json.loads(ELENCO_CODICI.read_text(encoding="utf-8"))
+        except Exception:                       # noqa: BLE001
+            _codici_letti["roba"] = {"attivo": False, "codici": {}}
+        _codici_letti["quando"] = quando
+    return _codici_letti["roba"]
+
+
+def _pulisci_codice(c):
+    return "".join(ch for ch in (c or "").upper() if ch.isalnum() or ch == "-")[:24]
+
+
+def chi_entra(codice):
+    """Questo codice puo' lavorare? Torna (si_o_no, cosa dirgli, per quanti giorni).
+
+    Quando il controllo e' spento passano tutti, e l'app non chiede niente.
+    """
+    elenco = codici()
+    if not elenco.get("attivo"):
+        return True, "", 0
+    c = _pulisci_codice(codice)
+    riga = (elenco.get("codici") or {}).get(c)
+    if not riga:
+        return False, elenco.get("sconosciuto") or (
+            "Questo codice non risulta. Controlla di averlo scritto giusto, "
+            "oppure chiedine uno a chi ti ha dato l'applicazione."), 0
+    if riga.get("bloccato"):
+        return False, riga.get("messaggio") or (
+            "Questo codice non e' piu' attivo. Scrivi a chi ti ha dato "
+            "l'applicazione per riattivarlo."), 0
+    oggi = time.strftime("%Y-%m-%d")
+    r = REGISTRO.setdefault(c, {"dal": oggi, "quanti": 0})
+    r["ultimo"] = oggi
+    r["quanti"] = r.get("quanti", 0) + 1
+    if r["quanti"] == 1:
+        # la riga che resta nel registro del server anche dopo un riavvio
+        print("  PRIMO INGRESSO del codice %s (%s)" % (c, riga.get("nome") or "senza nome"))
+    return True, riga.get("avviso") or "", int(elenco.get("giorni") or GIORNI_SENZA_RETE)
+
+
+def come_va_con_i_codici():
+    """Chi si e' fatto vivo da quando il server e' acceso. Serve ad Andrea."""
+    elenco = codici()
+    fuori = []
+    for c, riga in (elenco.get("codici") or {}).items():
+        visto = REGISTRO.get(c, {})
+        fuori.append({"codice": c, "nome": riga.get("nome") or "",
+                      "bloccato": bool(riga.get("bloccato")),
+                      "dal": visto.get("dal", ""), "ultimo": visto.get("ultimo", ""),
+                      "quante_volte": visto.get("quanti", 0)})
+    fuori.sort(key=lambda x: (not x["ultimo"], x["ultimo"]), reverse=True)
+    return {"attivo": bool(elenco.get("attivo")),
+            "giorni_senza_rete": int(elenco.get("giorni") or GIORNI_SENZA_RETE),
+            "quanti": len(fuori), "giardinieri": fuori}
+
+
 # ------------------------------------------------- il servizio, mentre lavori
 
 # quale versione del codice sta girando: su Render la mette la piattaforma, in
@@ -2335,10 +2429,35 @@ def servizio(porta=8787, pubblico=False):
                 except ValueError:
                     return None
 
+            def codice_chiesto():
+                return (q.get("codice") or [""])[0]
+
             if u.path in ("/", "/ci-sei"):
                 self._manda(200, {"servizio": "rilievo", "pronto": True,
-                                  "versione": VERSIONE})
+                                  "versione": VERSIONE,
+                                  "codice_richiesto": bool(codici().get("attivo"))})
                 return
+            if u.path == "/entra":
+                # l'app lo chiede all'apertura: questo codice vale ancora?
+                ok, messaggio, giorni = chi_entra(codice_chiesto())
+                elenco = codici()
+                riga = (elenco.get("codici") or {}).get(_pulisci_codice(codice_chiesto())) or {}
+                self._manda(200, {"attivo": bool(elenco.get("attivo")), "valido": ok,
+                                  "nome": riga.get("nome") or "", "giorni": giorni,
+                                  "messaggio": messaggio})
+                return
+            if u.path == "/chi-entra":
+                # per Andrea: chi si e' fatto vivo, da quando, quante volte
+                self._manda(200, come_va_con_i_codici())
+                return
+
+            # da qui in giu' si spende: foto dall'alto, catasto, particelle. Se il
+            # controllo e' acceso, senza un codice buono non si passa.
+            if u.path in ("/rilievo", "/foto", "/particelle", "/case-vicine", "/indirizzi"):
+                ok, messaggio, _ = chi_entra(codice_chiesto())
+                if not ok:
+                    self._manda(402, {"errore": messaggio, "codice_non_valido": True})
+                    return
             if u.path == "/catasto-risponde":
                 # a che punto sta l'Agenzia delle Entrate, detto in chiaro: serve a
                 # capire in dieci secondi se un rilievo mancato e' colpa loro
