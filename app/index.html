@@ -1753,7 +1753,9 @@ function segnaPagato(id){
   p.stato = 'pagato';
   p.pagato = {quando: S.oggi};
   salva(); vai();
-  avvisa('Segnato come pagato. Questo lavoro è chiuso.');
+  avvisa(preventivoChiuso(p)
+    ? 'Pagato, e il lavoro era già fatto: questo è chiuso. Va in archivio, nei Documenti.'
+    : 'Segnato come pagato. Resta da fare il lavoro: quando è finito, dillo e va in archivio.');
 }
 function tornaNonPagato(id){
   const p = prev(id);
@@ -2915,6 +2917,14 @@ const ripetizione = l => l.volte > 1 ? l.volte + ' passaggi ' + OGNI[l.ogni] : '
 function lavoroFinito(p){
   return !!(p && p.lavoro_fatto && SOLO_DATA.test((p.lavoro_fatto.quando) || ''));
 }
+/* Un preventivo e' CHIUSO quando il lavoro e' stato fatto e i soldi sono arrivati:
+   li' non c'e' piu' niente da fare, e va in archivio. Deciso da Andrea il 24
+   settembre 2026: «i preventivi pagati e fatti vanno messi in documenti».
+   Finito ma non pagato resta in Preventivi (devi ancora incassare); pagato ma non
+   finito pure (devi ancora andare a lavorare). */
+function preventivoChiuso(p){
+  return !!(p && p.stato === 'pagato' && lavoroFinito(p));
+}
 /* l'ultimo giorno in cui si mette piede dal cliente: il primo, piu' i passaggi che
    si ripetono. Una manutenzione da dodici passaggi non e' finita al primo taglio. */
 function ultimoGiornoLavoro(p){
@@ -2935,9 +2945,10 @@ function segnaLavoroFatto(id){
   const p = prev(id); if(!p || lavoroFinito(p)) return;
   p.lavoro_fatto = {quando: S.oggi};
   salva();
-  avvisa(p.stato === 'pagato'
-    ? 'Lavoro chiuso. Lo trovi in Documenti, nella linguetta «Lavori finiti».'
-    : 'Lavoro chiuso. Resta da incassare: lo trovi in Documenti, nella linguetta «Lavori finiti».');
+  avvisa(preventivoChiuso(p)
+    ? 'Fatto e pagato: questo è chiuso. Va in archivio, nei Documenti.'
+    : 'Lavoro segnato come fatto. Restano da incassare ' + euro(conti(p).netto)
+      + ': lo trovi in Preventivi, nella linguetta «Da incassare».');
   vai();
 }
 function riapriLavoro(id){
@@ -3224,7 +3235,7 @@ PAGINE.oggi = {
               </div></div>
           </div>`).join('')}
       </div>
-      <p style="font-size:15px;color:var(--tenue);margin-top:12px">Quando dici che è finito, il preventivo va in Documenti, nella linguetta «Lavori finiti», e smette di girarti fra i piedi.</p>
+      <p style="font-size:15px;color:var(--tenue);margin-top:12px">Quando è fatto e pagato il preventivo va in archivio, nei Documenti, e smette di girarti fra i piedi. Se manca l'incasso resta qui, in «Da incassare».</p>
     </div>` : ''}
     <div class="griglia2">
       <div>
@@ -7510,13 +7521,16 @@ PAGINE.preventivi = {
     /* un lavoro finito esce dalle linguette dove si aspetta ancora qualcosa e va
        nella sua: se no «Accettati» diventa un elenco di lavori gia' fatti e non si
        capisce piu' cosa e' rimasto da fare (Andrea, 24 settembre 2026) */
+    /* I preventivi chiusi (fatti e pagati) non stanno piu' qui: sono in archivio,
+       nei Documenti. Qui resta solo quello che aspetta ancora qualcosa da te. */
+    const vivi = S.preventivi.filter(p => !preventivoChiuso(p));
     const gruppi = {tutti:()=>true, bozza:p=>p.stato==='bozza', inviato:p=>p.stato==='inviato',
                     accettato:p=>p.stato==='accettato' && !lavoroFinito(p),
                     pagato:p=>p.stato==='pagato' && !lavoroFinito(p),
-                    finiti:p=>lavoroFinito(p),
+                    incassare:p=>lavoroFinito(p) && p.stato !== 'pagato',
                     rifiutato:p=>p.stato==='rifiutato', messo_via:p=>p.stato==='messo_via'};
-    const conta = f => S.preventivi.filter(gruppi[f]).length;
-    const lista = S.preventivi.filter(gruppi[filtroPrev] || gruppi.tutti)
+    const conta = f => vivi.filter(gruppi[f]).length;
+    const lista = vivi.filter(gruppi[filtroPrev] || gruppi.tutti)
       .slice().sort((a,b) => (a.data < b.data ? 1 : -1));
     /* com'e' andata: quanti ne prendi fra quelli consegnati, e perche' perdi gli altri */
     /* uno messo via non dice niente su come vanno le trattative: sta fuori dai conti */
@@ -7531,7 +7545,7 @@ PAGINE.preventivi = {
     return `
 
     <div class="filtri">
-      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['pagato','Pagati'],['finiti','Lavori finiti'],['rifiutato','Non andati'],['messo_via','Messi via']]
+      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['pagato','Pagati'],['incassare','Da incassare'],['rifiutato','Non andati'],['messo_via','Messi via']]
         .map(([k,n]) => `<button class="${filtroPrev===k?'attivo':''}" onclick="setFiltroPrev('${k}')">${n} (${conta(k)})</button>`).join('')}
     </div>
     ${campoCerca('Cerca per nome, numero o luogo')}
@@ -8068,7 +8082,11 @@ PAGINE.numeri = {
    le carte che arrivano da fuori: i preventivi di prima, i rapportini, i
    resoconti, i file caricati. */
 function cassetto(){
-  const daiPreventivi = [];
+  const daiPreventivi = S.preventivi.filter(preventivoChiuso).map(p => ({
+    id: p.id, apribile: true, tipo: 'Lavoro chiuso', chiuso: true,
+    titolo: 'Preventivo · ' + p.nome, data: p.data, stato: p.stato, finito: true,
+    nota: 'n. ' + p.numero + ' · ' + euro(conti(p).netto) + ' · incassato'
+  }));
   const altri = S.documenti.map(d => {
     const cl = d.cliente ? cliente(d.cliente) : null;
     return Object.assign({apribile:false}, d, {nota: [d.tipo === 'Preventivo precedente' ? 'Preventivo di prima' : '',
@@ -8083,30 +8101,32 @@ function cassetto(){
 /* Le linguette del cassetto dicono CHE CARTA E', perche' qui dentro non ci sono
    piu' gli stati di un preventivo: ci sono le cose che hai caricato tu. */
 function gruppoDocumento(d){
+  if(d.chiuso) return 'chiusi';
   const t = String(d.tipo || '').toLowerCase();
   if(t.indexOf('preventivo') >= 0) return 'preventivi';
   if(t.indexOf('rapportino') >= 0) return 'rapportini';
   if(t.indexOf('resoconto') >= 0)  return 'resoconti';
   return 'altro';
 }
-const LINGUETTE_DOCUMENTI = [['tutti','Tutti'],['preventivi','Preventivi di prima'],
-  ['rapportini','Rapportini'],['resoconti','Resoconti'],['altro','Altro']];
-function etichettaDocumento(d){ return tag(d.stato); }
+const LINGUETTE_DOCUMENTI = [['tutti','Tutti'],['chiusi','Lavori chiusi'],
+  ['preventivi','Preventivi di prima'],['rapportini','Rapportini'],
+  ['resoconti','Resoconti'],['altro','Altro']];
+function etichettaDocumento(d){ return tag(d.chiuso ? 'finito_pagato' : d.stato); }
 let filtroDocumenti = 'tutti';
 function setFiltroDocumenti(f){ filtroDocumenti = f; vai(); }
 PAGINE.documenti = {
   guida:false,
-  testata(){ return {occhiello:'Le carte che hai caricato', titolo:'Documenti',
+  testata(){ return {occhiello:'L\'archivio: i lavori chiusi e le carte caricate', titolo:'Documenti',
     destra:'<div class="azioni"><button class="bottone vuoto" onclick="apriListinoDaVecchi()">Fai il listino da un preventivo</button>' +
       '<button class="bottone vuoto" onclick="document.getElementById(\'scelta-archivio\').click()">Carica preventivi di prima</button>' +
       '<button class="bottone" onclick="schedaDocumento(null)">+ Nuovo documento</button>' + inputArchivio() + '</div>'}; },
   spiega:{
-    testo:'Le carte che arrivano da fuori: i preventivi che facevi prima, i rapportini, i resoconti. I preventivi fatti con l\'app stanno in Preventivi.',
-    punti:['Da un preventivo di prima si costruisce il tuo listino','Un file caricato si riapre e si gira al cliente','Nel pacchetto base la fattura non c\'è ancora: arriva più avanti, compresa']
+    testo:'L\'archivio. Qui finiscono i lavori chiusi (fatti e pagati) e le carte che arrivano da fuori: i preventivi di prima, i rapportini, i resoconti. Quello che aspetta ancora qualcosa resta in Preventivi.',
+    punti:['Un lavoro entra qui da solo quando è fatto e incassato','Da un preventivo di prima si costruisce il tuo listino','Nel pacchetto base la fattura non c\'è ancora: arriva più avanti, compresa']
   },
   corpo(){
     const l = cassetto();
-    if(!l.length) return `<div class="niente">Il cassetto è vuoto. Qui dentro finiscono le carte che carichi tu: i preventivi di prima, i rapportini, i resoconti.<br><br>I preventivi fatti con l'app invece stanno in <a href="#preventivi" style="color:var(--accento)">Preventivi</a>.</div>`;
+    if(!l.length) return `<div class="niente">L'archivio è vuoto. Ci finiscono da soli i lavori chiusi, cioè quelli fatti e pagati, più le carte che carichi tu.<br><br>Quello su cui stai lavorando sta in <a href="#preventivi" style="color:var(--accento)">Preventivi</a>.</div>`;
     const conta = k => k === 'tutti' ? l.length : l.filter(d => gruppoDocumento(d) === k).length;
     const visti = filtroDocumenti === 'tutti' ? l : l.filter(d => gruppoDocumento(d) === filtroDocumenti);
     return `
