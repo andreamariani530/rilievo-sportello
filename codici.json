@@ -1,8 +1,10 @@
 {
   "_come_funziona": "L'elenco di chi puo' usare Rilievo. Finche' attivo e' false non cambia niente per nessuno: l'app non chiede nessun codice e tutti lavorano come adesso. Si mette true il giorno che si passa a pagamento. Per togliere l'accesso a uno: bloccato true, oppure si cancella la sua riga. Qui dentro NON vanno mail, telefoni o altri dati delle persone: solo un nome per ricordarsi chi e'.",
+  "_le_ditte": "Un codice che scrive 'ditta' entra nell'archivio condiviso di quella ditta: piu' codici con la stessa ditta guardano lo stesso elenco di lavori. Un codice senza 'ditta' e' un artigiano da solo e non cambia niente per lui. Il 'ruolo' dice cosa puo' fare: capo mette dentro i lavori, li cambia, li cancella e decide i nomi degli stati; squadra sposta lo stato e scrive le note dei lavori che ci sono gia'; guarda legge soltanto. Senza ruolo scritto vale squadra. L'archivio non dipende dall'interruttore attivo: si accende dando un codice con dentro una ditta.",
   "attivo": false,
   "giorni": 7,
   "sconosciuto": "Questo codice non risulta. Controlla di averlo scritto giusto, oppure chiedilo a chi ti ha dato l'applicazione.",
+  "ditte": {},
   "codici": {
     "ANDREA": {"nome": "Andrea, la sua", "bloccato": false},
     "CAFAGNA": {"nome": "Alessandro Cafagna", "bloccato": false}

@@ -875,6 +875,7 @@ async function avvia(){
   preparaInstallazione();
   vai();
   if(primaVolta()) apriPorta();
+  vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
   controllaIngresso();     /* se il controllo e' spento non si vede niente */
 }
 /* Servita dal server del rilievo, l'app ha un indirizzo fisso, si mette sul telefono come
@@ -3573,6 +3574,40 @@ const CHIAVE_CODICE = 'rilievo-codice-2026-09';
 const CHIAVE_PERMESSO = 'rilievo-permesso-2026-09';
 function codiceMio(){ try{ return localStorage.getItem(CHIAVE_CODICE) || ''; }catch(e){ return ''; } }
 function salvaCodice(c){ try{ localStorage.setItem(CHIAVE_CODICE, String(c||'').trim().toUpperCase()); }catch(e){} }
+
+/* ===== LA DITTA, SE IL CODICE NE NOMINA UNA =====
+   Un codice d'ingresso puo' dire anche di che ditta sei e cosa ci puoi fare dentro.
+   Chi lavora da solo non ha nessuna ditta scritta: per lui qui torna sempre null e
+   non cambia una virgola. Il server e' l'unico che decide; questo e' solo il foglietto
+   che l'app si tiene in tasca per non dover richiedere tutto a ogni schermata. */
+const CHIAVE_DITTA = 'rilievo-ditta-2026-09';
+function miaDitta(){
+  try{ const d = JSON.parse(localStorage.getItem(CHIAVE_DITTA) || 'null');
+       return (d && typeof d === 'object' && d.id) ? d : null; }catch(e){ return null; }
+}
+function segnaDitta(d){
+  try{
+    if(d && d.id) localStorage.setItem(CHIAVE_DITTA, JSON.stringify(d));
+    else localStorage.removeItem(CHIAVE_DITTA);
+  }catch(e){}
+}
+/* cosa posso fare dentro l'archivio della ditta: legge, sposta, mette, comanda.
+   Senza ditta e' sempre no, e non serve a niente: i lavori sono tuoi e basta. */
+function posso(azione){
+  const d = miaDitta();
+  return !!(d && d.posso && d.posso[azione]);
+}
+/* Nel menu la voce dice «in arrivo» finche' non c'e' davvero. Con una ditta
+   l'elenco c'e', e quell'etichetta diventa una bugia: si toglie. */
+function vocedellaSquadra(){
+  const e = document.querySelector('nav a[href="#squadra"] .arrivo');
+  if(e && miaDitta()) e.remove();
+}
+/* il nome da scrivere accanto a una cosa che ho appena toccato io */
+function ioSono(){
+  const d = miaDitta();
+  return (d && d.persona) || '';
+}
 /* il pezzetto di indirizzo che porta il codice al server, vuoto se non ce l'ha */
 function col(){ const c = codiceMio(); return c ? 'codice=' + encodeURIComponent(c) + '&' : ''; }
 function permesso(){
@@ -3593,6 +3628,12 @@ function controllaIngresso(){
     .then(r => r.json())
     .then(d => {
       if(!d || typeof d !== 'object') return;
+      /* la ditta si legge sempre, anche col controllo dei codici spento: sono due
+         interruttori diversi (uno fa pagare, l'altro condivide) */
+      segnaDitta(d.ditta ? {id:d.ditta, nome:d.ditta_nome || d.ditta, persona:d.nome || '',
+                            codice:(codiceMio()||''), ruolo:d.ruolo || '',
+                            posso:d.posso || {}, squadra:d.squadra || []} : null);
+      vocedellaSquadra();
       if(!d.attivo){ segnaPermesso({valido:true, fino:0, spento:true}); chiudiIngresso(); return; }
       if(d.valido){
         segnaPermesso({valido:true, nome:d.nome || '',
@@ -8720,16 +8761,20 @@ function filtra(q){
   const n = document.getElementById('cerca-niente'); if(n) n.style.display = visti ? 'none' : '';
 }
 
-/* ===== LAVORI DELLA SQUADRA (in arrivo) =====
+/* ===== L'ARCHIVIO DELLA SQUADRA =====
    Il 24 settembre 2026 una ditta di spurghi ha chiesto Rilievo, e quello che voleva
    non era il rilievo del giardino: era l'elenco dei lavori con lo stato di ognuno,
    visto da tre persone. Serve identico a un giardiniere con due operai, quindi entra
    nel prodotto (memoria: rilievo-larchivio-condiviso-allarga-il-target).
 
-   Oggi non c'e': i dati stanno nella memoria del telefono e due telefoni non si
-   vedono. Questa pagina non simula niente e non promette una data. Dice cosa sara',
-   e prende nome e numero di chi lo vuole, mandandoli davvero ad Andrea su WhatsApp:
-   niente elenco che resta chiuso dentro un telefono che nessuno legge. */
+   CHI LAVORA DA SOLO NON VEDE NIENTE DI NUOVO. Senza un codice che nomina una ditta,
+   questa pagina resta quella di prima: dice cosa sara' e prende nome e numero di chi
+   lo vuole. Tutto il resto dell'applicazione non cambia di una virgola, e i preventivi
+   restano nella memoria del suo telefono come sempre.
+
+   CON UNA DITTA, i lavori stanno sul server e li vedono tutti. In cantiere si continua
+   a lavorare anche senza campo: quello che si tocca resta qui dentro in coda e va su
+   da solo quando torna la linea. */
 const CONTATTO_RILIEVO = '393289757655';
 const CHIAVE_SQUADRA   = 'rilievo-squadra-2026-09';
 function squadraChiesta(){
@@ -8761,10 +8806,423 @@ function chiediSquadra(){
     messaggio: 'Segnato. Ti avviso appena è pronto.'
   });
 }
+
+/* ---------------- i lavori della ditta, qui sul telefono ----------------
+   Non stanno dentro S: S e' il lavoro personale di chi usa l'app, si esporta e si
+   reimporta, ed e' suo. Questi sono della ditta, arrivano dal server e ci tornano.
+   Tenerli separati e' anche l'unico modo di essere sicuri che chi non ha una ditta
+   non si ritrovi niente di diverso nel suo file. */
+const CHIAVE_ARCHIVIO = 'rilievo-squadra-archivio-2026-09';
+const STATI_DI_PARTENZA = [
+  {chiave:'da-chiamare', nome:'Da chiamare',        chiude:false},
+  {chiave:'chiamato',    nome:'Chiamato',           chiude:false},
+  {chiave:'preventivo',  nome:'Preventivo mandato', chiude:false},
+  {chiave:'accettato',   nome:'Accettato',          chiude:false},
+  {chiave:'da-fare',     nome:'Da fare',            chiude:false},
+  {chiave:'fatto',       nome:'Fatto',              chiude:false},
+  {chiave:'pagato',      nome:'Pagato',             chiude:true},
+  {chiave:'niente',      nome:'Non se ne fa niente', chiude:true}
+];
+const CAMPI_LAVORO = ['cliente','indirizzo','telefono','prezzo','stato','chi_segue','note','cancellato'];
+
+function squadraVuota(){
+  return {ditta:'', orologio:0, stati:STATI_DI_PARTENZA.map(x => Object.assign({}, x)),
+          lavori:{}, coda:{}, ultimaSinc:''};
+}
+function archivioSquadra(){
+  try{
+    const a = JSON.parse(localStorage.getItem(CHIAVE_ARCHIVIO) || 'null');
+    if(!a || typeof a !== 'object' || typeof a.lavori !== 'object') return squadraVuota();
+    if(!a.stati || !a.stati.length) a.stati = STATI_DI_PARTENZA.map(x => Object.assign({}, x));
+    if(!a.coda) a.coda = {};
+    /* cambiata ditta (un altro codice su questo telefono): si riparte pulito,
+       se no si mescolerebbero i lavori di due ditte diverse */
+    const d = miaDitta();
+    if(d && a.ditta && a.ditta !== d.id) return squadraVuota();
+    return a;
+  }catch(e){ return squadraVuota(); }
+}
+function scriviSquadra(a){
+  try{ localStorage.setItem(CHIAVE_ARCHIVIO, JSON.stringify(a)); return true; }
+  catch(e){ return false; }
+}
+function istante(){ return new Date().toISOString(); }
+function nuovoIdLavoro(){
+  return 'lav-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7);
+}
+/* La stessa identica regola del server, e deve restare identica: se i due lati
+   decidessero in modo diverso, due telefoni finirebbero a rincorrersi per sempre. */
+function vinceIl(quandoNuovo, chiNuovo, quandoVecchio, chiVecchio){
+  if(!quandoVecchio) return true;
+  if(quandoNuovo > quandoVecchio) return true;
+  if(quandoNuovo < quandoVecchio) return false;
+  if(String(chiNuovo||'') === String(chiVecchio||'')) return true;
+  return String(chiNuovo||'') < String(chiVecchio||'');
+}
+function lavoroVuoto(id){
+  return {id:id, cliente:'', indirizzo:'', telefono:'', prezzo:0, stato:'',
+          chi_segue:'', note:'', cancellato:false, quando:'', tocchi:{}, storia:[]};
+}
+/* Unisce quello che arriva dal server con quello che c'e' qui. Torna il lavoro
+   unito e se qualche campo di qui ha vinto (allora va rimandato su). */
+function unisciLavoro(mio, suo){
+  if(!mio) return {lavoro: suo, mioVince:false};
+  const fuori = Object.assign({}, mio);
+  fuori.tocchi = Object.assign({}, mio.tocchi || {});
+  let mioVince = false;
+  CAMPI_LAVORO.concat(['quando']).forEach(k => {
+    const t = (suo.tocchi || {})[k] || {};
+    const v = (mio.tocchi || {})[k] || {};
+    if(vinceIl(t.quando || '', t.chi || '', v.quando || '', v.chi || '')){
+      fuori[k] = suo[k];
+      if(t.quando) fuori.tocchi[k] = {quando:t.quando, chi:t.chi};
+    } else if(mio[k] !== suo[k]) mioVince = true;
+  });
+  fuori.storia = unisciStoria(mio.storia, suo.storia);
+  return {lavoro: fuori, mioVince: mioVince};
+}
+function unisciStoria(a, b){
+  const viste = {}, fuori = [];
+  (a||[]).concat(b||[]).forEach(r => {
+    if(!r) return;
+    const k = [r.quando,r.chi,r.cosa,r.da,r.a].join('|');
+    if(viste[k]) return;
+    viste[k] = 1; fuori.push(r);
+  });
+  fuori.sort((x,y) => (x.quando||'') < (y.quando||'') ? -1 : 1);
+  return fuori.slice(-200);
+}
+function statiSquadra(){ return archivioSquadra().stati; }
+function statoDi(chiave){
+  return statiSquadra().filter(s => s.chiave === chiave)[0] || {chiave:chiave, nome:chiave||'—', chiude:false};
+}
+function lavoriSquadra(){
+  const a = archivioSquadra();
+  return Object.keys(a.lavori).map(k => a.lavori[k]).filter(l => l && !l.cancellato)
+    .sort((x,y) => (y.quando||'') < (x.quando||'') ? -1 : 1);
+}
+function lavoroSquadra(id){ return archivioSquadra().lavori[id] || null; }
+
+/* Scrive un cambiamento qui e lo mette in coda. Ogni campo si porta dietro
+   QUANDO e CHI l'ha toccato: e' quello che permette a due persone di cambiare
+   due cose diverse dello stesso lavoro senza che una delle due sparisca. */
+function toccaLavoro(id, campi){
+  const d = miaDitta(); if(!d) return null;
+  const a = archivioSquadra();
+  a.ditta = d.id;
+  const ora = istante(), io = d.codice || '';
+  const nuovo = !a.lavori[id];
+  const l = a.lavori[id] ? Object.assign({}, a.lavori[id]) : lavoroVuoto(id);
+  l.tocchi = Object.assign({}, l.tocchi || {});
+  Object.keys(campi).forEach(k => {
+    if(CAMPI_LAVORO.indexOf(k) < 0) return;
+    let v = campi[k];
+    if(k === 'prezzo'){ const n = numeroScritto(v); v = (n === null || isNaN(n)) ? 0 : n; }
+    if(k === 'cancellato') v = !!v;
+    if(v === l[k]) return;
+    if(k === 'stato' && l.stato)
+      l.storia = unisciStoria(l.storia, [{quando:ora, chi:io, nome:d.persona||io,
+                                          cosa:'stato', da:l.stato, a:v}]);
+    l[k] = v;
+    l.tocchi[k] = {quando:ora, chi:io};
+  });
+  if(!l.quando){ l.quando = ora; l.tocchi.quando = {quando:ora, chi:io}; }
+  if(!l.stato) l.stato = (a.stati[0] || {}).chiave || 'da-chiamare';
+  if(nuovo) l.storia = unisciStoria(l.storia, [{quando:ora, chi:io, nome:d.persona||io,
+                                                cosa:'aperto', da:'', a:l.stato}]);
+  a.lavori[id] = l;
+  a.coda[id] = true;
+  scriviSquadra(a);
+  sincronizza();
+  return l;
+}
+
+/* ---------------- rimettersi in pari col server ----------------
+   Due mosse: prima si manda su quello che si e' toccato qui, poi si chiede
+   «cosa e' cambiato dopo la battuta che avevo io». Se non c'e' linea non
+   succede niente di male: la coda resta e si riprova la prossima volta. */
+let staSincronizzando = false, qualcosaDopo = false;
+function sincronizza(){
+  const d = miaDitta();
+  /* NON si guarda navigator.onLine per decidere se provarci. Il browser ogni tanto
+     dice di essere offline quando invece la linea c'e' (visto il 25 settembre 2026
+     dentro Chromium), e un telefono che si crede offline non manderebbe mai su
+     niente, in silenzio. Si prova e basta: se non va, ci pensa il catch. */
+  if(!d || typeof fetch !== 'function') return Promise.resolve(false);
+  /* Se un giro e' gia' in corso non se ne apre un secondo, ma ci si segna che nel
+     frattempo e' successo qualcosa: appena finisce si riparte. Senza questa riga un
+     lavoro scritto mentre l'app stava parlando col server restava fermo in coda
+     fino al gesto successivo, e sembrava andato su. */
+  if(staSincronizzando){ qualcosaDopo = true; return Promise.resolve(false); }
+  staSincronizzando = true;
+  const a = archivioSquadra();
+  const daMandare = Object.keys(a.coda || {}).map(k => a.lavori[k]).filter(Boolean);
+  const manda = daMandare.length
+    ? fetch(SPORTELLO_RILIEVO + '/squadra/salva?' + col(),
+            {method:'POST', mode:'cors', headers:{'Content-Type':'application/json'},
+             body: JSON.stringify({lavori: daMandare})}).then(r => r.json())
+    : Promise.resolve(null);
+  return manda.then(risposta => {
+    if(risposta) accettaRisposta(risposta);
+    const b = archivioSquadra();
+    return fetch(SPORTELLO_RILIEVO + '/squadra/lavori?' + col() + 'dalla=' + (b.orologio||0),
+                 {mode:'cors'}).then(r => r.json());
+  }).then(dati => {
+    if(!dati || dati.errore){ staSincronizzando = false; riprendi(); return false; }
+    /* Si ridisegna SOLO se e' cambiato davvero qualcosa, e il lucchetto si toglie
+       DOPO il ridisegno. Non e' pulizia: la pagina appena aperta chiede un giro
+       (`poi`), e se il giro ridisegnasse sempre e togliesse il lucchetto prima, il
+       ridisegno chiederebbe un altro giro e l'applicazione si pianterebbe li'.
+       Trovato la notte del 25 settembre 2026: il collaudo non arrivava piu' in fondo. */
+    const prima = archivioSquadra();
+    const novita = (dati.lavori || []).length > 0 ||
+                   JSON.stringify(dati.stati || []) !== JSON.stringify(prima.stati || []);
+    mettiDalServer(dati);
+    const dove = location.hash || '';
+    if(novita && (dove.indexOf('#squadra') === 0 || dove.indexOf('#lavoro') === 0)) vai();
+    staSincronizzando = false;
+    riprendi();
+    return true;
+  }).catch(() => { staSincronizzando = false; riprendi(); return false; });
+}
+/* e' successo qualcosa mentre si era al telefono col server: si rifa' il giro */
+function riprendi(){
+  if(!qualcosaDopo) return;
+  qualcosaDopo = false;
+  if(Object.keys(archivioSquadra().coda || {}).length) sincronizza();
+}
+/* cosa ha detto il server di quello che gli abbiamo mandato */
+function accettaRisposta(r){
+  const a = archivioSquadra();
+  (r.salvati || []).forEach(id => { delete a.coda[id]; });
+  (r.respinti || []).forEach(x => {
+    delete a.coda[x.id];
+    /* un campo che il server non accetta (il prezzo cambiato dall'operaio) non puo'
+       restare scritto qui, se no ce lo si ritrova davanti per sempre e sembra salvato:
+       si butta il segno di quel tocco e al giro dopo vince il valore del server */
+    const l = a.lavori[x.id];
+    if(l && l.tocchi) (x.campi || []).forEach(c => { delete l.tocchi[c]; });
+  });
+  scriviSquadra(a);
+  /* il server rimanda indietro i lavori come sono adesso da lui: si riprendono, se
+     no un campo respinto (il prezzo cambiato dall'operaio) resterebbe scritto qui
+     per sempre. Il server non lo ha toccato, quindi il giro dopo non lo rimanderebbe
+     mai, e l'operaio continuerebbe a vedere un prezzo che nessun altro vede. */
+  if((r.lavori || []).length) mettiDalServer({lavori: r.lavori, orologio: r.orologio});
+  const primo = (r.respinti || [])[0];
+  if(primo && primo.perche) avvisa(primo.perche);
+}
+/* quello che arriva dal server entra qui dentro */
+function mettiDalServer(dati){
+  const a = archivioSquadra();
+  const d = miaDitta();
+  a.ditta = (d && d.id) || dati.ditta || a.ditta;
+  if(dati.stati && dati.stati.length) a.stati = dati.stati;
+  (dati.lavori || []).forEach(suo => {
+    if(!suo || !suo.id) return;
+    const r = unisciLavoro(a.lavori[suo.id], suo);
+    a.lavori[suo.id] = r.lavoro;
+    if(r.mioVince) a.coda[suo.id] = true;
+  });
+  a.orologio = dati.orologio || a.orologio || 0;
+  a.ultimaSinc = istante();
+  scriviSquadra(a);
+}
+/* quando torna la linea si va su da soli, senza che nessuno prema niente */
+if(typeof addEventListener === 'function') addEventListener('online', () => sincronizza());
+
+/* ---------------- i gesti ---------------- */
+function spostaLavoro(id, stato){
+  if(!posso('sposta')){ avvisa('Il tuo codice può soltanto guardare.'); return; }
+  const l = lavoroSquadra(id); if(!l || l.stato === stato) return;
+  toccaLavoro(id, {stato: stato});
+  vai();
+  avvisa('Spostato in «' + statoDi(stato).nome + '».');
+}
+function schedaLavoro(id){
+  if(!posso(id ? 'sposta' : 'mette')){
+    avvisa(id ? 'Il tuo codice può soltanto guardare.' : 'I lavori nuovi li mette dentro il capo.');
+    return;
+  }
+  const l = id ? lavoroSquadra(id) : null;
+  const d = miaDitta() || {};
+  const chiPuo = (d.squadra || []).filter(x => !x.bloccato);
+  const soloCapo = !posso('mette');
+  const campi = [];
+  if(!soloCapo){
+    campi.push({k:'cliente',   l:'Cliente',   p:'Condominio Aurora'});
+    campi.push({k:'indirizzo', l:'Indirizzo', p:'Via Roma 4, Lodi'});
+    campi.push({k:'telefono',  l:'Telefono',  p:'0371 000111', m:true});
+    campi.push({k:'prezzo',    l:'Prezzo',    t:'numero', p:'450', m:true});
+  }
+  campi.push({k:'stato', l:'A che punto è', t:'scelta',
+              opzioni: statiSquadra().map(s => [s.chiave, s.nome])});
+  if(chiPuo.length)
+    campi.push({k:'chi_segue', l:'Chi lo segue', t:'scelta',
+                opzioni: [['','Nessuno ancora']].concat(chiPuo.map(x => [x.codice, x.nome]))});
+  campi.push({k:'note', l:'Note', t:'lungo', p:'Quello che serve ricordarsi'});
+  scheda({
+    titolo: l ? 'Il lavoro' : 'Nuovo lavoro',
+    sotto: soloCapo ? 'Il cliente, l\'indirizzo e il prezzo li cambia il capo.' : '',
+    valori: l ? {cliente:l.cliente, indirizzo:l.indirizzo, telefono:l.telefono,
+                 prezzo:l.prezzo || '', stato:l.stato, chi_segue:l.chi_segue, note:l.note}
+              : {stato:(statiSquadra()[0]||{}).chiave || ''},
+    campi: campi,
+    controlla: x => (!soloCapo && !String(x.cliente||'').trim()) ? 'Serve almeno il nome del cliente.' : null,
+    elimina: (l && posso('mette')) ? () => toccaLavoro(l.id, {cancellato:true}) : null,
+    testoElimina: 'Lo tolgo dall\'elenco di tutti. Vuoi?',
+    dopoElimina: '#squadra',
+    salva: x => {
+      const quale = l ? l.id : nuovoIdLavoro();
+      toccaLavoro(quale, x);
+      if(!l) location.hash = '#lavoro/' + quale; else vai();
+    },
+    messaggio: l ? 'Salvato, e lo vedono tutti.' : 'Messo dentro. Lo vedono tutti.'
+  });
+}
+/* I nomi degli stati li sceglie la ditta: uno che fa spurghi e uno che pota siepi
+   non hanno gli stessi passaggi (paletto di Andrea, 24 settembre 2026). Si scrivono
+   in chiaro: chi svuota un nome toglie quello stato, chi riempie una riga vuota ne
+   aggiunge uno. Non serve imparare niente. */
+function schedaStati(){
+  if(!posso('comanda')){ avvisa('I nomi dei passaggi li decide il capo.'); return; }
+  const ora = statiSquadra();
+  const quanti = Math.min(ora.length + 3, 20);
+  const campi = [], valori = {};
+  for(let i = 0; i < quanti; i++){
+    const s = ora[i];
+    campi.push({k:'s' + i, l: i < ora.length ? ('Passaggio ' + (i+1)) : 'Un altro passaggio',
+                p: i < ora.length ? '' : 'lascia vuoto se non serve'});
+    valori['s' + i] = s ? s.nome : '';
+    campi.push({k:'c' + i, l:'Chiude il lavoro?', t:'scelta', m:true,
+                opzioni:[['no','No, il lavoro va avanti'],['si','Sì, qui è finito']]});
+    valori['c' + i] = (s && s.chiude) ? 'si' : 'no';
+  }
+  scheda({
+    titolo:'I passaggi dei tuoi lavori',
+    sotto:'Scrivili come li dici tu. Quelli che chiudono spariscono dall\'elenco di tutti i giorni e restano in «Chiusi».',
+    valori: valori, campi: campi,
+    controlla: x => {
+      for(let i = 0; i < quanti; i++) if(String(x['s'+i]||'').trim()) return null;
+      return 'Serve almeno un passaggio.';
+    },
+    salva: x => {
+      const nuovi = [];
+      for(let i = 0; i < quanti; i++){
+        const nome = String(x['s'+i]||'').trim();
+        if(!nome) continue;
+        nuovi.push({chiave: (ora[i] && ora[i].chiave) || chiaveDaNome(nome, nuovi),
+                    nome: nome, chiude: x['c'+i] === 'si'});
+      }
+      mandaStati(nuovi);
+    },
+    messaggio:''
+  });
+}
+function chiaveDaNome(nome, gia){
+  let k = senzaAccenti(String(nome).toLowerCase()).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40) || 'passaggio';
+  let n = k, i = 2;
+  while(gia.some(s => s.chiave === n)) n = k + '-' + (i++);
+  return n;
+}
+function mandaStati(nuovi){
+  /* stesso motivo di sopra: si prova, e se non va lo si dice con parole vere */
+  return fetch(SPORTELLO_RILIEVO + '/squadra/stati?' + col(),
+        {method:'POST', mode:'cors', headers:{'Content-Type':'application/json'},
+         body: JSON.stringify({stati: nuovi})})
+    .then(r => r.json())
+    .then(d => {
+      if(d.errore){ avvisa(d.errore); return; }
+      const a = archivioSquadra(); a.stati = d.stati; scriviSquadra(a);
+      vai(); avvisa('Fatto. I nomi nuovi li vedono tutti.');
+    })
+    .catch(() => avvisa('Non sono riuscito a salvarli: ci vuole la linea, perché questo lo devono vedere tutti.'));
+}
+
+/* ---------------- la pagina ---------------- */
+let filtroSquadra = 'tutti';
+function setFiltroSquadra(f){ filtroSquadra = f; vai(); }
+function quandoCorto(iso){
+  if(!iso) return '';
+  const d = new Date(iso); if(isNaN(d)) return '';
+  const g = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if(g <= 0) return 'oggi alle ' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+  if(g === 1) return 'ieri';
+  if(g < 30) return g + ' giorni fa';
+  return d.getDate() + ' ' + MESI[d.getMonth()];
+}
+function nomeDi(codice){
+  const d = miaDitta() || {};
+  const x = (d.squadra || []).filter(y => y.codice === codice)[0];
+  return (x && x.nome) || codice || '';
+}
+function inCoda(){ return Object.keys(archivioSquadra().coda || {}).length; }
+
 PAGINE.squadra = {
   guida:false,
-  testata(){ return {occhiello:'Non c\'è ancora. Ecco cosa sarà', titolo:'Lavori della squadra'}; },
+  testata(){
+    const d = miaDitta();
+    if(!d) return {occhiello:'Non c\'è ancora. Ecco cosa sarà', titolo:'Lavori della squadra'};
+    return {occhiello: d.nome, titolo:'Lavori della squadra',
+      destra: posso('mette') ? '<button class="bottone" onclick="schedaLavoro(null)">+ Nuovo lavoro</button>' : ''};
+  },
+  poi(){ if(miaDitta()) sincronizza(); },
   corpo(){
+    const d = miaDitta();
+    if(!d) return PAGINE.squadra.inArrivo();
+    const stati = statiSquadra();
+    const chiude = {}; stati.forEach(s => { if(s.chiude) chiude[s.chiave] = true; });
+    const tutti = lavoriSquadra();
+    const vivi = tutti.filter(l => !chiude[l.stato]);
+    const conta = k => k === 'tutti' ? vivi.length
+                     : k === 'chiusi' ? tutti.length - vivi.length
+                     : vivi.filter(l => l.stato === k).length;
+    const lista = filtroSquadra === 'tutti' ? vivi
+                : filtroSquadra === 'chiusi' ? tutti.filter(l => chiude[l.stato])
+                : vivi.filter(l => l.stato === filtroSquadra);
+    /* la prima linguetta si chiama «Tutti» come dappertutto nell'app: chiamarla
+       «Da fare» la faceva sbattere contro il passaggio che si chiama davvero
+       «Da fare», e a 390x844 si leggevano due linguette uguali una sotto l'altra */
+    const linguette = [['tutti','Tutti']]
+      .concat(stati.filter(s => !s.chiude).map(s => [s.chiave, s.nome]))
+      .concat([['chiusi','Chiusi']]);
+    const coda = inCoda();
+    return `
+    ${coda ? `<div class="scheda" style="border-left:2px solid var(--oro);padding:14px 18px;margin-bottom:16px">
+      <b>${coda} ${coda === 1 ? 'cosa segnata' : 'cose segnate'} qui, non ancora sul server.</b>
+      <span style="color:var(--soft)"> Vanno su da sole appena torna la linea.</span>
+    </div>` : ''}
+    <div class="filtri">
+      ${linguette.map(([k,n]) => `<button class="${filtroSquadra===k?'attivo':''}" onclick="setFiltroSquadra('${esc(k)}')">${esc(n)} (${conta(k)})</button>`).join('')}
+    </div>
+    ${campoCerca('Cerca per cliente, indirizzo o telefono')}
+    ${lista.length ? `<div class="elenco">${lista.map(l => `
+      <div class="r cliccabile" data-cerca="${esc(chiaveCerca(l.cliente, l.indirizzo, l.telefono, l.note, statoDi(l.stato).nome))}" onclick="location.hash='#lavoro/${esc(l.id)}'">
+        <div><div class="tit">${esc(l.cliente || 'Senza nome')}</div>
+          <div class="sub">${esc(l.indirizzo || '—')}${Number(l.prezzo) > 0 ? ' · <b>' + euro(Number(l.prezzo)) + '</b>' : ''}${l.chi_segue ? ' · ' + esc(nomeDi(l.chi_segue)) : ''}</div></div>
+        <div class="riga-azione">
+          <span class="tag ${chiude[l.stato] ? 'v' : ''}">${esc(statoDi(l.stato).nome)}</span>
+        </div>
+      </div>`).join('')}</div>`
+      : `<div class="niente">${filtroSquadra === 'tutti'
+            ? (posso('mette') ? 'Ancora nessun lavoro. Mettine dentro uno col tasto in alto.' : 'Ancora nessun lavoro. Li mette dentro il capo.')
+            : 'Nessun lavoro in questo passaggio.'}</div>`}
+    <div class="lbl" style="margin:30px 0 12px">La tua ditta</div>
+    <div class="scheda" style="padding:16px 20px">
+      <div style="color:var(--soft);font-size:16px;line-height:1.7">
+        Sei <b>${esc(d.persona || d.codice)}</b>, ${esc(d.ruolo === 'capo' ? 'e metti dentro tu i lavori'
+          : d.ruolo === 'guarda' ? 'e guardi soltanto' : 'e sposti tu gli stati dei lavori')}.
+        Siete in ${(d.squadra||[]).filter(x => !x.bloccato).length}.
+        ${archivioSquadra().ultimaSinc ? 'Ultimo giro ' + esc(quandoCorto(archivioSquadra().ultimaSinc)) + '.' : ''}
+      </div>
+      <div class="azioni" style="margin-top:14px">
+        <button class="bottone vuoto piccolo" onclick="sincronizza().then(()=>avvisa('Rimesso in pari.'))">Rimettiti in pari adesso</button>
+        ${posso('comanda') ? '<button class="bottone vuoto piccolo" onclick="schedaStati()">Cambia i passaggi</button>' : ''}
+      </div>
+    </div>`;
+  },
+  /* la pagina di chi non ha una ditta: quella di prima, intatta */
+  inArrivo(){
     const g = squadraChiesta();
     const pezzo = (n, t, d) => `
       <div class="scheda" style="padding:18px 20px">
@@ -8779,7 +9237,7 @@ PAGINE.squadra = {
         Oggi Rilievo lavora su un telefono solo: quello che scrivi resta lì, e un tuo
         operaio non lo vede. Stiamo facendo la parte che manca, cioè <b>un elenco dei
         lavori che stanno tutti nello stesso posto</b>, che tutta la ditta guarda dal
-        proprio telefono. Ci stiamo lavorando adesso. Qui sotto c\'è cosa farà.
+        proprio telefono. Ci stiamo lavorando adesso. Qui sotto c'è cosa farà.
       </p>
     </div>
 
@@ -8808,9 +9266,53 @@ PAGINE.squadra = {
       ` : `
         <div style="font-family:'Cormorant',serif;font-size:23px;margin-bottom:4px">Lo vuoi appena esce?</div>
         <p style="font-size:16px;color:var(--soft);margin:0 0 14px">Lasciami nome e numero. Ti avviso io, e chi è in lista lo prova per primo.</p>
-        <button class="bottone" onclick="chiediSquadra()">Avvisami quando c\'è</button>
+        <button class="bottone" onclick="chiediSquadra()">Avvisami quando c'è</button>
       `}
     </div>`;
+  }
+};
+
+/* Il singolo lavoro. Qui si sposta lo stato con un tocco solo: e' il gesto che si
+   fa venti volte al giorno, e non puo' costare due schermate. */
+PAGINE.lavoro = {
+  voce:'#squadra',
+  guida:false,
+  testata(id){
+    const l = lavoroSquadra(id);
+    return {occhiello: l && l.indirizzo ? l.indirizzo : 'Lavoro della squadra',
+            titolo: (l && l.cliente) || 'Lavoro',
+            destra: (l && posso('sposta')) ? `<button class="bottone vuoto" onclick="schedaLavoro('${esc(id)}')">Modifica</button>` : ''};
+  },
+  poi(){ if(miaDitta()) sincronizza(); },
+  corpo(id){
+    const l = lavoroSquadra(id);
+    if(!l) return '<div class="niente">Questo lavoro non c\'è più.</div>';
+    const stati = statiSquadra();
+    const dato = (t, v) => v ? `<div style="margin-top:10px"><div class="lbl">${t}</div><div style="font-size:17px">${v}</div></div>` : '';
+    return `
+    <div class="scheda" style="max-width:720px">
+      <div class="lbl" style="margin-bottom:10px">A che punto è ${posso('sposta') ? '· toccane uno per spostarlo' : ''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${stati.map(s => `<button class="bottone ${s.chiave === l.stato ? '' : 'vuoto'} piccolo"
+            ${posso('sposta') ? `onclick="spostaLavoro('${esc(l.id)}','${esc(s.chiave)}')"` : 'disabled'}
+          >${esc(s.nome)}</button>`).join('')}
+      </div>
+    </div>
+    <div class="scheda" style="max-width:720px;margin-top:16px">
+      ${dato('Cliente', esc(l.cliente))}
+      ${dato('Indirizzo', esc(l.indirizzo))}
+      ${l.telefono ? `<div style="margin-top:10px"><div class="lbl">Telefono</div>
+        <a href="tel:${esc(String(l.telefono).replace(/[^0-9+]/g,''))}" style="font-size:17px">${esc(l.telefono)}</a></div>` : ''}
+      ${dato('Prezzo', Number(l.prezzo) > 0 ? euro(Number(l.prezzo)) : '')}
+      ${dato('Chi lo segue', esc(nomeDi(l.chi_segue)))}
+      ${dato('Note', esc(l.note).replace(/\n/g,'<br>'))}
+    </div>
+    ${(l.storia||[]).length ? `<div class="lbl" style="margin:26px 0 12px">Com'è andata finora</div>
+    <div class="elenco">${(l.storia||[]).slice().reverse().map(r => `
+      <div class="r"><div>
+        <div class="tit">${r.cosa === 'aperto' ? 'Messo dentro' : 'Spostato in «' + esc(statoDi(r.a).nome) + '»'}</div>
+        <div class="sub">${esc(r.nome || nomeDi(r.chi))} · ${esc(quandoCorto(r.quando))}</div>
+      </div></div>`).join('')}</div>` : ''}`;
   }
 };
 

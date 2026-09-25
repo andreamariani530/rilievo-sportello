@@ -30,6 +30,7 @@ import argparse, base64, io, json, math, os, pathlib, re, sys, time, unicodedata
 import urllib.parse, urllib.request
 import logging
 import xml.etree.ElementTree as ET
+import archivio            # l'archivio condiviso della ditta
 from PIL import Image, ImageDraw, ImageFilter
 
 QUI          = pathlib.Path(__file__).parent
@@ -2440,7 +2441,9 @@ def nome_file(indirizzo):
 # INTERRUTTORE: finche' `attivo` e' false non cambia niente per nessuno, e l'app
 # non chiede nessun codice. Si accende il giorno che si passa a pagamento.
 
-ELENCO_CODICI = QUI / "codici.json"
+# di solito e' il file qui accanto; si puo' puntare altrove con RILIEVO_CODICI,
+# che serve a provare una ditta finta senza toccare l'elenco vero di Andrea
+ELENCO_CODICI = pathlib.Path(os.environ.get("RILIEVO_CODICI") or (QUI / "codici.json"))
 GIORNI_SENZA_RETE = 7          # quanto vale un via libera quando il telefono e' offline
 _codici_letti = {"quando": 0, "roba": None}
 # chi si e' fatto vivo, da quando e quante volte. Sta in memoria e riparte da zero
@@ -2493,6 +2496,88 @@ def chi_entra(codice):
         # la riga che resta nel registro del server anche dopo un riavvio
         print("  PRIMO INGRESSO del codice %s (%s)" % (c, riga.get("nome") or "senza nome"))
     return True, riga.get("avviso") or "", int(elenco.get("giorni") or GIORNI_SENZA_RETE)
+
+
+# ------------------------------------------------- la ditta, e chi ci lavora dentro
+#
+# Andrea, 24 settembre 2026: l'elenco dei lavori visto da piu' persone «ci puo'
+# servire per ampliare il target dell'app». Da qui in avanti un codice d'ingresso
+# puo' dire due cose in piu':
+#
+#   "ditta": la ditta a cui appartiene. Piu' codici con la stessa ditta guardano
+#            lo STESSO archivio. Un codice senza ditta e' un artigiano da solo, e
+#            per lui non cambia assolutamente niente: i suoi lavori restano nella
+#            memoria del suo telefono, come oggi.
+#   "ruolo": cosa puo' fare dentro quell'archivio.
+#            capo    -> mette dentro i lavori, li cambia, li cancella, e decide
+#                       come si chiamano gli stati.
+#            squadra -> sposta lo stato e scrive le note dei lavori che ci sono
+#                       gia'. Non ne crea e non ne cancella. E' il valore di
+#                       partenza per chi non ha scritto niente.
+#            guarda  -> legge soltanto.
+#
+# ATTENZIONE, e' la scelta che tiene in piedi tutto il resto: l'archivio della
+# ditta NON dipende dall'interruttore `attivo`. Quello serve a far pagare tutti,
+# questo a condividere fra pochi. Se fossero lo stesso interruttore, per far
+# provare l'archivio a una ditta si dovrebbe chiudere la porta a tutti gli altri.
+
+RUOLI = {
+    "capo":    {"legge": True, "sposta": True,  "mette": True,  "comanda": True},
+    "squadra": {"legge": True, "sposta": True,  "mette": False, "comanda": False},
+    "guarda":  {"legge": True, "sposta": False, "mette": False, "comanda": False},
+}
+RUOLO_DI_PARTENZA = "squadra"
+
+
+def chi_e(codice):
+    """Chi sta chiedendo, e per conto di quale ditta. None se non e' di nessuna.
+
+    Torna None anche quando il codice esiste ma non nomina nessuna ditta: quello
+    e' un artigiano da solo, e l'archivio condiviso non lo riguarda.
+    """
+    elenco = codici()
+    c = _pulisci_codice(codice)
+    if not c:
+        return None
+    riga = (elenco.get("codici") or {}).get(c)
+    if not riga or riga.get("bloccato"):
+        return None
+    ditta = _pulisci_codice(riga.get("ditta") or "")
+    if not ditta:
+        return None
+    dati_ditta = (elenco.get("ditte") or {}).get(ditta) or {}
+    ruolo = str(riga.get("ruolo") or RUOLO_DI_PARTENZA).strip().lower()
+    if ruolo not in RUOLI:
+        ruolo = RUOLO_DI_PARTENZA
+    return {"codice": c, "nome": riga.get("nome") or c, "ditta": ditta,
+            "ditta_nome": dati_ditta.get("nome") or ditta, "ruolo": ruolo,
+            "posso": dict(RUOLI[ruolo])}
+
+
+def puo(chi, azione):
+    """Questa persona puo' fare questa cosa? `chi` e' quello che torna da chi_e()."""
+    if not chi:
+        return False
+    return bool(RUOLI.get(str(chi.get("ruolo") or ""), {}).get(azione))
+
+
+def la_squadra_della_ditta(ditta):
+    """Chi ha un codice per questa ditta, con che nome e che ruolo.
+
+    Serve all'app per scrivere «spostato da Samir» invece di «spostato da CONTI-1».
+    """
+    elenco = codici()
+    d = _pulisci_codice(ditta or "")
+    fuori = []
+    for c, riga in (elenco.get("codici") or {}).items():
+        if _pulisci_codice(riga.get("ditta") or "") != d:
+            continue
+        ruolo = str(riga.get("ruolo") or RUOLO_DI_PARTENZA).strip().lower()
+        fuori.append({"codice": _pulisci_codice(c), "nome": riga.get("nome") or c,
+                      "ruolo": ruolo if ruolo in RUOLI else RUOLO_DI_PARTENZA,
+                      "bloccato": bool(riga.get("bloccato"))})
+    fuori.sort(key=lambda x: (x["ruolo"] != "capo", x["nome"].lower()))
+    return fuori
 
 
 def come_va_con_i_codici():
@@ -2553,6 +2638,69 @@ def servizio(porta=8787, pubblico=False):
             self._apri(codice)
             self.wfile.write(json.dumps(dati, ensure_ascii=False).encode())
 
+        def _corpo(self):
+            """Quello che arriva nel corpo di una POST, gia' aperto. Al massimo 4 MB:
+            un elenco di lavori di una ditta non arriva neanche vicino."""
+            try:
+                quanto = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return None
+            if quanto <= 0 or quanto > 4 * 1024 * 1024:
+                return None
+            try:
+                return json.loads(self.rfile.read(quanto).decode("utf-8"))
+            except Exception:                   # noqa: BLE001
+                return None
+
+        def do_POST(self):
+            """Si scrive solo nell'archivio della squadra. Tutto il resto del
+            servizio e' in sola lettura e resta com'e'."""
+            u = urllib.parse.urlparse(self.path)
+            q = urllib.parse.parse_qs(u.query)
+            codice = (q.get("codice") or [""])[0]
+            if not u.path.startswith("/squadra/"):
+                self._manda(404, {"errore": "Non c'e' nulla qui."})
+                return
+            chi = chi_e(codice)
+            if not chi:
+                self._manda(403, {"errore": "Questo codice non e' di nessuna ditta.",
+                                  "senza_ditta": True})
+                return
+            dentro = self._corpo()
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+
+            if u.path == "/squadra/salva":
+                if not puo(chi, "sposta"):
+                    self._manda(403, {"errore": "Il tuo codice puo' solo guardare.",
+                                      "solo_guarda": True})
+                    return
+                try:
+                    r = archivio.salva(chi["ditta"], chi, dentro.get("lavori") or [])
+                except Exception as e:          # noqa: BLE001
+                    print("     archivio non salvato:", e)
+                    self._manda(500, {"errore": "Non sono riuscito a salvare. Riprova."})
+                    return
+                print("  squadra %s: %d salvati, %d respinti (da %s)"
+                      % (chi["ditta"], len(r["salvati"]), len(r["respinti"]), chi["codice"]))
+                r["io"] = chi
+                self._manda(200, r)
+                return
+
+            if u.path == "/squadra/stati":
+                if not puo(chi, "comanda"):
+                    self._manda(403, {"errore": "I nomi degli stati li decide il capo."})
+                    return
+                nuovi, motivo = archivio.scrivi_stati(chi["ditta"], dentro.get("stati"), chi)
+                if not nuovi:
+                    self._manda(400, {"errore": motivo})
+                    return
+                self._manda(200, {"stati": nuovi, "io": chi})
+                return
+
+            self._manda(404, {"errore": "Non c'e' nulla qui."})
+
         def do_GET(self):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
@@ -2591,17 +2739,52 @@ def servizio(porta=8787, pubblico=False):
                                   "codice_richiesto": bool(codici().get("attivo"))})
                 return
             if u.path == "/entra":
-                # l'app lo chiede all'apertura: questo codice vale ancora?
+                # l'app lo chiede all'apertura: questo codice vale ancora? e di
+                # che ditta e'? Se non e' di nessuna, i campi della ditta tornano
+                # vuoti e l'app resta esattamente quella di prima.
                 ok, messaggio, giorni = chi_entra(codice_chiesto())
                 elenco = codici()
                 riga = (elenco.get("codici") or {}).get(_pulisci_codice(codice_chiesto())) or {}
-                self._manda(200, {"attivo": bool(elenco.get("attivo")), "valido": ok,
-                                  "nome": riga.get("nome") or "", "giorni": giorni,
-                                  "messaggio": messaggio})
+                chi = chi_e(codice_chiesto())
+                risposta = {"attivo": bool(elenco.get("attivo")), "valido": ok,
+                            "nome": riga.get("nome") or "", "giorni": giorni,
+                            "messaggio": messaggio,
+                            "ditta": "", "ditta_nome": "", "ruolo": "", "posso": {},
+                            "squadra": []}
+                if chi:
+                    risposta.update({"ditta": chi["ditta"], "ditta_nome": chi["ditta_nome"],
+                                     "nome": chi["nome"], "ruolo": chi["ruolo"],
+                                     "posso": chi["posso"],
+                                     "squadra": la_squadra_della_ditta(chi["ditta"])})
+                self._manda(200, risposta)
                 return
             if u.path == "/chi-entra":
                 # per Andrea: chi si e' fatto vivo, da quando, quante volte
                 self._manda(200, come_va_con_i_codici())
+                return
+
+            # ---- l'archivio condiviso della ditta -------------------------------
+            # Chi non ha un codice che nomina una ditta non arriva mai qui dentro:
+            # per lui Rilievo resta l'app del suo telefono, identica a prima.
+            if u.path.startswith("/squadra/"):
+                chi = chi_e(codice_chiesto())
+                if not chi:
+                    self._manda(403, {"errore": "Questo codice non e' di nessuna ditta.",
+                                      "senza_ditta": True})
+                    return
+                if u.path == "/squadra/lavori":
+                    dalla = (q.get("dalla") or ["0"])[0]
+                    r = archivio.lavori(chi["ditta"], dalla)
+                    r["io"] = chi
+                    self._manda(200, r)
+                    return
+                if u.path == "/squadra/come-va":
+                    r = archivio.come_va(chi["ditta"])
+                    r["io"] = chi
+                    r["squadra"] = la_squadra_della_ditta(chi["ditta"])
+                    self._manda(200, r)
+                    return
+                self._manda(404, {"errore": "Non c'e' nulla qui."})
                 return
 
             # da qui in giu' si spende: foto dall'alto, catasto, particelle. Se il
