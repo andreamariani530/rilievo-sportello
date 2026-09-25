@@ -9158,6 +9158,29 @@ function nomeDi(codice){
 }
 function inCoda(){ return Object.keys(archivioSquadra().coda || {}).length; }
 
+/* CHI HA GIA' UN CODICE DELLA DITTA, E DOVE LO SCRIVE.
+   Il codice d'ingresso si scrive nella porta, ma quella porta compare solo quando il
+   controllo dei codici e' acceso, cioe' quando si fa pagare. Finche' e' spento, uno a cui
+   hanno dato un codice di ditta non avrebbe nessun posto dove metterlo e resterebbe fuori
+   dal suo archivio senza capire perche'. Difetto trovato il 25 settembre 2026, mentre si
+   preparava la prima ditta di prova. Il campo sta qui, nella pagina che uno apre per
+   cercare i lavori della squadra. */
+function entraNellaSquadra(){
+  const campo = document.getElementById('campo-squadra-codice');
+  const esito = document.getElementById('esito-squadra-codice');
+  if(!campo) return;
+  const c = (campo.value || '').trim();
+  if(!c){ campo.focus(); return; }
+  if(esito) esito.textContent = 'Un attimo…';
+  salvaCodice(c);
+  return controllaIngresso().then(() => {
+    if(miaDitta()){ vai(); return; }
+    if(esito) esito.textContent = 'Questo codice non è di nessuna ditta. Controlla di averlo scritto giusto, oppure chiedilo a chi ti ha dato l\'applicazione.';
+  }).catch(() => {
+    if(esito) esito.textContent = 'Non riesco a chiedere al server. Riprova quando hai la linea.';
+  });
+}
+
 PAGINE.squadra = {
   guida:false,
   testata(){
@@ -9268,6 +9291,17 @@ PAGINE.squadra = {
         <p style="font-size:16px;color:var(--soft);margin:0 0 14px">Lasciami nome e numero. Ti avviso io, e chi è in lista lo prova per primo.</p>
         <button class="bottone" onclick="chiediSquadra()">Avvisami quando c'è</button>
       `}
+    </div>
+
+    <div class="scheda" style="margin-top:20px;max-width:720px">
+      <div class="lbl" style="margin-bottom:8px">Ce l'hai già un codice della ditta?</div>
+      <p style="font-size:16px;color:var(--soft);margin:0 0 12px">Scrivilo qui e l'elenco
+        della squadra si apre su questo telefono. Si mette una volta sola.</p>
+      <input class="campo" id="campo-squadra-codice" placeholder="Il codice della ditta"
+             autocapitalize="characters" autocomplete="off" spellcheck="false"
+             value="${esc(codiceMio())}" style="letter-spacing:.12em;margin-bottom:12px">
+      <button class="bottone" onclick="entraNellaSquadra()">Apri l'elenco della squadra</button>
+      <p id="esito-squadra-codice" style="font-size:15.5px;color:var(--tenue);margin:12px 0 0"></p>
     </div>`;
   }
 };

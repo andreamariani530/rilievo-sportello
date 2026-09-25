@@ -4,9 +4,38 @@
   "attivo": false,
   "giorni": 7,
   "sconosciuto": "Questo codice non risulta. Controlla di averlo scritto giusto, oppure chiedilo a chi ti ha dato l'applicazione.",
-  "ditte": {},
+  "ditte": {
+    "PROVA": {
+      "nome": "Prova di Andrea",
+      "nota": "Ditta di prova per guardare l'archivio condiviso da due telefoni. Si cancella quando non serve piu'."
+    }
+  },
   "codici": {
-    "ANDREA": {"nome": "Andrea, la sua", "bloccato": false},
-    "CAFAGNA": {"nome": "Alessandro Cafagna", "bloccato": false}
+    "ANDREA": {
+      "nome": "Andrea, la sua",
+      "bloccato": false
+    },
+    "CAFAGNA": {
+      "nome": "Alessandro Cafagna",
+      "bloccato": false
+    },
+    "PROVA-CAPO-4T9": {
+      "nome": "Andrea (capo)",
+      "bloccato": false,
+      "ditta": "PROVA",
+      "ruolo": "capo"
+    },
+    "PROVA-OPERAIO-8M3": {
+      "nome": "Operaio di prova",
+      "bloccato": false,
+      "ditta": "PROVA",
+      "ruolo": "squadra"
+    },
+    "PROVA-GUARDA-2R6": {
+      "nome": "Chi guarda soltanto",
+      "bloccato": false,
+      "ditta": "PROVA",
+      "ruolo": "guarda"
+    }
   }
 }
