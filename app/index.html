@@ -873,6 +873,7 @@ async function avvia(){
   intestaUtente();
   addEventListener('hashchange', vai);
   preparaInstallazione();
+  ascoltaIlTiro();
   vai();
   if(primaVolta()) apriPorta();
   vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
@@ -1412,6 +1413,82 @@ function giornataNuova(){
   (S.sopralluoghi || []).forEach(x => { x.stato = statoSopralluogo(x); });
   salva();
 }
+/* ===== IL NAVIGATORE =====
+   Un indirizzo scritto serve a due cose: leggerlo e andarci. Il secondo gesto non puo'
+   costare un copia-e-incolla dentro un'altra applicazione, che sul telefono in cantiere
+   nessuno fa. Si tocca e si apre il navigatore. Chiesto da Andrea il 25 settembre 2026.
+   Si usa il link di Google Maps perche' su Android apre l'applicazione se c'e', su
+   iPhone apre Maps nel browser, e su un computer apre la mappa: un indirizzo solo per
+   tutti e tre, senza dover indovinare il telefono. */
+function stradaPer(indirizzo){
+  const q = String(indirizzo || '').trim();
+  return q ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(q) : '';
+}
+function tastoNaviga(indirizzo, testo){
+  const u = stradaPer(indirizzo);
+  if(!u) return '';
+  return '<a class="bottone vuoto piccolo" href="' + esc(u) + '" target="_blank" rel="noopener">' +
+         esc(testo || 'Portami là') + '</a>';
+}
+
+/* ===== TRASCINARE GIU' PER AGGIORNARE =====
+   Vale in tutte le schermate, non solo nell'elenco della squadra: Andrea l'ha chiesto
+   il 25 settembre 2026 e ha detto «in questo momento e' indispensabile». Il motivo e'
+   l'archivio condiviso: due telefoni sullo stesso elenco, e chi guarda vuole sapere se
+   e' cambiato qualcosa senza chiudere e riaprire l'app.
+   Fatto a mano e non lasciato al browser, perche' nell'app installata sul telefono il
+   trascinamento del browser non esiste. Due attenzioni:
+   - si ascolta solo se la pagina e' in cima e c'e' un dito solo, se no si litiga con
+     lo scorrimento normale;
+   - non si attiva sui fogli da disegno e sulla firma, dove il dito serve a disegnare. */
+let tiro = null;
+function tiroVietato(e){
+  const b = e.target;
+  if(!b || typeof b.closest !== 'function') return false;
+  return !!b.closest('canvas, .velo-porta, .velo-foto, input, textarea, select');
+}
+function aggiornaAdesso(){
+  if(typeof miaDitta === 'function' && miaDitta() && typeof sincronizza === 'function') sincronizza();
+  vai();
+}
+function ascoltaIlTiro(){
+  if(typeof document === 'undefined' || document.tiroPronto) return;
+  document.tiroPronto = true;
+  const barra = document.createElement('div');
+  barra.className = 'tiro';
+  barra.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:70;text-align:center;' +
+    'font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:11px 0;' +
+    'background:var(--carta);color:var(--soft);border-bottom:1px solid var(--filo);' +
+    'transform:translateY(-100%);transition:transform .18s;pointer-events:none';
+  barra.textContent = 'Tira giù per aggiornare';
+  document.body.appendChild(barra);
+  const mostra = (si, testo) => {
+    if(testo) barra.textContent = testo;
+    barra.style.transform = si ? 'translateY(0)' : 'translateY(-100%)';
+  };
+  const inCima = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 2;
+  document.addEventListener('touchstart', e => {
+    tiro = null;
+    if(!e.touches || e.touches.length !== 1 || tiroVietato(e) || !inCima()) return;
+    tiro = {da: e.touches[0].clientY, quanto: 0};
+  }, {passive:true});
+  document.addEventListener('touchmove', e => {
+    if(!tiro || !e.touches || e.touches.length !== 1) return;
+    tiro.quanto = e.touches[0].clientY - tiro.da;
+    if(tiro.quanto > 12) mostra(true, tiro.quanto > 70 ? 'Lascia: aggiorno' : 'Tira giù per aggiornare');
+    else mostra(false);
+  }, {passive:true});
+  const finito = () => {
+    const basta = !!(tiro && tiro.quanto > 70);
+    tiro = null;
+    if(!basta){ mostra(false); return; }
+    mostra(true, 'Aggiorno…');
+    setTimeout(() => { aggiornaAdesso(); mostra(false); }, 60);
+  };
+  document.addEventListener('touchend', finito, {passive:true});
+  document.addEventListener('touchcancel', finito, {passive:true});
+}
+
 function vai(){
   giornataNuova();
   const grezzo = (location.hash || '#oggi').slice(1);
@@ -3198,13 +3275,13 @@ PAGINE.oggi = {
             <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
               <div><div class="tit">${esc(s.nome)}</div>
                    <div class="sub">${sotto('In ritardo', 'era il ' + dataLunga(s.quando), s.luogo)}</div></div>
-              ${tag('fissato')}
+              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${tag('fissato')}</div>
             </div>`).join('')}
           ${inGiornata.map(s => `
             <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
               <div><div class="tit">${esc(s.nome)}</div>
                    <div class="sub">${sotto(oraBuona(s.ora) ? 'Alle ' + oraBella(s.ora) : '', s.luogo)}</div></div>
-              ${tag(s.stato === 'fatto' ? 'fatto' : 'fissato')}
+              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${tag(s.stato === 'fatto' ? 'fatto' : 'fissato')}</div>
             </div>`).join('')}
           ${daFissare.map(s => `
             <div class="r"><div><div class="tit">${esc(s.nome)}</div>
@@ -3459,6 +3536,7 @@ function intestazioneSopralluogo(s, r){
     <div class="lbl" style="margin-bottom:6px">${s.quando === S.oggi ? 'In programma oggi'
       : (s.quando ? dataLunga(s.quando) : 'Data da fissare')}${s.quando && oraBuona(s.ora) ? ' alle ' + oraBella(s.ora) : ''}</div>
     <div style="font-family:'Cormorant',serif;font-size:26px">${esc(s.luogo)}</div>
+    ${tastoNaviga(s.luogo, 'Portami là') ? `<div class="azioni" style="margin-top:8px">${tastoNaviga(s.luogo, 'Portami là')}</div>` : ''}
     ${r ? `<p style="color:var(--soft);margin-top:6px;max-width:62ch">${esc(r.cosa)}</p>` : ''}
     ${s.stato !== 'fatto' ? calendarioHtml('sopralluogo', s.id) : ''}
   </div>`;
@@ -7970,6 +8048,7 @@ PAGINE.cliente = {
         <div class="scheda">
           <div class="lbl" style="margin-bottom:10px">Dove sta</div>
           <p style="font-size:16.5px;color:var(--soft)">${esc(c.indirizzo || c.luogo)}</p>
+          ${tastoNaviga(c.indirizzo || c.luogo, 'Portami là')}
           ${c.mail ? `<p style="font-size:16px;color:var(--soft);margin-top:8px">${esc(c.mail)}</p>` : ''}
           ${c.note ? `<p style="font-size:15px;color:var(--tenue);margin-top:14px;border-top:1px solid var(--filetto);padding-top:12px">${esc(c.note)}</p>` : ''}
         </div>
@@ -9306,6 +9385,42 @@ PAGINE.squadra = {
   }
 };
 
+/* ===== IL POSTO VISTO DALL'ALTO =====
+   La ditta di spurghi l'ha chiesto per prima e vale per tutti: prima di partire si vuole
+   vedere DA DOVE SI ENTRA. Con un camion o un mezzo grosso conta il cancello, lo spazio
+   per girare, se il retro e' raggiungibile. E' la stessa foto del rilievo (`/foto`), senza
+   catasto e senza misure: qui serve a guardare, non a contare.
+   La foto sta in memoria per il giro e NON finisce nell'archivio della ditta: pesa quasi
+   un mega, e un altro telefono se la prende da solo in cinque secondi quando gli serve. */
+const fotoDallAlto = {};
+let fotoInArrivo = null;
+function guardaDallAlto(id){
+  const l = lavoroSquadra(id);
+  if(!l) return;
+  const dove = String(l.indirizzo || '').trim();
+  if(!dove){ avvisa('Per guardare dall\'alto mi serve l\'indirizzo del lavoro.'); return; }
+  if(fotoInArrivo === id) return;
+  fotoInArrivo = id;
+  const posto = document.getElementById('foto-alto');
+  if(posto) posto.innerHTML = '<div class="sub">Sto prendendo la foto dall\'alto, ' +
+    'ci vogliono pochi secondi. La prima volta del giorno il servizio si sveglia e ci mette di piu\'.</div>';
+  fetch(SPORTELLO_RILIEVO + '/foto?' + col() + 'indirizzo=' + encodeURIComponent(dove) + '&lato=120')
+    .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
+    .then(({ok, d}) => {
+      fotoInArrivo = null;
+      const img = d && (d.foto_pulita || d.foto);
+      if(!ok || !img) throw new Error((d && d.errore) || 'il servizio non ha mandato la foto');
+      fotoDallAlto[id] = img;
+      vai();
+    })
+    .catch(e => {
+      fotoInArrivo = null;
+      const p = document.getElementById('foto-alto');
+      if(p) p.innerHTML = '<div class="sub">Non riesco a prendere la foto: ' +
+        esc(String((e && e.message) || e)) + '. Riprova, oppure controlla l\'indirizzo.</div>';
+    });
+}
+
 /* Il singolo lavoro. Qui si sposta lo stato con un tocco solo: e' il gesto che si
    fa venti volte al giorno, e non puo' costare due schermate. */
 PAGINE.lavoro = {
@@ -9324,7 +9439,7 @@ PAGINE.lavoro = {
     const stati = statiSquadra();
     const dato = (t, v) => v ? `<div style="margin-top:10px"><div class="lbl">${t}</div><div style="font-size:17px">${v}</div></div>` : '';
     return `
-    <div class="scheda" style="max-width:720px">
+    <div class="scheda passaggi" style="max-width:720px">
       <div class="lbl" style="margin-bottom:10px">A che punto è ${posso('sposta') ? '· toccane uno per spostarlo' : ''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         ${stati.map(s => `<button class="bottone ${s.chiave === l.stato ? '' : 'vuoto'} piccolo"
@@ -9334,7 +9449,18 @@ PAGINE.lavoro = {
     </div>
     <div class="scheda" style="max-width:720px;margin-top:16px">
       ${dato('Cliente', esc(l.cliente))}
-      ${dato('Indirizzo', esc(l.indirizzo))}
+      ${l.indirizzo ? `<div style="margin-top:10px">
+        <div class="lbl">Indirizzo</div>
+        <div style="font-size:17px">${esc(l.indirizzo)}</div>
+        <div class="azioni" style="margin-top:9px">
+          ${tastoNaviga(l.indirizzo, 'Portami là')}
+          <button class="bottone vuoto piccolo" onclick="guardaDallAlto('${esc(l.id)}')">Guarda dall'alto</button>
+        </div>
+        <div id="foto-alto" style="margin-top:12px">${fotoDallAlto[l.id] ? `
+          <img src="${fotoDallAlto[l.id]}" alt="Il posto visto dall'alto"
+               style="width:100%;max-width:520px;border-radius:2px;display:block">
+          <div class="sub" style="margin-top:6px">Serve a vedere da dove si entra e se c'è spazio per i mezzi.</div>` : ''}</div>
+      </div>` : ''}
       ${l.telefono ? `<div style="margin-top:10px"><div class="lbl">Telefono</div>
         <a href="tel:${esc(String(l.telefono).replace(/[^0-9+]/g,''))}" style="font-size:17px">${esc(l.telefono)}</a></div>` : ''}
       ${dato('Prezzo', Number(l.prezzo) > 0 ? euro(Number(l.prezzo)) : '')}
