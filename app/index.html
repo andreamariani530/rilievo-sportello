@@ -9054,6 +9054,13 @@ function sincronizza(){
        ridisegno chiederebbe un altro giro e l'applicazione si pianterebbe li'.
        Trovato la notte del 25 settembre 2026: il collaudo non arrivava piu' in fondo. */
     const prima = archivioSquadra();
+    /* il server e' stato ricostruito e ha perso tutto: si rimanda su quello che abbiamo
+       invece di restare a guardare un archivio vuoto */
+    if(serverRipartito(dati, prima)){
+      const quanti = rimandaTutto();
+      staSincronizzando = false;
+      if(quanti){ qualcosaDopo = true; riprendi(); return true; }
+    }
     const novita = (dati.lavori || []).length > 0 ||
                    JSON.stringify(dati.stati || []) !== JSON.stringify(prima.stati || []);
     mettiDalServer(dati);
@@ -9092,6 +9099,32 @@ function accettaRisposta(r){
   if(primo && primo.perche) avvisa(primo.perche);
 }
 /* quello che arriva dal server entra qui dentro */
+/* IL SERVER E' RIPARTITO DA ZERO, E IL TELEFONO LO RIMETTE IN PIEDI.
+   Succede ogni volta che il servizio viene ricostruito: sul piano gratuito di Render il
+   disco e' nuovo a ogni riavvio, quindi l'archivio della ditta torna vuoto. E' successo
+   per davvero il 25 settembre 2026: ho caricato una versione nuova dell'app, il server e'
+   ripartito, e i lavori di prova di Andrea sono spariti dall'elenco condiviso.
+   I telefoni li avevano ancora, ma non li rimandavano su: li avevano gia' mandati una
+   volta, e la coda era vuota.
+   Il segno che il server e' ripartito e' il suo orologio: se e' piu' indietro del nostro,
+   quel server non e' piu' quello di prima. Allora si rimette in coda TUTTO quello che
+   abbiamo, e il primo telefono che apre l'app ricostruisce l'archivio da solo.
+   Nessuno deve accorgersene e nessuno deve premere niente. */
+function serverRipartito(dati, a){
+  const suo = Number(dati && dati.orologio) || 0;
+  const mio = Number(a && a.orologio) || 0;
+  return mio > 0 && suo < mio;
+}
+function rimandaTutto(){
+  const a = archivioSquadra();
+  const quanti = Object.keys(a.lavori || {});
+  if(!quanti.length) return 0;
+  a.orologio = 0;
+  quanti.forEach(k => { a.coda[k] = true; });
+  scriviSquadra(a);
+  return quanti.length;
+}
+
 function mettiDalServer(dati){
   const a = archivioSquadra();
   const d = miaDitta();
