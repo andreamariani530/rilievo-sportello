@@ -900,6 +900,8 @@ function preparaInstallazione(){
   navigator.serviceWorker.addEventListener('message', e => {
     if(e.data && e.data.rilievo === 'versione-nuova') proponiAggiornamento();
   });
+  vedeteVersioneQuandoTorna();
+  setTimeout(() => cercaVersioneNuova(true), 4000);
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); invitoInstalla = e; vai(); });
   addEventListener('appinstalled', () => { invitoInstalla = null; vai(); });
 }
@@ -909,12 +911,61 @@ function proponiAggiornamento(){
   if(document.getElementById('barra-aggiorna')) return;
   const b = document.createElement('div');
   b.className = 'aggiorna'; b.id = 'barra-aggiorna';
-  b.innerHTML = '<p>C\'e\' una versione nuova di Rilievo, gia\' scaricata sul telefono.</p>' +
+  b.innerHTML = '<p>C\'è una versione nuova di Rilievo.</p>' +
     '<button class="bottone piccolo" id="fai-aggiornamento">Aggiorna adesso</button>' +
     '<button class="bottone vuoto piccolo" id="dopo-aggiornamento">Piu\' tardi</button>';
   document.body.appendChild(b);
-  b.querySelector('#fai-aggiornamento').onclick = () => location.reload();
+  b.querySelector('#fai-aggiornamento').onclick = faiAggiornamento;
   b.querySelector('#dopo-aggiornamento').onclick = () => b.remove();
+}
+/* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
+   dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
+const COSTRUITA = '2026-09-27 23:07';
+function dataVersione(){
+  const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
+  return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
+}
+/* Chiedere al server se c'e' una versione nuova.
+
+   Prima se ne accorgeva solo il telefono, e solo quando l'app partiva da chiusa:
+   ripresa dal sottofondo non chiedeva niente, e a Cafagna la barra «Aggiorna
+   adesso» non usciva mai (27 settembre 2026). Adesso si chiede quando si tira giu'
+   per aggiornare e quando l'app torna davanti, al massimo una volta al minuto. */
+let ultimaDomandaVersione = 0;
+function cercaVersioneNuova(subito){
+  if(!dalServer() || typeof fetch !== 'function' || !/^\d{4}-/.test(COSTRUITA)) return Promise.resolve(false);
+  if(!subito && Date.now() - ultimaDomandaVersione < 60000) return Promise.resolve(false);
+  ultimaDomandaVersione = Date.now();
+  try{ navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); }catch(e){}
+  return fetch('sw.js?v=' + Date.now(), {cache:'no-store'})
+    .then(r => r.ok ? r.text() : '')
+    .then(t => {
+      const m = /COSTRUITA = '(\d{4}-[^']+)'/.exec(t);
+      if(!m || m[1] === COSTRUITA) return false;
+      proponiAggiornamento();
+      return true;
+    })
+    .catch(() => false);
+}
+/* «Aggiorna adesso»: prima si prende la pagina nuova dal server e la si mette nella
+   copia del telefono, poi si ricarica. Senza questo passo la ricarica apriva ancora
+   la copia vecchia, e la versione nuova arrivava solo alla riapertura dopo. */
+function faiAggiornamento(){
+  const ricarica = () => location.reload();
+  if(typeof caches === 'undefined' || typeof fetch !== 'function'){ ricarica(); return; }
+  const b = document.getElementById('fai-aggiornamento');
+  if(b){ b.disabled = true; b.textContent = 'Aggiorno…'; }
+  const tempo = new Promise(r => setTimeout(r, 15000));
+  Promise.race([tempo, fetch('./', {cache:'no-store'})
+      .then(r => r.ok ? caches.open('rilievo-app').then(c => c.put('./', r)) : null)])
+    .catch(() => {}).then(ricarica);
+}
+function vedeteVersioneQuandoTorna(){
+  if(typeof document === 'undefined' || document.versioneAscoltata) return;
+  document.versioneAscoltata = true;
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') cercaVersioneNuova();
+  });
 }
 const giaInstallata = () => (typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches) ||
   (typeof navigator !== 'undefined' && navigator.standalone === true);
@@ -935,6 +986,7 @@ function bloccoTelefono(){
   return `<div class="riquadro">
       <div class="lbl" style="margin-bottom:12px">Mettila sul telefono</div>
       <p style="font-size:16px;color:var(--soft)">${testo}</p>
+      ${dataVersione() ? `<p id="versione-app" style="font-size:14px;color:var(--soft);margin-top:10px">Versione del ${dataVersione()}. Tira giù la pagina per controllare se ce n'è una nuova.</p>` : ''}
       ${invitoInstalla && !giaInstallata() ? `<div class="azioni" style="margin-top:16px">
         <button class="bottone" onclick="installa()">Mettila sul telefono</button>
       </div>` : ''}
@@ -1478,6 +1530,7 @@ function tiroVietato(e){
 }
 function aggiornaAdesso(){
   if(typeof miaDitta === 'function' && miaDitta() && typeof sincronizza === 'function') sincronizza();
+  cercaVersioneNuova(true);
   vai();
 }
 function ascoltaIlTiro(){
@@ -1557,6 +1610,13 @@ function vai(){
     </div>`;
   if(P.poi) P.poi(arg);
   menu(false); window.scrollTo(0,0);
+}
+/* ridisegna la pagina senza tornare in cima: togliendo una cosa da un elenco lungo
+   la pagina saltava all'inizio a ogni tocco (Cafagna, 27 settembre 2026) */
+function vaiRestandoQui(){
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  vai();
+  window.scrollTo(0, y);
 }
 function spiegaHtml(s){
   return `<div class="spiega"><p>${s.testo}</p>
@@ -4758,7 +4818,7 @@ function eliminaZona(idSopralluogo, idZona){
   chiedi('Tolgo «' + (t.z.nome || TIPI_ZONA[t.z.tipo].nome) + '» dal disegno. La foto e le misure del rilievo restano.', () => {
     t.ril.zone = zoneDi(t.ril).filter(x => x.id !== idZona);
     misureDalDisegno(t.ril);
-    salva(); vai();
+    salva(); vaiRestandoQui();
     avvisa('Tolto dal disegno.');
   });
 }
@@ -5124,8 +5184,26 @@ function spostaPunto(i, p){
   D.punti[i] = p;
   ridisegna();
 }
+/* Con gli alberi ogni tocco e' gia' un albero salvato, quindi «l'ultimo punto» non
+   c'era mai e il tasto era nascosto: per togliere un albero messo male bisognava
+   uscire, cercarlo nell'elenco, e ogni volta la pagina tornava in cima (Cafagna, 27
+   settembre 2026). Adesso il tasto toglie l'ultimo albero messo. */
+function ultimoAlbero(){
+  const zone = D ? zoneDi(D.ril) : [];
+  for(let i = zone.length - 1; i >= 0; i--) if(TIPI_ZONA[zone[i].tipo].forma === 'punto') return zone[i];
+  return null;
+}
+function togliAlbero(){
+  const z = ultimoAlbero(); if(!z) return;
+  D.ril.zone = zoneDi(D.ril).filter(x => x.id !== z.id);
+  misureDalDisegno(D.ril);
+  if(!salva()) avvisa('Tolto solo per adesso: la memoria del telefono è piena.');
+  else avvisa('Ho tolto «' + (z.nome || TIPI_ZONA[z.tipo].nome) + '».');
+  ridisegna();
+}
 function togliPunto(){
   if(D && D.particelle){ if(D.semi.length > 1){ D.semi.pop(); ridisegna(); } return; }
+  if(D && !D.casa && !D.modifica && TIPI_ZONA[D.tipo].forma === 'punto'){ togliAlbero(); return; }
   if(!D || !D.punti.length) return;
   /* "l'ultimo punto" e' quello appena messo, che adesso puo' stare in mezzo
      all'elenco perche' e' entrato nel lato piu' vicino al tocco */
@@ -5212,7 +5290,10 @@ function lasciaPunto(e){
      foto nuova (riportaZone, che e' la stessa cosa che si fa quando si rimisura il
      lotto). Le righe del catasto, che erano stampate sulla foto vecchia, sulla foto
      nuova non ci sono: lo si dice, invece di lasciare credere che siano sparite. */
-const LATI_TERRENO = [60, 100, 150, 240, 380, 600, 900];
+/* 1.400 e 2.200 metri: le aziende. A Via Colombarone, il 27 settembre 2026, anche a
+   900 metri una parte del terreno di Cafagna restava fuori, e il preventivo non l'ha
+   fatto con Rilievo per questo. Il servizio arriva fino a 2.200 metri. */
+const LATI_TERRENO = [60, 100, 150, 240, 380, 600, 900, 1400, 2200];
 function passoTerreno(lato){
   let i = 0;
   LATI_TERRENO.forEach((v, k) => { if(Math.abs(v - lato) < Math.abs(LATI_TERRENO[i] - lato)) i = k; });
@@ -5223,7 +5304,7 @@ function cambiaTerreno(verso){
   const ora = latoFoto(D.ril) || 150;
   const i = Math.max(0, Math.min(LATI_TERRENO.length - 1, passoTerreno(ora) + verso));
   if(Math.abs(LATI_TERRENO[i] - ora) < 1){
-    avvisa(verso > 0 ? 'Più largo di così la foto non va: a quel punto non si distingue più un prato da un tetto.'
+    avvisa(verso > 0 ? 'Più largo di così la foto non va: dentro ci sono già più di due chilometri di terreno.'
                      : 'Più stretto di così non si scende: sotto i sessanta metri la foto non guadagna niente.');
     return;
   }
@@ -5284,6 +5365,7 @@ function rifaiFoto(centro, lato, fonte){
     .then(({ok, d}) => {
       if(!D || D.sop !== idSop){ return; }
       D.rifacendo = false;
+      if((D.zoom || 1) < 1) D.zoom = 1;       /* stretta con le dita: la foto nuova torna grande */
       if(!ok || !d || d.errore || !fotoSicura(d.foto) || !angoliBuoni(d.angoli) || !(d.lato_m > 0)){
         ridisegna();
         avvisa('La foto nuova non è arrivata: ' + ((d && d.errore) || 'il servizio non ha risposto bene.') + ' Resta quella di prima.');
@@ -5323,7 +5405,7 @@ function rifaiFoto(centro, lato, fonte){
              (perse > 0 ? ' ' + perse + (perse === 1 ? ' parte è rimasta' : ' parti sono rimaste') + ' fuori dalla foto nuova.' : '') +
              ' Le righe del catasto non ci sono più: erano stampate sulla foto di prima.');
     })
-    .catch(() => { if(D && D.sop === idSop){ D.rifacendo = false; ridisegna();
+    .catch(() => { if(D && D.sop === idSop){ D.rifacendo = false; if((D.zoom || 1) < 1) D.zoom = 1; ridisegna();
       avvisa('Il servizio della foto non risponde. Riprova tra un minuto.'); } })
     .finally(() => clearTimeout(scade));
 }
@@ -5334,10 +5416,10 @@ function ingrandisci(verso){
    piccola davanti a una casa a schiera si arriva fino a otto volte, e i punti si
    mettono dove vanno davvero (Casalmaiocco, 17 settembre 2026).
    Il centro di quello che si stava guardando resta dov'e'. */
-function portaZoomA(quanto, ancora){
+function portaZoomA(quanto, ancora, minimo){
   if(!D) return;
   const foglio = document.getElementById('disegno-foglio');
-  const nuovo = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, quanto));
+  const nuovo = Math.max(minimo || ZOOM_MIN, Math.min(ZOOM_MAX, quanto));
   if(!foglio || Math.abs(nuovo - (D.zoom || 1)) < 0.001) return;
   const largo = foglio.clientWidth, alto = foglio.clientHeight;
   const ax = ancora ? ancora[0] : largo / 2, ay = ancora ? ancora[1] : alto / 2;
@@ -5383,7 +5465,8 @@ function pinchMuovi(e){
     if(!pinch.gira && Math.abs(giro) > 12) pinch.gira = true;
     if(pinch.gira) D.giro = Math.round((((pinch.giro + giro) % 360) + 360) % 360);
   }
-  portaZoomA(pinch.zoom * (d / pinch.d), r ? [m[0] - r.left, m[1] - r.top] : null);
+  portaZoomA(pinch.zoom * (d / pinch.d), r ? [m[0] - r.left, m[1] - r.top] : null,
+             siAllargaIlTerreno() ? ZOOM_ALLARGA : ZOOM_MIN);
   if(foglio){
     /* il punto in mezzo alle dita si porta dietro la foto */
     foglio.scrollLeft -= (m[0] - pinch.mx);
@@ -5392,7 +5475,31 @@ function pinchMuovi(e){
   pinch.mx = m[0]; pinch.my = m[1];
   if(pinch.gira) ridisegna();
 }
-function pinchFine(e){ if(!e.touches || e.touches.length < 2) pinch = null; }
+function pinchFine(e){
+  if(e.touches && e.touches.length >= 2) return;
+  const cera = !!pinch; pinch = null;
+  if(cera) allargaDopoLeDita();
+}
+/* Stringere con due dita quando la foto e' gia' tutta nello schermo vuol dire
+   «voglio vedere piu' terreno», come su una mappa. Prima serviva cercare il tasto
+   «+ terreno» e premerlo piu' volte: Cafagna, 27 settembre 2026, «pecca di
+   fluidita'». Adesso la foto si rimpicciolisce sotto le dita e, lasciandola, si
+   rifa' larga quanto si e' stretto: stretta a meta' vuol dire il doppio di terreno. */
+const ZOOM_ALLARGA = 0.4;
+function siAllargaIlTerreno(){
+  return !!D && !D.casa && !D.particelle && !D.rifacendo && !D.modifica
+         && angoliBuoni(D.ril && D.ril.angoli)
+         && (latoFoto(D.ril) || 150) < LATI_TERRENO[LATI_TERRENO.length - 1] - 1;
+}
+function allargaDopoLeDita(){
+  if(!D || !((D.zoom || 1) < 1)) return;
+  if((D.zoom || 1) > 0.9 || !siAllargaIlTerreno()){ D.zoom = 1; ridisegna(); return; }
+  const ora = latoFoto(D.ril) || 150, voglio = ora / D.zoom;
+  /* il passo piu' vicino a quanto si e' stretto, ma sempre almeno uno in piu' */
+  let i = LATI_TERRENO.findIndex(v => v > ora + 1);
+  LATI_TERRENO.forEach((v, k) => { if(v > ora + 1 && v <= voglio * 1.15) i = k; });
+  rifaiFoto(null, LATI_TERRENO[i]);
+}
 /* i tre fogli da disegno si comportano tutti allo stesso modo.
    Si ascolta tutto il velo, non solo il riquadro della foto: due dita appoggiate
    sul piede o sulla testata devono ingrandire la foto lo stesso, se no la pagina
@@ -5528,9 +5635,11 @@ function ridisegna(){
     f === 'punto' ? (D.modifica ? '' : scriviMisura('albero', totaliZone(D.ril).albero))
     : (q ? scriviMisura(D.tipo, q) : (mancano === 1 ? 'Ancora 1 punto' : 'Ancora ' + mancano + ' punti'));
   const togli = document.getElementById('d-togli'), salvaB = document.getElementById('d-salva');
-  togli.style.display = f === 'punto' ? 'none' : '';
-  salvaB.style.display = f === 'punto' && !D.modifica ? 'none' : '';
-  togli.disabled = !D.punti.length;
+  const alberi = f === 'punto' && !D.modifica;
+  togli.style.display = f === 'punto' && D.modifica ? 'none' : '';
+  togli.textContent = alberi ? 'Togli l\'ultimo albero' : 'Togli l\'ultimo punto';
+  salvaB.style.display = alberi ? 'none' : '';
+  togli.disabled = alberi ? !ultimoAlbero() : !D.punti.length;
   salvaB.disabled = !formaCompleta();
   const tagli = document.getElementById('d-tagli');
   if(tagli){
