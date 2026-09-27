@@ -990,7 +990,14 @@ function ancoraLaDimostrazione(d){
   return scelta === 'demo' && !!(d && d.azienda && DATI && DATI.azienda)
          && d.azienda.nome === DATI.azienda.nome;
 }
-function salva(){ try{ localStorage.setItem(CHIAVE, JSON.stringify(S)); return true; }catch(e){ return false; } }
+/* Lo stato dei sopralluoghi si ricalcola qui: e' il solo punto da cui passa ogni
+   cambiamento, quindi non puo' restare indietro rispetto a quello che e' appena
+   successo al preventivo (consegnato, accettato, cancellato). */
+function salva(){
+  try{ if(S && Array.isArray(S.sopralluoghi) && Array.isArray(S.preventivi))
+         S.sopralluoghi.forEach(s => { s.stato = statoSopralluogo(s); }); }catch(e){}
+  try{ localStorage.setItem(CHIAVE, JSON.stringify(S)); return true; }catch(e){ return false; }
+}
 function ricomincia(){
   try{ localStorage.removeItem(CHIAVE); }catch(e){}
   svuotaArchivio();
@@ -1382,7 +1389,19 @@ const ETICHETTE = {
   archiviato:         {t:'Archiviato',         c:''},
   da_fissare:         {t:'Da fissare',         c:''},
   fissato:            {t:'Fissato',            c:'v'},
-  fatto:              {t:'Fatto',              c:'v'}
+  /* Dal sopralluogo esce un preventivo, e da li' in avanti lo stato del sopralluogo e'
+     quello del preventivo. Prima diventava «Fatto» da solo appena il preventivo usciva:
+     diceva una cosa che non era vera (il lavoro non e' stato fatto, e nemmeno consegnato)
+     e se la metteva l'app al posto del giardiniere. Andrea, 25 settembre 2026:
+     «mi ha messo fatto su un preventivo senza metterlo io, al posto di fatto non e'
+     possibile mettere consegnato?». «fatto» resta solo per leggere i salvataggi di prima. */
+  /* Andrea, 27 settembre 2026: «consegnato deve metterlo quando il lavoro e' concluso
+     e pagato, da consegnare non me ne faccio nulla». Quindi «Consegnato» vuol dire
+     lavoro fatto e soldi incassati; finche' il preventivo e' aperto il sopralluogo
+     mostra lo stato del preventivo (Bozza, In attesa, Accettato, Finito da incassare). */
+  preventivo_in_corso:{t:'Preventivo in corso', c:'o'},
+  consegnato:         {t:'Consegnato',         c:'v'},
+  fatto:              {t:'Consegnato',         c:'v'}
 };
 function tag(stato){
   const e = ETICHETTE[stato] || {t:stato||'', c:''};
@@ -1567,10 +1586,27 @@ function guidaHtml(nome, arg){
 }
 
 /* ---------------- azioni ---------------- */
+/* Lo stato di un sopralluogo non si mette a mano: lo detta il suo preventivo.
+   «Consegnato» solo quando il lavoro e' finito e pagato (preventivoChiuso); prima e'
+   un preventivo in corso, e sulla riga si legge lo stato del preventivo.
+   Senza preventivo conta solo la data. */
 function statoSopralluogo(s){
-  if(!s || !s.quando) return 'da_fissare';
-  if(s.quando >= S.oggi) return 'fissato';
-  return s.preventivo ? 'fatto' : 'fissato';
+  if(!s) return 'da_fissare';
+  const p = (s.preventivo && S && Array.isArray(S.preventivi)) ? prev(s.preventivo) : null;
+  if(p){
+    /* un preventivo messo via vale per com'era prima di metterlo via */
+    const vero = p.stato === 'messo_via' ? Object.assign({}, p, {stato: p.stato_prima || 'bozza'}) : p;
+    return preventivoChiuso(vero) ? 'consegnato' : 'preventivo_in_corso';
+  }
+  if(!s.quando) return 'da_fissare';
+  return 'fissato';
+}
+/* l'etichetta sulla riga di un sopralluogo: col preventivo aperto dice a che punto e'
+   il preventivo, non una parola in piu' inventata dall'app */
+function tagSopralluogo(s){
+  const st = statoSopralluogo(s);
+  if(st === 'preventivo_in_corso') return tagPreventivo(prev(s.preventivo));
+  return tag(st);
 }
 function fissaSopralluogo(origine, data){
   const r = richiesta(origine);
@@ -1757,7 +1793,7 @@ function generaPreventivo(idSopralluogo){
     righe: d.righe, sopralluogo: s.id
   };
   S.preventivi.unshift(p);
-  s.preventivo = p.id; s.stato = 'fatto';
+  s.preventivo = p.id; s.stato = statoSopralluogo(s);
   salva();
   avvisa('Preventivo pronto: ' + d.righe.length + ' voci prese dal parlato.' + raccontoRighe(d));
   location.hash = '#preventivo/' + p.id;
@@ -2243,7 +2279,7 @@ function schedaPreventivo(id, idCliente){
       location.hash = '#preventivo/' + nuovo.id;
     },
     elimina: p ? () => {
-      S.sopralluoghi.forEach(s => { if(s.preventivo === id){ s.preventivo = null; s.stato = 'fissato'; } });
+      S.sopralluoghi.forEach(s => { if(s.preventivo === id){ s.preventivo = null; s.stato = statoSopralluogo(s); } });
       S.preventivi = S.preventivi.filter(x => x.id !== id);
     } : null,
     testoElimina: 'Cancello il preventivo e sparisce anche dal cassetto.',
@@ -3244,7 +3280,7 @@ PAGINE.oggi = {
                         .sort((a, b) => orario(a).localeCompare(orario(b)));
     /* matteo 1: il sopralluogo di ieri che non e' stato chiuso e' lavoro di oggi.
        Se resta fuori da qui, la mattina non lo vede nessuno. */
-    const inRitardo  = S.sopralluoghi.filter(s => s.quando && s.quando < S.oggi && s.stato !== 'fatto')
+    const inRitardo  = S.sopralluoghi.filter(s => s.quando && s.quando < S.oggi && !s.preventivo)
                         .sort((a, b) => a.quando.localeCompare(b.quando));
     const daFissare  = S.sopralluoghi.filter(s => s.stato === 'da_fissare');
     const attesa     = S.preventivi.filter(p => p.stato === 'inviato')
@@ -3281,7 +3317,7 @@ PAGINE.oggi = {
             <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
               <div><div class="tit">${esc(s.nome)}</div>
                    <div class="sub">${sotto(oraBuona(s.ora) ? 'Alle ' + oraBella(s.ora) : '', s.luogo)}</div></div>
-              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${tag(s.stato === 'fatto' ? 'fatto' : 'fissato')}</div>
+              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${tagSopralluogo(s)}</div>
             </div>`).join('')}
           ${daFissare.map(s => `
             <div class="r"><div><div class="tit">${esc(s.nome)}</div>
@@ -3494,20 +3530,27 @@ PAGINE.sopralluogo = {
 let filtroSopralluoghi = 'tutti';
 function setFiltroSopralluoghi(f){ filtroSopralluoghi = f; vai(); }
 function elencoSopralluoghi(){
-  const oggi   = S.sopralluoghi.filter(s => s.quando === S.oggi && s.stato !== 'fatto');
-  const fissa  = S.sopralluoghi.filter(s => !s.quando);
-  const prossimi = S.sopralluoghi.filter(s => s.quando > S.oggi);
+  /* Un sopralluogo da cui e' gia' uscito un preventivo non sta piu' fra le date.
+     Se il lavoro e' finito e pagato sta in «Consegnati»; se il preventivo e' ancora
+     aperto si vede in «Tutti», col suo stato, e il resto si segue da Preventivi.
+     Mai in due linguette insieme (Andrea, 24 e 27 settembre 2026). */
+  const conPrev = S.sopralluoghi.filter(s => s.preventivo && prev(s.preventivo));
+  const daVisitare = S.sopralluoghi.filter(s => conPrev.indexOf(s) < 0);
+  const oggi   = daVisitare.filter(s => s.quando === S.oggi);
+  const fissa  = daVisitare.filter(s => !s.quando);
+  const prossimi = daVisitare.filter(s => s.quando > S.oggi);
   /* matteo 1: una data passata con il lavoro ancora aperto non e' «fatto» e non e'
      «prossimo». Senza un gruppo suo non cadeva in nessuna linguetta e spariva,
      mentre il contatore «Tutti» continuava a contarlo. */
-  const tardi  = S.sopralluoghi.filter(s => s.quando && s.quando < S.oggi && s.stato !== 'fatto');
-  const fatti  = S.sopralluoghi.filter(s => s.stato === 'fatto');
+  const tardi  = daVisitare.filter(s => s.quando && s.quando < S.oggi);
+  const inCorso      = conPrev.filter(s => statoSopralluogo(s) === 'preventivo_in_corso');
+  const consegnati   = conPrev.filter(s => statoSopralluogo(s) === 'consegnato');
   const riga = (s, sottoRiga, azione) => `<div class="r">
     <div><div class="tit">${esc(s.nome)}</div><div class="sub">${sottoRiga}</div>
-      <div class="azioni">${azione}</div></div>${tag(s.stato)}</div>`;
+      <div class="azioni">${azione}</div></div>${tagSopralluogo(s)}</div>`;
   return `
   <div class="filtri">
-    ${[['tutti','Tutti',S.sopralluoghi.length],['oggi','Oggi',oggi.length + tardi.length],['fissare','Da fissare',fissa.length],['prossimi','Prossimi',prossimi.length],['fatti','Già fatti',fatti.length]]
+    ${[['tutti','Tutti',S.sopralluoghi.length],['oggi','Oggi',oggi.length + tardi.length],['fissare','Da fissare',fissa.length],['prossimi','Prossimi',prossimi.length],['consegnati','Consegnati',consegnati.length]]
       .map(([k,n,c]) => `<button class="${filtroSopralluoghi===k?'attivo':''}" onclick="setFiltroSopralluoghi('${k}')">${n} (${c})</button>`).join('')}
   </div>
   ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'oggi') && tardi.length ? `<div class="lbl" style="margin-bottom:12px">In ritardo</div><div class="elenco" style="margin-bottom:28px">
@@ -3524,10 +3567,15 @@ function elencoSopralluoghi(){
   ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'prossimi') && prossimi.length ? `<div class="lbl" style="margin-bottom:12px">Prossimi</div><div class="elenco" style="margin-bottom:28px">
     ${prossimi.sort((a,b) => a.quando.localeCompare(b.quando)).map(s => riga(s, sotto(s.luogo, dataLunga(s.quando)), `<a class="bottone piccolo" href="#sopralluogo/${s.id}">Apri</a>`)).join('')}
   </div>` : ''}
-  ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'fatti') && fatti.length ? `<div class="lbl" style="margin-bottom:12px">Già fatti</div><div class="elenco">
-    ${fatti.map(s => riga(s, sotto(s.luogo, s.quando ? dataLunga(s.quando) : ''),
+  ${filtroSopralluoghi === 'tutti' && inCorso.length ? `<div class="lbl" style="margin-bottom:12px">Col preventivo in corso</div><div class="elenco" style="margin-bottom:28px">
+    ${inCorso.map(s => riga(s, sotto(s.luogo, s.quando ? dataLunga(s.quando) : ''),
+        `<a class="bottone piccolo" href="#preventivo/${s.preventivo}">Apri il preventivo</a>` +
+        `<a class="bottone vuoto piccolo" href="#sopralluogo/${s.id}">Apri il sopralluogo</a>`)).join('')}
+  </div>` : ''}
+  ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'consegnati') && consegnati.length ? `<div class="lbl" style="margin-bottom:12px">Consegnati</div><div class="elenco">
+    ${consegnati.map(s => riga(s, sotto(s.luogo, s.quando ? dataLunga(s.quando) : ''),
         `<a class="bottone vuoto piccolo" href="#sopralluogo/${s.id}">Apri il sopralluogo</a>` +
-        (s.preventivo ? `<a class="bottone vuoto piccolo" href="#preventivo/${s.preventivo}">Vedi il preventivo</a>` : ''))).join('')}
+        `<a class="bottone vuoto piccolo" href="#preventivo/${s.preventivo}">Vedi il preventivo</a>`)).join('')}
   </div>` : ''}
   ${!S.sopralluoghi.length ? '<div class="niente">Ancora nessun sopralluogo. Sei da un cliente adesso? Tocca «Nuovo sopralluogo» qui sopra.</div>' : ''}`;
 }
@@ -3538,7 +3586,9 @@ function intestazioneSopralluogo(s, r){
     <div style="font-family:'Cormorant',serif;font-size:26px">${esc(s.luogo)}</div>
     ${tastoNaviga(s.luogo, 'Portami là') ? `<div class="azioni" style="margin-top:8px">${tastoNaviga(s.luogo, 'Portami là')}</div>` : ''}
     ${r ? `<p style="color:var(--soft);margin-top:6px;max-width:62ch">${esc(r.cosa)}</p>` : ''}
-    ${s.stato !== 'fatto' ? calendarioHtml('sopralluogo', s.id) : ''}
+    ${/* il promemoria in agenda serve finche' l'appuntamento deve ancora arrivare:
+         passata la data, con il preventivo gia' uscito, non c'e' piu' niente da segnarsi */
+      (!s.preventivo || !(s.quando && s.quando < S.oggi)) ? calendarioHtml('sopralluogo', s.id) : ''}
   </div>`;
 }
 function rilievoHtml(ril, s, r){
