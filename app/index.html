@@ -1322,6 +1322,16 @@ function aliquotaRiga(p, r){
   if(typeof p.iva === 'number' && isFinite(p.iva)) return p.iva;
   return Number(S.azienda.iva) || 0;
 }
+/* Le righe che vanno in fattura: quelle accese e non facoltative, le stesse che fanno
+   il totale del preventivo. A corpo la quantita' sono le volte; se no quantita' x volte. */
+function righeFattura(p){
+  return p.righe.filter(r => r.on && !r.facoltativa).map(r => ({
+    descrizione: r.nome, unita: aCorpo(r) ? '' : r.u,
+    quantita: aCorpo(r) ? volteRiga(r) : r.q * volteRiga(r),
+    prezzo: r.p, totale: importoRiga(r), aliquota: aliquotaRiga(p, r)
+  }));
+}
+/* FINE CONTI */
 /* Le rate mensili. Due cose che il foglio sbagliava: l'acconto sta in
    Impostazioni e vale per tutti, le rate si scelgono preventivo per preventivo,
    e chi aveva tutti e due si portava dal cliente una carta che prometteva
@@ -1478,7 +1488,7 @@ function ascoltaIlTiro(){
   barra.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:70;text-align:center;' +
     'font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:11px 0;' +
     'background:var(--carta);color:var(--soft);border-bottom:1px solid var(--filo);' +
-    'transform:translateY(-100%);transition:transform .18s;pointer-events:none';
+    'transform:translateY(-100%);transition:transform .3s ease;pointer-events:none';
   barra.textContent = 'Tira giù per aggiornare';
   document.body.appendChild(barra);
   const mostra = (si, testo) => {
@@ -1497,12 +1507,21 @@ function ascoltaIlTiro(){
     if(tiro.quanto > 12) mostra(true, tiro.quanto > 70 ? 'Lascia: aggiorno' : 'Tira giù per aggiornare');
     else mostra(false);
   }, {passive:true});
+  /* Andrea, 27 settembre 2026: «e' troppo veloce, sembra finto». La scritta restava
+     sullo schermo sessanta millesimi: nessuno riusciva a leggerla, e un aggiornamento
+     che non si vede sembra un aggiornamento che non c'e'. Adesso «Aggiorno…» resta
+     almeno un secondo, poi «Aggiornato» per un attimo, e solo dopo la barra risale. */
+  let inCorso = false;
   const finito = () => {
     const basta = !!(tiro && tiro.quanto > 70);
     tiro = null;
+    if(inCorso) return;
     if(!basta){ mostra(false); return; }
+    inCorso = true;
     mostra(true, 'Aggiorno…');
-    setTimeout(() => { aggiornaAdesso(); mostra(false); }, 60);
+    setTimeout(() => aggiornaAdesso(), 300);
+    setTimeout(() => mostra(true, 'Aggiornato'), 1100);
+    setTimeout(() => { mostra(false); inCorso = false; }, 1800);
   };
   document.addEventListener('touchend', finito, {passive:true});
   document.addEventListener('touchcancel', finito, {passive:true});
@@ -6992,6 +7011,144 @@ function azzera(id){
     salva(); vai();
   });
 }
+
+/* ===== FATTURA ELETTRONICA ==========================================
+   Dal preventivo pagato al file che l'Agenzia delle Entrate accetta
+   (tracciato FatturaPA 1.2.2, fattura fra privati FPR12). Le fatture partono
+   da Aruba (Andrea, 27 settembre 2026: la fattura sta dentro Rilievo e si
+   paga nell'abbonamento), quindi il trasmittente e' sempre Aruba.
+   Qui dentro non si legge niente dall'app: si riceve tutto come argomento,
+   cosi' il collaudo lo prova contro lo schema ufficiale senza aprire l'app. */
+const TRASMITTENTE_ARUBA = '01879020517';
+const FRANCHIGIA_FORFETTARI = 'Operazione in franchigia da IVA ai sensi dell\'art. 1, commi 54-89, L. 190/2014';
+const SOGLIA_BOLLO = 77.47;
+
+function xmlTesto(s, max){
+  let t = String(s == null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ' ').replace(/\s+/g, ' ').trim();
+  if(max && t.length > max) t = t.slice(0, max).trim();
+  return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+const dueDec = n => (Math.round(Number(n) * 100) / 100).toFixed(2);
+/* quantita' e prezzi possono avere piu' decimali (0,30 al mq, 2,93 volte "ogni 100 mq"):
+   il tracciato vuole da 2 a 8 cifre dopo il punto */
+function decimali(n){
+  let t = Number(n).toFixed(8).replace(/0+$/, '');
+  const [i, d = ''] = t.split('.');
+  return i + '.' + (d.length < 2 ? d.padEnd(2, '0') : d);
+}
+
+/* "Via Bellini 12, 26025 Pandino (CR)" oppure via e comune separati */
+function leggiSede(via, resto){
+  const tutto = [via, resto].filter(Boolean).join(', ');
+  const m = tutto.match(/^(.*?),?\s*(\d{5})\s+([^,(]+?)\s*(?:\(([A-Za-z]{2})\))?\s*$/);
+  if(!m) return null;
+  const indirizzo = m[1].replace(/,\s*$/, '').trim();
+  if(!indirizzo) return null;
+  return {indirizzo, cap: m[2], comune: m[3].trim(), provincia: m[4] ? m[4].toUpperCase() : ''};
+}
+function pivaValida(v){
+  const s = String(v || '').replace(/\s/g, '').replace(/^IT/i, '');
+  if(!/^\d{11}$/.test(s)) return false;
+  let t = 0;
+  for(let i = 0; i < 10; i++){
+    let c = Number(s[i]);
+    if(i % 2){ c *= 2; if(c > 9) c -= 9; }
+    t += c;
+  }
+  return (10 - t % 10) % 10 === Number(s[10]);
+}
+const cfValido = v => /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/i.test(String(v || '').trim())
+                     || pivaValida(v);
+const forfettario = a => String(a && a.regime || '') === 'RF19';
+
+/* Quello che manca per fare la fattura, detto come lo direbbe una persona.
+   Lista vuota = si puo' fare. */
+function cosaMancaPerFattura(a, cl){
+  const manca = [];
+  a = a || {}; cl = cl || {};
+  if(!pivaValida(a.piva)) manca.push('la tua partita IVA (11 cifre)');
+  if(!leggiSede(a.via, a.citta)) manca.push('il tuo indirizzo completo, con CAP e comune');
+  if(!a.regime) manca.push('il tuo regime: forfettario oppure ordinario');
+  if(!cl.nome) manca.push('il nome del cliente');
+  if(!cfValido(cl.cf) && !pivaValida(cl.piva)) manca.push('il codice fiscale o la partita IVA del cliente');
+  if(!leggiSede(cl.indirizzo)) manca.push('l\'indirizzo del cliente, con CAP e comune');
+  const cod = String(cl.sdi || '').trim();
+  if(cod && !/^[A-Z0-9]{7}$/i.test(cod)) manca.push('il codice destinatario del cliente: sono 7 lettere o numeri');
+  return manca;
+}
+
+/* d = {cedente, cliente, numero, data, progressivo, righe, basi}
+   righe: [{descrizione, unita, quantita, prezzo, totale, aliquota}] gia' senza le facoltative
+   basi:  [{aliquota, base, iva}] come le calcola conti(), gia' scontate */
+function xmlFattura(d){
+  const a = d.cedente, cl = d.cliente, forf = forfettario(a);
+  const sa = leggiSede(a.via, a.citta), sc = leggiSede(cl.indirizzo);
+  const piva = String(a.piva).replace(/\s/g, '').replace(/^IT/i, '');
+  const natura = al => al > 0 ? '' : (forf ? 'N2.2' : (d.natura || 'N2.2'));
+  const righe = d.righe.map(r => Object.assign({}, r, {aliquota: forf ? 0 : r.aliquota}));
+  const basi = forf
+    ? [{aliquota: 0, base: d.basi.reduce((t, b) => t + b.base, 0), iva: 0}]
+    : d.basi;
+
+  /* lo sconto del preventivo diventa una riga negativa per ogni aliquota: cosi' le
+     basi della fattura sono esattamente quelle del preventivo, al centesimo */
+  const lorde = {};
+  righe.forEach(r => { lorde[r.aliquota] = (lorde[r.aliquota] || 0) + Number(r.totale); });
+  const sconti = basi.map(b => ({aliquota: b.aliquota, meno: Math.round(((lorde[b.aliquota] || 0) - b.base) * 100) / 100}))
+                     .filter(x => x.meno > 0);
+
+  const sede = s => `<Sede><Indirizzo>${xmlTesto(s.indirizzo, 60)}</Indirizzo><CAP>${s.cap}</CAP><Comune>${xmlTesto(s.comune, 60)}</Comune>` +
+                    (s.provincia ? `<Provincia>${s.provincia}</Provincia>` : '') + `<Nazione>IT</Nazione></Sede>`;
+  const clPiva = pivaValida(cl.piva) ? String(cl.piva).replace(/\s/g, '').replace(/^IT/i, '') : '';
+  const clCf = String(cl.cf || '').trim().toUpperCase();
+  const idCliente = (clPiva ? `<IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>${clPiva}</IdCodice></IdFiscaleIVA>` : '') +
+                    (cfValido(clCf) ? `<CodiceFiscale>${clCf}</CodiceFiscale>` : '');
+  const codice = /^[A-Z0-9]{7}$/i.test(String(cl.sdi || '').trim()) ? String(cl.sdi).trim().toUpperCase() : '0000000';
+  const pec = codice === '0000000' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(cl.pec || '').trim()) ? String(cl.pec).trim() : '';
+
+  const imponibile = basi.reduce((t, b) => t + b.base, 0);
+  const imposta = basi.reduce((t, b) => t + (b.iva || 0), 0);
+  const totale = Math.round((imponibile + imposta) * 100) / 100;
+  const bollo = forf && totale > SOGLIA_BOLLO;
+
+  let n = 0;
+  const linea = (descr, q, u, prezzo, tot, al) => `<DettaglioLinee><NumeroLinea>${++n}</NumeroLinea>` +
+    `<Descrizione>${xmlTesto(descr, 1000)}</Descrizione>` +
+    (q != null ? `<Quantita>${decimali(q)}</Quantita>` : '') +
+    (u ? `<UnitaMisura>${xmlTesto(u, 10)}</UnitaMisura>` : '') +
+    `<PrezzoUnitario>${decimali(prezzo)}</PrezzoUnitario><PrezzoTotale>${dueDec(tot)}</PrezzoTotale>` +
+    `<AliquotaIVA>${dueDec(al)}</AliquotaIVA>` + (natura(al) ? `<Natura>${natura(al)}</Natura>` : '') + `</DettaglioLinee>`;
+  const unita = u => String(u || '').replace(/^ogni\s+/i, '').replace(/^(a|al|alla|all')\s+/i, '').trim();
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<p:FatturaElettronica versione="FPR12" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+`<FatturaElettronicaHeader>` +
+`<DatiTrasmissione><IdTrasmittente><IdPaese>IT</IdPaese><IdCodice>${TRASMITTENTE_ARUBA}</IdCodice></IdTrasmittente>` +
+`<ProgressivoInvio>${xmlTesto(String(d.progressivo).replace(/[^\w.-]/g, ''), 10)}</ProgressivoInvio><FormatoTrasmissione>FPR12</FormatoTrasmissione>` +
+`<CodiceDestinatario>${codice}</CodiceDestinatario>` + (pec ? `<PECDestinatario>${xmlTesto(pec, 256)}</PECDestinatario>` : '') + `</DatiTrasmissione>` +
+`<CedentePrestatore><DatiAnagrafici><IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>${piva}</IdCodice></IdFiscaleIVA>` +
+(cfValido(a.cf) ? `<CodiceFiscale>${String(a.cf).trim().toUpperCase()}</CodiceFiscale>` : '') +
+`<Anagrafica><Denominazione>${xmlTesto(a.nome, 80)}</Denominazione></Anagrafica><RegimeFiscale>${forf ? 'RF19' : 'RF01'}</RegimeFiscale></DatiAnagrafici>` +
+sede(sa) + `</CedentePrestatore>` +
+`<CessionarioCommittente><DatiAnagrafici>${idCliente}<Anagrafica><Denominazione>${xmlTesto(cl.nome, 80)}</Denominazione></Anagrafica></DatiAnagrafici>` +
+sede(sc) + `</CessionarioCommittente>` +
+`</FatturaElettronicaHeader>` +
+`<FatturaElettronicaBody><DatiGenerali><DatiGeneraliDocumento><TipoDocumento>TD01</TipoDocumento><Divisa>EUR</Divisa>` +
+`<Data>${d.data}</Data><Numero>${xmlTesto(d.numero, 20)}</Numero>` +
+(bollo ? `<DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>2.00</ImportoBollo></DatiBollo>` : '') +
+`<ImportoTotaleDocumento>${dueDec(totale)}</ImportoTotaleDocumento></DatiGeneraliDocumento></DatiGenerali>` +
+`<DatiBeniServizi>` +
+righe.map(r => linea(r.descrizione, r.quantita, unita(r.unita), r.prezzo, r.totale, r.aliquota)).join('') +
+sconti.map(s => linea('Sconto', null, '', -s.meno, -s.meno, s.aliquota)).join('') +
+basi.map(b => `<DatiRiepilogo><AliquotaIVA>${dueDec(b.aliquota)}</AliquotaIVA>` +
+  (natura(b.aliquota) ? `<Natura>${natura(b.aliquota)}</Natura>` : '') +
+  `<ImponibileImporto>${dueDec(b.base)}</ImponibileImporto><Imposta>${dueDec(b.iva || 0)}</Imposta>` +
+  (b.aliquota > 0 ? '<EsigibilitaIVA>I</EsigibilitaIVA>' : '') +
+  (natura(b.aliquota) ? `<RiferimentoNormativo>${xmlTesto(forf ? FRANCHIGIA_FORFETTARI : 'Operazione non soggetta', 100)}</RiferimentoNormativo>` : '') +
+  `</DatiRiepilogo>`).join('') +
+`</DatiBeniServizi></FatturaElettronicaBody></p:FatturaElettronica>`;
+}
+/* ===== FINE FATTURA ELETTRONICA ===== */
 
 /* ===== LEGGERE UN PREVENTIVO VECCHIO =================================
    Da un preventivo gia' fatto (PDF, Word, mail) alle voci del listino.
