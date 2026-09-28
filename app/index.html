@@ -933,7 +933,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-09-28 21:45';
+const COSTRUITA = '2026-09-28 22:02';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -946,19 +946,25 @@ function dataVersione(){
    per aggiornare e quando l'app torna davanti, al massimo una volta al minuto. */
 let ultimaDomandaVersione = 0;
 function cercaVersioneNuova(subito){
-  if(!dalServer() || typeof fetch !== 'function' || !/^\d{4}-/.test(COSTRUITA)) return Promise.resolve(false);
-  if(!subito && Date.now() - ultimaDomandaVersione < 60000) return Promise.resolve(false);
+  if(!dalServer() || typeof fetch !== 'function' || !/^\d{4}-/.test(COSTRUITA)) return Promise.resolve('fuori');
+  if(!subito && Date.now() - ultimaDomandaVersione < 60000) return Promise.resolve('presto');
   ultimaDomandaVersione = Date.now();
   try{ navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); }catch(e){}
-  return fetch('sw.js?v=' + Date.now(), {cache:'no-store'})
-    .then(r => r.ok ? r.text() : '')
-    .then(t => {
-      const m = /COSTRUITA = '(\d{4}-[^']+)'/.exec(t);
-      if(!m || m[1] === COSTRUITA) return false;
+  /* Due strade per sapere la data del server: sw.js, e se non basta la pagina stessa.
+     Sull'iPhone di Andrea, il 28 settembre 2026, la barra non era uscita: adesso,
+     qualunque cosa succeda, chi tira giu' legge cosa ha trovato. */
+  const assoluto = f => new URL(f + '?v=' + Date.now(), location.href).href;
+  const leggi = (f, re) => fetch(assoluto(f), {cache:'no-store', credentials:'same-origin'})
+    .then(r => r.ok ? r.text() : '').then(t => { const m = re.exec(t); return m ? m[1] : ''; })
+    .catch(() => '');
+  return leggi('sw.js', /COSTRUITA = '(\d{4}-[^']+)'/)
+    .then(d => d || leggi('./', /const COSTRUITA = '(\d{4}-[^']+)'/))
+    .then(d => {
+      if(!d) return 'errore';
+      if(d === COSTRUITA) return 'uguale';
       proponiAggiornamento();
-      return true;
-    })
-    .catch(() => false);
+      return 'nuova';
+    });
 }
 /* «Aggiorna adesso»: prima si prende la pagina nuova dal server e la si mette nella
    copia del telefono, poi si ricarica. Senza questo passo la ricarica apriva ancora
@@ -999,7 +1005,8 @@ function bloccoTelefono(){
   return `<div class="riquadro">
       <div class="lbl" style="margin-bottom:12px">Mettila sul telefono</div>
       <p style="font-size:16px;color:var(--soft)">${testo}</p>
-      ${dataVersione() ? `<p id="versione-app" style="font-size:14px;color:var(--soft);margin-top:10px">Versione del ${dataVersione()}. Tira giù la pagina per controllare se ce n'è una nuova.</p>` : ''}
+      ${dataVersione() ? `<p id="versione-app" style="font-size:14px;color:var(--soft);margin-top:10px">Versione del ${dataVersione()}. Tira giù la pagina per controllare se ce n'è una nuova.</p>
+      <div class="azioni" style="margin-top:12px"><button class="bottone vuoto piccolo" id="forza-aggiornamento" onclick="faiAggiornamento()">Scarica l'ultima versione</button></div>` : ''}
       ${invitoInstalla && !giaInstallata() ? `<div class="azioni" style="margin-top:16px">
         <button class="bottone" onclick="installa()">Mettila sul telefono</button>
       </div>` : ''}
@@ -1550,8 +1557,9 @@ function tiroVietato(e){
 }
 function aggiornaAdesso(){
   if(typeof miaDitta === 'function' && miaDitta() && typeof sincronizza === 'function') sincronizza();
-  cercaVersioneNuova(true);
+  const esito = cercaVersioneNuova(true);
   vai();
+  return esito;
 }
 function ascoltaIlTiro(){
   if(typeof document === 'undefined' || document.tiroPronto) return;
@@ -1592,9 +1600,15 @@ function ascoltaIlTiro(){
     if(!basta){ mostra(false); return; }
     inCorso = true;
     mostra(true, 'Aggiorno…');
-    setTimeout(() => aggiornaAdesso(), 300);
-    setTimeout(() => mostra(true, 'Aggiornato'), 1100);
-    setTimeout(() => { mostra(false); inCorso = false; }, 1800);
+    let esito = '';
+    setTimeout(() => { Promise.resolve(aggiornaAdesso()).then(e => { esito = e || ''; }, () => { esito = 'errore'; }); }, 300);
+    /* la scritta finale dice cosa si e' trovato: niente di nuovo, una versione nuova
+       (la barra «Aggiorna adesso» e' comparsa in fondo), o il server che non risponde */
+    const DETTO = {nuova:'C\'è una versione nuova · guarda in fondo',
+                   uguale:'Aggiornato · hai l\'ultima versione',
+                   errore:'Aggiornato · la versione non si controlla ora'};
+    setTimeout(() => mostra(true, DETTO[esito] || 'Aggiornato'), 1100);
+    setTimeout(() => { mostra(false); inCorso = false; }, esito === 'nuova' ? 2600 : 1800);
   };
   document.addEventListener('touchend', finito, {passive:true});
   document.addEventListener('touchcancel', finito, {passive:true});
