@@ -31,6 +31,7 @@ import urllib.parse, urllib.request
 import logging
 import xml.etree.ElementTree as ET
 import archivio            # l'archivio condiviso della ditta
+import fattura             # la fattura elettronica, verso Aruba (vero o finto)
 from PIL import Image, ImageDraw, ImageFilter
 
 QUI          = pathlib.Path(__file__).parent
@@ -2658,6 +2659,9 @@ def servizio(porta=8787, pubblico=False):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
             codice = (q.get("codice") or [""])[0]
+            if u.path == "/fattura/invia":
+                self._fattura_invia(codice)
+                return
             if not u.path.startswith("/squadra/"):
                 self._manda(404, {"errore": "Non c'e' nulla qui."})
                 return
@@ -2701,9 +2705,61 @@ def servizio(porta=8787, pubblico=False):
 
             self._manda(404, {"errore": "Non c'e' nulla qui."})
 
+        def _fattura_invia(self, codice):
+            """La fattura dall'app ad Aruba. Con l'Aruba finto passa chi passa per
+            il resto del servizio; con Aruba vero serve un codice che Andrea ha
+            abilitato alla fattura ("fattura": true in codici.json), perche' da
+            li' in poi si manda allo Stato a nome di qualcuno."""
+            s = fattura.sportello()
+            ok, messaggio, _ = chi_entra(codice)
+            if not ok:
+                self._manda(402, {"errore": messaggio, "codice_non_valido": True})
+                return
+            if not s.prova:
+                riga = (codici().get("codici") or {}).get(_pulisci_codice(codice)) or {}
+                if not riga.get("fattura"):
+                    self._manda(403, {"errore": "Le fatture vere per ora le manda solo chi e' abilitato."})
+                    return
+            dentro = self._corpo()
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+            try:
+                r = s.invia(dentro.get("xml"))
+            except fattura.FatturaSbagliata as e:
+                self._manda(400, {"errore": str(e), "prova": bool(s.prova)})
+                return
+            except fattura.ArubaNonRisponde as e:
+                print("     fattura non partita:", e)
+                self._manda(502, {"errore": "Aruba adesso non risponde. Riprova fra poco.",
+                                  "prova": bool(s.prova)})
+                return
+            print("  fattura %s: %s%s" % (r["stato"], r["file"], " (prova)" if r.get("prova") else ""))
+            self._manda(200, r)
+
+        def _fattura_stato(self, q):
+            nome = (q.get("file") or [""])[0].strip()[:120]
+            s = fattura.sportello()
+            if not nome:
+                self._manda(200, fattura.come_sta())
+                return
+            try:
+                r = s.stato(nome)
+            except fattura.ArubaNonRisponde as e:
+                self._manda(502, {"errore": "Aruba adesso non risponde. Riprova fra poco.",
+                                  "prova": bool(s.prova)})
+                return
+            if r is None:
+                self._manda(404, {"errore": "Questa fattura non la trovo.", "prova": bool(s.prova)})
+                return
+            self._manda(200, r)
+
         def do_GET(self):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
+            if u.path == "/fattura/stato":
+                self._fattura_stato(q)
+                return
             # l'applicazione stessa, se c'e' la cartella app/: cosi' ha un indirizzo
             # fisso e si installa sul telefono, e si apre anche senza rete
             if u.path in STATICI and (APP / STATICI[u.path][0]).is_file():

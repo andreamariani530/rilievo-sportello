@@ -593,6 +593,19 @@ body.disegno-aperto{overflow:hidden}
 /* invisibile, ma largo quanto un polpastrello: e' il bersaglio per togliere il segno */
 .mirino .presa{fill:transparent;stroke:none}
 .interruttore{display:inline-flex;align-items:center;gap:8px}
+.velo-scheda label.da-riempire .lbl{color:var(--accento)}
+.velo-scheda label.da-riempire .campo{border-color:var(--accento-chiaro)}
+.fattura-dati{margin-top:16px;padding-top:12px;border-top:1px solid var(--filetto)}
+.fattura-nota{font-size:15px;color:var(--tenue);margin-top:10px;line-height:1.55}
+.di-prova{font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--oro);border-top:1px solid #CDB48A;border-bottom:1px solid #CDB48A;padding:6px 0 5px;text-align:center}
+.conferma-fattura{margin:2px 0 6px}
+.conferma-fattura .di-prova{margin-bottom:12px}
+.foglio-fattura .di-prova{font-size:11px}
+.fattura-app{margin-top:18px;padding-top:14px;border-top:1px solid var(--filetto)}
+.fattura-app .stato-fattura{font-family:'Cormorant',serif;font-size:22px;line-height:1.2;margin:6px 0 4px}
+.fattura-app p{font-size:15.5px;color:var(--soft);line-height:1.55}
+.fattura-app .azioni-fattura{display:grid;gap:10px;margin-top:12px}
 .interruttore .stato{font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.14em;
   text-transform:uppercase;padding:3px 8px 2px;border:1px solid var(--filetto2);
   color:var(--tenue);background:var(--carta2)}
@@ -920,7 +933,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-09-27 23:07';
+const COSTRUITA = '2026-09-28 21:45';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1465,6 +1478,13 @@ const ETICHETTE = {
   consegnato:         {t:'Consegnato',         c:'v'},
   fatto:              {t:'Consegnato',         c:'v'}
 };
+/* le etichette della fattura: stanno qui e non in ETICHETTE perche' "inviata"
+   e "consegnata" li' vogliono gia' dire altro */
+function tagFattura(f){
+  const e = {inviata: ['Partita', ''], consegnata: ['Arrivata', 'v'], non_consegnata: ['Pronta', 'v'],
+             scartata: ['Tornata indietro', 'o']}[f && f.stato] || ['Da mandare', 'o'];
+  return '<span class="tag ' + e[1] + '">' + esc(e[0]) + (f && f.prova ? ' · prova' : '') + '</span>';
+}
 function tag(stato){
   const e = ETICHETTE[stato] || {t:stato||'', c:''};
   return '<span class="tag '+e.c+'">'+esc(e.t)+'</span>';
@@ -1580,6 +1600,10 @@ function ascoltaIlTiro(){
   document.addEventListener('touchcancel', finito, {passive:true});
 }
 
+/* In cima si torna solo quando si cambia pagina. Salvare, togliere o correggere una cosa
+   ridisegna la stessa pagina, e prima ogni volta la riportava all'inizio: «ogni volta che
+   fai una modifica riparte sempre da inizio pagina» (Andrea, 28 settembre 2026). */
+let paginaMostrata = null;
 function vai(){
   giornataNuova();
   const grezzo = (location.hash || '#oggi').slice(1);
@@ -1609,7 +1633,10 @@ function vai(){
       ${corpo}
     </div>`;
   if(P.poi) P.poi(arg);
-  menu(false); window.scrollTo(0,0);
+  const nuova = location.hash !== paginaMostrata;
+  paginaMostrata = location.hash;
+  menu(false);
+  if(nuova) window.scrollTo(0,0);
 }
 /* ridisegna la pagina senza tornare in cima: togliendo una cosa da un elenco lungo
    la pagina saltava all'inizio a ogni tocco (Cafagna, 27 settembre 2026) */
@@ -2164,6 +2191,7 @@ function scheda(o){
     o.salva(dati);
     salva(); vai();
     if(o.messaggio) avvisa(o.messaggio);
+    if(o.dopo) o.dopo();
   };
   if(o.elimina){
     velo.querySelector('#btn-elimina').onclick = () => {
@@ -2175,7 +2203,10 @@ function scheda(o){
       });
     };
   }
-  const primo = velo.querySelector('.campo'); if(primo) primo.focus();
+  /* aperta per riempire una casella precisa (per la fattura): si parte da quella */
+  const casella = o.fuoco ? velo.querySelector('#c-' + o.fuoco) : null;
+  if(casella && casella.closest('label')) casella.closest('label').classList.add('da-riempire');
+  const primo = casella || velo.querySelector('.campo'); if(primo) primo.focus();
 }
 
 /* la domanda prima di cancellare */
@@ -2244,22 +2275,31 @@ function schedaRichiesta(id){
 }
 
 /* ---------------- clienti ---------------- */
-function schedaCliente(id){
+function schedaCliente(id, per){
   const c = id ? cliente(id) : null;
+  per = per || {};
+  /* con la fattura accesa si chiedono anche i dati che servono a farla. Spenta,
+     la scheda e' identica a prima e non scrive nessuna chiave nuova */
+  const fatt = fatturaAccesa();
   scheda({
     titolo: c ? 'Modifica il cliente' : 'Nuovo cliente',
-    valori: c || {dal:S.oggi},
+    sotto: per.sotto,
+    fuoco: per.fuoco,
+    dopo: per.dopo,
+    valori: fatt ? valoriClientePerFattura(c) : (c || {dal:S.oggi}),
     campi:[
       {k:'nome', l:'Nome', p:'Villa Ranieri'},
       {k:'luogo', l:'Paese', p:'Pandino'},
       {k:'indirizzo', l:'Indirizzo', p:'Via Bellini 12, 26025 Pandino (CR)'},
+      ...(fatt ? CAMPI_CLIENTE_FATTURA : []),
       {k:'tel', l:'Telefono', p:'340 1234567'},
       {k:'mail', l:'Mail', p:'nome@esempio.it'},
       {k:'dal', l:'Cliente dal', t:'data'},
       {k:'note', l:'Note', t:'lungo', p:'Quello che ti serve ricordare di lui.'}
     ],
-    controlla: d => d.nome ? null : 'Serve il nome del cliente.',
+    controlla: d => !d.nome ? 'Serve il nome del cliente.' : (fatt ? controllaClientePerFattura(d) : null),
     salva: d => {
+      if(fatt) sistemaClientePerFattura(d);
       if(c) Object.assign(c, d);
       else S.clienti.push(Object.assign({id:nuovoId('c')}, d));
     },
@@ -3042,31 +3082,39 @@ function doveImmagine(file){
 }
 
 /* ---------------- i tuoi dati, quelli stampati sui documenti ---------------- */
-function schedaAzienda(){
+function schedaAzienda(per){
   logoInArrivo = undefined;
+  per = per || {};
+  const fatt = fatturaAccesa();
   scheda({
     titolo: 'I tuoi dati',
-    sotto: 'Sono quelli che finiscono stampati in cima a ogni documento che consegni.',
+    sotto: per.sotto || 'Sono quelli che finiscono stampati in cima a ogni documento che consegni.',
+    fuoco: per.fuoco,
+    dopo: per.dopo,
     extra: bloccoLogo(S.azienda.logo, 'scheda'),
-    valori: S.azienda,
+    valori: fatt ? valoriDittaPerFattura() : S.azienda,
     campi:[
       {k:'nome', l:'Nome dell’azienda', p:'Giardini Conti'},
       {k:'sotto', l:'Cosa fai', p:'Manutenzione del verde'},
       {k:'via', l:'Via', m:true, p:'Via Bellini 12'},
       {k:'citta', l:'Comune', m:true, p:'26025 Pandino (CR)'},
       {k:'piva', l:'Partita IVA', m:true, p:'01234567890'},
+      ...(fatt ? CAMPI_DITTA_FATTURA : []),
       {k:'iva', l:'Aliquota IVA', t:'numero', m:true, p:'22'},
       {k:'tel', l:'Telefono', m:true, p:'340 1234567'},
       {k:'mail', l:'Mail', m:true, p:'info@esempio.it'},
       {k:'validita', l:'Il preventivo vale (giorni)', t:'numero', m:true, facoltativo:true, p:'30'},
       {k:'acconto', l:'Acconto alla firma (%)', t:'numero', m:true, facoltativo:true, p:'Vuoto se non lo chiedi'},
+      ...(fatt ? CAMPI_NUMERAZIONE_FATTURA : []),
       {k:'condizioni', l:'Condizioni stampate in fondo', t:'lungo',
        p:'Es. Con il maltempo gli interventi slittano al primo giorno utile. Il verde tagliato si porta via, compreso nel prezzo.'}
     ],
     controlla: d => !d.nome ? 'Serve almeno il nome.'
       : (d.validita !== null && !(d.validita >= 1 && d.validita <= 365) ? 'La validità va da 1 a 365 giorni.'
-      : (d.acconto !== null && !(d.acconto >= 0 && d.acconto <= 100) ? 'L\'acconto è una percentuale, da 0 a 100.' : null)),
+      : (d.acconto !== null && !(d.acconto >= 0 && d.acconto <= 100) ? 'L\'acconto è una percentuale, da 0 a 100.'
+      : (fatt ? controllaDittaPerFattura(d) : null))),
     salva: d => {
+      if(fatt) sistemaDittaPerFattura(d);
       if(d.validita === null) delete d.validita;
       if(d.acconto === null) delete d.acconto;
       Object.assign(S.azienda, d);
@@ -5465,20 +5513,45 @@ function pinchMuovi(e){
     if(!pinch.gira && Math.abs(giro) > 12) pinch.gira = true;
     if(pinch.gira) D.giro = Math.round((((pinch.giro + giro) % 360) + 360) % 360);
   }
-  portaZoomA(pinch.zoom * (d / pinch.d), r ? [m[0] - r.left, m[1] - r.top] : null,
-             siAllargaIlTerreno() ? ZOOM_ALLARGA : ZOOM_MIN);
-  if(foglio){
-    /* il punto in mezzo alle dita si porta dietro la foto */
-    foglio.scrollLeft -= (m[0] - pinch.mx);
-    foglio.scrollTop  -= (m[1] - pinch.my);
-  }
-  pinch.mx = m[0]; pinch.my = m[1];
-  if(pinch.gira) ridisegna();
+  pinch.voluto = {zoom: pinch.zoom * (d / pinch.d), m};
+  if(!pinch.quadro) pinch.quadro = prossimoQuadro(applicaPinch);
+}
+/* Le dita mandano decine di movimenti al secondo. Prima ognuno ridisegnava tutto il
+   foglio e spostava la foto due volte (una per lo zoom, una per il trascinamento):
+   in mezzo lo schermo mostrava lo stato a meta', ed era lo sfarfallio visto da Andrea
+   il 28 settembre 2026. Adesso si fa un solo passo per quadro dello schermo: si cambia
+   la misura della foto (il disegno sopra la segue da solo) e si mette sotto il punto in
+   mezzo alle dita lo stesso punto della foto che c'era prima. Il ridisegno completo, coi
+   pallini della misura giusta, si fa quando le dita si staccano. */
+const prossimoQuadro = f => (typeof requestAnimationFrame === 'function')
+  ? requestAnimationFrame(f) : setTimeout(f, 16);
+function applicaPinch(){
+  if(!D || !pinch) return;
+  pinch.quadro = null;
+  const v = pinch.voluto; if(!v) return;
+  pinch.voluto = null;
+  const foglio = document.getElementById('disegno-foglio');
+  const minimo = siAllargaIlTerreno() ? ZOOM_ALLARGA : ZOOM_MIN;
+  const nuovo = Math.max(minimo, Math.min(ZOOM_MAX, v.zoom));
+  if(!foglio){ D.zoom = nuovo; return; }
+  const r = foglio.getBoundingClientRect();
+  /* il punto della foto che stava sotto le dita al quadro prima */
+  const px = pinch.mx - r.left, py = pinch.my - r.top;
+  const fx = foglio.scrollWidth  ? (foglio.scrollLeft + px) / foglio.scrollWidth  : .5;
+  const fy = foglio.scrollHeight ? (foglio.scrollTop  + py) / foglio.scrollHeight : .5;
+  D.zoom = nuovo;
+  if(pinch.gira) ridisegna(); else misuraLaFoto();
+  foglio.scrollLeft = fx * foglio.scrollWidth  - (v.m[0] - r.left);
+  foglio.scrollTop  = fy * foglio.scrollHeight - (v.m[1] - r.top);
+  pinch.mx = v.m[0]; pinch.my = v.m[1];
 }
 function pinchFine(e){
   if(e.touches && e.touches.length >= 2) return;
-  const cera = !!pinch; pinch = null;
-  if(cera) allargaDopoLeDita();
+  if(!pinch) return;
+  if(pinch.voluto) applicaPinch();
+  pinch = null;
+  if(D && (D.zoom || 1) >= 1) ridisegna();
+  allargaDopoLeDita();
 }
 /* Stringere con due dita quando la foto e' gia' tutta nello schermo vuol dire
    «voglio vedere piu' terreno», come su una mappa. Prima serviva cercare il tasto
@@ -7170,41 +7243,81 @@ const cfValido = v => /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0
                      || pivaValida(v);
 const forfettario = a => String(a && a.regime || '') === 'RF19';
 
-/* Quello che manca per fare la fattura, detto come lo direbbe una persona.
+/* La sede del cliente. Per la fattura CAP, comune e provincia si chiedono nelle
+   loro caselle; i clienti di prima hanno solo l'indirizzo scritto tutto insieme
+   ("Via Roma 5, 20077 Melegnano (MI)"), e quello si legge come prima. */
+function sedeCliente(cl){
+  cl = cl || {};
+  const cap = String(cl.cap || '').trim(), comune = String(cl.comune || '').trim();
+  if(/^\d{5}$/.test(cap) && comune){
+    const letta = leggiSede(cl.indirizzo);
+    let via = letta ? letta.indirizzo : String(cl.indirizzo || '').trim();
+    /* "Via Roma 5, Melegnano": il comune scritto in coda non si ripete */
+    const coda = ',\\s*' + comune.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$';
+    via = via.replace(new RegExp(coda, 'i'), '').trim();
+    if(!via) return null;
+    const prov = String(cl.provincia || '').trim().toUpperCase();
+    return {indirizzo: via, cap, comune,
+            provincia: /^[A-Z]{2}$/.test(prov) ? prov : (letta ? letta.provincia : '')};
+  }
+  return leggiSede(cl.indirizzo);
+}
+const codiceDestinatario = v => /^[A-Z0-9]{7}$/i.test(String(v || '').trim());
+const pecBuona = v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v || '').trim());
+
+/* Quello che manca per fare la fattura, detto come lo direbbe una persona, e
+   dove si scrive: chi = 'ditta' o 'cliente', campo = la casella da aprire.
    Lista vuota = si puo' fare. */
-function cosaMancaPerFattura(a, cl){
+function mancaPerFattura(a, cl){
   const manca = [];
+  const m = (testo, chi, campo) => manca.push({testo, chi, campo});
   a = a || {}; cl = cl || {};
-  if(!pivaValida(a.piva)) manca.push('la tua partita IVA (11 cifre)');
-  if(!leggiSede(a.via, a.citta)) manca.push('il tuo indirizzo completo, con CAP e comune');
-  if(!a.regime) manca.push('il tuo regime: forfettario oppure ordinario');
-  if(!cl.nome) manca.push('il nome del cliente');
-  if(!cfValido(cl.cf) && !pivaValida(cl.piva)) manca.push('il codice fiscale o la partita IVA del cliente');
-  if(!leggiSede(cl.indirizzo)) manca.push('l\'indirizzo del cliente, con CAP e comune');
-  const cod = String(cl.sdi || '').trim();
-  if(cod && !/^[A-Z0-9]{7}$/i.test(cod)) manca.push('il codice destinatario del cliente: sono 7 lettere o numeri');
+  if(!pivaValida(a.piva)) m('la tua partita IVA (11 cifre)', 'ditta', 'piva');
+  if(!cfValido(a.cf)) m('il tuo codice fiscale', 'ditta', 'cf');
+  if(!leggiSede(a.via, a.citta)) m('il tuo indirizzo completo, con CAP e comune', 'ditta', String(a.via || '').trim() ? 'citta' : 'via');
+  if(!a.regime) m('il tuo regime: forfettario oppure ordinario', 'ditta', 'regime');
+  if(!cl.nome) m('il nome del cliente', 'cliente', 'nome');
+  if(!cfValido(cl.cf) && !pivaValida(cl.piva)) m('il codice fiscale o la partita IVA del cliente', 'cliente', 'fiscale');
+  if(!sedeCliente(cl)){
+    const campo = !String(cl.indirizzo || '').trim() ? 'indirizzo'
+                : !/^\d{5}$/.test(String(cl.cap || '').trim()) && !leggiSede(cl.indirizzo) ? 'cap' : 'comune';
+    m('l\'indirizzo del cliente, con CAP e comune', 'cliente', campo);
+  }
+  if(String(cl.sdi || '').trim() && !codiceDestinatario(cl.sdi)) m('il codice destinatario del cliente: sono 7 lettere o numeri', 'cliente', 'sdi');
+  if(String(cl.pec || '').trim() && !pecBuona(cl.pec)) m('la PEC del cliente, scritta per intero', 'cliente', 'pec');
   return manca;
 }
+function cosaMancaPerFattura(a, cl){ return mancaPerFattura(a, cl).map(x => x.testo); }
 
-/* d = {cedente, cliente, numero, data, progressivo, righe, basi}
-   righe: [{descrizione, unita, quantita, prezzo, totale, aliquota}] gia' senza le facoltative
-   basi:  [{aliquota, base, iva}] come le calcola conti(), gia' scontate */
-function xmlFattura(d){
-  const a = d.cedente, cl = d.cliente, forf = forfettario(a);
-  const sa = leggiSede(a.via, a.citta), sc = leggiSede(cl.indirizzo);
-  const piva = String(a.piva).replace(/\s/g, '').replace(/^IT/i, '');
-  const natura = al => al > 0 ? '' : (forf ? 'N2.2' : (d.natura || 'N2.2'));
+/* I conti della fattura, gli stessi per il file e per il PDF da leggere:
+   cosi' le due carte non possono dire numeri diversi. */
+function contiFattura(d){
+  const forf = forfettario(d.cedente);
   const righe = d.righe.map(r => Object.assign({}, r, {aliquota: forf ? 0 : r.aliquota}));
   const basi = forf
     ? [{aliquota: 0, base: d.basi.reduce((t, b) => t + b.base, 0), iva: 0}]
     : d.basi;
-
   /* lo sconto del preventivo diventa una riga negativa per ogni aliquota: cosi' le
      basi della fattura sono esattamente quelle del preventivo, al centesimo */
   const lorde = {};
   righe.forEach(r => { lorde[r.aliquota] = (lorde[r.aliquota] || 0) + Number(r.totale); });
   const sconti = basi.map(b => ({aliquota: b.aliquota, meno: Math.round(((lorde[b.aliquota] || 0) - b.base) * 100) / 100}))
                      .filter(x => x.meno > 0);
+  const imponibile = Math.round(basi.reduce((t, b) => t + b.base, 0) * 100) / 100;
+  const imposta = Math.round(basi.reduce((t, b) => t + (b.iva || 0), 0) * 100) / 100;
+  const totale = Math.round((imponibile + imposta) * 100) / 100;
+  return {forf, righe, basi, sconti, imponibile, imposta, totale, bollo: forf && totale > SOGLIA_BOLLO};
+}
+
+/* d = {cedente, cliente, numero, data, progressivo, righe, basi}
+   righe: [{descrizione, unita, quantita, prezzo, totale, aliquota}] gia' senza le facoltative
+   basi:  [{aliquota, base, iva}] come le calcola conti(), gia' scontate */
+function xmlFattura(d){
+  const a = d.cedente, cl = d.cliente;
+  const {forf, righe, basi, sconti, totale, bollo} = contiFattura(d);
+  const sa = leggiSede(a.via, a.citta), sc = sedeCliente(cl);
+  const piva = String(a.piva).replace(/\s/g, '').replace(/^IT/i, '');
+  const natura = al => al > 0 ? '' : (forf ? 'N2.2' : (d.natura || 'N2.2'));
 
   const sede = s => `<Sede><Indirizzo>${xmlTesto(s.indirizzo, 60)}</Indirizzo><CAP>${s.cap}</CAP><Comune>${xmlTesto(s.comune, 60)}</Comune>` +
                     (s.provincia ? `<Provincia>${s.provincia}</Provincia>` : '') + `<Nazione>IT</Nazione></Sede>`;
@@ -7212,13 +7325,8 @@ function xmlFattura(d){
   const clCf = String(cl.cf || '').trim().toUpperCase();
   const idCliente = (clPiva ? `<IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>${clPiva}</IdCodice></IdFiscaleIVA>` : '') +
                     (cfValido(clCf) ? `<CodiceFiscale>${clCf}</CodiceFiscale>` : '');
-  const codice = /^[A-Z0-9]{7}$/i.test(String(cl.sdi || '').trim()) ? String(cl.sdi).trim().toUpperCase() : '0000000';
-  const pec = codice === '0000000' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(cl.pec || '').trim()) ? String(cl.pec).trim() : '';
-
-  const imponibile = basi.reduce((t, b) => t + b.base, 0);
-  const imposta = basi.reduce((t, b) => t + (b.iva || 0), 0);
-  const totale = Math.round((imponibile + imposta) * 100) / 100;
-  const bollo = forf && totale > SOGLIA_BOLLO;
+  const codice = codiceDestinatario(cl.sdi) ? String(cl.sdi).trim().toUpperCase() : '0000000';
+  const pec = codice === '0000000' && pecBuona(cl.pec) ? String(cl.pec).trim() : '';
 
   let n = 0;
   const linea = (descr, q, u, prezzo, tot, al) => `<DettaglioLinee><NumeroLinea>${++n}</NumeroLinea>` +
@@ -7258,6 +7366,452 @@ basi.map(b => `<DatiRiepilogo><AliquotaIVA>${dueDec(b.aliquota)}</AliquotaIVA>` 
 `</DatiBeniServizi></FatturaElettronicaBody></p:FatturaElettronica>`;
 }
 /* ===== FINE FATTURA ELETTRONICA ===== */
+
+/* ===== LA FATTURA DENTRO L'APP =======================================
+   Tutto quello che si vede della fattura passa da un interruttore in
+   Impostazioni, spento di partenza: chi non lo accende (Cafagna e gli altri
+   giardinieri di prova) non vede nessuna casella e nessun tasto nuovo.
+   Andrea lo accende sul suo telefono e la prova prima lui (28 settembre 2026).
+   Finche' Aruba non ci ha dato le chiavi, il server risponde con un Aruba
+   finto: ogni fattura e' DI PROVA, lo dice dappertutto, e ha una numerazione
+   sua che non tocca quella vera. */
+const fatturaAccesa = () => !!(S && S.azienda && S.azienda.fattura_elettronica === true);
+function cambiaFattura(){
+  if(fatturaAccesa()) delete S.azienda.fattura_elettronica;
+  else S.azienda.fattura_elettronica = true;
+  salva(); vaiRestandoQui();
+  avvisa(fatturaAccesa() ? 'Fattura accesa: il tasto compare sui lavori fatti e pagati.' : 'Fattura spenta: nell\'app non se ne vede più niente.');
+}
+const REGIMI = [['', 'Scegli'], ['RF19', 'Forfettario'], ['RF01', 'Ordinario']];
+const nomeRegime = r => (REGIMI.find(x => x[0] === r) || ['', ''])[1];
+const CAMPI_DITTA_FATTURA = [
+  {k:'cf', l:'Codice fiscale', m:true, p:'Per una società è la partita IVA'},
+  {k:'regime', l:'Regime', t:'scelta', m:true, opzioni: REGIMI}
+];
+const CAMPI_NUMERAZIONE_FATTURA = [
+  {k:'fattura_prossima', l:'Prossima fattura n.', t:'numero', m:true, p:'1'},
+  {k:'fattura_anno', l:'Dell\'anno', t:'numero', m:true, p:'2026'}
+];
+const CAMPI_CLIENTE_FATTURA = [
+  {k:'cap', l:'CAP', m:true, p:'26025'},
+  {k:'comune', l:'Comune', m:true, p:'Pandino'},
+  {k:'provincia', l:'Provincia', m:true, p:'CR'},
+  {k:'fiscale', l:'Codice fiscale o partita IVA', m:true, p:'16 lettere e numeri, o 11 cifre'},
+  {k:'sdi', l:'Codice destinatario', m:true, p:'Se ce l\'ha: 7 lettere o numeri'},
+  {k:'pec', l:'PEC', m:true, p:'Se non ha il codice'}
+];
+
+/* ---- la numerazione: si incrementa da sola e non si ripete mai ----
+   Quella vera e quella di prova sono due contatori diversi: le prove di Andrea
+   non devono bruciare il numero 1 della sua prima fattura vera. */
+const annoDi = iso => Number(String(iso || '').slice(0, 4)) || new Date().getFullYear();
+const scritturaNumero = (n, anno, prova) => (prova ? 'P' : '') + n + '/' + anno;
+function numeriUsati(prova, anno){
+  return new Set(S.preventivi.map(p => p.fattura).filter(f => f && !!f.prova === !!prova && Number(f.anno) === Number(anno) && f.n > 0).map(f => f.n));
+}
+function prossimaFattura(prova){
+  const anno = annoDi(S.oggi);
+  const c = (S.azienda || {})[prova ? 'fatture_prova' : 'fatture'] || {};
+  let n = Number(c.anno) === anno && Number.isInteger(c.prossimo) && c.prossimo >= 1 ? c.prossimo : 1;
+  const usati = numeriUsati(prova, anno);
+  while(usati.has(n)) n++;
+  return {n, anno, numero: scritturaNumero(n, anno, prova)};
+}
+function consumaNumero(prova, x){
+  S.azienda[prova ? 'fatture_prova' : 'fatture'] = {anno: x.anno, prossimo: x.n + 1};
+}
+
+/* ---- i dati della ditta per la fattura, nella scheda "I tuoi dati" ---- */
+function valoriDittaPerFattura(){
+  const x = prossimaFattura(false);
+  return Object.assign({}, S.azienda, {fattura_prossima: x.n, fattura_anno: x.anno});
+}
+function controllaDittaPerFattura(d){
+  if(d.cf && !cfValido(d.cf)) return 'Il codice fiscale ha 16 lettere e numeri (per una società è la partita IVA, 11 cifre): controlla di averlo scritto giusto.';
+  const anno = d.fattura_anno === null ? annoDi(S.oggi) : d.fattura_anno;
+  if(!(Number.isInteger(anno) && anno >= 2000 && anno <= 2100)) return 'L\'anno delle fatture si scrive per intero, per esempio ' + annoDi(S.oggi) + '.';
+  if(d.fattura_prossima !== null && !(Number.isInteger(d.fattura_prossima) && d.fattura_prossima >= 1))
+    return 'Il numero della prossima fattura è un numero intero, da 1 in su.';
+  if(d.fattura_prossima !== null && numeriUsati(false, anno).has(d.fattura_prossima))
+    return 'La fattura n. ' + d.fattura_prossima + '/' + anno + ' l\'hai già fatta: due fatture con lo stesso numero non si possono fare.';
+  return null;
+}
+function sistemaDittaPerFattura(d){
+  if(d.cf) d.cf = d.cf.toUpperCase(); else delete d.cf;
+  if(!d.regime) delete d.regime;
+  const anno = d.fattura_anno === null ? annoDi(S.oggi) : d.fattura_anno;
+  if(d.fattura_prossima !== null) S.azienda.fatture = {anno, prossimo: d.fattura_prossima};
+  delete d.fattura_prossima; delete d.fattura_anno;
+}
+
+/* ---- i dati del cliente per la fattura, nella sua scheda ----
+   Un cliente di prima ha solo l'indirizzo scritto tutto insieme: CAP, comune e
+   provincia si propongono gia' letti da li', cosi' non si riscrivono. */
+function valoriClientePerFattura(c){
+  const v = Object.assign({}, c || {dal: S.oggi});
+  const letta = leggiSede(v.indirizzo);
+  if(letta){
+    if(!v.cap) v.cap = letta.cap;
+    if(!v.comune) v.comune = letta.comune;
+    if(!v.provincia && letta.provincia) v.provincia = letta.provincia;
+  }
+  v.fiscale = v.piva || v.cf || '';
+  return v;
+}
+function controllaClientePerFattura(d){
+  if(d.cap && !/^\d{5}$/.test(d.cap)) return 'Il CAP sono 5 cifre, per esempio 26025.';
+  if(d.provincia && !/^[A-Za-z]{2}$/.test(d.provincia)) return 'La provincia si scrive con la sigla di due lettere, per esempio LO.';
+  if(d.fiscale && !cfValido(d.fiscale.replace(/\s/g, '')) && !pivaValida(d.fiscale))
+    return 'Il codice fiscale ha 16 lettere e numeri, la partita IVA 11 cifre: controlla di averlo scritto giusto.';
+  if(d.sdi && !codiceDestinatario(d.sdi)) return 'Il codice destinatario sono 7 lettere o numeri. Se il cliente non ce l\'ha, lascialo vuoto.';
+  if(d.pec && !pecBuona(d.pec)) return 'La PEC va scritta per intero, per esempio nome@pec.it.';
+  return null;
+}
+function sistemaClientePerFattura(d){
+  const f = String(d.fiscale || '').replace(/\s/g, '').toUpperCase();
+  delete d.fiscale;
+  delete d.cf; delete d.piva;
+  if(pivaValida(f)) d.piva = f.replace(/^IT/, '');
+  else if(f) d.cf = f;
+  if(d.provincia) d.provincia = d.provincia.toUpperCase();
+  if(d.sdi) d.sdi = d.sdi.toUpperCase();
+  /* le caselle lasciate vuote non si scrivono: il cliente resta com'era */
+  ['cap', 'comune', 'provincia', 'sdi', 'pec'].forEach(k => { if(!d[k]) delete d[k]; });
+}
+
+/* ---- in Impostazioni: l'interruttore, e da acceso lo stato dei dati ---- */
+function riquadroFattura(){
+  const a = S.azienda, on = fatturaAccesa();
+  const manca = on ? mancaPerFattura(a, {}).filter(x => x.chi === 'ditta') : [];
+  return `<div class="riquadro" id="riquadro-fattura">
+    <button class="bottone vuoto piccolo interruttore${on ? ' acceso' : ''}" id="interruttore-fattura" onclick="cambiaFattura()"
+      aria-pressed="${on}">Fattura elettronica (in prova) <span class="stato">${on ? 'Accesa' : 'Spenta'}</span></button>
+    ${on ? `<div class="fattura-dati">
+      <div class="riga-tot"><span>Codice fiscale</span><span>${esc(a.cf || '—')}</span></div>
+      <div class="riga-tot"><span>Regime</span><span>${esc(nomeRegime(a.regime) || '—')}</span></div>
+      <div class="riga-tot"><span>Prossima fattura</span><span>n. ${esc(prossimaFattura(false).numero)}</span></div>
+      <div class="riga-tot"><span>Prossima di prova</span><span>n. ${esc(prossimaFattura(true).numero)}</span></div>
+      <p class="fattura-nota">${manca.length ? 'Per fare le fatture ti manca ' + esc(manca.map(x => x.testo).join(', ')) + '.'
+        : 'I tuoi dati per la fattura ci sono tutti.'} Le fatture di prova hanno una numerazione loro e non vanno allo Stato.</p>
+      <div class="azioni" style="margin-top:12px">
+        <button class="bottone vuoto piccolo" onclick="schedaAzienda({fuoco:'${manca.length ? manca[0].campo : 'cf'}'})">${manca.length ? 'Completa i tuoi dati' : 'Cambia i tuoi dati'}</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+/* ---- il giro del tasto: cosa manca, conferma, invio, stato ---- */
+/* l'ultima cosa detta dal server: prova (Aruba finto o la demo di Aruba) o vero.
+   Finche' non ha risposto si tiene "prova": meglio una scritta di troppo che una
+   fattura vera creduta finta. */
+let fatturaDiProva = true;
+const fatturaInViaggio = {};
+const seguite = {};
+const ATTESA_FATTURA = 5000;
+function chiediSportelloFattura(){
+  return Promise.resolve().then(() => fetch(SPORTELLO_RILIEVO + '/fattura/stato?' + col(), {mode: 'cors'}))
+    .then(r => r.json())
+    .then(d => { if(d && typeof d.prova === 'boolean') fatturaDiProva = d.prova; return !!(d && d.pronto); })
+    .catch(() => false);
+}
+function datiDellaFattura(p, f){
+  const cl = p.cliente ? cliente(p.cliente) : null;
+  return {cedente: S.azienda, cliente: cl || {nome: p.nome}, numero: f.numero, data: f.data,
+          progressivo: f.progressivo || 'x', righe: righeFattura(p), basi: conti(p).aliquote};
+}
+function faiLaFattura(id){
+  const p = prev(id);
+  if(!p || !fatturaAccesa() || !preventivoChiuso(p) || fatturaInViaggio[id]) return;
+  const f = p.fattura;
+  if(f && f.file && f.stato !== 'scartata'){ location.hash = '#fattura/' + id; return; }
+  /* un preventivo senza scheda cliente: il cliente entra in rubrica, come alla consegna */
+  let cl = p.cliente ? cliente(p.cliente) : null;
+  if(!cl){
+    cl = {id: nuovoId('c'), nome: p.nome || '', luogo: p.luogo || '', dal: S.oggi};
+    S.clienti.push(cl); p.cliente = cl.id; salva();
+  }
+  const manca = mancaPerFattura(S.azienda, cl);
+  if(manca.length) apriCasellaFattura(id, manca);
+  else confermaFattura(id);
+}
+/* manca qualcosa: si apre direttamente la casella da riempire, e al Salva si
+   passa alla prossima, fino alla fattura. Nessun elenco da leggere prima. */
+function apriCasellaFattura(id, manca, poi){
+  const x = manca[0], p = prev(id);
+  const sotto = 'Per la fattura ' + (manca.length === 1 ? 'manca ' + x.testo + '.'
+    : 'mancano ' + manca.length + ' cose: ' + manca.map(m => m.testo).join('; ') + '. Comincia da qui.');
+  const dopo = () => {
+    const q = prev(id), cl = q && q.cliente ? cliente(q.cliente) : null;
+    const ancora = mancaPerFattura(S.azienda, cl);
+    if(ancora.length && ancora[0].testo === x.testo){ avvisa('Manca ancora ' + x.testo + '.'); return; }
+    if(poi && !ancora.length) poi(); else faiLaFattura(id);
+  };
+  if(x.chi === 'ditta') schedaAzienda({fuoco: x.campo, sotto, dopo});
+  else schedaCliente(p.cliente, {fuoco: x.campo, sotto, dopo});
+}
+function confermaFattura(id){
+  const b = document.getElementById('btn-fattura');
+  if(b){ b.disabled = true; b.textContent = 'Un attimo…'; }
+  return chiediSportelloFattura().then(pronto => {
+    if(b){ b.disabled = false; }
+    if(!pronto){ vaiRestandoQui(); avvisa('Per mandare la fattura serve la rete. Riprova appena c\'è campo.'); return; }
+    const p = prev(id), f = p.fattura, prova = fatturaDiProva;
+    /* rimandata dopo uno scarto: tiene il suo numero e la sua data */
+    const stessa = f && !!f.prova === prova;
+    const numero = stessa ? f.numero : prossimaFattura(prova).numero;
+    const d = datiDellaFattura(p, {numero, data: stessa ? f.data : S.oggi});
+    const c = contiFattura(d), cp = conti(p), cl = cliente(p.cliente);
+    scheda({
+      titolo: (prova ? 'Fattura di prova n. ' : 'Fattura n. ') + numero,
+      sotto: 'A ' + cl.nome + ', per il lavoro del preventivo n. ' + p.numero + '.',
+      extra: `<div class="conferma-fattura">
+        ${prova ? '<div class="di-prova">Di prova · non mandata allo Stato</div>' : ''}
+        ${c.basi.map(x => `<div class="riga-tot"><span>${c.forf ? 'Imponibile' : 'Imponibile al ' + cifra(x.aliquota) + '%'}</span><span>${euro(x.base)}</span></div>` +
+          (c.forf ? '' : `<div class="riga-tot"><span>IVA ${cifra(x.aliquota)}%</span><span>${euro(x.iva)}</span></div>`)).join('')}
+        <div class="riga-tot" style="color:var(--inchiostro)"><span>Totale</span><span><b>${euro(c.totale)}</b></span></div>
+        ${c.forf && Math.abs(cp.totale - c.totale) > 0.005 ? `<p class="fattura-nota">Sei nel forfettario: la fattura esce senza IVA, ${euro(c.totale)} invece dei ${euro(cp.totale)} del preventivo.</p>` : ''}
+        ${c.bollo ? '<p class="fattura-nota">Sopra i 77,47 euro ci va il bollo da 2 euro: lo scrive la fattura da sola.</p>' : ''}
+      </div>`,
+      campi: [],
+      testoSalva: prova ? 'Mandala (di prova)' : 'Mandala',
+      salva: () => {},
+      dopo: () => inviaFattura(id)
+    });
+  });
+}
+function messaggioInvio(stato, d){
+  if(stato === 402 || stato === 403) return (d && d.errore) || 'Il tuo codice non può mandare fatture.';
+  if(stato === 400) return 'La fattura non è partita: c\'è un dato scritto male. Controlla i dati del cliente e riprova.';
+  return 'Adesso non risponde nessuno. La fattura resta pronta: riprova fra poco.';
+}
+function inviaFattura(id){
+  const p = prev(id);
+  if(!p || fatturaInViaggio[id]) return Promise.resolve(false);
+  const prova = fatturaDiProva;
+  let f = p.fattura;
+  /* il numero si prende una volta sola: se la rete cade o lo Stato la scarta, si
+     rimanda con lo stesso numero, e il contatore non salta */
+  if(!f || !!f.prova !== prova){
+    const x = prossimaFattura(prova);
+    consumaNumero(prova, x);
+    f = p.fattura = {n: x.n, anno: x.anno, numero: x.numero, data: S.oggi, prova};
+  }
+  f.progressivo = Date.now().toString(36).slice(-9);
+  f.xml = xmlFattura(datiDellaFattura(p, f));
+  delete f.file; delete f.codice; delete f.motivo;
+  f.stato = 'da_mandare';
+  salva();
+  fatturaInViaggio[id] = true;
+  vaiRestandoQui(); mostraFattura();
+  const fine = testo => { delete fatturaInViaggio[id]; salva(); vaiRestandoQui(); mostraFattura(); if(testo) avvisa(testo); };
+  return Promise.resolve().then(() => fetch(SPORTELLO_RILIEVO + '/fattura/invia?' + col(),
+               {method: 'POST', mode: 'cors', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({xml: f.xml})}))
+    .then(r => r.json().catch(() => ({})).then(d => ({ok: r.ok, stato: r.status, d})))
+    .then(({ok, stato, d}) => {
+      if(ok && d && d.file){
+        f.file = d.file; f.stato = 'inviata'; f.inviata = istante();
+        fine(f.prova ? 'Fattura di prova partita. Fra poco sai se è arrivata.' : 'Fattura partita. Fra poco sai se è arrivata.');
+        seguiFattura(id);
+        return true;
+      }
+      fine(messaggioInvio(stato, d));
+      return false;
+    })
+    .catch(() => { fine('Non c\'è rete: la fattura è pronta, la mandi appena c\'è campo.'); return false; });
+}
+/* dopo la conferma la pagina ripartirebbe dall'alto: si porta sotto gli occhi
+   il riquadro della fattura, che sul telefono sta in fondo al lavoro */
+function mostraFattura(){
+  const b = document.getElementById('fattura-app');
+  if(b && b.scrollIntoView) b.scrollIntoView({block: 'center'});
+}
+const fatturaSulloSchermo = id => location.hash === '#preventivo/' + id || location.hash === '#fattura/' + id ||
+  location.hash === '#cliente/' + ((prev(id) || {}).cliente || '');
+function guardaFattura(id){
+  const p = prev(id), f = p && p.fattura;
+  if(!f || !f.file) return Promise.resolve(null);
+  return Promise.resolve().then(() => fetch(SPORTELLO_RILIEVO + '/fattura/stato?' + col() + 'file=' + encodeURIComponent(f.file), {mode: 'cors'}))
+    .then(r => r.json())
+    .then(d => {
+      if(!d || !d.stato || d.stato === f.stato || !p.fattura || p.fattura.file !== f.file) return f.stato;
+      f.stato = d.stato;
+      if(d.stato === 'scartata'){ f.codice = String(d.codice || ''); f.motivo = String(d.motivo || ''); }
+      if(d.stato === 'consegnata' || d.stato === 'non_consegnata') f.arrivata = istante();
+      salva();
+      if(fatturaSulloSchermo(id)) vaiRestandoQui();
+      if(d.stato === 'scartata') avvisa('La fattura è tornata indietro: guarda il motivo e rimandala.');
+      return f.stato;
+    })
+    .catch(() => null);
+}
+/* finche' e' in viaggio si richiede ogni cinque secondi, ma solo mentre la si guarda */
+function seguiFattura(id, giro){
+  if(!giro && seguite[id]) return;
+  seguite[id] = true;
+  setTimeout(() => {
+    guardaFattura(id).then(() => {
+      const f = (prev(id) || {}).fattura;
+      if(f && f.stato === 'inviata' && (giro || 0) < 60 && fatturaSulloSchermo(id)) seguiFattura(id, (giro || 0) + 1);
+      else delete seguite[id];
+    });
+  }, ATTESA_FATTURA);
+}
+
+/* perche' e' tornata indietro, detto semplice, e dove si corregge */
+const MOTIVI_SCARTO = {
+  '00305': ['la partita IVA del cliente non risulta all\'Agenzia delle Entrate', 'cliente', 'fiscale'],
+  '00306': ['il codice fiscale del cliente non risulta all\'Agenzia delle Entrate', 'cliente', 'fiscale'],
+  '00311': ['il codice destinatario del cliente non esiste', 'cliente', 'sdi'],
+  '00312': ['il codice destinatario del cliente non è attivo', 'cliente', 'sdi'],
+  '00301': ['la tua partita IVA non risulta all\'Agenzia delle Entrate', 'ditta', 'piva'],
+  '00303': ['la tua partita IVA non risulta all\'Agenzia delle Entrate', 'ditta', 'piva'],
+  '00404': ['una fattura con questo numero risulta già mandata', null, null],
+  '00409': ['una fattura con questo numero risulta già mandata', null, null]
+};
+function motivoScarto(f){
+  const m = MOTIVI_SCARTO[String(f && f.codice || '')];
+  return m ? {testo: m[0], chi: m[1], campo: m[2]}
+           : {testo: 'dentro c\'è un dato che non torna, di solito uno del cliente', chi: 'cliente', campo: 'fiscale'};
+}
+function correggiFattura(id){
+  const p = prev(id), m = motivoScarto(p && p.fattura);
+  if(!p || !m.chi) return;
+  apriCasellaFattura(id, [{testo: m.testo.replace(/ non .*$/, ''), chi: m.chi, campo: m.campo}], () => confermaFattura(id));
+}
+
+/* sul lavoro fatto e pagato: il tasto, o a che punto e' la fattura */
+function bloccoFattura(p){
+  const f = p.fattura, prova = f ? !!f.prova : fatturaDiProva, viaggio = !!fatturaInViaggio[p.id];
+  const fascia = prova ? '<div class="di-prova">Di prova · non mandata allo Stato</div>' : '';
+  const dove = `<a class="bottone vuoto" href="#fattura/${p.id}">Apri la fattura</a>`;
+  if(!f || !f.file){
+    return `<div class="fattura-app" id="fattura-app">
+      <div class="lbl">La fattura</div>
+      ${f ? `<p style="margin-top:6px">La fattura n. ${esc(f.numero)} è pronta ma non è ancora partita.</p>` : ''}
+      <div class="azioni-fattura">
+        <button class="bottone" id="btn-fattura" ${viaggio ? 'disabled' : ''} onclick="faiLaFattura('${p.id}')">${viaggio ? 'La sto mandando…'
+          : (f ? 'Mandala' : 'Fai la fattura') + (prova ? ' di prova' : '')}</button>
+        ${fascia}
+      </div>
+    </div>`;
+  }
+  const di = prova ? '<small style="font-size:15px;color:var(--oro)"> · di prova</small>' : '';
+  const testa = t => `<div class="lbl">La fattura n. ${esc(f.numero)}</div><div class="stato-fattura" id="stato-fattura">${t}${di}</div>`;
+  let corpo;
+  if(f.stato === 'consegnata'){
+    corpo = testa('Arrivata al cliente') + `<p>Il ${dataLunga((f.arrivata || f.inviata || '').slice(0, 10) || f.data)} è arrivata nella sua casella delle fatture.</p>`;
+  } else if(f.stato === 'non_consegnata'){
+    corpo = testa('Pronta per il cliente') + '<p>Il cliente non ha una casella per riceverla: la trova nella sua area dell\'Agenzia delle Entrate. Per te è fatta. Mandagli anche il PDF.</p>';
+  } else if(f.stato === 'scartata'){
+    const m = motivoScarto(f);
+    corpo = testa('Tornata indietro') + `<p>Non è passata: ${esc(m.testo)}. Correggi e rimandala, il numero resta lo stesso.</p>
+      <div class="azioni-fattura">
+        ${m.chi ? `<button class="bottone" id="btn-correggi-fattura" onclick="correggiFattura('${p.id}')">${m.chi === 'ditta' ? 'Correggi i tuoi dati' : 'Correggi i dati del cliente'}</button>` : ''}
+        <button class="bottone${m.chi ? ' vuoto' : ''}" id="btn-fattura" onclick="faiLaFattura('${p.id}')">Rimandala${prova ? ' (di prova)' : ''}</button>
+      </div>`;
+  } else {
+    corpo = testa('Partita') + `<p>Aspetto la conferma che è arrivata: di solito ci vuole qualche minuto.</p>
+      <div class="azioni-fattura"><button class="bottone vuoto piccolo" onclick="guardaFattura('${p.id}').then(() => vaiRestandoQui())">Guarda adesso</button></div>`;
+  }
+  return `<div class="fattura-app" id="fattura-app">${corpo}
+    <div class="azioni-fattura">${dove}${fascia}</div></div>`;
+}
+
+/* ---- la fattura da leggere: la stessa carta del preventivo, coi numeri del file ---- */
+function corpoFattura(id){
+  const p = prev(id), f = p.fattura, a = S.azienda;
+  const cl = (p.cliente ? cliente(p.cliente) : null) || {nome: p.nome};
+  const c = contiFattura(datiDellaFattura(p, f));
+  const sc = sedeCliente(cl);
+  const fiscali = [cl.piva ? 'P. IVA ' + cl.piva : '', cl.cf ? 'C.F. ' + cl.cf : ''].filter(Boolean).join(' · ');
+  const grande = t => `<span style="font-family:'Cormorant',serif;font-size:22px">${t}</span>`;
+  return `<div class="foglio foglio-fattura">
+      ${f.prova ? '<div class="di-prova" style="margin-bottom:26px">Fattura di prova · non mandata allo Stato</div>' : ''}
+      <div class="intestazione">
+        ${marchioDoc(a, esc(a.sotto || ''))}
+        <div class="dati">
+          ${esc(a.via)}<br>${esc(a.citta)}<br>
+          P. IVA ${esc(a.piva)}${a.cf && a.cf !== a.piva ? '<br>C.F. ' + esc(a.cf) : ''}<br>${sotto(a.tel, a.mail)}
+        </div>
+      </div>
+
+      <div class="a-chi">
+        <div>
+          <div class="lbl">Fattura a</div>
+          <div style="font-family:'Cormorant',serif;font-size:25px;margin-top:2px">${esc(cl.nome)}</div>
+          <div style="font-size:15px;color:var(--tenue)">${esc(sc ? sc.indirizzo + ', ' + sc.cap + ' ' + sc.comune + (sc.provincia ? ' (' + sc.provincia + ')' : '') : (cl.indirizzo || ''))}${fiscali ? '<br>' + esc(fiscali) : ''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="lbl">Fattura n. e data</div>
+          <div style="font-family:'Cormorant',serif;font-size:25px;margin-top:2px">${esc(f.numero)}</div>
+          <div style="font-size:15px;color:var(--tenue)">${dataLunga(f.data)}</div>
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>Descrizione</th><th class="n">Quantità</th><th class="n">Prezzo</th><th class="n">Importo</th></tr></thead>
+        <tbody>
+          ${c.righe.map(r => `<tr>
+            <td>${esc(r.descrizione)}${c.forf ? '' : `<div class="sub-doc">IVA ${cifra(r.aliquota)}%</div>`}</td>
+            <td class="n" data-l="Quantità">${cifra(r.quantita)}${r.unita ? `<div class="sub-doc">${esc(r.unita)}</div>` : ''}</td>
+            <td class="n" data-l="Prezzo">${euro(r.prezzo)}</td>
+            <td class="n" data-l="Importo">${euro(r.totale)}</td>
+          </tr>`).join('')}
+          ${c.sconti.map(x => `<tr><td>Sconto${c.basi.length > 1 ? `<div class="sub-doc">sulle voci con IVA ${cifra(x.aliquota)}%</div>` : ''}</td>
+            <td class="n"></td><td class="n"></td><td class="n" data-l="Importo">− ${euro(x.meno)}</td></tr>`).join('')}
+        </tbody>
+      </table>
+
+      <div class="chiusura">
+        ${c.basi.map(x => `<div class="riga"><span class="lbl">${c.forf || c.basi.length === 1 ? 'Imponibile' : 'Imponibile al ' + cifra(x.aliquota) + '%'}</span>${grande(euro(x.base))}</div>` +
+          (c.forf ? '' : `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}%</span>${grande(euro(x.iva))}</div>`)).join('')}
+        <div class="riga" style="margin-top:6px"><span class="lbl">Totale</span><span class="grande">${euro(c.totale)}</span></div>
+      </div>
+
+      <div class="condizioni-doc">
+        <div class="lbl">Note</div>
+        ${c.forf ? `<p>${esc(FRANCHIGIA_FORFETTARI)}.</p>` : ''}
+        ${c.bollo ? '<p>Imposta di bollo da 2 euro assolta in modo virtuale.</p>' : ''}
+        <p>Per il lavoro del preventivo n. ${esc(p.numero)} del ${dataLunga(p.data)}.</p>
+      </div>
+      <div class="piede">${f.prova ? 'Copia di una fattura di prova: non è stata mandata allo Stato e non vale come fattura.'
+        : 'Copia di cortesia. La fattura vera è quella elettronica: il cliente la trova anche nella sua area dell\'Agenzia delle Entrate.'}</div>
+    </div>`;
+}
+const nomeFileFattura = (p, estensione) => ('Fattura ' + p.fattura.numero.replace(/\//g, '-') + (p.fattura.prova ? ' di prova' : '') +
+  ' ' + (S.azienda.nome || '')).trim().replace(/[\/\\:*?"<>|]+/g, '-') + estensione;
+function scaricaFileFattura(id){
+  const p = prev(id); if(!p || !p.fattura || !p.fattura.xml) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([p.fattura.xml], {type: 'application/xml'}));
+  a.download = nomeFileFattura(p, '.xml');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  avvisa(p.fattura.prova ? 'File scaricato. È di prova: non darlo al commercialista come fattura vera.' : 'File scaricato: è quello da dare al commercialista.');
+}
+function schedaPdfFattura(id){
+  scheda({titolo: 'La fattura in PDF',
+          sotto: 'La copia da leggere, con la tua intestazione, da mandare al cliente.',
+          extra: bloccoPdf(id, 'fattura'), campi: [], testoSalva: 'Chiudi', salva: () => {}});
+}
+PAGINE.fattura = {
+  voce: '#preventivi',
+  guida: false,
+  testata(id){
+    const p = prev(id);
+    if(!p || !p.fattura || !p.fattura.xml || !fatturaAccesa()) throw 0;
+    const f = p.fattura;
+    return {occhiello: (f.prova ? 'Di prova · ' : '') + 'Fattura n. ' + esc(f.numero), titolo: 'Fattura',
+      destra: `<div class="azioni">
+        <a class="torna" href="#preventivo/${p.id}" style="margin:0">← Torna al lavoro</a>
+        <button class="bottone piccolo" onclick="schedaPdfFattura('${p.id}')">Manda il PDF</button>
+        <button class="bottone vuoto piccolo" onclick="scaricaFileFattura('${p.id}')">Il file per il commercialista</button>
+      </div>`};
+  },
+  corpo(id){ return corpoFattura(id); },
+  poi(id){ const f = (prev(id) || {}).fattura; if(f && f.stato === 'inviata') seguiFattura(id); }
+};
 
 /* ===== LEGGERE UN PREVENTIVO VECCHIO =================================
    Da un preventivo gia' fatto (PDF, Word, mail) alle voci del listino.
@@ -8105,6 +8659,7 @@ PAGINE.preventivo = {
             ? `<button class="bottone vuoto" onclick="riprendiPreventivo('${p.id}')">Riprendilo</button>`
             : `<button class="bottone tenue piccolo" onclick="mettiViaPreventivo('${p.id}')">Mettilo via</button>`}
         </div>
+        ${fatturaAccesa() && preventivoChiuso(p) ? bloccoFattura(p) : ''}
         <div style="margin-top:18px;border-top:1px solid var(--filetto);padding-top:14px">
           <div class="riga-tot"><span>Stato</span><span>${tagPreventivo(p)}</span></div>
           <div class="riga-tot"><span>Data</span><span>${dataCorta(p.data)}</span></div>
@@ -8117,7 +8672,11 @@ PAGINE.preventivo = {
       </div>
     </div>`;
   },
-  poi(id){ disegnaVoci(id); }
+  poi(id){
+    disegnaVoci(id);
+    const f = (prev(id) || {}).fattura;
+    if(fatturaAccesa() && f && f.stato === 'inviata') seguiFattura(id);
+  }
 };
 
 function disegnaVoci(id){
@@ -8339,6 +8898,7 @@ PAGINE.cliente = {
     const accettato = l.filter(preso).reduce((t,p) => t + conti(p).netto, 0);
     const incassato = l.filter(p => p.stato === 'pagato').reduce((t,p) => t + conti(p).totale, 0);
     const docs = S.documenti.filter(d => d.cliente === id);
+    const fatture = fatturaAccesa() ? l.filter(p => p.fattura && p.fattura.xml) : [];
     const giardino = giardinoDelCliente(id);
     return `
     <div class="riga-numeri">
@@ -8352,6 +8912,9 @@ PAGINE.cliente = {
       <div>
         <div class="lbl" style="margin-bottom:12px">I suoi documenti</div>
         ${(l.length || docs.length) ? `<div class="elenco">
+          ${fatture.map(p => `<div class="r cliccabile fattura-cliente" onclick="location.hash='#fattura/${p.id}'">
+            <div><div class="tit">Fattura n. ${esc(p.fattura.numero)}${p.fattura.prova ? ' · di prova' : ''}</div>
+              <div class="sub">${dataLunga(p.fattura.data)} · ${euro(contiFattura(datiDellaFattura(p, p.fattura)).totale)}</div></div>${tagFattura(p.fattura)}</div>`).join('')}
           ${l.map(p => `<div class="r cliccabile" onclick="location.hash='#documento/${p.id}'">
             <div><div class="tit">Preventivo n. ${esc(p.numero)}</div>
               <div class="sub">${dataLunga(p.data)} · ${euro(conti(p).netto)}</div></div>${tag(p.stato)}</div>`).join('')}
@@ -8876,7 +9439,8 @@ function pagineDa(tela, tagli){
   }
   return pagine;
 }
-async function pdfPreventivo(id){
+function pdfPreventivo(id){ return pdfDaCorpo(PAGINE.documento.corpo(id)); }
+async function pdfDaCorpo(corpo){
   if(typeof window.html2canvas !== 'function') throw new Error('manca html2canvas');
   /* largo 920: sopra i 900 lo stile e' quello del computer (intestazione su una riga),
      e sulla carta il testo viene sui 10 punti, come un preventivo stampato. A 794
@@ -8906,7 +9470,7 @@ async function pdfPreventivo(id){
       '.foglio .condizioni-doc p{font-size:18px;line-height:1.65}' +
       '.foglio .piede{font-size:15.5px;color:#5A554C}' +
       '.foglio .firma-nome,.foglio .firma-data{font-size:16px}</style></head><body>' +
-      PAGINE.documento.corpo(id) + '</body></html>');
+      corpo + '</body></html>');
     d.close();
     void d.body.offsetHeight;
     if(d.fonts && d.fonts.ready) await d.fonts.ready;
@@ -8932,22 +9496,25 @@ async function pdfPreventivo(id){
   } finally { f.remove(); }
 }
 let pdfPronto = null;
-function bloccoPdf(id){
+function bloccoPdf(id, tipo){
   pdfPronto = null;
+  const fattura = tipo === 'fattura';
   return `<div class="pdf-consegna" id="pdf-consegna">
-      <div><span class="lbl">Il preventivo in PDF</span>
+      <div><span class="lbl">${fattura ? 'La fattura in PDF' : 'Il preventivo in PDF'}</span>
         <span>Il documento con la tua intestazione, da allegare su WhatsApp o nella mail.</span></div>
-      <button class="bottone piccolo" id="btn-pdf" onclick="preparaPdf('${id}')">Prepara il PDF</button>
+      <button class="bottone piccolo" id="btn-pdf" onclick="preparaPdf('${id}'${fattura ? ",'fattura'" : ''})">Prepara il PDF</button>
     </div>`;
 }
-async function preparaPdf(id){
+async function preparaPdf(id, tipo){
   const p = prev(id); if(!p) return;
+  const fattura = tipo === 'fattura' && p.fattura && p.fattura.xml;
   const b = document.getElementById('btn-pdf');
   if(b){ b.disabled = true; b.textContent = 'Preparo il PDF…'; }
   try{
-    const blob = await pdfPreventivo(id);
-    const nome = ('Preventivo ' + p.numero + ' ' + (S.azienda.nome || '')).trim().replace(/[\/\\:*?"<>|]+/g, '-') + '.pdf';
-    pdfPronto = {id, file: new File([blob], nome, {type: 'application/pdf'})};
+    const blob = fattura ? await pdfDaCorpo(corpoFattura(id)) : await pdfPreventivo(id);
+    const nome = fattura ? nomeFileFattura(p, '.pdf')
+      : ('Preventivo ' + p.numero + ' ' + (S.azienda.nome || '')).trim().replace(/[\/\\:*?"<>|]+/g, '-') + '.pdf';
+    pdfPronto = {id, file: new File([blob], nome, {type: 'application/pdf'}), fattura: !!fattura};
   } catch(e){
     pdfPronto = null;
     if(b){ b.disabled = false; b.textContent = 'Prepara il PDF'; }
@@ -8966,15 +9533,16 @@ async function preparaPdf(id){
 }
 async function condividiPdf(){
   if(!pdfPronto) return;
-  const {id, file} = pdfPronto, p = prev(id);
+  const {id, file, fattura} = pdfPronto, p = prev(id);
+  const titolo = fattura ? 'Fattura n. ' + p.fattura.numero + (p.fattura.prova ? ' (di prova)' : '') : 'Preventivo n. ' + p.numero;
   try{
-    await navigator.share({files: [file], title: 'Preventivo n. ' + p.numero, text: 'Preventivo n. ' + p.numero + ' · ' + firmaDitta()});
+    await navigator.share({files: [file], title: titolo, text: titolo + ' · ' + firmaDitta()});
   } catch(e){
     if(e && e.name === 'AbortError') return;          // ha chiuso la finestra: non e' partito niente
     scaricaPdf(); return;
   }
   chiudiScheda();
-  if(p.stato === 'bozza') inviaPreventivo(id, 'PDF');
+  if(p.stato === 'bozza' && !fattura) inviaPreventivo(id, 'PDF');
   else avvisa('PDF mandato.');
 }
 function scaricaPdf(){
@@ -9866,6 +10434,7 @@ PAGINE.impostazioni = {
       </div>
 
       <div>
+        ${riquadroFattura()}
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il tuo lavoro, in un file</div>
           <p style="font-size:16px;color:var(--soft)">Quello che fai resta su questo dispositivo, anche se chiudi la pagina. Il file serve a portartelo via: su un altro telefono, sul computer, o per rimandarmelo se c'è da metterci mano.</p>
