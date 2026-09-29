@@ -31,7 +31,7 @@ import urllib.parse, urllib.request
 import logging
 import xml.etree.ElementTree as ET
 import archivio            # l'archivio condiviso della ditta
-import fattura             # la fattura elettronica, verso Aruba (vero o finto)
+import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 from PIL import Image, ImageDraw, ImageFilter
 
 QUI          = pathlib.Path(__file__).parent
@@ -2471,6 +2471,17 @@ def _pulisci_codice(c):
     return "".join(ch for ch in (c or "").upper() if ch.isalnum() or ch == "-")[:24]
 
 
+def _servizio_fermo(errore, sportello):
+    """Cosa dire all'app quando il servizio delle fatture non va. Il credito finito
+    si dice com'e': "non risponde" farebbe riprovare a vuoto."""
+    if "credito" in str(errore):
+        return {"errore": "Il servizio delle fatture ha finito il credito. La fattura resta pronta: "
+                          "parte appena il credito viene ricaricato.",
+                "credito_finito": True, "prova": bool(sportello.prova)}
+    return {"errore": "Il servizio delle fatture adesso non risponde. Riprova fra poco.",
+            "prova": bool(sportello.prova)}
+
+
 def chi_entra(codice):
     """Questo codice puo' lavorare? Torna (si_o_no, cosa dirgli, per quanti giorni).
 
@@ -2731,8 +2742,7 @@ def servizio(porta=8787, pubblico=False):
                 return
             except fattura.ArubaNonRisponde as e:
                 print("     fattura non partita:", e)
-                self._manda(502, {"errore": "Il servizio delle fatture adesso non risponde. Riprova fra poco.",
-                                  "prova": bool(s.prova)})
+                self._manda(502, _servizio_fermo(e, s))
                 return
             print("  fattura %s: %s%s" % (r["stato"], r["file"], " (prova)" if r.get("prova") else ""))
             self._manda(200, r)
@@ -2746,8 +2756,7 @@ def servizio(porta=8787, pubblico=False):
             try:
                 r = s.stato(nome)
             except fattura.ArubaNonRisponde as e:
-                self._manda(502, {"errore": "Il servizio delle fatture adesso non risponde. Riprova fra poco.",
-                                  "prova": bool(s.prova)})
+                self._manda(502, _servizio_fermo(e, s))
                 return
             if r is None:
                 self._manda(404, {"errore": "Questa fattura non la trovo.", "prova": bool(s.prova)})

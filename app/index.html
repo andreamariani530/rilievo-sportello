@@ -942,7 +942,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-09-29 21:52';
+const COSTRUITA = '2026-09-29 21:58';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -7643,6 +7643,8 @@ function confermaFattura(id){
   });
 }
 function messaggioInvio(stato, d){
+  /* il credito del servizio delle fatture e' finito: lo si dice, se no si riprova a vuoto */
+  if(d && d.credito_finito === true && typeof d.errore === 'string') return d.errore.slice(0, 200);
   if(stato === 402 || stato === 403) return (d && d.errore) || 'Il tuo codice non può mandare fatture.';
   if(stato === 400) return 'La fattura non è partita: c\'è un dato scritto male. Controlla i dati del cliente e riprova.';
   return 'Adesso non risponde nessuno. La fattura resta pronta: riprova fra poco.';
