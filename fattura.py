@@ -406,13 +406,24 @@ class OpenapiProva:
         codice, r = self._sdi("/invoices/" + urllib.parse.quote(nome))
         if codice == 404 or not isinstance(r.get("data"), dict):
             return None
-        marca = str(r["data"].get("marking") or "").strip().lower()
+        dati = r["data"]
+        marca = str(dati.get("marking") or "").strip().lower()
+        if STATI_OPENAPI.get(marca, "inviata") == "inviata":
+            # provato il 29/9: la fattura singola resta «sent» per un bel po' anche
+            # quando l'elenco la da' gia' «rejected» con la notifica. Si guarda
+            # anche l'elenco, e vale lui.
+            c2, r2 = self._sdi("/invoices?per_page=50&sort=-created_at")
+            for f in (r2.get("data") or []) if c2 == 200 and isinstance(r2, dict) else []:
+                if isinstance(f, dict) and f.get("uuid") == nome:
+                    dati = f
+                    marca = str(f.get("marking") or "").strip().lower()
+                    break
         stato = STATI_OPENAPI.get(marca, "inviata")
         fuori = {"file": nome, "stato": stato, "prova": True}
         if stato == "scartata":
             cod, motivo = self._scarto(nome)
             fuori["codice"] = cod
-            fuori["motivo"] = motivo or str(r["data"].get("notice") or "Lo SdI l'ha scartata")
+            fuori["motivo"] = motivo or str(dati.get("notice") or "Lo SdI l'ha scartata")
         return fuori
 
 
