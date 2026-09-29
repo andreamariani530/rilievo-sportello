@@ -2731,7 +2731,7 @@ def servizio(porta=8787, pubblico=False):
                 return
             except fattura.ArubaNonRisponde as e:
                 print("     fattura non partita:", e)
-                self._manda(502, {"errore": "Aruba adesso non risponde. Riprova fra poco.",
+                self._manda(502, {"errore": "Il servizio delle fatture adesso non risponde. Riprova fra poco.",
                                   "prova": bool(s.prova)})
                 return
             print("  fattura %s: %s%s" % (r["stato"], r["file"], " (prova)" if r.get("prova") else ""))
@@ -2746,7 +2746,7 @@ def servizio(porta=8787, pubblico=False):
             try:
                 r = s.stato(nome)
             except fattura.ArubaNonRisponde as e:
-                self._manda(502, {"errore": "Aruba adesso non risponde. Riprova fra poco.",
+                self._manda(502, {"errore": "Il servizio delle fatture adesso non risponde. Riprova fra poco.",
                                   "prova": bool(s.prova)})
                 return
             if r is None:

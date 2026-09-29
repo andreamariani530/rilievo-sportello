@@ -1,4 +1,7 @@
-"""La fattura elettronica: dall'app ad Aruba, e da Aruba lo stato.
+"""La fattura elettronica: dall'app al servizio SdI (Openapi in prova, Aruba), e lo stato.
+
+Dal 29 settembre 2026 la strada scelta e' Openapi (Aruba Premium costa troppo):
+vedi OpenapiProva piu' sotto. Solo sandbox finche' Andrea non decide.
 
 Le fatture di Rilievo partono dall'account Aruba Premium multicedente di Andrea
 (decisione del 27 settembre 2026: la fattura sta dentro Rilievo e si paga
@@ -25,7 +28,7 @@ Quello che arriva all'app e' sempre della stessa forma, finto o vero:
     stato  -> {"file": ..., "stato": "inviata" | "consegnata" | "non_consegnata" | "scartata",
                "codice": "00305", "motivo": "...", "prova": bool}
 """
-import base64, json, os, random, string, threading, time
+import base64, json, os, random, re, string, threading, time
 import urllib.error, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
 
@@ -75,6 +78,10 @@ def leggi(xml):
 
     return {
         "cedente": testo("./FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/IdFiscaleIVA/IdCodice"),
+        "nome": (testo("./FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/Anagrafica/Denominazione")
+                 or " ".join(x for x in (testo("./FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/Anagrafica/Nome"),
+                                         testo("./FatturaElettronicaHeader/CedentePrestatore/DatiAnagrafici/Anagrafica/Cognome")) if x)),
+        "email": testo("./FatturaElettronicaHeader/CedentePrestatore/Contatti/Email"),
         "cliente_piva": testo("./FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/IdFiscaleIVA/IdCodice"),
         "cliente_cf": testo("./FatturaElettronicaHeader/CessionarioCommittente/DatiAnagrafici/CodiceFiscale"),
         "codice": testo("./FatturaElettronicaHeader/DatiTrasmissione/CodiceDestinatario"),
@@ -211,17 +218,224 @@ class ArubaVero:
         return fuori
 
 
+# ------------------------------------------------------------ Openapi (solo prova)
+
+# Solo la sandbox. La chiave di Andrea vale anche in produzione, quindi qui gli
+# indirizzi sono fissi e cominciano sempre con "test.": la produzione si accende
+# solo quando lo decide Andrea, cambiando il codice di proposito.
+OPENAPI_SDI = "https://test.sdi.openapi.it"
+OPENAPI_OAUTH = "https://test.oauth.openapi.it"
+OPENAPI_TRASMITTENTE = "10442360961"     # Openapi S.p.A.: lo SdI chiama cosi' i file
+OPENAPI_PERMESSI = [
+    "GET:test.sdi.openapi.it/invoices", "POST:test.sdi.openapi.it/invoices",
+    "GET:test.sdi.openapi.it/invoices_notifications",
+    "GET:test.sdi.openapi.it/business_registry_configurations",
+    "POST:test.sdi.openapi.it/business_registry_configurations",
+    "PATCH:test.sdi.openapi.it/business_registry_configurations",
+]
+
+# Lo stato che Openapi scrive sulla fattura ("marking"), detto come lo capisce l'app.
+STATI_OPENAPI = {
+    "sent": "inviata", "sending": "inviata", "queued": "inviata", "pending": "inviata",
+    "delivered": "consegnata", "delivered-pa": "consegnata", "accepted-pa": "consegnata",
+    "deadline-terms": "consegnata",
+    "not-delivered": "non_consegnata",
+    "rejected": "scartata", "rejected-pa": "scartata",
+}
+
+
+def _solo_prova(url):
+    if not url.startswith(("https://test.sdi.openapi.it/", "https://test.oauth.openapi.it/")):
+        raise ArubaNonRisponde("Openapi: indirizzo non di prova, fermato")
+    return url
+
+
+class OpenapiProva:
+    """Le fatture vanno alla sandbox di Openapi (test.sdi.openapi.it), un account
+    solo per tutte le ditte: ogni partita IVA ha la sua configurazione, che si crea
+    da sola al primo invio.
+
+    Provato dal vivo il 29 settembre 2026 (vedi LAVORO-IN-CORSO.md):
+    - senza configurazione della ditta, POST /invoices risponde errore 387;
+    - la configurazione si crea con apply_signature e apply_legal_storage a false,
+      poi POST /invoices con l'XML (Content-Type application/xml) torna data.uuid;
+    - la fattura appena mandata ha marking "sent" e lo SdI la chiama IT10442360961...;
+    - OGNI chiamata, anche una lettura, costa credito: finito, risponde 402 (errore 611);
+    - 12345678903 risulta gia' presa da un altro account della sandbox (errore 230).
+    """
+    prova = True
+
+    def __init__(self, token=None, email=None, chiave=None):
+        self.token_fisso = token or None
+        self.email, self.chiave_api = email or "", chiave or ""
+        self.token, self.scade = self.token_fisso, (float("inf") if self.token_fisso else 0)
+        self.configurate = set()
+        self.chiave = threading.Lock()
+
+    # -- rete
+    def _chiama(self, url, dati=None, xml=None, token=None, metodo=None, base=None):
+        _solo_prova(url)
+        intestazioni = {"Accept": "application/json"}
+        corpo = None
+        if xml is not None:
+            corpo = xml.encode("utf-8")
+            intestazioni["Content-Type"] = "application/xml"
+        elif dati is not None:
+            corpo = json.dumps(dati).encode()
+            intestazioni["Content-Type"] = "application/json"
+        if base:
+            intestazioni["Authorization"] = "Basic " + base
+        elif token:
+            intestazioni["Authorization"] = "Bearer " + token
+        req = urllib.request.Request(url, data=corpo, headers=intestazioni,
+                                     method=metodo or ("POST" if corpo else "GET"))
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return r.status, json.loads(r.read().decode("utf-8") or "{}")
+        except urllib.error.HTTPError as e:
+            try:
+                return e.code, json.loads(e.read().decode("utf-8") or "{}")
+            except ValueError:
+                return e.code, {}
+        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+            raise ArubaNonRisponde("Openapi non risponde (%s)" % type(e).__name__)
+
+    def _entra(self, rifai=False):
+        """Il token della sandbox: quello dato, o uno fatto qui con mail e chiave,
+        con i soli permessi che servono e solo su test.sdi.openapi.it."""
+        with self.chiave:
+            if self.token_fisso:
+                return self.token_fisso
+            if self.token and not rifai and time.time() < self.scade - 3600:
+                return self.token
+            base = base64.b64encode(("%s:%s" % (self.email, self.chiave_api)).encode()).decode()
+            codice, r = self._chiama(OPENAPI_OAUTH + "/token", base=base,
+                                     dati={"scopes": OPENAPI_PERMESSI, "ttl": 30 * 86400})
+            tok = r.get("token") or ((r.get("data") or {}).get("token") if isinstance(r.get("data"), dict) else None)
+            if codice != 200 or not tok:
+                raise ArubaNonRisponde("Openapi non ha dato l'accesso (%s)" % codice)
+            self.token = tok
+            self.scade = float(r.get("expire") or (time.time() + 30 * 86400))
+            return self.token
+
+    def _sdi(self, via, **kw):
+        codice, r = self._chiama(OPENAPI_SDI + via, token=self._entra(), **kw)
+        if codice == 401 and not self.token_fisso:
+            codice, r = self._chiama(OPENAPI_SDI + via, token=self._entra(rifai=True), **kw)
+        if codice in (401, 403):
+            raise ArubaNonRisponde("Openapi rifiuta l'accesso (%s)" % codice)
+        if codice == 402:
+            raise ArubaNonRisponde("Openapi: credito finito (402)")
+        if codice >= 500:
+            raise ArubaNonRisponde("Openapi ha risposto %s" % codice)
+        return codice, r
+
+    # -- la ditta
+    def _mail_della_ditta(self, dati):
+        """Openapi vuole una mail diversa per ogni partita IVA. Si usa quella
+        dell'account con un +partitaIVA: arriva nella stessa casella."""
+        if "@" in self.email:
+            nome, dominio = self.email.split("@", 1)
+            return "%s+%s@%s" % (nome, dati["cedente"], dominio)
+        if dati.get("email"):
+            return dati["email"]
+        return "fatture+%s@rilievo.example" % dati["cedente"]
+
+    def assicura_ditta(self, dati):
+        piva = dati["cedente"]
+        if not piva:
+            raise FatturaSbagliata("Nella fattura manca la tua partita IVA.")
+        if piva in self.configurate:
+            return
+        codice, r = self._sdi("/business_registry_configurations/" + urllib.parse.quote(piva))
+        if codice == 200 and r.get("success"):
+            conf = r.get("data") or {}
+            if conf.get("active") is False:
+                self._sdi("/business_registry_configurations/%s/activate" % urllib.parse.quote(piva),
+                          dati={"active": True}, metodo="PATCH")
+            self.configurate.add(piva)
+            return
+        codice, r = self._sdi("/business_registry_configurations", dati={
+            "fiscal_id": piva, "name": (dati.get("nome") or piva)[:80],
+            "email": self._mail_della_ditta(dati),
+            "apply_signature": False, "apply_legal_storage": False})
+        if codice in (200, 201) and r.get("success"):
+            self.configurate.add(piva)
+            return
+        if str(r.get("error")) == "230":
+            # la partita IVA e' gia' registrata da un altro account di Openapi
+            raise FatturaSbagliata("La tua partita IVA risulta gia' collegata a un altro account "
+                                   "del servizio delle fatture: va liberata prima di mandare da qui.")
+        raise ArubaNonRisponde("Openapi non ha registrato la ditta (%s)" % codice)
+
+    # -- invio e stato
+    def invia(self, xml):
+        dati = leggi(xml)
+        self.assicura_ditta(dati)
+        # il trasmittente e' chi porta il file allo SdI: con Openapi e' Openapi
+        xml = re.sub(r"(<IdTrasmittente>\s*<IdPaese>IT</IdPaese>\s*<IdCodice>)[^<]*(</IdCodice>)",
+                     r"\g<1>%s\g<2>" % OPENAPI_TRASMITTENTE, xml, count=1)
+        codice, r = self._sdi("/invoices", xml=xml)
+        uuid = ((r.get("data") or {}).get("uuid") if isinstance(r.get("data"), dict) else None)
+        if codice in (200, 201) and uuid:
+            return {"file": uuid, "stato": "inviata", "prova": True}
+        if str(r.get("error")) == "387":
+            self.configurate.discard(dati["cedente"])
+            raise ArubaNonRisponde("Openapi: la ditta non e' pronta a mandare (387)")
+        if codice in (400, 422):
+            raise FatturaSbagliata("Dentro la fattura c'e' un dato che il servizio non accetta: "
+                                   + str(r.get("message") or "controlla i dati e riprova")[:200])
+        raise ArubaNonRisponde("Openapi ha risposto %s" % codice)
+
+    def _scarto(self, uuid):
+        """Codice e motivo dello scarto, dalla notifica NS dello SdI."""
+        codice, r = self._sdi("/invoices_notifications/" + urllib.parse.quote(uuid))
+        for n in (r.get("data") or []) if codice == 200 else []:
+            if not isinstance(n, dict) or str(n.get("type")) not in ("NS", "MC", "AT"):
+                continue
+            errori = ((n.get("message") or {}).get("lista_errori") or {}).get("Errore")
+            if isinstance(errori, list):
+                errori = errori[0] if errori else {}
+            if isinstance(errori, dict) and (errori.get("Codice") or errori.get("Descrizione")):
+                return str(errori.get("Codice") or ""), str(errori.get("Descrizione") or "")
+        return "", ""
+
+    def stato(self, nome):
+        if not re.fullmatch(r"[0-9a-fA-F-]{20,60}", nome or ""):
+            return None
+        codice, r = self._sdi("/invoices/" + urllib.parse.quote(nome))
+        if codice == 404 or not isinstance(r.get("data"), dict):
+            return None
+        marca = str(r["data"].get("marking") or "").strip().lower()
+        stato = STATI_OPENAPI.get(marca, "inviata")
+        fuori = {"file": nome, "stato": stato, "prova": True}
+        if stato == "scartata":
+            cod, motivo = self._scarto(nome)
+            fuori["codice"] = cod
+            fuori["motivo"] = motivo or str(r["data"].get("notice") or "Lo SdI l'ha scartata")
+        return fuori
+
+
 # ------------------------------------------------------------ chi risponde
 
 _sportello = {"chi": None}
 
 
 def sportello():
-    """Aruba vero se sul server ci sono le credenziali, se no quello finto."""
+    """Chi manda le fatture, deciso dalle variabili d'ambiente del server:
+    - OPENAPI_EMAIL e OPENAPI_CHIAVE (il server si fa da solo il token della
+      sandbox), oppure OPENAPI_TOKEN: Openapi, SOLO in prova;
+    - ARUBA_UTENTE e ARUBA_PASSWORD: Aruba (demo o vero);
+    - niente: l'Aruba finto, come prima."""
     if _sportello["chi"] is None:
         utente = os.environ.get("ARUBA_UTENTE") or ""
         password = os.environ.get("ARUBA_PASSWORD") or ""
-        if utente and password:
+        oa_token = (os.environ.get("OPENAPI_TOKEN") or "").strip()
+        oa_email = (os.environ.get("OPENAPI_EMAIL") or "").strip()
+        oa_chiave = (os.environ.get("OPENAPI_CHIAVE") or "").strip()
+        if oa_token or (oa_email and oa_chiave):
+            _sportello["chi"] = OpenapiProva(token=oa_token or None, email=oa_email, chiave=oa_chiave)
+        elif utente and password:
             _sportello["chi"] = ArubaVero(utente, password, os.environ.get("ARUBA_AMBIENTE") or "demo")
         else:
             _sportello["chi"] = ArubaFinto()
@@ -231,5 +445,7 @@ def sportello():
 def come_sta():
     """Per l'app, prima di fare una fattura: e' una prova o parte davvero?"""
     s = sportello()
+    if isinstance(s, OpenapiProva):
+        return {"pronto": True, "prova": True, "openapi": "prova"}
     return {"pronto": True, "prova": bool(s.prova),
             "aruba": "finto" if isinstance(s, ArubaFinto) else s.ambiente}
