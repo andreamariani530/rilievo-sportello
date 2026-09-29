@@ -942,7 +942,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-09-29 21:58';
+const COSTRUITA = '2026-09-29 22:06';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3174,6 +3174,16 @@ function lavoroBuono(l){
     && OGNI[l.ogni] !== undefined
     && typeof l.ore === 'number' && l.ore > 0 && l.ore <= 12;
 }
+/* La freccia indietro torna alla schermata da cui si e' arrivati, come il gesto del
+   telefono. Andrea, 29 settembre 2026: sul preventivo pronto c'era solo «torna a
+   modificarlo», e per uscire bisognava passare dal menu. Se la pagina e' stata aperta
+   da un link, senza niente prima, si va alla lista che le spetta. */
+function indietro(riserva){
+  let passi = null; try{ passi = sessionStorage.getItem('rilievo-passi'); }catch(e){}
+  if(history.length > 1 && passi){ history.back(); return false; }
+  location.hash = riserva; return false;
+}
+addEventListener('hashchange', () => { try{ sessionStorage.setItem('rilievo-passi', '1'); }catch(e){} });
 const ripetizione = l => l.volte > 1 ? l.volte + ' passaggi ' + OGNI[l.ogni] : 'una volta sola';
 /* ---- il lavoro finito ----
    Chiesto da Andrea il 24 settembre 2026: passata la data, il giardiniere conferma
@@ -3334,25 +3344,35 @@ function fissaLavoro(id){
   const p = prev(id); if(!p) return;
   const l = lavoroBuono(p.lavoro) ? p.lavoro : null;
   const volte = Math.max(1, ...p.righe.filter(r => r.on && !r.facoltativa).map(volteRiga));
+  /* Andrea, 29 settembre 2026: «se si fa una volta il lavoro, non ha senso "1 ogni
+     mese"». Si parte da «una volta sola»; quante volte si chiede solo se si ripete.
+     Una ripetizione proposta c'e' solo se nelle righe del preventivo il giardiniere
+     ha scritto lui dei passaggi. */
   scheda({
     titolo: l ? 'Cambia la data del lavoro' : 'Fissa il giorno del lavoro',
     sotto: p.nome + (p.luogo ? ' · ' + p.luogo : ''),
-    valori: l ? {quando:l.quando, ora:l.ora || '', ore:l.ore, volte:l.volte, ogni:String(l.ogni)}
-              : {quando:'', ora:'08:00', ore:2, volte, ogni:String(volte >= 20 ? 7 : volte >= 8 ? 14 : 30)},
+    valori: l ? {quando:l.quando, ora:l.ora || '', ore:l.ore, volte:l.volte > 1 ? l.volte : '', ogni:l.volte > 1 ? String(l.ogni) : '0'}
+              : {quando:'', ora:'08:00', ore:2, volte: volte > 1 ? volte : '', ogni: volte > 1 ? String(volte >= 20 ? 7 : volte >= 8 ? 14 : 30) : '0'},
     campi:[
       {k:'quando', l:'Il primo giorno', t:'data'},
       {k:'ora', l:'A che ora', t:'ora'},
       {k:'ore', l:'Quante ore dura', t:'numero'},
-      {k:'volte', l:'Quante volte', t:'numero'},
-      {k:'ogni', l:'Se si ripete', t:'scelta', opzioni:[['7','Ogni settimana'],['14','Ogni due settimane'],['30','Ogni mese']]}
+      {k:'ogni', l:'Si ripete?', t:'scelta', opzioni:[['0','No, una volta sola'],['7','Sì, ogni settimana'],['14','Sì, ogni due settimane'],['30','Sì, ogni mese']]},
+      {k:'volte', l:'Quante volte in tutto', t:'numero', p:'per esempio 12'}
     ],
     controlla: d => !/^\d{4}-\d{2}-\d{2}$/.test(d.quando) ? 'Scegli il primo giorno del lavoro.'
       : (d.ora && !oraScritta(d.ora)) ? 'L\'ora si scrive così: 8:30.'
       : !(d.ore > 0 && d.ore <= 12) ? 'Quante ore dura: fra mezz\'ora e dodici.'
-      : !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60) ? 'Quante volte: un numero intero, da 1 a 60.' : null,
-    salva: d => { p.lavoro = {quando:d.quando, ora:oraScritta(d.ora) || '', ore:d.ore, volte:d.volte, ogni:Number(d.ogni)}; },
+      : d.ogni !== '0' && !(Number.isInteger(d.volte) && d.volte >= 2 && d.volte <= 60) ? 'Se si ripete, quante volte in tutto: un numero intero, da 2 a 60.' : null,
+    salva: d => { const una = d.ogni === '0';
+      p.lavoro = {quando:d.quando, ora:oraScritta(d.ora) || '', ore:d.ore, volte: una ? 1 : d.volte, ogni: una ? 30 : Number(d.ogni)}; },
     messaggio: 'Lavoro fissato. Ora mettilo in calendario, col tasto qui sotto.'
   });
+  const ogni = document.getElementById('c-ogni'), quante = document.getElementById('c-volte');
+  if(ogni && quante){
+    const mostra = () => { quante.closest('label').style.display = ogni.value === '0' ? 'none' : ''; };
+    ogni.addEventListener('change', mostra); mostra();
+  }
 }
 
 /* ---------------- salvataggio vero su file ---------------- */
@@ -9219,7 +9239,8 @@ PAGINE.documento = {
     const p = prev(id); if(!p) throw 0;
     return {occhiello:'Documento n. ' + esc(p.numero), titolo:'Preventivo',
       destra:`<div class="azioni">
-        <a class="torna" href="#preventivo/${p.id}" style="margin:0">← Torna a modificarlo</a>
+        <a class="torna" href="#documenti" onclick="return indietro('#documenti')" style="margin:0">← Indietro</a>
+        <a class="bottone vuoto piccolo" href="#preventivo/${p.id}">Modificalo</a>
         ${p.stato === 'bozza' || p.stato === 'inviato'
           ? `<button class="bottone vuoto piccolo" onclick="apriFirma('${p.id}')">Fallo firmare</button>` : ''}
         ${logoSicuro(S.azienda.logo) ? '' : `<button class="bottone vuoto piccolo" onclick="document.getElementById('scelta-logo-subito').click()">Metti il tuo logo</button>
