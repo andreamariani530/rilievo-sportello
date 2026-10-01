@@ -436,6 +436,33 @@ body.porta-aperta{overflow:hidden}
 .strada.consigliata{border-color:var(--accento);box-shadow:0 12px 32px rgba(62,74,58,.12)}
 .strada.consigliata .porta-via{color:var(--oro)}
 .porta-piede{text-align:center;margin-top:28px;font-size:15px;color:var(--tenue);line-height:1.6}
+/* ---------- il mestiere e i piani (1 ottobre 2026) ---------- */
+.mestieri{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 auto 26px;max-width:640px}
+.mestieri .lbl{flex-basis:100%;text-align:center;margin-bottom:4px}
+.mestiere{font-family:'Jost',sans-serif;font-size:15px;padding:10px 16px;min-height:44px;
+  border:1px solid var(--filetto2);background:var(--bianco);color:var(--inchiostro,inherit);cursor:pointer}
+.mestiere.scelto{border-color:var(--accento);background:var(--accento);color:var(--bianco)}
+.mestieri .piano-detto{flex-basis:100%;text-align:center;font-size:15px;color:var(--soft);min-height:22px;margin-top:4px}
+.scheda .mestieri{justify-content:flex-start;margin:0 0 18px}
+.scheda .mestieri .lbl,.scheda .mestieri .piano-detto{text-align:left}
+.piani{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
+.piano{display:flex;flex-direction:column;background:var(--bianco);border:1px solid var(--filetto2);
+  padding:24px 22px;box-shadow:var(--ombra);position:relative}
+.piano.per-te{border-color:var(--accento);box-shadow:0 12px 32px rgba(62,74,58,.12)}
+.piano .per-te-segno{position:absolute;top:-11px;left:20px;background:var(--accento);color:var(--bianco);
+  font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:4px 10px}
+.piano h3{font-size:30px;margin:4px 0 2px}
+.piano .prezzo{font-family:'Cormorant',Georgia,serif;font-size:46px;line-height:1.1}
+.piano .prezzo small{font-family:'Jost',sans-serif;font-size:13px;color:var(--tenue);letter-spacing:.04em}
+.piano .per-chi{font-size:15.5px;color:var(--soft);margin:6px 0 14px;line-height:1.5}
+.piano ul{list-style:none;padding:0;margin:0;font-size:15.5px;line-height:1.5}
+.piano li{padding:6px 0 6px 24px;border-top:1px solid var(--filetto);position:relative}
+.piano li::before{content:'✓';position:absolute;left:2px;color:var(--accento)}
+.piano li.in-piu::before{content:'+';color:var(--oro)}
+.conto-squadra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+.conto-squadra button{width:44px;height:44px;border:1px solid var(--filetto2);background:var(--bianco);font-size:20px;cursor:pointer}
+.utente .piani-link{display:block;font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.06em;color:var(--accento);margin-top:3px;text-decoration:underline}
+@media (max-width:900px){ .piani{grid-template-columns:1fr} }
 @media (max-width:760px){
   .porta-scelte{grid-template-columns:1fr}
   .porta-marchio .nome{font-size:42px}
@@ -753,7 +780,7 @@ body.disegno-aperto{overflow:hidden}
   <aside id="lato">
     <div class="marchio">
       <div class="nome" id="marchio-nome">Rilievo</div>
-      <div class="sotto">Per artigiani del verde</div>
+      <div class="sotto">Preventivi per artigiani</div>
     </div>
     <nav id="nav">
       <div class="gruppo lbl">La giornata</div>
@@ -776,6 +803,7 @@ body.disegno-aperto{overflow:hidden}
       <div>
         <div style="font-size:16px" id="utente-nome">Giardini Conti</div>
         <div class="lbl" style="font-size:8.5px" id="utente-stato">Abbonamento attivo</div>
+        <a class="piani-link" href="#piani" id="utente-piani">Piani e prezzi</a>
       </div>
     </div>
   </aside>
@@ -951,7 +979,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-01 20:40';
+const COSTRUITA = '2026-10-01 22:23';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1120,16 +1148,17 @@ function apriPorta(){
     <div class="porta">
       <div class="porta-marchio">
         <div class="nome">Rilievo</div>
-        <div class="lbl">Preventivi per artigiani del verde</div>
+        <div class="lbl">Preventivi per artigiani</div>
       </div>
       <p class="porta-testo">Dal sopralluogo al preventivo consegnato, senza tornare in ufficio.
-        Scegli da dove vuoi partire. Si cambia quando vuoi.</p>
+        Detti il lavoro a voce, il preventivo esce da s&eacute;.</p>
+      ${sceltaMestiere(mestiereInArrivo)}
       <div class="porta-scelte">
         <button class="strada" id="strada-demo">
           <div class="lbl">Due minuti</div>
           <h3>Guarda com&rsquo;&egrave; fatta</h3>
-          <p>Entri in una giornata gi&agrave; piena: un condominio che ha chiamato, il rilievo
-             fatto dal solo indirizzo, il preventivo che esce da s&eacute;. Ditta di esempio,
+          <p>Entri nella giornata gi&agrave; piena di un giardiniere: un condominio che ha chiamato,
+             il rilievo fatto dal solo indirizzo, il preventivo che esce da s&eacute;. Ditta di esempio,
              numeri di esempio.</p>
           <span class="porta-via">Vedi la dimostrazione &rarr;</span>
         </button>
@@ -1137,8 +1166,8 @@ function apriPorta(){
           <div class="lbl">Un minuto di dati</div>
           <h3>Provala con la tua ditta</h3>
           <p>Scrivi il nome della tua ditta e la partita IVA, e carica il tuo logo. L&rsquo;app
-             parte pulita, con il tuo nome e il tuo logo in cima ai preventivi e un giro di prova
-             gi&agrave; pronto, da cancellare quando vuoi.</p>
+             parte pulita, con il listino del tuo mestiere, il tuo nome in cima ai preventivi e un
+             giro di prova gi&agrave; pronto, da cancellare quando vuoi.</p>
           <span class="porta-via">Metto i miei dati &rarr;</span>
         </button>
       </div>
@@ -1159,14 +1188,15 @@ function partiDemo(){
 /* la porta resta sotto: se uno chiude la scheda senza salvare, la ritrova */
 function chiediDitta(){
   logoInArrivo = undefined;
+  if(!mestiereInArrivo) mestiereInArrivo = 'giardiniere';
   scheda({
     titolo: 'La tua ditta',
     sotto: 'Sono i dati che finiscono stampati in cima a ogni preventivo che consegni. Si cambiano quando vuoi da Impostazioni.',
-    extra: bloccoLogo(null, 'scheda'),
+    extra: sceltaMestiere(mestiereInArrivo) + bloccoLogo(null, 'scheda'),
     valori: {iva: 22},
     campi:[
       {k:'nome',  l:'Nome della ditta', p:'Es. Verde Vivo di Mario Rossi'},
-      {k:'sotto', l:'Cosa fai', p:'Es. Manutenzione del verde'},
+      {k:'sotto', l:'Cosa fai', p:'Es. ' + mestiereDi(mestiereInArrivo).sotto},
       {k:'via',   l:'Via', m:true, p:'Es. Via Roma 14'},
       ...CAMPI_SEDE_DITTA,
       {k:'piva',  l:'Partita IVA', m:true, p:'Es. 01234567890'},
@@ -1182,6 +1212,7 @@ function chiediDitta(){
 }
 function partiMia(d){
   sistemaSedeDitta(d);
+  const m = mestiereDi(mestiereInArrivo).id;
   const base = attualizza(copia(DATI));
   const oggi = base.oggi;
   S = {
@@ -1189,14 +1220,14 @@ function partiMia(d){
     oggi: oggi,
     azienda: Object.assign({}, d, {
       iniziali: iniziali(d.nome),
-      iva: isFinite(d.iva) ? d.iva : 22
+      iva: isFinite(d.iva) ? d.iva : 22,
+      mestiere: m
     }, logoSicuro(logoInArrivo) ? {logo: logoInArrivo} : {}),
-    listino: copia(DATI.listino),   // i prezzi di partenza, da correggere coi suoi
+    listino: listinoDelMestiere(m),   // i prezzi di partenza, da correggere coi suoi
     clienti: [], richieste: [], rilievi: {},
     sopralluoghi: [], preventivi: [], documenti: [],
     sopralluogo_predefinito: Object.assign(copia(base.sopralluogo_predefinito), {testo:'', trovate:[]}),
-    esempio_parlato: {testo: base.sopralluogo_predefinito.testo,
-                      trovate: copia(base.sopralluogo_predefinito.trovate)},
+    esempio_parlato: esempioDelMestiere(m, base),
     numerazione: 1              // il suo primo preventivo e' il numero 001
   };
   /* il giro di prova: una richiesta dichiaratamente finta. Serve solo a
@@ -1216,6 +1247,171 @@ function partiMia(d){
   normalizza(); intestaUtente(); chiudiPorta();
   location.hash = '#oggi';
 }
+/* =====================================================================
+   I MESTIERI E I PIANI (Andrea, 1 ottobre 2026: «si i tre livelli mi piacciono,
+   dobbiamo prendere tutti, tante briciole fanno un pezzo di pane»)
+   Rilievo non e' piu' solo per giardinieri. Il mestiere si sceglie con un tocco
+   sulla porta d'ingresso o in Impostazioni, e porta con se' due cose: il listino
+   di partenza e le parole del mestiere per capire il parlato.
+   Chi c'era prima non ha un mestiere scritto: per lui vale giardiniere, come sempre.
+   I pagamenti non esistono ancora: i piani si mostrano, non chiudono niente.
+   ===================================================================== */
+const MESTIERI = [
+  {id:'giardiniere',   nome:'Giardiniere',   sotto:'Manutenzione del verde', piano:'pro'},
+  {id:'elettricista',  nome:'Elettricista',  sotto:'Impianti elettrici', piano:'preventivi'},
+  {id:'idraulico',     nome:'Idraulico',     sotto:'Impianti idraulici e bagni', piano:'preventivi'},
+  {id:'imbianchino',   nome:'Imbianchino',   sotto:'Tinteggiature e decorazioni', piano:'preventivi'},
+  {id:'piastrellista', nome:'Piastrellista', sotto:'Pavimenti e rivestimenti', piano:'preventivi'},
+  {id:'altro',         nome:'Altro',         sotto:'Lavori per la casa', piano:'preventivi'}
+];
+const mestiereDi = id => MESTIERI.find(m => m.id === id) || MESTIERI[0];
+function mestiereDitta(){ return (S && S.azienda && mestiereDi(S.azienda.mestiere).id) || 'giardiniere'; }
+const PIANI = {
+  preventivi: {nome:'Preventivi', prezzo:19, perChi:'Per ogni artigiano che fa sopralluogo e preventivo.',
+    cose:['Detti il lavoro a voce, le righe escono da sole','Il preventivo col tuo nome, in PDF',
+          'Firma del cliente sul telefono','Archivio di clienti e documenti','Fattura elettronica']},
+  pro: {nome:'Pro', prezzo:40, perChi:'Per chi lavora all’aperto: giardini, recinzioni, pavimenti esterni.',
+    cose:['Tutto quello di Preventivi'],
+    piu:['Il rilievo dall’alto, dal solo indirizzo','Il confine del catasto e i metri già misurati']},
+  squadra: {nome:'Squadra', prezzo:15, perChi:'Per chi lavora con altre persone.',
+    cose:['Si aggiunge a Preventivi o a Pro','Ogni persona ha il suo telefono','Lavori e clienti in comune con la squadra']}
+};
+/* i listini di partenza: voci e prezzi dai prezzari regionali pubblici, fonte in
+   listini-dei-mestieri.md accanto al pacchetto. Sono un punto di partenza. */
+const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia 2026 delle opere pubbliche (impianti elettrici)", "voci": [
+    {"id": "el-luce", "nome": "Punto luce", "u": "a punto", "p": 48.93}, 
+    {"id": "el-deviato", "nome": "Punto luce deviato", "u": "a punto", "p": 64.54}, 
+    {"id": "el-presa", "nome": "Punto presa 10/16A", "u": "a punto", "p": 46.33}, 
+    {"id": "el-tv", "nome": "Punto TV e antenna", "u": "a punto", "p": 148.57}, 
+    {"id": "el-dati", "nome": "Punto rete dati", "u": "a pezzo", "p": 23.77}, 
+    {"id": "el-quadro", "nome": "Quadro elettrico 12 moduli", "u": "a pezzo", "p": 46.57}, 
+    {"id": "el-diff", "nome": "Differenziale salvavita", "u": "a pezzo", "p": 59.98}, 
+    {"id": "el-linea", "nome": "Linea dorsale in tubo", "u": "al metro", "p": 9.5}, 
+    {"id": "el-canalina", "nome": "Canalina in PVC", "u": "al metro", "p": 10.6}, 
+    {"id": "el-traccia", "nome": "Traccia con ripristino", "u": "al metro", "p": 19.11}, 
+    {"id": "el-citofono", "nome": "Videocitofono", "u": "a pezzo", "p": 211.28}, 
+    {"id": "el-emergenza", "nome": "Emergenza antiblackout LED", "u": "a pezzo", "p": 152.67}, 
+    {"id": "el-terra", "nome": "Messa a terra con picchetto", "u": "a pezzo", "p": 39.99}, 
+    {"id": "el-conformita", "nome": "Dichiarazione di conformità", "u": "a corpo", "p": 150}, 
+    {"id": "el-guasto", "nome": "Ricerca guasto", "u": "all'ora", "p": 40.55}]}, "idraulico": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da idraulico e impianti termici)", "voci": [
+    {"id": "id-sanitario", "nome": "Sostituzione sanitario o boiler", "u": "a pezzo", "p": 111.26}, 
+    {"id": "id-lavabo", "nome": "Attacco lavabo", "u": "ad attacco", "p": 638.8}, 
+    {"id": "id-bidet", "nome": "Attacco bidet", "u": "ad attacco", "p": 638.8}, 
+    {"id": "id-wc", "nome": "Attacco wc", "u": "ad attacco", "p": 577.61}, 
+    {"id": "id-doccia", "nome": "Attacco doccia", "u": "ad attacco", "p": 638.8}, 
+    {"id": "id-piatto", "nome": "Posa piatto doccia", "u": "a pezzo", "p": 117.13}, 
+    {"id": "id-lavatrice", "nome": "Attacco lavatrice", "u": "ad attacco", "p": 522.4}, 
+    {"id": "id-lavello", "nome": "Attacco lavello cucina", "u": "ad attacco", "p": 638.8}, 
+    {"id": "id-acqua", "nome": "Punto acqua in più", "u": "a punto", "p": 116.4}, 
+    {"id": "id-rubinetto", "nome": "Rubinetto o miscelatore", "u": "a pezzo", "p": 30.41}, 
+    {"id": "id-tubo", "nome": "Tubo multistrato", "u": "al metro", "p": 10.17}, 
+    {"id": "id-scarico", "nome": "Scarico in PVC", "u": "al metro", "p": 9.76}, 
+    {"id": "id-caldaia", "nome": "Caldaia a condensazione 25 kW", "u": "a pezzo", "p": 1645.43}, 
+    {"id": "id-radiatore", "nome": "Radiatore in alluminio (1 kW)", "u": "a pezzo", "p": 288.3}, 
+    {"id": "id-valvola", "nome": "Valvola termostatica", "u": "a pezzo", "p": 54.77}, 
+    {"id": "id-perdita", "nome": "Ricerca perdita", "u": "all'ora", "p": 40.55}, 
+    {"id": "id-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180}]}, "imbianchino": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da decoratore), con alcune voci del Prezzario Regione Lombardia 2026", "voci": [
+    {"id": "im-pareti", "nome": "Tinteggiatura pareti", "u": "al metro quadro", "p": 5.37, "stanza": "pareti"}, 
+    {"id": "im-soffitti", "nome": "Tinteggiatura soffitti", "u": "al metro quadro", "p": 6.27, "stanza": "soffitto"}, 
+    {"id": "im-lavabile", "nome": "Idropittura lavabile", "u": "al metro quadro", "p": 6.11, "stanza": "pareti"}, 
+    {"id": "im-fissativo", "nome": "Fissativo isolante", "u": "al metro quadro", "p": 1.96, "stanza": "pareti+soffitto"}, 
+    {"id": "im-rasatura", "nome": "Rasatura a gesso", "u": "al metro quadro", "p": 17.79, "stanza": "pareti"}, 
+    {"id": "im-stuccatura", "nome": "Stuccatura e carteggiatura", "u": "al metro quadro", "p": 2.24, "stanza": "pareti"}, 
+    {"id": "im-raschiatura", "nome": "Raschiatura vecchie tinte", "u": "al metro quadro", "p": 6.93, "stanza": "pareti"}, 
+    {"id": "im-carta", "nome": "Rimozione carta da parati", "u": "al metro quadro", "p": 6.81, "stanza": "pareti"}, 
+    {"id": "im-antimuffa", "nome": "Trattamento antimuffa", "u": "al metro quadro", "p": 4.5, "stanza": ""}, 
+    {"id": "im-facciata", "nome": "Facciata esterna", "u": "al metro quadro", "p": 10.57, "stanza": ""}, 
+    {"id": "im-ringhiere", "nome": "Smalto ringhiere", "u": "al metro quadro", "p": 16.73, "stanza": ""}, 
+    {"id": "im-porta", "nome": "Verniciatura porta", "u": "a pezzo", "p": 60.36, "stanza": ""}, 
+    {"id": "im-termosifoni", "nome": "Smalto termosifoni", "u": "al metro quadro", "p": 14.59, "stanza": ""}, 
+    {"id": "im-zoccolino", "nome": "Zoccolino a vernice lavabile", "u": "al metro", "p": 5.78, "stanza": "perimetro"}, 
+    {"id": "im-protezione", "nome": "Protezione pavimenti e mobili", "u": "a corpo", "p": 80, "stanza": ""}]}, "piastrellista": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (pavimenti, rivestimenti e demolizioni), con alcune voci del Prezzario Regione Lombardia 2026", "voci": [
+    {"id": "pi-pavimento", "nome": "Posa pavimento in ceramica", "u": "al metro quadro", "p": 33.58, "stanza": "pavimento"}, 
+    {"id": "pi-gres", "nome": "Posa gres porcellanato", "u": "al metro quadro", "p": 35.39, "stanza": "pavimento"}, 
+    {"id": "pi-grande", "nome": "Posa gres grande formato", "u": "al metro quadro", "p": 45, "stanza": "pavimento"}, 
+    {"id": "pi-rivestimento", "nome": "Posa rivestimento pareti", "u": "al metro quadro", "p": 35.39, "stanza": "rivestimento"}, 
+    {"id": "pi-massetto", "nome": "Massetto in cemento 5 cm", "u": "al metro quadro", "p": 19.05, "stanza": "pavimento"}, 
+    {"id": "pi-autolivellante", "nome": "Lisciatura autolivellante", "u": "al metro quadro", "p": 9.58, "stanza": "pavimento"}, 
+    {"id": "pi-demolizione", "nome": "Demolizione pavimento", "u": "al metro quadro", "p": 13.13, "stanza": "pavimento"}, 
+    {"id": "pi-rimozione", "nome": "Rimozione rivestimento", "u": "al metro quadro", "p": 13.13, "stanza": "rivestimento"}, 
+    {"id": "pi-guaina", "nome": "Impermeabilizzazione con guaina", "u": "al metro quadro", "p": 26.58, "stanza": "pavimento"}, 
+    {"id": "pi-battiscopa", "nome": "Posa battiscopa", "u": "al metro", "p": 7.73, "stanza": "perimetro"}, 
+    {"id": "pi-soglie", "nome": "Posa soglie e davanzali", "u": "al metro", "p": 35.65, "stanza": ""}, 
+    {"id": "pi-fughe", "nome": "Stuccatura fughe", "u": "al metro quadro", "p": 6, "stanza": ""}, 
+    {"id": "pi-silicone", "nome": "Sigillatura in silicone", "u": "al metro", "p": 2.51, "stanza": ""}, 
+    {"id": "pi-esterno", "nome": "Pavimento esterno o terrazzo", "u": "al metro quadro", "p": 44.63, "stanza": ""}, 
+    {"id": "pi-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180, "stanza": ""}]}, "altro": {"fonte": "Prezzario Regione Piemonte 2025 (ora di operaio specializzato) e stime", "voci": [
+    {"id": "al-ora", "nome": "Manodopera", "u": "all'ora", "p": 40.55}, 
+    {"id": "al-materiale", "nome": "Materiale", "u": "a corpo", "p": 50}, 
+    {"id": "al-uscita", "nome": "Uscita e trasferta", "u": "a corpo", "p": 35}, 
+    {"id": "al-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180}]}};
+
+/* un id per voce che non si scontra con quelli che ci sono gia' */
+function listinoDelMestiere(m){
+  if(!LISTINI_MESTIERI[m]) return copia(DATI.listino);
+  return LISTINI_MESTIERI[m].voci.map(v => Object.assign({}, v));
+}
+/* le frasi del giro di prova, dette come le direbbe quell'artigiano */
+const ESEMPI_MESTIERI = {
+  elettricista: 'In cucina servono quattro prese e due punti luce, in camera un deviatore, il quadro elettrico va rifatto con un differenziale nuovo e alla fine la dichiarazione di conformità.',
+  idraulico: 'Bagno da rifare: attacco lavabo, attacco bidet, attacco wc e il piatto doccia, poi sei metri di tubo multistrato e il miscelatore nuovo.',
+  imbianchino: 'Soggiorno cinque per quattro alto due e settanta, pareti e soffitto in idropittura, prima una mano di fissativo, poi la ringhiera del balcone.',
+  piastrellista: 'Bagno tre per due, togliamo il vecchio pavimento, massetto nuovo e posa del gres, poi il rivestimento alto due metri e il battiscopa.',
+  altro: 'Tre ore di lavoro, il materiale e un viaggio per portare via le macerie.'
+};
+function esempioDelMestiere(m, base){
+  if(!ESEMPI_MESTIERI[m]) return {testo: base.sopralluogo_predefinito.testo,
+                                  trovate: copia(base.sopralluogo_predefinito.trovate)};
+  return {testo: ESEMPI_MESTIERI[m], trovate: capisci(ESEMPI_MESTIERI[m], listinoDelMestiere(m), m)};
+}
+/* il mestiere che si sta scegliendo sulla porta o nella scheda della ditta */
+let mestiereInArrivo = null;
+function sceltaMestiere(scelto){
+  const piano = scelto ? PIANI[mestiereDi(scelto).piano] : null;
+  return `<div class="mestieri" id="scelta-mestiere">
+    <div class="lbl">Che mestiere fai?</div>
+    ${MESTIERI.map(m => `<button type="button" class="mestiere${m.id === scelto ? ' scelto' : ''}" data-mestiere="${m.id}"
+      onclick="tocchiMestiere('${m.id}')">${m.nome}</button>`).join('')}
+    <div class="piano-detto">${piano ? 'Per te va bene il piano <b>' + piano.nome + '</b>, ' + piano.prezzo +
+      ' euro al mese. Oggi la prova non costa niente.' : 'Ti carico il listino del tuo mestiere, coi prezzi da correggere.'}</div>
+  </div>`;
+}
+function tocchiMestiere(id){
+  mestiereInArrivo = id;
+  document.querySelectorAll('#scelta-mestiere').forEach(b => { b.outerHTML = sceltaMestiere(id); });
+  const s = document.getElementById('c-sotto');
+  if(s) s.placeholder = 'Es. ' + mestiereDi(id).sotto;
+}
+/* cambiare mestiere da Impostazioni: le voci del mestiere nuovo si aggiungono,
+   quelle che l'artigiano ha gia' non si toccano (nemmeno il prezzo) */
+function cambiaMestiere(id){
+  const m = mestiereDi(id);
+  if(m.id === mestiereDitta()){ avvisa('Sei già ' + m.nome.toLowerCase() + '.'); return; }
+  const gia = new Set(S.listino.map(v => v.id)), nomi = new Set(S.listino.map(v => String(v.nome).toLowerCase()));
+  const nuove = listinoDelMestiere(m.id).filter(v => !gia.has(v.id) && !nomi.has(String(v.nome).toLowerCase()));
+  chiedi('Diventi ' + m.nome.toLowerCase() + '. ' + (nuove.length
+      ? 'Aggiungo al tuo listino ' + nuove.length + ' voci di partenza di questo mestiere. Le voci che hai già restano tutte, con i tuoi prezzi.'
+      : 'Il tuo listino resta com’è.'), () => {
+    S.azienda.mestiere = m.id;
+    S.listino = S.listino.concat(nuove);
+    salva(); vaiRestandoQui();
+    avvisa(nuove.length ? 'Fatto: ' + nuove.length + ' voci nuove nel listino.' : 'Fatto.');
+  }, 'Sì, cambia');
+}
+function riquadroMestiere(){
+  const m = mestiereDi(mestiereDitta()), p = PIANI[m.piano];
+  return `<div class="riquadro" id="riquadro-mestiere">
+    <div class="lbl" style="margin-bottom:12px">Il tuo mestiere e il tuo piano</div>
+    <div class="mestieri" style="justify-content:flex-start;margin:0 0 14px">
+      ${MESTIERI.map(x => `<button type="button" class="mestiere${x.id === m.id ? ' scelto' : ''}" onclick="cambiaMestiere('${x.id}')">${x.nome}</button>`).join('')}
+    </div>
+    <p style="font-size:16px;color:var(--soft)">Per ${m.id === 'altro' ? 'il tuo lavoro' : 'un ' + m.nome.toLowerCase()} va bene il piano <b>${p.nome}</b>, ${p.prezzo} euro al mese.
+      I pagamenti non sono ancora attivi: oggi tutto è aperto e non paghi niente.</p>
+    <div class="azioni" style="margin-top:14px"><a class="bottone" href="#piani">Vedi piani e prezzi</a></div>
+  </div>`;
+}
+let personeInSquadra = 0;
+function contaSquadra(d){ personeInSquadra = Math.max(0, Math.min(30, personeInSquadra + d)); vaiRestandoQui(); }
 function tornaAllaScelta(){
   try{ localStorage.removeItem(CHIAVE_SCELTA); }catch(e){}
   ricomincia();
@@ -2574,7 +2770,7 @@ function salvaTrascrizione(id){
   s.testo = nuovo;
   /* il testo e' la fonte: se lo correggi, le lavorazioni si rileggono.
      Quelle aggiunte a mano restano. Se nel testo nuovo non ne trovo, tengo le vecchie. */
-  const lette = capisci(nuovo, S.listino);
+  const lette = capisci(nuovo, S.listino, mestiereDitta());
   if(!lette.length){ salva(); avvisa('Testo salvato. Non ci trovo lavorazioni del listino: tengo quelle di prima.'); return; }
   const aMano = (s._trovate || []).filter(x => x.aMano && !lette.some(l => l.voce === x.voce));
   s.trovate  = lette.map(x => Object.assign({}, x));
@@ -6236,7 +6432,7 @@ function rilevateHtml(s){
       title="Mettila a listino">+&nbsp; ${esc(x.nome)}${x.q ? ' · ' + x.q + ' ' + esc(unitaDetta(x.u)) : ''} · quanto la fai pagare?</button>`;
     const v = voce(x.voce);
     return `<button class="chip" style="cursor:pointer" onclick="schedaLavorazione('${id}',${i})"
-      title="Cambia o togli">✓&nbsp; ${esc(v ? v.nome : x.voce)} · ${x.q} ${esc(v ? v.u : '')}${x.dubbio ? ' · metti la misura' : ''}</button>`;
+      title="Cambia o togli">✓&nbsp; ${esc(v ? v.nome : x.voce)} · ${x.q} ${esc(v ? v.u : '')}${x.dubbio ? ' · metti la misura' : ''}${x.stanza ? ' · da ' + esc(x.stanza) : ''}</button>`;
   }).join('') + (s.testo ? `<div style="flex-basis:100%;width:100%;font-size:14px;color:var(--tenue);margin-top:8px">Presa storta? Toccala e correggila: ti chiedo se ricordare le tue parole.
       Non la riconosce? <a href="#listino" style="color:var(--accento)">Nel listino scrivi come la chiami a voce</a>.</div>` : '');
 }
@@ -6368,11 +6564,201 @@ const CONCETTI = [
             'fresatura','fresare','livellare','livellamento','livellata','rullare','rullatura',
             'terriccio'] }
 ];
+/* ===== GLI ALTRI MESTIERI (Andrea, 1 ottobre 2026: «dobbiamo prendere tutti») =====
+   Stessa idea dei concetti del verde, uno per mestiere. Valgono solo per il mestiere
+   scelto: "impianto" per il giardiniere e' l'irrigazione, per l'elettricista no, e
+   "vaso" per il giardiniere e' un fiore, per l'idraulico e' il water. Senza mestiere
+   (chi c'era prima del 1 ottobre) restano i concetti del verde e basta, come sempre.
+   `stanza` dice quale parte di una stanza misurata a voce prende quel concetto:
+   le pareti e il soffitto per l'imbianchino, il pavimento per il piastrellista. */
+const STANZE = ['cucina','cucine','cucinotto','camera','camere','cameretta','camerette','bagno',
+  'bagni','bagnetto','soggiorno','salotto','sala','sale','salone','corridoio','corridoi',
+  'ingresso','studio','stanza','stanze','stanzetta','locale','locali','vano','vani','ripostiglio',
+  'lavanderia','taverna','tavernetta','disimpegno','mansarda','cantina','camerone','ufficio',
+  'uffici','antibagno','ambiente','ambienti'];
+const PITTURA = ['tinteggiare','tinteggiatura','tinteggiamo','imbiancare','imbiancatura',
+  'imbianchiamo','pitturare','dipingere','dipingiamo','idropittura','tempera'];
+/* il nome di una stanza aiuta a capire, ma da solo non sceglie una lavorazione */
+const STANZE_DEBOLI = new Set(STANZE);
+const MACERIE = { chiavi: ['smaltimento','macerie','calcinacci','discarica','sgombero'],
+  frasi: [['portare','via'],['buttare','via']],
+  dette: ['smaltimento','smaltire','smaltiamo','macerie','calcinacci','calcinaccio','discarica',
+          'sacchi','sacco','viaggio','viaggi','sgombero','sgomberare','cassone','risulta','risulte'] };
+const CONCETTI_MESTIERI = {
+  elettricista: [
+    { chiavi: ['luce','lampada','lampadario','illuminazione'],
+      dette: ['luce','luci','lampada','lampade','lampadario','lampadari','faretto','faretti',
+              'plafoniera','plafoniere','applique','illuminazione','lampadina','lampadine','led'] },
+    { chiavi: ['presa','prese'],
+      dette: ['presa','prese','schuko','spina','spine','multipresa','bipasso'] },
+    { chiavi: ['interruttore','deviatore','invertitore','deviato'],
+      dette: ['interruttore','interruttori','deviatore','deviatori','deviata','deviate','deviato','deviati',
+              'invertitore','invertitori','pulsante','pulsanti','comando','comandi','tapparelle'] },
+    { chiavi: ['quadro','centralino'],
+      dette: ['quadro','quadri','quadretto','centralino','centralini','contatore'] },
+    { chiavi: ['differenziale','salvavita','magnetotermico'],
+      dette: ['differenziale','differenziali','salvavita','magnetotermico','magnetotermici'] },
+    { chiavi: ['tv','antenna','televisione'],
+      dette: ['tv','tivu','televisione','televisore','antenna','antenne','satellite','parabola'] },
+    { chiavi: ['dati','rete','telefono'],
+      dette: ['dati','ethernet','internet','telefono','telefonica','telefoniche','modem','fibra'] },
+    { chiavi: ['citofono','videocitofono','campanello'],
+      dette: ['citofono','citofoni','videocitofono','videocitofoni','campanello','campanelli',
+              'apriporta','pulsantiera'] },
+    { chiavi: ['linea','dorsale','cavo','cavi'],
+      dette: ['linea','linee','dorsale','dorsali','cavo','cavi','filo','fili','cablaggio',
+              'cablare','corrugato','corrugati','sfilare','infilare'] },
+    { chiavi: ['canalina'],
+      dette: ['canalina','canaline','canala','canaletta','canalette'] },
+    { chiavi: ['traccia','tracce'],
+      dette: ['traccia','tracce','sottotraccia','scanalatura','incassare','incasso','incassata','incassato'] },
+    { chiavi: ['certificazione','conformita','dichiarazione'],
+      dette: ['certificazione','certificato','certificare','conformita','dichiarazione','dico',
+              'collaudo','collaudare'] },
+    { chiavi: ['terra','dispersore'],
+      dette: ['dispersore','dispersori','picchetto','picchetti','equipotenziale'],
+      frasi: [['messa','terra'],['impianto','terra']] },
+    { chiavi: ['emergenza'],
+      dette: ['emergenza','emergenze','antiblackout','blackout'],
+      frasi: [['lampada','emergenza'],['lampade','emergenza'],['luce','emergenza'],['luci','emergenza']] },
+    { chiavi: ['climatizzatore','condizionatore'],
+      dette: ['climatizzatore','climatizzatori','condizionatore','condizionatori','split'] },
+    { chiavi: ['guasto','ricerca'],
+      dette: ['guasto','guasti','cortocircuito','salta','saltano'] },
+    MACERIE ],
+  idraulico: [
+    { chiavi: ['lavabo','lavandino'],
+      dette: ['lavabo','lavabi','lavandino','lavandini','lavamani'] },
+    { chiavi: ['lavello'],
+      dette: ['lavello','lavelli','acquaio'] },
+    { chiavi: ['lavatrice','lavastoviglie'],
+      dette: ['lavatrice','lavatrici','lavastoviglie','asciugatrice'] },
+    { chiavi: ['wc','vaso','water'],
+      dette: ['wc','water','vaso','vasi','tazza','gabinetto','cassetta',
+              'sciacquone','sospeso','sospesi'] },
+    { chiavi: ['bidet'],
+      dette: ['bidet','bide'] },
+    { chiavi: ['doccia'],
+      dette: ['doccia','docce','soffione','box'] },
+    { chiavi: ['vasca'],
+      dette: ['vasca','vasche','idromassaggio'] },
+    { chiavi: ['rubinetto','rubinetteria','miscelatore'],
+      dette: ['rubinetto','rubinetti','rubinetteria','miscelatore','miscelatori','monocomando'] },
+    { chiavi: ['scaldabagno','boiler','scaldacqua'],
+      dette: ['scaldabagno','scaldabagni','boiler','scaldacqua','bollitore'] },
+    { chiavi: ['caldaia'],
+      dette: ['caldaia','caldaie','condensazione','fumi'] },
+    { chiavi: ['radiatore','termosifone','calorifero'],
+      dette: ['radiatore','radiatori','termosifone','termosifoni','calorifero','caloriferi',
+              'scaldasalviette','termoarredo'] },
+    { chiavi: ['valvola','valvole','termostatica','termostatiche'],
+      dette: ['valvola','valvole','termostatica','termostatiche','detentore','detentori',
+              'testina','testine'] },
+    { chiavi: ['tubazione','tubo','tubi','multistrato'],
+      dette: ['tubo','tubi','tubazione','tubazioni','multistrato','rame','adduzione','mandata'] },
+    { chiavi: ['scarico','scarichi','braga'],
+      dette: ['scarico','scarichi','braga','braghe','sifone','sifoni','pvc','colonna','colonne',
+              'fognatura','fogna'] },
+    { chiavi: ['perdita','perdite'],
+      dette: ['perdita','perdite','infiltrazione','infiltrazioni','gocciola','perde','macchia'] },
+    { chiavi: ['disotturazione','sturare','otturato'],
+      dette: ['sturare','sturiamo','disotturazione','disostruzione','otturato','otturata',
+              'intasato','intasata','intasamento','stappare'] },
+    MACERIE ],
+  imbianchino: [
+    /* "tinteggiatura" da sola e' la tinteggiatura delle pareti, la piu' comune; detta
+       col soffitto, il soffitto vince perche' ha due parole sue invece di una */
+    { chiavi: ['parete','pareti','muro','muri'], stanza: 'pareti',
+      dette: ['parete','pareti','muro','muri','muretto','tramezzo','tramezzi'].concat(PITTURA, STANZE) },
+    { chiavi: ['soffitto','soffitti','plafone'], stanza: 'soffitto',
+      dette: ['soffitto','soffitti','plafone','plafoni'].concat(PITTURA) },
+    { chiavi: ['rasatura'],
+      dette: ['rasatura','rasare','rasato','rasiamo','gesso'] },
+    { chiavi: ['stuccatura','stucco'],
+      dette: ['stucco','stuccatura','stuccare','stucchiamo','crepe','crepa','buchi','fessure','crepature'] },
+    { chiavi: ['carteggiatura','scartavetrare'],
+      dette: ['carteggiare','carteggiatura','scartavetrare','levigare','raschiare','raschiatura'] },
+    { chiavi: ['fissativo','isolante','primer'],
+      dette: ['fissativo','fissante','isolante','primer','aggrappante'] },
+    { chiavi: ['carta','parati','tappezzeria'],
+      dette: ['carta','parati','tappezzeria','staccare'] },
+    { chiavi: ['antimuffa','muffa'],
+      dette: ['muffa','muffe','antimuffa','condensa','risanante'] },
+    { chiavi: ['ringhiera','ringhiere','cancellata','inferriata','smalto'],
+      dette: ['ringhiera','ringhiere','cancellata','cancello','cancelli','inferriata','inferriate',
+              'grata','grate','antiruggine','ruggine','smalto','smaltare'] },
+    { chiavi: ['porta','porte','infisso','infissi','persiana','persiane'],
+      dette: ['porta','porte','infisso','infissi','persiana','persiane','scuri','finestra',
+              'finestre','balconi'] },
+    { chiavi: ['facciata','esterno','esterni'],
+      dette: ['facciata','facciate','esterno','esterna','esterni','frontalino','frontalini',
+              'gronda','cornicione'] },
+    { chiavi: ['protezione','copertura'],
+      dette: ['proteggere','protezione','coprire','copertura','nylon','teli','telo','mobili'] },
+    MACERIE ],
+  piastrellista: [
+    { chiavi: ['pavimento','pavimenti','pavimentazione'], stanza: 'pavimento',
+      dette: ['pavimento','pavimenti','pavimentazione','pavimentare'].concat(STANZE) },
+    { chiavi: ['rivestimento','rivestimenti'],
+      dette: ['rivestimento','rivestimenti','rivestire','pareti','parete','muro','muri',
+              'paraschizzi','alzata'] },
+    { chiavi: ['formato','lastre'],
+      dette: ['formato','lastre','lastra','lastroni'] },
+    { chiavi: ['massetto','sottofondo'],
+      dette: ['massetto','massetti','sottofondo','caldana'] },
+    { chiavi: ['autolivellante','livellina'],
+      dette: ['autolivellante','livellina','livellante'] },
+    { chiavi: ['demolizione','rimozione'],
+      dette: ['demolire','demolizione','demoliamo','rompere','spaccare','scrostare','smantellare',
+              'rimuovere','rimozione','vecchio','vecchia','vecchie','vecchi','esistente','esistenti'] },
+    { chiavi: ['impermeabilizzazione','guaina'],
+      dette: ['impermeabilizzare','impermeabilizzazione','impermeabilizziamo','guaina','guaine',
+              'membrana','infiltrazioni'] },
+    { chiavi: ['battiscopa','zoccolino'],
+      dette: ['battiscopa','zoccolino','zoccolini','zoccolatura'] },
+    { chiavi: ['soglia','soglie','davanzale','davanzali'],
+      dette: ['soglia','soglie','davanzale','davanzali','marmo'] },
+    { chiavi: ['gradino','gradini','scala','scale'],
+      dette: ['gradino','gradini','scalino','scalini','scala','scale','pedata','pedate','alzate'] },
+    { chiavi: ['fughe','fuga'],
+      dette: ['fuga','fughe','epossidico','fugante','stuccare'] },
+    { chiavi: ['silicone','sigillatura'],
+      dette: ['silicone','sigillare','sigillatura','siliconare'] },
+    { chiavi: ['gres','porcellanato'],
+      dette: ['gres','porcellanato'] },
+    { chiavi: ['terrazzo','balcone','esterno','esterni'],
+      dette: ['terrazzo','terrazzi','terrazza','balcone','balconi','esterno','esterna','esterni',
+              'cortile','marciapiede','vialetto','portico','loggia'] },
+    MACERIE ]
+};
+/* "altro": un artigiano che non sta in nessuno dei cinque. Prende tutto. */
+CONCETTI_MESTIERI.altro = CONCETTI.concat(...['elettricista','idraulico','imbianchino','piastrellista']
+  .map(m => CONCETTI_MESTIERI[m].filter(c => c !== MACERIE)), [MACERIE]);
+/* i concetti del mestiere con cui si sta capendo adesso. Li sceglie capisci() */
+let CONCETTI_IN_USO = CONCETTI;
+let PAROLE_CONCETTO = [];
+function paroleDeiConcetti(lista){
+  const p = new Set();
+  lista.forEach(c => { (c.chiavi || []).forEach(w => p.add(w)); (c.dette || []).forEach(w => p.add(w)); });
+  return [...p];
+}
+const PAROLE_PER_MESTIERE = new Map();
+function usaMestiere(m){
+  CONCETTI_IN_USO = CONCETTI_MESTIERI[m] || CONCETTI;
+  if(!PAROLE_PER_MESTIERE.has(CONCETTI_IN_USO)) PAROLE_PER_MESTIERE.set(CONCETTI_IN_USO, paroleDeiConcetti(CONCETTI_IN_USO));
+  PAROLE_CONCETTO = PAROLE_PER_MESTIERE.get(CONCETTI_IN_USO);
+}
 /* valgono poco: aiutano a scegliere, ma da soli non bastano mai */
 const VERBI_GENERICI = new Set(['potare','potatura','potata','taglio','tagliare','tagliata',
   'tagliato','sistemare','sistemata','sistemazione','pulire','pulizia','ripulire','ripulita',
   'togliere','levare','passare','passata','giro','intervento','manutenzione','lavoro','lavori',
-  'sfoltire','sfoltita','rifare','rifacimento','controllo','controllare','verificare','spuntare']);
+  'sfoltire','sfoltita','rifare','rifacimento','controllo','controllare','verificare','spuntare',
+  /* gli altri mestieri: "posa", "punto", "attacco", "tinteggiare" vanno bene per tante voci */
+  'punto','punti','attacco','attacchi','posa','posare','posiamo','sostituzione','sostituire',
+  'cambiare','cambio','montare','montaggio','installare','installazione','fornitura','nuovo','nuova',
+  'pittura','traspirante','lavabile','mano','mani',
+  'piastrelle','piastrella','piastrellare','mattonelle','mattonella','ceramica',
+  'verniciare','verniciatura','vernice']);
 const PESO_DEBOLE = 0.4;
 
 /* parole che fanno riconoscere le lavorazioni del listino di partenza.
@@ -6389,7 +6775,10 @@ const SINONIMI = {
   aiu:  ['aiuola','aiuole','fiori','fioriera','fioriere','bordura']
 };
 const PAROLE_VUOTE = new Set(['verde','alto','alta','fusto','controllo','rifacimento',
-  'manutenzione','intervento','lavori','servizio']);
+  'manutenzione','intervento','lavori','servizio',
+  'punto','punti','attacco','attacchi','fornitura','sostituzione','tinteggiatura','pittura',
+  'verniciatura','nuovo','nuova','compreso','compresa','impianto','elettrico','elettrica',
+  'idraulico','idraulica','esistente','singolo','singola','completo','completa']);
 
 const senzaAccenti = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
 function preparaTesto(t){
@@ -6594,7 +6983,7 @@ function frasiScritte(v){
 function concettiDellaVoce(v){
   const sue = (senzaAccenti(String(v.nome || '').toLowerCase()).match(/[a-z]+/g) || [])
     .concat(...frasiScritte(v));
-  const presi = CONCETTI.map(c => ({c, chiavi: c.chiavi.filter(k =>
+  const presi = CONCETTI_IN_USO.map(c => ({c, chiavi: c.chiavi.filter(k =>
     k.split(' ').every(p => sue.some(w => somiglia(w, p))))})).filter(x => x.chiavi.length);
   /* "Potatura siepe" non e' una voce degli alberi. Il concetto degli alberi se la
      prendeva lo stesso, perche' fra le sue chiavi c'e' "potatura", che e' un verbo
@@ -6610,13 +6999,14 @@ function concettiDellaVoce(v){
    Le parole del nome e quelle scritte dall'artigiano pesano sempre 1: le ha messe lui. */
 function paroleDellaVoce(v){
   const fuori = new Map();
-  const metti = (p, peso) => { if(p && p.length >= 3) fuori.set(p, Math.max(fuori.get(p) || 0, peso)); };
+  /* due lettere bastano solo per le sigle del mestiere ("wc", "tv") */
+  const metti = (p, peso) => { if(p && (p.length >= 3 || /^(wc|tv)$/.test(p))) fuori.set(p, Math.max(fuori.get(p) || 0, peso)); };
   (senzaAccenti(String(v.nome || '').toLowerCase()).match(/[a-z]+/g) || [])
     .filter(p => p.length >= 5 && !PAROLE_VUOTE.has(p)).forEach(p => metti(p, 1));
   frasiScritte(v).filter(f => f.length === 1 && f[0].length >= 3).forEach(f => metti(f[0], 1));
   (SINONIMI[v.id] || []).forEach(p => metti(p, 1));
   concettiDellaVoce(v).forEach(c =>
-    c.dette.forEach(p => metti(p, VERBI_GENERICI.has(p) ? PESO_DEBOLE : 1)));
+    c.dette.forEach(p => metti(p, VERBI_GENERICI.has(p) || STANZE_DEBOLI.has(p) ? PESO_DEBOLE : 1)));
   return Array.from(fuori, ([p, peso]) => ({p, peso}));
 }
 const frasiDellaVoce = v => frasiScritte(v).filter(f => f.length > 1);
@@ -6769,11 +7159,7 @@ function rifiutata(tok){
    mestiere e tutte le parole dei concetti. Servono a distinguere una lavorazione
    che non e' a listino ("rifacciamo il vialetto in ghiaia") dalle chiacchiere
    ("allora, sopralluogo, il cliente diceva"). */
-const PAROLE_CONCETTO = (function(){
-  const p = new Set();
-  CONCETTI.forEach(c => { (c.chiavi || []).forEach(w => p.add(w)); (c.dette || []).forEach(w => p.add(w)); });
-  return [...p];
-})();
+usaMestiere(null);   /* PAROLE_CONCETTO: le parole dei concetti del mestiere in uso */
 function lavorazioneFuoriListino(tok){
   const parole = tok.filter(w => numeroDetto(w) == null && CIRCA[w] == null && !UNITA_DOPO[w] &&
     !RIEMPITIVI.has(w) && !ARTICOLI.has(w) && !PICCOLE.has(w) && w.length > 2);
@@ -6787,7 +7173,7 @@ function lavorazioneFuoriListino(tok){
   const delMestiere = parole.some(w => PAROLE_CONCETTO.some(m => somiglia(w, m)));
   const conMisura = numeri.some(n => n.u);
   if(!delMestiere && !conMisura) return null;
-  if(parole.every(w => VERBI_GENERICI.has(w))) return null;
+  if(parole.every(w => VERBI_GENERICI.has(w) || STANZE_DEBOLI.has(w))) return null;
   const misura = numeri.find(n => n.u) || numeri.find(n => n.u === null) || null;
   const nome = parole.slice(0, 4).join(' ');
   return {nuova:true, nome, detto: parole.slice(0, 5).join(' '),
@@ -6849,16 +7235,18 @@ function tagliaFlusso(tok, voci){
      sia gia' stata detta. */
   const conNumeri = (da, a) => numeriDetti(tok.slice(da, a)).length > 0;
   const pezzi = [];
-  let inizio = 0, correnti = null, ultimoForte = -1;
+  let inizio = 0, correnti = null, ultimoForte = -1, primoForte = 0;
   for(let i = 0; i < tok.length; i++){
     const qui = segni[i];
     if(!qui) continue;
-    if(!correnti){ correnti = new Set(qui); ultimoForte = i; continue; }
+    if(!correnti){ correnti = new Set(qui); ultimoForte = i; primoForte = i; continue; }
     const comuni = new Set([...qui].filter(x => correnti.has(x)));
     /* si sta ancora parlando della stessa lavorazione: stesso pezzo. Se pero' la sua
        misura e' gia' stata detta, questa e' un'altra volta la stessa cosa ("siepe
-       davanti venti metri siepe dietro quindici metri"): due pezzi, e si sommano. */
-    if(comuni.size && !conNumeri(inizio, i)){ correnti = comuni; ultimoForte = i; continue; }
+       davanti venti metri siepe dietro quindici metri"): due pezzi, e si sommano.
+       Contano solo i numeri detti DOPO la prima parola della lavorazione: "sei metri di
+       tubo multistrato" e "due lampade di emergenza" sono una cosa sola (1 ottobre 2026). */
+    if(comuni.size && !conNumeri(primoForte, i)){ correnti = comuni; ultimoForte = i; continue; }
     let c = i;
     while(c - 1 > ultimoForte && !fermo(c - 1) && diServizio(tok[c - 1])) c--;
     /* la misura detta PRIMA del nome ("venti metri di siepe trecento metri quadri di
@@ -6899,11 +7287,12 @@ function tagliaFlusso(tok, voci){
       [...qui].some(x => segni[ultimoForte].has(x));
     const nominaIlLavoro = ultimoForte >= 0 && (sembraVerbo(tok[ultimoForte]) ||
       (!stessaDiPrima && tok.slice(ultimoForte + 1, i).some(w => PREPOSIZIONE_DI.has(w))));
-    if(!spostata && !comuni.size && nominaIlLavoro &&
+    /* "il vecchio pavimento E posa del gres": con la "e" in mezzo e' un lavoro nuovo */
+    if(!spostata && !comuni.size && nominaIlLavoro && !tok.slice(ultimoForte + 1, i).includes('e') &&
        !sembraVerbo(tok[i]) && !conNumeri(inizio, i) &&
        tok.slice(ultimoForte + 1, i).every(diServizio)) continue;
     pezzi.push(tok.slice(inizio, c));
-    inizio = c; correnti = new Set(qui); ultimoForte = i;
+    inizio = c; correnti = new Set(qui); ultimoForte = i; primoForte = i;
   }
   pezzi.push(tok.slice(inizio));
   return pezzi.filter(p => p.length);
@@ -6937,13 +7326,184 @@ function spostaIlConto(pezzi, voci){
        da una lavorazione che si misura a superficie o a metro, dove un numero nudo non e'
        la sua misura. */
     const qui = scegliVoce(p.slice(0, j), voci);
-    if(qui && qui.tipo.k === 'pezzi') continue;
+    /* "un punto luce deviato E DUE prese": il deviato il suo numero ce l'ha gia'
+       davanti, quindi il due e' delle prese (1 ottobre 2026) */
+    if(qui && qui.tipo.k === 'pezzi' && p[j - 1] !== 'e') continue;
     pezzi[k + 1] = p.slice(j).concat(pezzi[k + 1]);
     pezzi[k] = p.slice(0, j);
   }
   return pezzi.filter(p => p.length);
 }
-function capisci(testo, listino){
+/* ===== LE STANZE MISURATE A VOCE (Andrea, 1 ottobre 2026) =====
+   "cucina quattro per tre alta due e settanta": l'imbianchino e il piastrellista
+   misurano cosi', una stanza alla volta. Da quei tre numeri l'app fa da sola i conti
+   che l'artigiano farebbe sul foglietto: pavimento e soffitto 4 x 3 = 12 mq, pareti
+   (4 + 3) x 2 x 2,70 = 37,8 mq. Senza l'altezza vale 2,70, la piu' comune in casa.
+   Regola di Andrea: se l'app conosce la misura, non la deve contare l'artigiano.
+   Una stanza vale solo col suo nome davanti ("cucina", "bagno", "stanza"): cosi'
+   "piastrelle sessanta per sessanta" resta una piastrella e non diventa una sala.  */
+const ALTEZZA_STANZA = 2.7;
+const SEGNI_ALTEZZA = new Set(['alta','alto','alte','alti','altezza','altezze','h']);
+const PARTI_STANZA = {pareti:['parete','pareti','muro','muri'], soffitto:['soffitto','soffitti'],
+  pavimento:['pavimento','pavimenti'], rivestimento:['rivestimento','rivestimenti','rivestire']};
+/* il rivestimento delle pareti si conta solo se lo si nomina: non e' di ogni stanza */
+const SOLO_SE_DETTA = new Set(['rivestimento']);
+const NON_STANZA = /^(piastrell|mattonell|formato|lastr|quadrott)/;
+/* un numero di stanza: "quattro", "3,5", "tre e mezzo", "due e settanta", "due virgola
+   settanta", "tre metri e venti", "duecentosettanta" (sono centimetri, detti senza dirlo) */
+function misuraDetta(tok, i){
+  const w = k => tok[k] ? tok[k].w : '';
+  let v = /^\d/.test(w(i)) ? parseFloat(w(i).replace(',', '.')) : numeroDetto(w(i));
+  if(v == null || !isFinite(v)) return null;
+  let j = i + 1, cm = false;
+  const unita = () => { if(/^(metri|metro|m|mt)$/.test(w(j))) j++;
+                        else if(/^(centimetri|centimetro|cm)$/.test(w(j))){ cm = true; j++; } };
+  unita();
+  const cifra = d => /^\d+$/.test(d) ? Number(d) : (PAROLE_NUMERO[d] != null ? PAROLE_NUMERO[d] : null);
+  if(w(j) === 'virgola' && cifra(w(j + 1)) != null){
+    const d = /^\d+$/.test(w(j + 1)) ? w(j + 1) : String(cifra(w(j + 1)));
+    v += Number('0.' + d); j += 2; unita();
+  } else if(w(j) === 'e' && (w(j + 1) === 'mezzo' || w(j + 1) === 'mezza')){
+    v += 0.5; j += 2; unita();
+  } else if(w(j) === 'e' && Number.isInteger(v) && v < 10 && cifra(w(j + 1)) != null &&
+            cifra(w(j + 1)) < 100 && w(j + 2) !== 'per'){
+    const d = cifra(w(j + 1));
+    v += d < 10 ? d / 10 : d / 100; j += 2; unita();
+  }
+  if(cm) v /= 100;
+  else if(v >= 100 && v < 3000) v /= 100;
+  return {v: Math.round(v * 100) / 100, j};
+}
+function stanzeDette(testo){
+  const tok = [];
+  testo.replace(/[a-z]+|\d+(?:[.,]\d+)?/g, (w, a) => { tok.push({w, a, b: a + w.length}); return w; });
+  const nomi = new Set(STANZE);
+  const stanze = [];
+  for(let i = 0; i < tok.length; i++){
+    if(!nomi.has(tok[i].w)) continue;
+    /* il primo numero dopo il nome della stanza, entro sei parole */
+    let k = -1;
+    for(let j = i + 1; j < tok.length && j <= i + 6; j++){
+      if(nomi.has(tok[j].w) || NON_STANZA.test(tok[j].w)) break;
+      if(/^\d/.test(tok[j].w) || numeroDetto(tok[j].w) != null){ k = j; break; }
+    }
+    if(k < 0) continue;
+    const a = misuraDetta(tok, k);
+    if(!a || !/^(per|x)$/.test(tok[a.j] ? tok[a.j].w : '')) continue;
+    const b = misuraDetta(tok, a.j + 1);
+    if(!b || a.v < 0.5 || a.v > 30 || b.v < 0.5 || b.v > 30) continue;
+    /* l'altezza: "alta due e settanta", "altezza 3", oppure un terzo "per" */
+    let h = null, fine = b.j, daH = -1;
+    if(tok[b.j] && /^(per|x)$/.test(tok[b.j].w)){
+      const c = misuraDetta(tok, b.j + 1);
+      if(c && c.v >= 1.8 && c.v <= 6){ h = c.v; fine = c.j; }
+    }
+    for(let j = b.j; h == null && j < tok.length && j <= b.j + 4; j++){
+      if(nomi.has(tok[j].w)) break;
+      if(!SEGNI_ALTEZZA.has(tok[j].w)) continue;
+      let m = j + 1;
+      while(tok[m] && /^(di|e|a|da|circa|sui|sulle|sono)$/.test(tok[m].w)) m++;
+      const c = misuraDetta(tok, m);
+      if(c && c.v >= 1.8 && c.v <= 6){ h = c.v; fine = c.j; daH = j; }
+      break;
+    }
+    /* si tolgono i lati e l'altezza, ma non quello che c'e' in mezzo ("rivestimento alto due") */
+    const via = daH >= 0 ? [[tok[k].a, tok[b.j - 1].b], [tok[daH].a, tok[fine - 1].b]]
+                         : [[tok[k].a, tok[fine - 1].b]];
+    stanze.push({nome: tok[i].w, i, via,
+                 lati: [a.v, b.v], h: h == null ? ALTEZZA_STANZA : h, hDetta: h != null, fineTok: fine});
+    i = fine - 1;
+  }
+  /* quali parti nomina ogni stanza, fino alla stanza dopo: "solo pareti", "senza soffitto" */
+  stanze.forEach((s, n) => {
+    const fino = n + 1 < stanze.length ? stanze[n + 1].i : tok.length;
+    const dette = new Set(), tolte = new Set();
+    for(let j = s.i + 1; j < fino; j++){
+      Object.keys(PARTI_STANZA).forEach(p => {
+        if(!PARTI_STANZA[p].includes(tok[j].w)) return;
+        const prima = [tok[j - 1], tok[j - 2]].filter(Boolean).map(x => x.w);
+        if(prima.some(x => /^(senza|niente|no|non)$/.test(x))) tolte.add(p); else dette.add(p);
+      });
+    }
+    s.dette = dette; s.tolte = tolte;
+  });
+  /* i numeri della stanza escono dal testo: il nome resta, e dice di quale lavoro si parla */
+  /* e la misura delle piastrelle ("sessanta per sessanta") non e' una misura da fatturare */
+  const via = [].concat(...stanze.map(s => s.via));
+  for(let i = 0; i < tok.length; i++){
+    if(!NON_STANZA.test(tok[i].w)) continue;
+    for(let k = i + 1; k < tok.length && k <= i + 3; k++){
+      if(!(/^\d/.test(tok[k].w) || numeroDetto(tok[k].w) != null)) continue;
+      const a = misuraDetta(tok, k);
+      const b = a && /^(per|x)$/.test(tok[a.j] ? tok[a.j].w : '') ? misuraDetta(tok, a.j + 1) : null;
+      if(b && !via.some(([x, y]) => tok[k].a < y && tok[b.j - 1].b > x)) via.push([tok[k].a, tok[b.j - 1].b]);
+      break;
+    }
+  }
+  let fuori = testo;
+  via.sort((x, y) => y[0] - x[0]).forEach(([x, y]) => { fuori = fuori.slice(0, x) + ' ' + fuori.slice(y); });
+  return {stanze, testo: fuori};
+}
+const cifraStanza = x => (Number.isInteger(x) ? String(x) : x.toFixed(2)).replace('.', ',');
+function misureStanza(s){
+  const [l, p] = s.lati, giro = 2 * (l + p) * s.h;
+  return {pavimento: l * p, soffitto: l * p, pareti: giro, rivestimento: giro};
+}
+const scriviStanza = s => s.nome + ' ' + cifraStanza(s.lati[0]) + ' × ' + cifraStanza(s.lati[1]) +
+  ', alta ' + cifraStanza(s.h) + (s.hDetta ? '' : ' (di solito)');
+/* quale parte di una stanza prende questa voce: quella scritta nel listino di partenza
+   (`stanza`), o se no quella del suo concetto. Solo le voci a superficie. */
+function partiDellaVoce(v){
+  if(v.stanza === 'perimetro' && tipoUnita(v.u).k === 'm') return ['perimetro'];
+  if(tipoUnita(v.u).k !== 'mq') return [];
+  if(typeof v.stanza === 'string') return v.stanza ? v.stanza.split('+') : [];
+  return [...new Set(concettiDellaVoce(v).map(c => c.stanza).filter(Boolean))];
+}
+function metriDaStanze(stanze, parte){
+  /* il battiscopa gira tutto intorno: il perimetro, solo per chi lo nomina */
+  if(parte === 'perimetro') return stanze.reduce((tot, s) => tot + 2 * (s.lati[0] + s.lati[1]), 0);
+  return stanze.reduce((tot, s) => {
+    if(s.tolte.has(parte)) return tot;
+    if(s.dette.size ? !s.dette.has(parte) : SOLO_SE_DETTA.has(parte)) return tot;
+    return tot + misureStanza(s)[parte];
+  }, 0);
+}
+/* le quantita' delle stanze vanno sulle voci dette senza misura, e se una parte non
+   l'ha presa nessuno si propone la prima voce del listino che la fa */
+function mettiLeStanze(trovate, stanze, listino){
+  if(!stanze.length) return;
+  const nota = stanze.map(scriviStanza).join(' + ');
+  const coperte = new Set();
+  const quanto = (v, parti) => {
+    const mq = parti.reduce((t, p) => t + metriDaStanze(stanze, p), 0);
+    return Math.round(mq / tipoUnita(v.u).per * 100) / 100;
+  };
+  const nomi = new Set(STANZE), via = [];
+  trovate.forEach(t => {
+    const v = !t.nuova && listino.find(x => x.id === t.voce); if(!v) return;
+    const parti = partiDellaVoce(v); if(!parti.length) return;
+    if(t.dubbio || t.senzaNumero){
+      const q = quanto(v, parti);
+      if(q > 0){ t.q = q; delete t.dubbio; delete t.senzaNumero; t.stanza = nota; }
+      /* "bagno ... solo il rivestimento": il pavimento l'aveva tirato su solo il nome
+         della stanza, e la stanza ha detto che non lo vuole */
+      else if(t.dubbio && String(t.detto || '').split(' ').every(w => nomi.has(w))){ via.push(t); return; }
+    }
+    parti.forEach(p => coperte.add(p));
+  });
+  via.forEach(t => trovate.splice(trovate.indexOf(t), 1));
+  Object.keys(PARTI_STANZA).forEach(p => {
+    if(coperte.has(p) || !(metriDaStanze(stanze, p) > 0)) return;
+    const v = listino.find(x => { const pp = partiDellaVoce(x); return pp.length === 1 && pp[0] === p; }) ||
+              listino.find(x => partiDellaVoce(x).includes(p));
+    if(!v) return;
+    const parti = partiDellaVoce(v), q = quanto(v, parti);
+    parti.forEach(x => coperte.add(x));
+    if(q > 0) trovate.push({voce: v.id, q, stanza: nota});
+  });
+}
+function capisci(testo, listino, mestiere){
+  usaMestiere(mestiere);
   const voci = listino.map(v => ({v, parole: paroleDellaVoce(v),
                                   frasi: frasiDellaVoce(v).concat(frasiDeiConcetti(v)), tipo: tipoUnita(v.u)}));
   const haMisura = g => numeriDetti(g.tok).some(n => misuraDellaVoce(n, g.voce.tipo.k));
@@ -6958,7 +7518,10 @@ function capisci(testo, listino){
      quadri non si tocca niente: li' due misure uguali sono due pezzi di giardino
      diversi, non l'elenco di uno solo.                                              */
   const parti = new Map();
-  preparaTesto(testo).split(/[.;!?\n]+/).forEach(frase => {
+  /* le stanze dette con le misure si tolgono prima: i loro numeri sono metri di stanza */
+  const conStanze = listino.some(v => partiDellaVoce(v).length) ? stanzeDette(preparaTesto(testo))
+                                                                  : {stanze: [], testo: preparaTesto(testo)};
+  conStanze.testo.split(/(?<!\d)[.;!?\n]+|[.;!?\n]+(?!\d)/).forEach(frase => {
     const pezzi = [];
     /* niente taglio sulla "e" da sola: dettando, "la siepe e' da spuntare" perde
        l'accento e diventa una "e" qualunque, e la siepe restava senza la sua misura.
@@ -7042,6 +7605,7 @@ function capisci(testo, listino){
       }
     });
   });
+  mettiLeStanze(trovate, conStanze.stanze, listino);
   return trovate;
 }
 /* ===== FINE CAPIRE IL PARLATO ===== */
@@ -7103,7 +7667,7 @@ function registra(idSopralluogo){
   let prima = '', sessione = '', riprese = 0, vuote = 0, inizio = 0, calcolo = null;
   const detto = () => (prima + ' ' + sessione).trim();
   const el = id => document.getElementById(id);
-  const leggi = () => { const x = detto(); if(x){ s._trovate = capisci(x, S.listino); disegnaRilevate(s.id); } };
+  const leggi = () => { const x = detto(); if(x){ s._trovate = capisci(x, S.listino, mestiereDitta()); disegnaRilevate(s.id); } };
   if(el('btnrec')) el('btnrec').classList.add('on');
   if(el('stato-rec')) el('stato-rec').textContent = 'Sto ascoltando… tocca di nuovo quando hai finito';
   if(el('trascr')) el('trascr').innerHTML =
@@ -7168,7 +7732,7 @@ function chiudiAscolto(o, s, detto){
     return;
   }
   s.testo = detto;
-  s.trovate = capisci(detto, S.listino);
+  s.trovate = capisci(detto, S.listino, mestiereDitta());
   s._trovate = s.trovate.map(x => Object.assign({}, x));
   salva(); disegnaRilevate(s.id);
   const n = s._trovate.length;
@@ -8947,7 +9511,13 @@ PAGINE.listino = {
     punti:['Cambi un prezzo qui e vale per tutti i preventivi futuri','I documenti già mandati restano com\'erano, con il prezzo di quel giorno','Nessuno vede il tuo listino tranne te']
   },
   corpo(){
+    const partenza = LISTINI_MESTIERI[mestiereDitta()];
     return `
+    ${partenza ? `<div class="scheda" id="prezzi-di-partenza" style="margin-bottom:22px;max-width:640px">
+      <div class="lbl" style="margin-bottom:8px">Prezzi di partenza, da cambiare</div>
+      <p style="font-size:16px;color:var(--soft)">Le voci da ${esc(mestiereDi(mestiereDitta()).nome.toLowerCase())} e i loro prezzi vengono dal ${esc(partenza.fonte)}.
+        Sono solo un punto di partenza: toccane uno e mettici il tuo. Le voci che non fai cancellale, quelle che mancano aggiungile.</p>
+    </div>` : ''}
     <table>
       <thead><tr><th>Lavorazione o materiale</th><th>Unità</th><th class="n">Prezzo</th><th class="n">IVA</th><th class="n">Usata</th><th></th></tr></thead>
       <tbody>
@@ -10536,6 +11106,47 @@ PAGINE.lavoro = {
   }
 };
 
+/* ===== PIANI E PREZZI (1 ottobre 2026) ===== */
+PAGINE.piani = {
+  guida:false, voce:'#impostazioni',
+  testata(){ return {occhiello:'Quanto costa Rilievo', titolo:'Piani e prezzi'}; },
+  corpo(){
+    const m = mestiereDi(mestiereDitta()), base = PIANI[m.piano];
+    const tessera = (k, extra) => { const p = PIANI[k], suo = k === m.piano;
+      return `<div class="piano${suo ? ' per-te' : ''}" id="piano-${k}">
+        ${suo ? '<span class="per-te-segno">Per te</span>' : ''}
+        <div class="lbl">${k === 'squadra' ? 'In più' : 'Piano'}</div>
+        <h3>${p.nome}</h3>
+        <div class="prezzo">${p.prezzo} € <small>${k === 'squadra' ? 'al mese per persona' : 'al mese'}</small></div>
+        <p class="per-chi">${p.perChi}</p>
+        <ul>${p.cose.map(c => '<li>' + c + '</li>').join('')}${(p.piu || []).map(c => '<li class="in-piu">' + c + '</li>').join('')}</ul>
+        ${extra || ''}
+      </div>`; };
+    const totale = base.prezzo + personeInSquadra * PIANI.squadra.prezzo;
+    return `
+    <div class="spiega"><p>Tre piani, senza vincoli. Scegli in base al lavoro che fai.
+      <b>I pagamenti non sono ancora attivi:</b> oggi tutte le funzioni sono aperte e non paghi niente.</p></div>
+    <div class="piani">
+      ${tessera('preventivi')}
+      ${tessera('pro')}
+      ${tessera('squadra', `<div class="conto-squadra">
+          <button type="button" onclick="contaSquadra(-1)" aria-label="Una persona in meno">−</button>
+          <span id="conto-squadra"><b>${personeInSquadra}</b> ${personeInSquadra === 1 ? 'persona' : 'persone'} oltre a te</span>
+          <button type="button" onclick="contaSquadra(1)" aria-label="Una persona in più">+</button>
+        </div>`)}
+    </div>
+    <div class="riquadro" style="margin-top:22px;max-width:640px" id="conto-piano">
+      <div class="lbl" style="margin-bottom:10px">Il tuo conto, da ${m.nome.toLowerCase()}</div>
+      <div class="riga-tot"><span>${base.nome}</span><span>${base.prezzo} €</span></div>
+      ${personeInSquadra ? `<div class="riga-tot"><span>Squadra, ${personeInSquadra} × ${PIANI.squadra.prezzo} €</span><span>${personeInSquadra * PIANI.squadra.prezzo} €</span></div>` : ''}
+      <div class="riga-tot"><span><b>Al mese</b></span><span><b>${totale} €</b></span></div>
+      <p style="font-size:15px;color:var(--tenue);margin-top:10px">${m.piano === 'pro'
+        ? 'Lavori all’aperto: il rilievo dall’alto ti fa risparmiare il metro.'
+        : 'Se lavori anche all’aperto (terrazzi, giardini, recinzioni) ti serve Pro, per il rilievo dall’alto.'}
+        Il mestiere si cambia in <a href="#impostazioni" style="color:var(--accento)">Impostazioni</a>.</p>
+    </div>`;
+  }
+};
 /* ===== IMPOSTAZIONI ===== */
 PAGINE.impostazioni = {
   guida:false,
@@ -10577,6 +11188,7 @@ PAGINE.impostazioni = {
       </div>
 
       <div>
+        ${riquadroMestiere()}
         ${riquadroFattura()}
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il tuo lavoro, in un file</div>
