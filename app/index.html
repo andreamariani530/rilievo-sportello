@@ -611,6 +611,15 @@ body.disegno-aperto{overflow:hidden}
 .conferma-fattura{margin:2px 0 6px}
 .conferma-fattura .di-prova{margin-bottom:12px}
 .foglio-fattura .di-prova{font-size:11px}
+/* la fattura di prova: una scritta grande e leggera di traverso, che si vede anche
+   nel PDF girato al cliente, cosi' nessuno la scambia per una fattura vera */
+.fattura-prova{position:relative;overflow:hidden;container-type:inline-size}
+.fattura-prova>*{position:relative;z-index:1}
+.fattura-prova>.filigrana{position:absolute;z-index:0;left:50%;top:50%;
+  transform:translate(-50%,-50%) rotate(-28deg);text-align:center;pointer-events:none;white-space:nowrap;
+  font-family:'Cormorant',serif;font-weight:600;font-size:13cqw;line-height:1.05;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--oro);opacity:.13}
+.fattura-prova>.filigrana span{display:block}
 .fattura-app{margin-top:18px;padding-top:14px;border-top:1px solid var(--filetto)}
 .fattura-app .stato-fattura{font-family:'Cormorant',serif;font-size:22px;line-height:1.2;margin:6px 0 4px}
 .fattura-app p{font-size:15.5px;color:var(--soft);line-height:1.55}
@@ -942,7 +951,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-09-29 22:06';
+const COSTRUITA = '2026-10-01 20:40';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1159,19 +1168,20 @@ function chiediDitta(){
       {k:'nome',  l:'Nome della ditta', p:'Es. Verde Vivo di Mario Rossi'},
       {k:'sotto', l:'Cosa fai', p:'Es. Manutenzione del verde'},
       {k:'via',   l:'Via', m:true, p:'Es. Via Roma 14'},
-      {k:'citta', l:'Comune', m:true, p:'Es. 26025 Pandino (CR)'},
+      ...CAMPI_SEDE_DITTA,
       {k:'piva',  l:'Partita IVA', m:true, p:'Es. 01234567890'},
       {k:'iva',   l:'Aliquota IVA', t:'numero', m:true, p:'22'},
       {k:'tel',   l:'Telefono', m:true, p:'Es. 340 1234567'},
       {k:'mail',  l:'Mail', m:true, p:'Es. info@verdevivo.it'}
     ],
-    controlla: d => d.nome ? null : 'Serve almeno il nome della ditta: e\u2019 quello che esce stampato sul preventivo.',
+    controlla: d => d.nome ? controllaSedeDitta(d) : 'Serve almeno il nome della ditta: e\u2019 quello che esce stampato sul preventivo.',
     testoSalva: 'Parti con i miei dati',
     salva: d => partiMia(d),
     messaggio: 'Fatto. Da qui in avanti i documenti escono col tuo nome.'
   });
 }
 function partiMia(d){
+  sistemaSedeDitta(d);
   const base = attualizza(copia(DATI));
   const oggi = base.oggi;
   S = {
@@ -2510,6 +2520,7 @@ function schedaRiga(id, k){
 /* il comune della ditta, senza il CAP e senza la sigla della provincia:
    "26025 Pandino (CR)" -> "Pandino". Serve per gli esempi scritti in grigio. */
 function comuneDitta(){
+  if(S.azienda && String(S.azienda.comune || '').trim()) return String(S.azienda.comune).trim();
   const t = String((S.azienda && S.azienda.citta) || '').replace(/\b\d{5}\b/g, ' ')
     .replace(/\s*\(?\b[A-Z]{2}\)?\s*$/, '').trim();
   return t.length > 1 ? t : '';
@@ -3118,12 +3129,12 @@ function schedaAzienda(per){
     fuoco: per.fuoco,
     dopo: per.dopo,
     extra: bloccoLogo(S.azienda.logo, 'scheda'),
-    valori: fatt ? valoriDittaPerFattura() : S.azienda,
+    valori: sedeDivisa(fatt ? valoriDittaPerFattura() : S.azienda),
     campi:[
       {k:'nome', l:'Nome dell’azienda', p:'Giardini Conti'},
       {k:'sotto', l:'Cosa fai', p:'Manutenzione del verde'},
       {k:'via', l:'Via', m:true, p:'Via Bellini 12'},
-      {k:'citta', l:'Comune', m:true, p:'26025 Pandino (CR)'},
+      ...CAMPI_SEDE_DITTA,
       {k:'piva', l:'Partita IVA', m:true, p:'01234567890'},
       ...(fatt ? CAMPI_DITTA_FATTURA : []),
       {k:'iva', l:'Aliquota IVA', t:'numero', m:true, p:'22'},
@@ -3138,8 +3149,9 @@ function schedaAzienda(per){
     controlla: d => !d.nome ? 'Serve almeno il nome.'
       : (d.validita !== null && !(d.validita >= 1 && d.validita <= 365) ? 'La validità va da 1 a 365 giorni.'
       : (d.acconto !== null && !(d.acconto >= 0 && d.acconto <= 100) ? 'L\'acconto è una percentuale, da 0 a 100.'
-      : (fatt ? controllaDittaPerFattura(d) : null))),
+      : controllaSedeDitta(d) || (fatt ? controllaDittaPerFattura(d) : null))),
     salva: d => {
+      sistemaSedeDitta(d);
       if(fatt) sistemaDittaPerFattura(d);
       if(d.validita === null) delete d.validita;
       if(d.acconto === null) delete d.acconto;
@@ -7311,6 +7323,45 @@ function leggiSede(via, resto){
   if(!indirizzo) return null;
   return {indirizzo, cap: m[2], comune: m[3].trim(), provincia: m[4] ? m[4].toUpperCase() : ''};
 }
+/* La sede della ditta. Dal 1 ottobre 2026 CAP, comune e provincia stanno in tre
+   caselle (prima una sola, "citta", e chi scriveva solo "Quartiano" si vedeva
+   rifiutare la fattura senza capire perche'). "citta" resta, ricomposta, perche'
+   e' quella che si stampa in cima ai documenti; chi l'aveva scritta tutta insieme
+   la ritrova divisa da sola. */
+const CAMPI_SEDE_DITTA = [
+  {k:'cap', l:'CAP', m:true, p:'26025'},
+  {k:'comune', l:'Comune', m:true, p:'Pandino'},
+  {k:'provincia', l:'Provincia', m:true, p:'CR'}
+];
+function pezziDiCitta(t){
+  const m = String(t || '').trim().match(/^(?:(\d{5})\s*)?(.*?)\s*(?:\(([A-Za-z]{2})\))?$/);
+  return {cap: m[1] || '', comune: (m[2] || '').replace(/[,\s]+$/, '').trim(), provincia: m[3] ? m[3].toUpperCase() : ''};
+}
+const haSedeDivisa = a => !!(a && ['cap', 'comune', 'provincia'].some(k => String(a[k] || '').trim()));
+function sedeDivisa(a){
+  a = Object.assign({}, a || {});
+  if(!haSedeDivisa(a) && a.citta) Object.assign(a, pezziDiCitta(a.citta));
+  return a;
+}
+const cittaDi = a => ([a.cap, a.comune].map(x => String(x || '').trim()).filter(Boolean).join(' ') +
+  (a.provincia ? ' (' + a.provincia + ')' : '')).trim();
+function controllaSedeDitta(d){
+  if(d.cap && !/^\d{5}$/.test(String(d.cap).trim())) return 'Il CAP sono 5 cifre, per esempio 26837.';
+  if(d.provincia && !/^[A-Za-z]{2}$/.test(String(d.provincia).trim())) return 'La provincia si scrive con la sigla di due lettere, per esempio LO.';
+  return null;
+}
+function sistemaSedeDitta(d){
+  ['cap', 'comune', 'provincia'].forEach(k => { d[k] = String(d[k] || '').trim(); });
+  d.provincia = d.provincia.toUpperCase();
+  d.citta = cittaDi(d);   // le caselle vuote restano vuote: cancellarle lascerebbe il valore di prima
+}
+function sedeDitta(a){
+  a = sedeDivisa(a);
+  const via = String(a.via || '').trim(), cap = String(a.cap || '').trim(), comune = String(a.comune || '').trim();
+  if(!via || !/^\d{5}$/.test(cap) || !comune) return null;
+  const prov = String(a.provincia || '').trim().toUpperCase();
+  return {indirizzo: via.replace(/,\s*$/, ''), cap, comune, provincia: /^[A-Z]{2}$/.test(prov) ? prov : ''};
+}
 function pivaValida(v){
   const s = String(v || '').replace(/\s/g, '').replace(/^IT/i, '');
   if(!/^\d{11}$/.test(s)) return false;
@@ -7357,7 +7408,12 @@ function mancaPerFattura(a, cl){
   a = a || {}; cl = cl || {};
   if(!pivaValida(a.piva)) m('la tua partita IVA (11 cifre)', 'ditta', 'piva');
   if(!cfValido(a.cf)) m('il tuo codice fiscale', 'ditta', 'cf');
-  if(!leggiSede(a.via, a.citta)) m('il tuo indirizzo completo, con CAP e comune', 'ditta', String(a.via || '').trim() ? 'citta' : 'via');
+  if(!sedeDitta(a)){
+    const sd = sedeDivisa(a);
+    if(!String(sd.via || '').trim()) m('la via della tua sede, col numero', 'ditta', 'via');
+    if(!/^\d{5}$/.test(String(sd.cap || '').trim())) m('il CAP della tua sede (5 cifre)', 'ditta', 'cap');
+    if(!String(sd.comune || '').trim()) m('il comune della tua sede', 'ditta', 'comune');
+  }
   if(!a.regime) m('il tuo regime: forfettario oppure ordinario', 'ditta', 'regime');
   if(!cl.nome) m('il nome del cliente', 'cliente', 'nome');
   if(!cfValido(cl.cf) && !pivaValida(cl.piva)) m('il codice fiscale o la partita IVA del cliente', 'cliente', 'fiscale');
@@ -7398,7 +7454,7 @@ function contiFattura(d){
 function xmlFattura(d){
   const a = d.cedente, cl = d.cliente;
   const {forf, righe, basi, sconti, totale, bollo} = contiFattura(d);
-  const sa = leggiSede(a.via, a.citta), sc = sedeCliente(cl);
+  const sa = sedeDitta(a), sc = sedeCliente(cl);
   const piva = String(a.piva).replace(/\s/g, '').replace(/^IT/i, '');
   const natura = al => al > 0 ? '' : (forf ? 'N2.2' : (d.natura || 'N2.2'));
 
@@ -7769,7 +7825,7 @@ function correggiFattura(id){
 function bloccoFattura(p){
   const f = p.fattura, prova = f ? !!f.prova : fatturaDiProva, viaggio = !!fatturaInViaggio[p.id];
   const fascia = prova ? '<div class="di-prova">Di prova · non mandata allo Stato</div>' : '';
-  const dove = `<a class="bottone vuoto" href="#fattura/${p.id}">Apri la fattura</a>`;
+  const dove = `<a class="bottone vuoto" href="#fattura/${p.id}">Apri la fattura${prova ? ' di prova' : ''}</a>`;
   if(!f || !f.file){
     return `<div class="fattura-app" id="fattura-app">
       <div class="lbl">La fattura</div>
@@ -7811,7 +7867,8 @@ function corpoFattura(id){
   const sc = sedeCliente(cl);
   const fiscali = [cl.piva ? 'P. IVA ' + cl.piva : '', cl.cf ? 'C.F. ' + cl.cf : ''].filter(Boolean).join(' · ');
   const grande = t => `<span style="font-family:'Cormorant',serif;font-size:22px">${t}</span>`;
-  return `<div class="foglio foglio-fattura">
+  return `<div class="foglio foglio-fattura${f.prova ? ' fattura-prova' : ''}">
+      ${f.prova ? '<div class="filigrana" aria-hidden="true"><span>Di prova</span><span>non valida</span></div>' : ''}
       ${f.prova ? '<div class="di-prova" style="margin-bottom:26px">Fattura di prova · non mandata allo Stato</div>' : ''}
       <div class="intestazione">
         ${marchioDoc(a, esc(a.sotto || ''))}

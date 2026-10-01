@@ -191,7 +191,9 @@ def _punto_da_esri(indirizzo, civico):
 def _da_photon(domanda, quanti=8, intorno=None):
     """Photon, gli stessi dati di OpenStreetMap ma senza la porta chiusa ai server.
     None se non risponde; lista (anche vuota) se risponde."""
-    dati = {"q": domanda, "limit": quanti, "lang": "it"}
+    # "lang": "it" dal 1 ottobre 2026 da' 400 (Photon accetta solo default, de, en, fr);
+    # "default" restituisce i nomi locali, cioe' in italiano per l'Italia
+    dati = {"q": domanda, "limit": quanti, "lang": "default"}
     if intorno:
         dati["lat"], dati["lon"] = "%.5f" % intorno[0], "%.5f" % intorno[1]
     try:
