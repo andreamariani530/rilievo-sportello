@@ -84,6 +84,19 @@ MOTIVO_LENTO = ("Il catasto in questo momento risponde troppo piano. Il soprallu
                 "e i metri quadri li conto io.")
 
 
+PROVINCE_AUTONOME = {"bolzano", "bozen", "bolzano bozen", "trento", "trient", "trento trient",
+                     "alto adige", "sudtirol", "provincia autonoma di bolzano",
+                     "provincia autonoma di trento"}
+MOTIVO_AUTONOME = ("In provincia di Trento e di Bolzano il catasto e' delle Province, non "
+                   "dell'Agenzia delle Entrate, e da qui non si legge. Qui c'e' la foto dall'alto: "
+                   "segna il giardino col dito e i metri quadri li conto io.")
+
+
+def _nome_semplice(t):
+    t = unicodedata.normalize("NFD", str(t or "")).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z]+", " ", t).strip()
+
+
 class TempoScaduto(RuntimeError):
     """Il rilievo ha finito il suo tempo: si passa alla foto da segnare."""
 
@@ -2213,6 +2226,11 @@ def rilievo(indirizzo, lato_m=None, cap="", foto_da=""):
 def _rilievo(indirizzo, lato_m, cap, foto_da, visto):
     p = punto_dall_indirizzo(indirizzo, cap)
     visto["p"] = p
+    # A Trento e Bolzano il catasto e' delle Province autonome: quello dell'Agenzia non
+    # ha niente da dare, e chiederglielo costava quasi un minuto di attesa a vuoto
+    # (prova di resistenza, 2 ottobre 2026). Si va dritti alla foto.
+    if _nome_semplice(p.get("provincia")) in PROVINCE_AUTONOME:
+        return rilievo_da_disegnare(p, lato_m, MOTIVO_AUTONOME, indirizzo, cap, foto_da)
     try:
         part, lat, lon = cerca_la_particella(p["lat"], p["lon"])
         if not part:
