@@ -436,6 +436,18 @@ body.porta-aperta{overflow:hidden}
 .strada.consigliata{border-color:var(--accento);box-shadow:0 12px 32px rgba(62,74,58,.12)}
 .strada.consigliata .porta-via{color:var(--oro)}
 .porta-piede{text-align:center;margin-top:28px;font-size:15px;color:var(--tenue);line-height:1.6}
+.porta-piede a{color:var(--accento)}
+/* ---------- informativa privacy (2 ottobre 2026) ---------- */
+.velo-privacy{position:fixed;inset:0;z-index:80;background:rgba(27,25,23,.42);overflow-y:auto;
+  padding:24px 14px}
+.velo-privacy .finestra{max-width:680px;margin:0 auto}
+.privacy{max-width:680px;font-size:16.5px;line-height:1.65;color:var(--soft)}
+.privacy h3{font-size:25px;margin:26px 0 8px;color:var(--inchiostro, inherit)}
+.privacy h3:first-child{margin-top:0}
+.privacy ul{margin:6px 0 0 20px}
+.privacy li{margin:3px 0}
+.privacy a{color:var(--accento)}
+.privacy .aggiornata{font-size:14px;color:var(--tenue);margin-top:26px}
 /* ---------- il mestiere e i piani (1 ottobre 2026) ---------- */
 .mestieri{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 auto 26px;max-width:640px}
 .mestieri .lbl{flex-basis:100%;text-align:center;margin-bottom:4px}
@@ -804,6 +816,7 @@ body.disegno-aperto{overflow:hidden}
         <div style="font-size:16px" id="utente-nome">Giardini Conti</div>
         <div class="lbl" style="font-size:8.5px" id="utente-stato">Abbonamento attivo</div>
         <a class="piani-link" href="#piani" id="utente-piani">Piani e prezzi</a>
+        <a class="piani-link" href="#privacy" id="utente-privacy">Privacy</a>
       </div>
     </div>
   </aside>
@@ -979,7 +992,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-02 21:21';
+const COSTRUITA = '2026-10-02 21:30';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1171,8 +1184,9 @@ function apriPorta(){
           <span class="porta-via">Metto i miei dati &rarr;</span>
         </button>
       </div>
-      <p class="porta-piede">Quello che scrivi resta su questo dispositivo: non lo vede nessun
-        altro. Da Impostazioni te lo porti via in un file quando vuoi.</p>
+      <p class="porta-piede">Quello che scrivi resta su questo dispositivo. Esce solo l&rsquo;indirizzo,
+        quando chiedi il rilievo, per trovare foto e confini. Da Impostazioni te lo porti via in un file
+        quando vuoi. <a href="#privacy" onclick="apriPrivacy();return false">Come trattiamo i dati</a></p>
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('porta-aperta');
@@ -11155,6 +11169,86 @@ PAGINE.piani = {
     </div>`;
   }
 };
+/* ===== PRIVACY =====
+   2 ottobre 2026: i primi dieci giardinieri provano l'app da soli, con indirizzi di clienti
+   veri. Prima di invitarli serve dire chiaro cosa resta sul telefono e cosa esce.
+   Il testo descrive quello che fa davvero il codice: se cambia dove va un dato
+   (server, servizi di cartografia, archivio della squadra), va cambiato anche qui. */
+function testoPrivacy(){
+  return `<div class="privacy">
+    <h3>In breve</h3>
+    <p>Quello che scrivi in Rilievo resta <b>sul tuo telefono</b>: la ditta, i clienti, i preventivi,
+      le foto, il listino. Noi non lo vediamo. Dal telefono esce solo <b>l&rsquo;indirizzo del giardino</b>,
+      quando chiedi il rilievo, per trovare la foto dall&rsquo;alto e i confini del catasto.
+      Niente pubblicit&agrave;, niente statistiche su di te, nessun dato venduto.</p>
+
+    <h3>Chi risponde dei dati</h3>
+    <p>Rilievo &egrave; in prova gratuita e lo costruisce Andrea Mariani, come persona privata.
+      Per qualunque domanda sui dati: <a href="mailto:andreamariani530a@gmail.com">andreamariani530a@gmail.com</a>.</p>
+
+    <h3>Cosa resta sul telefono</h3>
+    <p>Tutto il tuo lavoro sta nella memoria del browser di questo dispositivo. Non passa dal
+      nostro server. Se cancelli i dati del sito dal browser, sparisce: per tenerne una copia
+      usa &laquo;Il tuo lavoro, in un file&raquo; in Impostazioni.</p>
+
+    <h3>Cosa passa dal nostro server, e perch&eacute;</h3>
+    <ul>
+      <li><b>L&rsquo;indirizzo o il punto sulla mappa</b>, quando cerchi un indirizzo o chiedi il rilievo.
+        Mai il nome del cliente, mai i prezzi.</li>
+      <li>Il server sta a Francoforte, nell&rsquo;Unione Europea (servizio Render). Non tiene un archivio
+        degli indirizzi: restano solo nel suo registro tecnico, che si svuota da solo dopo pochi giorni.</li>
+      <li>Per trovare foto e confini, l&rsquo;indirizzo o le coordinate vanno ai servizi pubblici di
+        cartografia: Agenzia delle Entrate (catasto), Regione Lombardia ed Emilia-Romagna (foto),
+        Esri (foto e ricerca indirizzi, Stati Uniti), Photon e OpenStreetMap (ricerca indirizzi).</li>
+    </ul>
+
+    <h3>Solo se lo accendi tu</h3>
+    <ul>
+      <li><b>La voce.</b> Quando detti, la trascrizione la fa il tuo telefono o il tuo browser
+        (Google su Android e Chrome, Apple su iPhone), con le loro regole. Se non vuoi, scrivi a mano.</li>
+      <li><b>La squadra.</b> Con un codice di ditta, i lavori condivisi si salvano sul nostro server,
+        per farli vedere ai tuoi colleghi. In questa fase di prova possono azzerarsi a ogni aggiornamento.</li>
+      <li><b>La fattura di prova.</b> Se la provi, i dati della fattura passano dal servizio di prova di Openapi.</li>
+      <li><b>WhatsApp e mail.</b> Quando mandi un preventivo, lo mandi tu dalla tua app: noi non lo vediamo.</li>
+    </ul>
+
+    <h3>I dati dei tuoi clienti</h3>
+    <p>I nomi, i numeri e gli indirizzi dei tuoi clienti sono tuoi: li metti tu, per fare il tuo lavoro.
+      Noi ci limitiamo a usare l&rsquo;indirizzo per il rilievo che ci chiedi.</p>
+
+    <h3>Cookie</h3>
+    <p>Nessun cookie di profilazione o di pubblicit&agrave;. L&rsquo;app usa solo la memoria del browser,
+      per ricordare il tuo lavoro.</p>
+
+    <h3>I tuoi diritti</h3>
+    <p>Puoi chiedere in ogni momento cosa sappiamo di te, farlo correggere o cancellare: basta una mail
+      all&rsquo;indirizzo sopra. Se pensi che i tuoi dati siano trattati male puoi rivolgerti al Garante
+      per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
+
+    <p class="aggiornata">Aggiornata il 2 ottobre 2026.</p>
+  </div>`;
+}
+/* in sovrimpressione: si apre anche dalla porta d'ingresso, che copre le pagine */
+function apriPrivacy(){
+  const vecchio = document.querySelector('.velo-privacy'); if(vecchio) vecchio.remove();
+  const velo = document.createElement('div');
+  velo.className = 'velo-privacy';
+  velo.onclick = e => { if(e.target === velo) velo.remove(); };
+  velo.innerHTML = `<div class="finestra">
+      <div class="sopra"><h3>Come trattiamo i dati</h3></div>
+      ${testoPrivacy()}
+      <div class="piede"><div class="a-destra riga-azione">
+        <button class="bottone piccolo" id="privacy-chiudi">Ho capito</button>
+      </div></div>
+    </div>`;
+  document.body.appendChild(velo);
+  velo.querySelector('#privacy-chiudi').onclick = () => velo.remove();
+}
+PAGINE.privacy = {
+  guida:false, voce:'#impostazioni',
+  testata(){ return {occhiello:'Informativa privacy', titolo:'Come trattiamo i dati'}; },
+  corpo(){ return testoPrivacy(); }
+};
 /* ===== IMPOSTAZIONI ===== */
 PAGINE.impostazioni = {
   guida:false,
@@ -11200,7 +11294,7 @@ PAGINE.impostazioni = {
         ${riquadroFattura()}
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il tuo lavoro, in un file</div>
-          <p style="font-size:16px;color:var(--soft)">Quello che fai resta su questo dispositivo, anche se chiudi la pagina. Il file serve a portartelo via: su un altro telefono, sul computer, o per rimandarmelo se c'è da metterci mano.</p>
+          <p style="font-size:16px;color:var(--soft)">Quello che fai resta su questo dispositivo, anche se chiudi la pagina (<a href="#privacy" style="color:var(--accento)">come trattiamo i dati</a>). Il file serve a portartelo via: su un altro telefono, sul computer, o per rimandarmelo se c'è da metterci mano.</p>
           <div class="azioni" style="margin-top:16px">
             <button class="bottone" onclick="esporta()">Esporta tutto in un file</button>
             <button class="bottone vuoto" onclick="importa()">Ricarica un salvataggio</button>
