@@ -1747,7 +1747,11 @@ def _macchia_piu_grande(dentro, lati):
         if not b or visti[i]:
             continue
         macchia, quanti, _est = _riempi(dentro, lati, [(i % lati, i // lati)])
-        visti = bytearray(v | m for v, m in zip(visti, macchia))
+        # l'OR di due maschere in un colpo solo (da numeri grandi), non pixel per pixel:
+        # con centinaia di macchie quel giro costava due minuti sul server gratuito
+        # (Turate, 2 ottobre 2026)
+        visti = bytearray((int.from_bytes(visti, "big") |
+                           int.from_bytes(bytes(macchia), "big")).to_bytes(len(visti), "big"))
         if quanti > quanti_grande:
             grande, quanti_grande = macchia, quanti
     return grande, quanti_grande
@@ -1966,7 +1970,11 @@ def contorni_verde(dentro, edifici, colori, lati, mq_px, quante=4, minimo_mq=15.
         if not b or visti[i]:
             continue
         macchia, quanti_px, _est = _riempi(verde, lati, [(i % lati, i // lati)])
-        visti = bytearray(v | m for v, m in zip(visti, macchia))
+        # l'OR di due maschere in un colpo solo (da numeri grandi), non pixel per pixel:
+        # con centinaia di macchie quel giro costava due minuti sul server gratuito
+        # (Turate, 2 ottobre 2026)
+        visti = bytearray((int.from_bytes(visti, "big") |
+                           int.from_bytes(bytes(macchia), "big")).to_bytes(len(visti), "big"))
         if quanti_px * mq_px >= minimo_mq:
             pezzi.append((quanti_px, macchia))
     pezzi.sort(key=lambda p: -p[0])
