@@ -69,18 +69,54 @@ SOGLIA_VERDE = 15
 
 # ---------------------------------------------------------------- rete
 
+import threading
+
+# Il tempo massimo di un rilievo. Ogni chiamata fuori aspetta fino a 60 secondi e
+# riprova tre volte: se il catasto o la foto della Regione sono lenti, il rilievo
+# passava i 100 secondi, l'app si arrendeva senza dire niente e le richieste
+# rimaste appese intasavano il server per tutti (Turate, 2 ottobre 2026). Con la
+# scadenza, finito il tempo si smette di aspettare e si manda la foto da segnare.
+_scadenze = threading.local()
+LIMITE_CATASTO = 50.0       # secondi per indirizzo + catasto + misura
+LIMITE_FOTO = 30.0          # secondi in piu' per la sola foto, quando il primo e' finito
+MOTIVO_LENTO = ("Il catasto in questo momento risponde troppo piano. Il sopralluogo va "
+                "avanti lo stesso: qui c'e' la foto dall'alto, segna il giardino col dito "
+                "e i metri quadri li conto io.")
+
+
+class TempoScaduto(RuntimeError):
+    """Il rilievo ha finito il suo tempo: si passa alla foto da segnare."""
+
+
+def _limite(secondi):
+    _scadenze.fine = (time.time() + secondi) if secondi else None
+
+
+def _resto():
+    fine = getattr(_scadenze, "fine", None)
+    return None if fine is None else fine - time.time()
+
+
 def prendi(url, dati=None, tentativi=3, attesa=1.5, tempo=60):
-    """Una chiamata in rete, con due secondi tentativi se la prima non va."""
+    """Una chiamata in rete, con due secondi tentativi se la prima non va.
+    Dentro un rilievo non si va mai oltre la sua scadenza."""
     if dati:
         url = url + "?" + urllib.parse.urlencode(dati)
     ultimo = None
     for n in range(tentativi):
+        resto = _resto()
+        if resto is not None and resto < 1.0:
+            raise TempoScaduto("Tempo finito aspettando %s" % url.split("?")[0])
         try:
             richiesta = urllib.request.Request(url, headers={"User-Agent": AGENTE})
-            with urllib.request.urlopen(richiesta, timeout=tempo) as r:
+            aspetta = tempo if resto is None else min(tempo, resto)
+            with urllib.request.urlopen(richiesta, timeout=aspetta) as r:
                 return r.read()
         except Exception as e:                      # noqa: BLE001
             ultimo = e
+            resto = _resto()
+            if resto is not None and resto < attesa * (n + 1) + 1.0:
+                raise TempoScaduto("Tempo finito aspettando %s" % url.split("?")[0])
             time.sleep(attesa * (n + 1))
     raise RuntimeError("Non risponde: %s (%s)" % (url.split("?")[0], ultimo))
 
@@ -2150,7 +2186,25 @@ def _col_punto(numero):
 
 
 def rilievo(indirizzo, lato_m=None, cap="", foto_da=""):
+    """Il rilievo dall'indirizzo, entro un tempo massimo: se il catasto e' troppo
+    lento si risponde comunque, con la foto da segnare a dito."""
+    visto = {}
+    _limite(LIMITE_CATASTO)
+    try:
+        return _rilievo(indirizzo, lato_m, cap, foto_da, visto)
+    except TempoScaduto:
+        if not visto.get("p"):
+            raise RuntimeError("I servizi degli indirizzi in questo momento sono lenti. "
+                               "Riprova fra un minuto, o scrivi le misure a mano.")
+        _limite(LIMITE_FOTO)
+        return rilievo_da_disegnare(visto["p"], lato_m, MOTIVO_LENTO, indirizzo, cap, foto_da)
+    finally:
+        _limite(None)
+
+
+def _rilievo(indirizzo, lato_m, cap, foto_da, visto):
     p = punto_dall_indirizzo(indirizzo, cap)
+    visto["p"] = p
     try:
         part, lat, lon = cerca_la_particella(p["lat"], p["lon"])
         if not part:
@@ -2938,6 +2992,7 @@ def servizio(porta=8787, pubblico=False):
                 indirizzo = (q.get("indirizzo") or [""])[0].strip()[:200]
                 print("  particelle:", len(punti), "punti")
                 try:
+                    _limite(LIMITE_CATASTO)
                     r = rilievo_da_punti(punti, indirizzo, lato_chiesto(), foto_chiesta())
                     print("     %s mq di lotto, %s particelle" % (r["lotto_mq"], len(r["particelle"])))
                     self._manda(200, r)
@@ -2951,6 +3006,7 @@ def servizio(porta=8787, pubblico=False):
                         p = {"lat": punti[0][0], "lon": punti[0][1], "indirizzo": indirizzo,
                              "comune_nome": "", "preciso": True}
                         try:
+                            _limite(LIMITE_FOTO)
                             # niente lotto contato a occhio dalle mappe: in campagna
                             # viene un numero enorme. Foto pulita, e il giardino lo
                             # segna lui col dito.
@@ -2961,7 +3017,11 @@ def servizio(porta=8787, pubblico=False):
                             return
                         except Exception as e2:     # noqa: BLE001
                             print("     anche il ripiego non riuscito:", e2)
+                    if isinstance(e, TempoScaduto):
+                        e = "Il catasto in questo momento risponde troppo piano. Riprova fra un minuto."
                     self._manda(502, {"errore": str(e)})
+                finally:
+                    _limite(None)
                 return
             if u.path != "/rilievo":
                 self._apri(404)
