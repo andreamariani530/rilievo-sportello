@@ -979,7 +979,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-01 22:23';
+const COSTRUITA = '2026-10-02 15:15';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -4428,7 +4428,7 @@ function rilievoDaPunto(idSopralluogo, lat, lon, comeSiChiama){
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 100000);
   fetch(SPORTELLO_RILIEVO + '/particelle?' + col() + 'punti=' + encodeURIComponent(lat.toFixed(7) + ',' + lon.toFixed(7)) +
-        '&indirizzo=' + encodeURIComponent(comeSiChiama || ''), {signal: basta.signal})
+        '&indirizzo=' + encodeURIComponent(comeSiChiama || '') + '&ripiego=foto', {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
     .then(({ok, d}) => {
       if(superata()) return;
@@ -4439,6 +4439,14 @@ function rilievoDaPunto(idSopralluogo, lat, lon, comeSiChiama){
       const nuovo = Object.assign({}, d, {preciso:true, casa_a_mano:true, indirizzo: comeSiChiama || d.indirizzo});
       const problema = rilievoValido(nuovo);
       if(problema){ avvisa('Non riuscito: il servizio ha mandato misure che non tornano (' + problema + ').'); return; }
+      /* il catasto tace anche qui: c'e' la foto del posto scelto, e si segna a dito,
+         come quando l'indirizzo si scrive (Cafagna, 2 ottobre 2026) */
+      if(d.da_disegnare === true){
+        usaRilievo(idSopralluogo, nuovo);
+        avvisa((d.avvisi || [])[0] || 'Foto pronta: segna il giardino sulla foto.');
+        setTimeout(() => apriDisegno(idSopralluogo), 400);
+        return;
+      }
       usaRilievo(idSopralluogo, nuovo);
       avvisa('Rilievo pronto: ' + cifra(nuovo.lotto_mq, 0) + ' mq di lotto, ' + cifra(nuovo.scoperto_mq, 0) + ' scoperti. Controlla sulla foto che sia il posto giusto.');
     })

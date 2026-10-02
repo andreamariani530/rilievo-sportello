@@ -2943,6 +2943,24 @@ def servizio(porta=8787, pubblico=False):
                     self._manda(200, r)
                 except Exception as e:              # noqa: BLE001
                     print("     non riuscito:", e)
+                    # Chi arriva da un indirizzo toccato nell'elenco (ripiego=foto) non
+                    # deve trovare un vicolo cieco: come /rilievo, se il catasto tace si
+                    # ripiega sulla foto da segnare a dito.
+                    # Cafagna, 2 ottobre 2026: indirizzo scelto giusto, e poi l'errore.
+                    if (q.get("ripiego") or [""])[0] == "foto":
+                        p = {"lat": punti[0][0], "lon": punti[0][1], "indirizzo": indirizzo,
+                             "comune_nome": "", "preciso": True}
+                        try:
+                            # niente lotto contato a occhio dalle mappe: in campagna
+                            # viene un numero enorme. Foto pulita, e il giardino lo
+                            # segna lui col dito.
+                            r = rilievo_da_disegnare(p, lato_chiesto(), "", indirizzo,
+                                                     "", foto_chiesta())
+                            print("     ripiego: foto da disegnare")
+                            self._manda(200, r)
+                            return
+                        except Exception as e2:     # noqa: BLE001
+                            print("     anche il ripiego non riuscito:", e2)
                     self._manda(502, {"errore": str(e)})
                 return
             if u.path != "/rilievo":
