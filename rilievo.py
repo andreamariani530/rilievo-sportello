@@ -345,6 +345,24 @@ def suggerimenti_indirizzo(indirizzo, cap="", quanti=6):
             "preciso": bool(civico and _stesso_civico(civico, p.get("civico_trovato"))),
         })
 
+    # Il paese scritto conta anche qui. Il 2 ottobre 2026 "Via Cristoforo Colombo 5,
+    # Rottofreno" proponeva Parma, Pisa, Vicenza, Lecce e Cagliari, mentre la stessa
+    # via c'e' a Sarmato e a Castel San Giovanni, a dieci minuti. Quindi prima si
+    # cerca intorno al paese scritto, e i posti vicini vanno in testa all'elenco.
+    posto = None
+    if nomi:
+        trovati = _posti(nomi[0], sigla, cap) or []
+        posto = trovati[0] if trovati else None
+    if posto:
+        lat, lon = posto["dove"]
+        riquadro = "%f,%f,%f,%f" % (lon - 0.4, lat - 0.3, lon + 0.4, lat + 0.3)
+        for c in _chiedi_a_esri({"SingleLine": domanda, "searchExtent": riquadro,
+                                 "category": "Point Address,Subaddress,Street Address,Street Name"},
+                                8) or []:
+            if c.get("score", 0) >= 70:
+                aggiungi(_punto_esri(c), "Esri")
+        for p in _da_photon(domanda, 8, (lat, lon)) or []:
+            aggiungi(p, "OpenStreetMap")
     for c in _chiedi_a_esri({"SingleLine": domanda,
                              "category": "Point Address,Subaddress,Street Address,Street Name"},
                             8) or []:
@@ -360,8 +378,17 @@ def suggerimenti_indirizzo(indirizzo, cap="", quanti=6):
                 aggiungi(_punto_da_osm(x, False), "OpenStreetMap")
         except Exception:                               # noqa: BLE001
             pass
-    # prima il civico scritto, poi chi almeno un civico ce l'ha
-    fuori.sort(key=lambda s: (0 if s["preciso"] else 1, 0 if s["civico"] else 1))
+    # col paese riconosciuto: prima il paese stesso, poi quelli entro 30 km dal piu'
+    # vicino, e gli omonimi lontani solo se avanza posto. Dentro ogni gruppo, prima il
+    # civico scritto, poi chi almeno un civico ce l'ha.
+    def ordine(s):
+        gruppo, km = 0, 0
+        if posto:
+            km = _distanza_km(posto["dove"], (s["lat"], s["lon"]))
+            stesso = _pulito(s["comune"]) == _pulito(posto["comune"])
+            gruppo = 0 if stesso else 1 if km <= 30 else 2
+        return (gruppo, 0 if s["preciso"] else 1, 0 if s["civico"] else 1, km)
+    fuori.sort(key=ordine)
     return fuori[:quanti]
 
 
