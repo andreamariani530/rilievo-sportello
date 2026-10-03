@@ -774,8 +774,46 @@ button.via{font:inherit;text-align:left;width:100%}
   .foglio .programma-lavoro{grid-template-columns:1fr;gap:12px}
 }
 
+
+/* ---------- l'assistente in chat: il tasto «Chiedi» e la sua finestra ---------- */
+.chiedi{position:fixed;right:18px;bottom:calc(48px + env(safe-area-inset-bottom));z-index:55;
+  display:flex;align-items:center;gap:8px;background:var(--accento);color:var(--carta);border:0;
+  border-radius:999px;padding:12px 18px 12px 15px;cursor:pointer;box-shadow:0 10px 26px rgba(27,25,23,.22);
+  font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.chiedi svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
+.chiedi:hover{background:var(--inchiostro)}
+#schermo{padding-bottom:calc(80px + env(safe-area-inset-bottom))}   /* l'ultima riga non finisce sotto «Chiedi» */
+.velo-chat{position:fixed;inset:0;z-index:72;background:rgba(27,25,23,.36);display:flex;
+  justify-content:flex-end;align-items:flex-end}
+.chat{background:var(--bianco);width:100%;max-width:440px;height:min(640px,88vh);display:flex;flex-direction:column;
+  border:1px solid var(--filetto2);box-shadow:0 24px 60px rgba(27,25,23,.24);margin:0 18px 18px 0;
+  animation:entra .22s ease both}
+.chat .testa{padding:20px 22px 14px;border-bottom:1px solid var(--filetto);display:flex;align-items:flex-start;gap:12px}
+.chat .testa h3{font-size:24px;margin:0}
+.chat .testa .lbl{display:block;margin-top:4px}
+.chat .testa .chiudi{margin-left:auto;background:none;border:0;font-size:26px;line-height:1;color:var(--tenue);cursor:pointer;padding:0 4px}
+.chat .fila{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.chat .msg{max-width:88%;font-size:16px;line-height:1.5;color:var(--inchiostro)}
+.chat .msg.io{align-self:flex-end;background:var(--carta2);padding:10px 14px}
+.chat .msg.lui{align-self:flex-start;border-left:2px solid var(--accento-chiaro);padding:2px 0 2px 14px}
+.chat .msg.lui .portami{margin-top:10px}
+.chat .msg.errore{border-left-color:var(--oro);color:var(--soft)}
+.chat .msg.pensa{color:var(--tenue);font-style:italic}
+.chat .esempi{display:grid;gap:8px;margin-top:4px}
+.chat .esempi button{text-align:left;background:none;border:1px solid var(--filetto2);padding:10px 14px;
+  font:inherit;font-size:15.5px;color:var(--soft);cursor:pointer}
+.chat .esempi button:hover{border-color:var(--accento-chiaro);color:var(--inchiostro)}
+.chat .scrivi{border-top:1px solid var(--filetto);padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:flex-end}
+.chat .scrivi textarea{flex:1;resize:none;min-height:44px;max-height:120px;border:1px solid var(--filetto2);
+  background:var(--carta);padding:10px 12px;font:inherit;font-size:16px;color:var(--inchiostro)}
+.chat .scrivi textarea:focus{outline:0;border-color:var(--accento-chiaro)}
+@media (max-width:900px){
+  .chiedi{right:14px;bottom:calc(18px + env(safe-area-inset-bottom));padding:12px 15px}
+  .chat{max-width:none;height:100%;margin:0;border:0}
+  .chat .testa{padding-top:calc(16px + env(safe-area-inset-top))}
+}
 @media print{
-  aside,.barra-mobile,.nastro,.avviso,.testata,.spiega,.azioni,.torna,.guida{display:none!important}
+  aside,.barra-mobile,.nastro,.chiedi,.velo-chat,.avviso,.testata,.spiega,.azioni,.torna,.guida{display:none!important}
   body{background:#fff;font-size:12pt}
   .contenuto{padding:0;max-width:none}
   .foglio{border:0;box-shadow:none;padding:0;max-width:none}
@@ -955,6 +993,7 @@ async function avvia(){
   controllaIngresso();     /* se il controllo e' spento non si vede niente */
   guardaILink();           /* chi ha aperto o accettato un preventivo col link */
   copiaFraPoco();          /* la copia al sicuro, se si e' entrati con la mail */
+  preparaChat();           /* il tasto «Chiedi»: l'assistente col manuale dell'app */
   if(linkPassword) schedaNuovaPassword(linkPassword);
 }
 /* Servita dal server del rilievo, l'app ha un indirizzo fisso, si mette sul telefono come
@@ -998,7 +1037,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 01:00';
+const COSTRUITA = '2026-10-04 01:13';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -11517,6 +11556,12 @@ function testoPrivacy(){
         il nome che scrive, il giorno, l&rsquo;ora e l&rsquo;indirizzo di rete da cui accetta. Cancellando il
         preventivo, il link smette di funzionare.</li>
       <li><b>WhatsApp e mail.</b> Quando mandi un preventivo, lo mandi tu dalla tua app: noi non lo vediamo.</li>
+      <li><b>L&rsquo;assistente.</b> Se tocchi &laquo;Chiedi&raquo;, la tua domanda, le ultime domande e risposte
+        di quella conversazione e il nome della pagina dove sei passano dal nostro server ad Anthropic
+        (Stati Uniti), che scrive la risposta con il suo programma Claude. Anthropic, con i clienti come noi,
+        non usa questi testi per addestrare i suoi programmi e li tiene solo per poco tempo. Noi le domande
+        non le salviamo: teniamo solo il conto di quante ne fai nel mese, per il limite. La conversazione resta
+        su questo telefono e sparisce quando chiudi l&rsquo;app. Non scriverci dati dei clienti: non servono.</li>
     </ul>
 
     <h3>I dati dei tuoi clienti</h3>
@@ -11532,7 +11577,7 @@ function testoPrivacy(){
       all&rsquo;indirizzo sopra. Se pensi che i tuoi dati siano trattati male puoi rivolgerti al Garante
       per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
 
-    <p class="aggiornata">Aggiornata il 3 ottobre 2026.</p>
+    <p class="aggiornata">Aggiornata il 4 ottobre 2026.</p>
   </div>`;
 }
 /* in sovrimpressione: si apre anche dalla porta d'ingresso, che copre le pagine */
@@ -11653,6 +11698,150 @@ function chiediRicomincia(){
    Il server tiene il conto delle versioni: se un altro telefono ha salvato dopo,
    questa copia non lo schiaccia, si chiede alla persona cosa tenere.
    ===================================================================== */
+/* =====================================================================
+   L'ASSISTENTE IN CHAT (4 ottobre 2026)
+   Andrea: un assistente dentro l'app che conosce il manuale e risponde a «come
+   faccio a...». Le risposte le scrive il server (rotta /assistente) chiedendole ad
+   Anthropic: la chiave sta solo li'. Tetto: 300 domande al mese con l'accesso,
+   20 senza. La conversazione resta su questo telefono e sparisce chiudendo l'app;
+   sul server non si salva nessuna domanda.
+   ===================================================================== */
+const CHIAVE_CHAT = 'rilievo-chat';
+const ESEMPI_CHAT = ['Come mando un preventivo su WhatsApp?', 'Come faccio la fattura elettronica?',
+  'Come metto i miei prezzi nel listino?'];
+let chatStoria = [], chatInViaggio = false, chatConto = null;
+function telefonoChat(){
+  try{
+    let t = localStorage.getItem('rilievo-telefono-chat');
+    if(!t){ t = 't' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+            localStorage.setItem('rilievo-telefono-chat', t); }
+    return t;
+  }catch(e){ return ''; }
+}
+function leggiChat(){
+  try{ const c = JSON.parse(sessionStorage.getItem(CHIAVE_CHAT) || '[]'); chatStoria = Array.isArray(c) ? c.slice(-30) : []; }
+  catch(e){ chatStoria = []; }
+}
+function salvaChat(){ try{ sessionStorage.setItem(CHIAVE_CHAT, JSON.stringify(chatStoria.slice(-30))); }catch(e){} }
+function preparaChat(){
+  if(document.getElementById('tasto-chiedi')) return;
+  leggiChat();
+  const b = document.createElement('button');
+  b.className = 'chiedi'; b.id = 'tasto-chiedi'; b.type = 'button';
+  b.setAttribute('aria-label', 'Chiedi all\'assistente');
+  b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M9.5 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.7-.9 1.3M12 14.6v.1"/></svg>Chiedi';
+  b.onclick = apriChat;
+  document.body.appendChild(b);
+}
+/* la pagina dove si trova adesso, per aiutare l'assistente a capire «qui» */
+const paginaAdesso = () => ((location.hash || '#oggi').slice(1).split('/')[0] || 'oggi');
+/* le pagine che l'assistente puo' proporre: solo quelle che esistono davvero */
+const paginaVera = n => !!PAGINE[n];
+/* Il testo dell'assistente, reso sicuro: prima si toglie ogni segno di HTML, poi
+   l'indirizzo (#pagina) diventa il tasto «Portami lì». */
+function testoChat(t){
+  let dove = '';
+  const pulito = String(t || '').replace(/\s*\(?#([a-z][a-z-]{1,20})\)?/g, (tutto, n) => {
+    if(!paginaVera(n)) return tutto;
+    if(!dove) dove = n;
+    return '';
+  }).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return {html: esc(pulito).replace(/\*\*(.+?)\*\*/g, '$1').replace(/\n/g, '<br>'), dove};
+}
+function disegnaChat(){
+  const fila = document.getElementById('chat-fila');
+  if(!fila) return;
+  const conto = document.getElementById('chat-conto');
+  if(conto) conto.textContent = chatConto && chatConto.tetto
+    ? (chatConto.restano === 1 ? 'Ti resta 1 domanda questo mese' : 'Ti restano ' + chatConto.restano + ' domande questo mese')
+    : 'Conosce l\'app da cima a fondo';
+  let h = '';
+  if(!chatStoria.length){
+    h += '<div class="msg lui">Ciao! Chiedimi come si fa una cosa in Rilievo e ti dico i passi, uno per uno.</div>' +
+         '<div class="esempi">' + ESEMPI_CHAT.map((e, i) => `<button type="button" data-esempio="${i}">${esc(e)}</button>`).join('') + '</div>';
+  }
+  chatStoria.forEach((m, i) => {
+    if(m.ruolo === 'io'){ h += `<div class="msg io">${esc(m.testo).replace(/\n/g, '<br>')}</div>`; return; }
+    if(m.errore){ h += `<div class="msg lui errore">${esc(m.testo)}</div>`; return; }
+    const t = testoChat(m.testo);
+    h += `<div class="msg lui">${t.html}` +
+      (t.dove ? `<div class="portami"><button class="bottone vuoto piccolo" data-portami="${esc(t.dove)}">Portami lì</button></div>` : '') +
+      '</div>';
+  });
+  if(chatInViaggio) h += '<div class="msg lui pensa">Sto guardando nel manuale…</div>';
+  fila.innerHTML = h;
+  fila.querySelectorAll('[data-esempio]').forEach(b => b.onclick = () => chiediAllAssistente(ESEMPI_CHAT[+b.dataset.esempio]));
+  fila.querySelectorAll('[data-portami]').forEach(b => b.onclick = () => {
+    chiudiChat(); location.hash = '#' + b.dataset.portami;
+  });
+  fila.scrollTop = fila.scrollHeight;
+}
+function apriChat(){
+  if(document.getElementById('velo-chat')) return;
+  const v = document.createElement('div');
+  v.className = 'velo-chat'; v.id = 'velo-chat';
+  v.innerHTML = '<div class="chat" role="dialog" aria-label="L\'assistente di Rilievo">' +
+    '<div class="testa"><div><h3>L\'assistente</h3><span class="lbl" id="chat-conto"></span></div>' +
+    '<button class="chiudi" type="button" aria-label="Chiudi" id="chat-chiudi">×</button></div>' +
+    '<div class="fila" id="chat-fila"></div>' +
+    '<form class="scrivi" id="chat-scrivi"><textarea id="chat-domanda" rows="1" maxlength="1200" placeholder="Scrivi la tua domanda"></textarea>' +
+    '<button class="bottone piccolo" type="submit">Chiedi</button></form></div>';
+  document.body.appendChild(v);
+  v.addEventListener('click', e => { if(e.target === v) chiudiChat(); });
+  v.querySelector('#chat-chiudi').onclick = chiudiChat;
+  const area = v.querySelector('#chat-domanda');
+  area.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); v.querySelector('#chat-scrivi').requestSubmit ? v.querySelector('#chat-scrivi').requestSubmit() : mandaDomandaChat(); } });
+  v.querySelector('#chat-scrivi').addEventListener('submit', e => { e.preventDefault(); mandaDomandaChat(); });
+  disegnaChat();
+  contoChat();
+  if(!(typeof matchMedia === 'function' && matchMedia('(max-width:900px)').matches)) area.focus();
+}
+function chiudiChat(){ const v = document.getElementById('velo-chat'); if(v) v.remove(); }
+function mandaDomandaChat(){
+  const a = document.getElementById('chat-domanda');
+  if(!a) return;
+  const d = a.value.trim();
+  if(!d || chatInViaggio) return;
+  a.value = '';
+  chiediAllAssistente(d);
+}
+function corpoChat(extra){
+  const c = statoCopia();
+  return Object.assign({telefono: telefonoChat(), mail: c.gettone ? c.mail : '', gettone: c.gettone || ''}, extra);
+}
+async function contoChat(){
+  if(typeof fetch !== 'function') return;
+  try{
+    const r = await chiamaServer('/assistente', corpoChat({solo_conto: true}));
+    if(r.ok && typeof r.d.restano === 'number'){ chatConto = r.d; disegnaChat(); }
+  }catch(e){}
+}
+async function chiediAllAssistente(domanda){
+  domanda = String(domanda || '').trim().slice(0, 1200);
+  if(!domanda || chatInViaggio) return;
+  const prima = chatStoria.filter(m => !m.errore).slice(-12);
+  chatStoria.push({ruolo: 'io', testo: domanda});
+  chatInViaggio = true; salvaChat(); disegnaChat();
+  let risposta;
+  try{
+    const r = typeof fetch === 'function'
+      ? await chiamaServer('/assistente', corpoChat({domanda, pagina: paginaAdesso(),
+          storia: prima.map(m => ({ruolo: m.ruolo === 'io' ? 'io' : 'assistente', testo: m.testo}))}))
+      : {ok: false, d: {}};
+    if(r.ok && r.d.risposta){
+      risposta = {ruolo: 'assistente', testo: r.d.risposta};
+      if(typeof r.d.restano === 'number') chatConto = {restano: r.d.restano, tetto: r.d.tetto};
+    } else {
+      risposta = {ruolo: 'assistente', errore: true, testo: (r.d && r.d.errore) || nonRaggiungo};
+      if(r.d && r.d.finite) chatConto = {restano: 0, tetto: r.d.tetto};
+    }
+  }catch(e){
+    risposta = {ruolo: 'assistente', errore: true, testo: nonRaggiungo};
+  }
+  chatInViaggio = false;
+  chatStoria.push(risposta); salvaChat(); disegnaChat();
+}
+
 const CHIAVE_COPIA = 'rilievo-accesso-2026-10';
 function statoCopia(){
   try{ const c = JSON.parse(localStorage.getItem(CHIAVE_COPIA) || 'null');
