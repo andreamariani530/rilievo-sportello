@@ -2851,6 +2851,14 @@ def servizio(porta=8787, pubblico=False):
             if u.path == "/fattura/stato":
                 self._fattura_stato(q)
                 return
+            # il link dell'informativa da mettere nei messaggi: porta all'app,
+            # che apre «Come trattiamo i dati» anche sopra la porta d'ingresso
+            if u.path in ("/privacy", "/privacy/"):
+                self.send_response(302)
+                self.send_header("Location", "/#privacy")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             # l'applicazione stessa, se c'e' la cartella app/: cosi' ha un indirizzo
             # fisso e si installa sul telefono, e si apre anche senza rete
             if u.path in STATICI and (APP / STATICI[u.path][0]).is_file():

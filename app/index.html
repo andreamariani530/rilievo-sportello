@@ -948,6 +948,7 @@ async function avvia(){
   ascoltaIlTiro();
   vai();
   if(primaVolta()) apriPorta();
+  privacyDalLink();
   vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
   controllaIngresso();     /* se il controllo e' spento non si vede niente */
 }
@@ -992,7 +993,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-02 21:30';
+const COSTRUITA = '2026-10-03 02:04';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -11243,6 +11244,11 @@ function apriPrivacy(){
     </div>`;
   document.body.appendChild(velo);
   velo.querySelector('#privacy-chiudi').onclick = () => velo.remove();
+}
+/* il link /privacy (o /#privacy) nei messaggi arriva anche a chi apre l'app la prima
+   volta: la porta d'ingresso coprirebbe la pagina, quindi l'informativa va sopra */
+function privacyDalLink(){
+  if(location.hash === '#privacy' && document.querySelector('.velo-porta')) apriPrivacy();
 }
 PAGINE.privacy = {
   guida:false, voce:'#impostazioni',
