@@ -952,6 +952,8 @@ async function avvia(){
   privacyDalLink();
   vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
   controllaIngresso();     /* se il controllo e' spento non si vede niente */
+  guardaILink();           /* chi ha aperto o accettato un preventivo col link */
+  copiaFraPoco();          /* la prima copia al sicuro, anche per chi c'era gia' */
 }
 /* Servita dal server del rilievo, l'app ha un indirizzo fisso, si mette sul telefono come
    un'icona e si apre anche senza rete (sw.js tiene una copia). Sulla pagina pubblicata
@@ -994,7 +996,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-03 20:14';
+const COSTRUITA = '2026-10-03 20:43';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1129,7 +1131,7 @@ function ancoraLaDimostrazione(d){
 function salva(){
   try{ if(S && Array.isArray(S.sopralluoghi) && Array.isArray(S.preventivi))
          S.sopralluoghi.forEach(s => { s.stato = statoSopralluogo(s); }); }catch(e){}
-  try{ localStorage.setItem(CHIAVE, JSON.stringify(S)); return true; }catch(e){ return false; }
+  try{ localStorage.setItem(CHIAVE, JSON.stringify(S)); copiaFraPoco(); return true; }catch(e){ return false; }
 }
 function ricomincia(){
   try{ localStorage.removeItem(CHIAVE); }catch(e){}
@@ -1186,9 +1188,12 @@ function apriPorta(){
           <span class="porta-via">Metto i miei dati &rarr;</span>
         </button>
       </div>
-      <p class="porta-piede">Quello che scrivi resta su questo dispositivo. Esce solo l&rsquo;indirizzo,
-        quando chiedi il rilievo, per trovare foto e confini. Da Impostazioni te lo porti via in un file
-        quando vuoi. <a href="#privacy" onclick="apriPrivacy();return false">Come trattiamo i dati</a></p>
+      <p class="porta-piede" style="margin-bottom:6px">Hai gi&agrave; Rilievo su un altro telefono?
+        <a href="#" onclick="schedaRiprendi();return false">Riprendi il tuo lavoro</a></p>
+      <p class="porta-piede">Quello che scrivi resta su questo dispositivo, e in una copia al sicuro chiusa
+        con una chiave che ha solo il tuo telefono: noi non la possiamo leggere. Esce in chiaro solo
+        l&rsquo;indirizzo, quando chiedi il rilievo, e il preventivo che scegli di mandare col link.
+        <a href="#privacy" onclick="apriPrivacy();return false">Come trattiamo i dati</a></p>
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('porta-aperta');
@@ -2647,6 +2652,7 @@ function schedaPreventivo(id, idCliente){
       location.hash = '#preventivo/' + nuovo.id;
     },
     elimina: p ? () => {
+      ritiraLink(p);       /* il cliente non deve poter accettare un preventivo cancellato */
       S.sopralluoghi.forEach(s => { if(s.preventivo === id){ s.preventivo = null; s.stato = statoSopralluogo(s); } });
       S.preventivi = S.preventivi.filter(x => x.id !== id);
     } : null,
@@ -3685,7 +3691,7 @@ PAGINE.oggi = {
                         .sort((a,b) => giorniDa(b.data) - giorniDa(a.data));
     /* matteo 8: la scheda di un preventivo messo via promette «non conta nei numeri».
        Vale anche per questi, se no l'app si smentisce da sola la mattina dopo. */
-    const settimana  = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via'
+    const settimana  = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via' && !soloFattura(p)
                                              && giorniDa(p.data) <= 7 && giorniDa(p.data) >= 0);
     const fatti      = settimana.reduce((t,p) => t + conti(p).netto, 0);
     const chiusi     = settimana.filter(preso).reduce((t,p) => t + conti(p).netto, 0);
@@ -8328,7 +8334,7 @@ function confermaFattura(id){
     const c = contiFattura(d), cp = conti(p), cl = cliente(p.cliente);
     scheda({
       titolo: (prova ? 'Fattura di prova n. ' : 'Fattura n. ') + numero,
-      sotto: 'A ' + cl.nome + ', per il lavoro del preventivo n. ' + p.numero + '.',
+      sotto: 'A ' + cl.nome + ', ' + perIlLavoro(p) + '.',
       extra: `<div class="conferma-fattura">
         ${prova ? '<div class="di-prova">Di prova · non mandata allo Stato</div>' : ''}
         ${c.basi.map(x => `<div class="riga-tot"><span>${c.forf ? 'Imponibile' : 'Imponibile al ' + cifra(x.aliquota) + '%'}</span><span>${euro(x.base)}</span></div>` +
@@ -8541,7 +8547,7 @@ function corpoFattura(id){
         <div class="lbl">Note</div>
         ${c.forf ? `<p>${esc(FRANCHIGIA_FORFETTARI)}.</p>` : ''}
         ${c.bollo ? '<p>Imposta di bollo da 2 euro assolta in modo virtuale.</p>' : ''}
-        <p>Per il lavoro del preventivo n. ${esc(p.numero)} del ${dataLunga(p.data)}.</p>
+        <p>${esc(perIlLavoro(p, true))}.</p>
       </div>
       <div class="piede">${f.prova ? 'Copia di una fattura di prova: non è stata mandata allo Stato e non vale come fattura.'
         : 'Copia di cortesia. La fattura vera è quella elettronica: il cliente la trova anche nella sua area dell\'Agenzia delle Entrate.'}</div>
@@ -9291,7 +9297,7 @@ PAGINE.preventivi = {
       .slice().sort((a,b) => (a.data < b.data ? 1 : -1));
     /* com'e' andata: quanti ne prendi fra quelli consegnati, e perche' perdi gli altri */
     /* uno messo via non dice niente su come vanno le trattative: sta fuori dai conti */
-    const consegnati = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via');
+    const consegnati = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via' && !soloFattura(p));
     const presi = consegnati.filter(preso);
     const daIncassare = consegnati.filter(p => p.stato === 'accettato')
       .reduce((t,p) => t + conti(p).totale, 0);
@@ -9401,7 +9407,9 @@ PAGINE.preventivo = {
           p.stato === 'messo_via' ? 'Messo via: resta nel cassetto ma non ti gira piu\u2019 fra i piedi, e non conta nei numeri. Riprendilo quando vuoi.'
           : p.stato === 'pagato' ? 'Pagato' + (p.pagato && p.pagato.quando ? ' il ' + dataLunga(p.pagato.quando) : '') + '. Questo è chiuso: il lavoro fatto e i soldi incassati.'
           : lavoroFinito(p) ? 'Lavoro finito il ' + dataLunga(p.lavoro_fatto.quando) + '. ' + (p.stato === 'pagato' ? 'Chiuso: fatto e incassato.' : 'Resta da incassare.')
-          : p.stato === 'accettato' ? (p.firma ? 'Firmato da ' + esc(p.firma.nome) + ' il ' + dataLunga(p.firma.quando) + '. Il lavoro è tuo.' : 'Accettato. Il lavoro è tuo.')
+          : p.stato === 'accettato' ? (p.firma ? 'Firmato da ' + esc(p.firma.nome) + ' il ' + dataLunga(p.firma.quando) + '. Il lavoro è tuo.'
+              : p.link && p.link.accettato ? 'Accettato dal link da ' + esc(p.link.accettato.nome) + ', ' + esc(quandoOra(p.link.accettato.quando)) + '. Il lavoro è tuo.'
+              : 'Accettato. Il lavoro è tuo.')
           : p.stato === 'rifiutato' ? 'Non è andata' + (p.motivo ? ': ' + esc(((MOTIVI_NO.find(x => x[0] === p.motivo) || [0, ''])[1]).toLowerCase()) : '') + '. Resta nel cassetto: se il cliente ci ripensa, lo rifai uguale con un tocco.'
           : p.stato === 'inviato' ? 'Consegnato ' + quando(p.data) + (p.consegna ? ' (' + esc(p.consegna.come) + ')' : '') + '. Se non risponde, risentilo: il messaggio è già scritto.'
           : 'Esce un documento ordinato con il tuo nome, i tuoi dati e le voci come le avete decise insieme.'}</p>
@@ -9431,6 +9439,7 @@ PAGINE.preventivo = {
         <div style="margin-top:18px;border-top:1px solid var(--filetto);padding-top:14px">
           <div class="riga-tot"><span>Stato</span><span>${tagPreventivo(p)}</span></div>
           <div class="riga-tot"><span>Data</span><span>${dataCorta(p.data)}</span></div>
+          ${rigaLink(p)}
           ${(p.solleciti || []).length ? `<div class="riga-tot"><span>Risentito</span><span>${p.solleciti.length === 1 ? 'una volta' : p.solleciti.length + ' volte'}, l'ultima ${quando(p.solleciti[p.solleciti.length - 1])}</span></div>` : ''}
           ${p.cliente ? `<div class="riga-tot"><span>Cliente</span><a href="#cliente/${p.cliente}" style="color:var(--accento)">in rubrica</a></div>` : ''}
           ${misureGiardino(giardino && giardino.ril).length
@@ -9606,7 +9615,7 @@ PAGINE.listino = {
 };
 
 /* ===== CLIENTI ===== */
-function lavoriDi(idCliente){ return S.preventivi.filter(p => p.cliente === idCliente); }
+function lavoriDi(idCliente){ return S.preventivi.filter(p => p.cliente === idCliente && !soloFattura(p)); }
 let filtroClienti = 'tutti';
 function statoCliente(c){
   const l = lavoriDi(c.id), ultimo = l.map(p => p.data).sort().slice(-1)[0];
@@ -9748,7 +9757,7 @@ PAGINE.numeri = {
   testata(){ return {occhiello:'Come sta andando davvero', titolo:'I tuoi numeri'}; },
   corpo(){
     const anno = String(S.oggi).slice(0, 4);
-    const consegnati = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via');
+    const consegnati = S.preventivi.filter(p => p.stato !== 'bozza' && p.stato !== 'messo_via' && !soloFattura(p));
     const presi   = consegnati.filter(preso);
     const pagati  = consegnati.filter(p => p.stato === 'pagato');
     const attesa  = consegnati.filter(p => p.stato === 'inviato');
@@ -9855,7 +9864,7 @@ PAGINE.numeri = {
    le carte che arrivano da fuori: i preventivi di prima, i rapportini, i
    resoconti, i file caricati. */
 function cassetto(){
-  const daiPreventivi = S.preventivi.filter(preventivoChiuso).map(p => ({
+  const daiPreventivi = S.preventivi.filter(p => preventivoChiuso(p) && !soloFattura(p)).map(p => ({
     id: p.id, apribile: true, tipo: 'Lavoro chiuso', chiuso: true,
     titolo: 'Preventivo · ' + p.nome, data: p.data, stato: p.stato, finito: true,
     nota: 'n. ' + p.numero + ' · ' + euro(conti(p).netto) + ' · incassato'
@@ -9928,7 +9937,7 @@ PAGINE.documenti = {
           <div class="sub">${dataLunga(d.data)}${d.nota ? ' · ' + esc(d.nota) : ''}</div></div>
         <div class="riga-azione">
           ${etichettaDocumento(d)}
-          ${d.chiuso ? tastoFatturaRiga(prev(d.id)) : ''}
+          ${d.chiuso ? tastoFatturaRiga(prev(d.id)) : tastoFatturaDocumento(d)}
           ${comandi([{t:'Modifica o cancella', i:MATITA,
              f: d.apribile ? `schedaPreventivo('${d.id}')` : `schedaDocumento('${d.id}')`}])}
         </div>
@@ -10355,7 +10364,7 @@ function consegnaPreventivo(id){
   scheda({
     titolo: 'Come glielo consegni?',
     sotto: 'Il preventivo passa fra quelli che aspettano una risposta e il cliente entra in rubrica.',
-    extra: bloccoPdf(p.id) + vieConsegna(testoPreventivo(p), cl, 'Preventivo n. ' + p.numero + ' · ' + S.azienda.nome, `inviaPreventivo('${p.id}','__COME__')`),
+    extra: bloccoLink(p.id) + bloccoPdf(p.id) + vieConsegna(testoPreventivo(p), cl, 'Preventivo n. ' + p.numero + ' · ' + S.azienda.nome, `inviaPreventivo('${p.id}','__COME__')`),
     campi: [],
     testoSalva: 'Gliel\'ho dato a mano',
     salva: () => inviaPreventivo(p.id, 'a mano')
@@ -10397,6 +10406,80 @@ function tastoFatturaRiga(p){
   if(p.fattura && p.fattura.file)
     return `<a href="#fattura/${p.id}" onclick="event.stopPropagation()" style="text-decoration:none">${tagFattura(p.fattura)}</a>`;
   return `<button class="bottone vuoto piccolo" onclick="event.stopPropagation();fatturaDi('${p.id}')">${p.fattura ? 'Manda la fattura' : 'Fai la fattura'}</button>`;
+}
+
+/* ---- la fattura da qualsiasi documento ----
+   Andrea, 3 ottobre 2026, dopo il tasto in cima: «non intendevo cosi', ogni
+   documento, di fianco allo stato firmato o archiviato, deve avere la possibilita'
+   di fare la fattura». Un rapportino firmato o un resoconto non hanno righe di
+   preventivo: la fattura nasce dal documento stesso (cliente, cosa, quanto), gia'
+   scritti e da controllare. Sotto c'e' un preventivo nascosto, gia' fatto e pagato,
+   perche' tutto il giro della fattura (dati, numero, invio, stato) lavora su quello;
+   `dal_documento` lo tiene fuori dagli elenchi e dai numeri dei preventivi. */
+const soloFattura = p => !!(p && p.dal_documento);
+function perIlLavoro(p, maiuscola){
+  const d = soloFattura(p) ? S.documenti.find(x => x.id === p.dal_documento) : null;
+  const t = soloFattura(p)
+    ? 'per ' + (d ? String(d.titolo || 'il documento') : 'il lavoro') + (d && d.data ? ' del ' + dataLunga(d.data) : '')
+    : 'per il lavoro del preventivo n. ' + p.numero + ' del ' + dataLunga(p.data);
+  return maiuscola ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+function tastoFatturaDocumento(d){
+  const p = d && d.fattura_di ? prev(d.fattura_di) : null;
+  if(p) return tastoFatturaRiga(p);
+  return `<button class="bottone vuoto piccolo" onclick="event.stopPropagation();fatturaDaDocumento('${d.id}')">Fai la fattura</button>`;
+}
+/* cosa c'e' scritto nel documento, senza il «Rapportino · » davanti */
+function cosaDelDocumento(d){
+  const t = String(d.titolo || '').split('·').map(x => x.trim()).filter(Boolean);
+  const nota = String(d.nota || '').trim().replace(/[.;,\s]+$/, '');
+  return nota || (t.length > 1 ? t.slice(1).join(' · ') : t[0] || '');
+}
+function fatturaDaDocumento(id){
+  const d = S.documenti.find(x => x.id === id); if(!d) return;
+  accendiFattura();
+  const gia = d.fattura_di ? prev(d.fattura_di) : null;
+  if(gia && gia.fattura){ fatturaDi(gia.id); return; }
+  /* lasciata a meta' prima di avere un numero: si riapre il modulo con quello che
+     c'era scritto, cosi' si corregge invece di restare bloccati sul primo tentativo */
+  const r0 = gia && gia.righe[0];
+  if(gia){ S.preventivi = S.preventivi.filter(x => x.id !== gia.id); delete d.fattura_di; }
+  const aliquota = r0 ? r0.iva : (Number(S.azienda.iva) || 0);
+  scheda({
+    titolo: 'La fattura di questo documento',
+    sotto: d.titolo + (d.data ? ' · ' + dataLunga(d.data) : '') + '. Controlla e vai avanti: i dati per la fattura te li chiedo dopo, solo se mancano.',
+    valori: {cliente: (gia && gia.cliente) || d.cliente || '', cosa: r0 ? r0.nome : cosaDelDocumento(d),
+             importo: r0 ? r0.p : (typeof d.importo === 'number' ? d.importo : null), iva: aliquota},
+    campi: [
+      {k:'cliente', l:'A chi', t:'scelta', opzioni:[['','— scegli —']].concat(S.clienti.map(c => [c.id, c.nome]))},
+      {k:'cliente_nuovo', l:'Oppure un cliente nuovo', p:'Nome e cognome'},
+      {k:'cosa', l:'Cosa scrivo in fattura', t:'lungo', p:'Es. Sfalcio del parco ovest'},
+      {k:'importo', l:'Quanto, senza IVA (€)', t:'numero', facoltativo:true, p:'Es. 350'},
+      {k:'iva', l:'IVA (%)', t:'numero', p:String(aliquota)}
+    ],
+    controlla: v => !v.cliente && !v.cliente_nuovo ? 'Scegli il cliente, o scrivi il nome di uno nuovo.'
+      : !v.cosa ? 'Scrivi cosa va in fattura.'
+      : !(v.importo > 0) ? 'Scrivi quanto, in euro, senza IVA.'
+      : !(v.iva >= 0 && v.iva <= 30) ? 'L\'IVA è un numero fra 0 e 30.' : null,
+    testoSalva: 'Fai la fattura',
+    salva: v => {
+      let cl = v.cliente ? cliente(v.cliente) : null;
+      if(v.cliente_nuovo){
+        const nome = v.cliente_nuovo;
+        cl = S.clienti.find(c => String(c.nome || '').trim().toLowerCase() === nome.toLowerCase()) || null;
+        if(!cl){ cl = {id:nuovoId('c'), nome, tel:'', mail:'', indirizzo:'', luogo:'', note:'', dal:S.oggi}; S.clienti.push(cl); }
+      }
+      const iva = cent(v.iva);
+      const p = {id: nuovoId('p'), numero: d.titolo || 'Documento', cliente: cl.id, nome: cl.nome,
+        luogo: cl.luogo || cl.indirizzo || '', data: d.data || S.oggi, stato: 'pagato', sconto: 0, iva,
+        pagato: {quando: S.oggi}, lavoro_fatto: {quando: d.data || S.oggi}, note: '', dal_documento: d.id,
+        righe: [{v: null, nome: v.cosa, u: A_CORPO, q: 1, p: cent(v.importo), on: true, iva}]};
+      S.preventivi.push(p);
+      d.fattura_di = p.id; d.cliente = cl.id;
+      if(typeof d.importo !== 'number') d.importo = cent(v.importo);
+    },
+    dopo: () => fatturaDi(d.fattura_di)
+  });
 }
 function fatturaDi(id){
   accendiFattura(); chiudiScheda();
@@ -11380,18 +11463,22 @@ function testoPrivacy(){
   return `<div class="privacy">
     <h3>In breve</h3>
     <p>Quello che scrivi in Rilievo resta <b>sul tuo telefono</b>: la ditta, i clienti, i preventivi,
-      le foto, il listino. Noi non lo vediamo. Dal telefono esce solo <b>l&rsquo;indirizzo del giardino</b>,
-      quando chiedi il rilievo, per trovare la foto dall&rsquo;alto e i confini del catasto.
+      le foto, il listino. La copia al sicuro parte <b>chiusa a chiave</b> dal telefono: noi non la
+      possiamo leggere. In chiaro escono solo <b>l&rsquo;indirizzo del giardino</b>, quando chiedi il
+      rilievo, e <b>il preventivo che mandi col link</b>, perch&eacute; il tuo cliente lo possa aprire.
       Niente pubblicit&agrave;, niente statistiche su di te, nessun dato venduto.</p>
 
     <h3>Chi risponde dei dati</h3>
     <p>Rilievo &egrave; in prova gratuita e lo costruisce Andrea Mariani, come persona privata.
       Per qualunque domanda sui dati: <a href="mailto:andreamariani530a@gmail.com">andreamariani530a@gmail.com</a>.</p>
 
-    <h3>Cosa resta sul telefono</h3>
-    <p>Tutto il tuo lavoro sta nella memoria del browser di questo dispositivo. Non passa dal
-      nostro server. Se cancelli i dati del sito dal browser, sparisce: per tenerne una copia
-      usa &laquo;Il tuo lavoro, in un file&raquo; in Impostazioni.</p>
+    <h3>Cosa resta sul telefono, e la copia al sicuro</h3>
+    <p>Tutto il tuo lavoro sta nella memoria del browser di questo dispositivo. Se lavori con la tua ditta,
+      il telefono ne manda anche una <b>copia al sicuro</b> al nostro server, poco dopo ogni modifica.
+      Prima di partire la chiude con una chiave che si crea il tuo telefono e che non arriva mai a noi
+      (cifratura AES-GCM): sul server c&rsquo;&egrave; un pacchetto che nessuno, noi compresi, pu&ograve; aprire.
+      Con la chiave ritrovi il lavoro su un altro telefono. Senza la chiave la copia non si apre pi&ugrave;.
+      La copia si spegne da Impostazioni, e per farla cancellare basta una mail.</p>
 
     <h3>Cosa passa dal nostro server, e perch&eacute;</h3>
     <ul>
@@ -11411,6 +11498,11 @@ function testoPrivacy(){
       <li><b>La squadra.</b> Con un codice di ditta, i lavori condivisi si salvano sul nostro server,
         per farli vedere ai tuoi colleghi. In questa fase di prova possono azzerarsi a ogni aggiornamento.</li>
       <li><b>La fattura di prova.</b> Se la provi, i dati della fattura passano dal servizio di prova di Openapi.</li>
+      <li><b>Il preventivo col link.</b> Se scegli di mandarlo col link, quel preventivo (con il nome e
+        l&rsquo;indirizzo del cliente, le voci e il totale) resta sul nostro server per 180 giorni, perch&eacute;
+        il cliente lo possa aprire. Chi ha il link lo pu&ograve; leggere. Se il cliente lo accetta, si segnano
+        il nome che scrive, il giorno, l&rsquo;ora e l&rsquo;indirizzo di rete da cui accetta. Cancellando il
+        preventivo, il link smette di funzionare.</li>
       <li><b>WhatsApp e mail.</b> Quando mandi un preventivo, lo mandi tu dalla tua app: noi non lo vediamo.</li>
     </ul>
 
@@ -11427,7 +11519,7 @@ function testoPrivacy(){
       all&rsquo;indirizzo sopra. Se pensi che i tuoi dati siano trattati male puoi rivolgerti al Garante
       per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
 
-    <p class="aggiornata">Aggiornata il 2 ottobre 2026.</p>
+    <p class="aggiornata">Aggiornata il 3 ottobre 2026.</p>
   </div>`;
 }
 /* in sovrimpressione: si apre anche dalla porta d'ingresso, che copre le pagine */
@@ -11504,6 +11596,7 @@ PAGINE.impostazioni = {
       <div>
         ${riquadroMestiere()}
         ${riquadroFattura()}
+        ${riquadroCopia()}
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il tuo lavoro, in un file</div>
           <p style="font-size:16px;color:var(--soft)">Quello che fai resta su questo dispositivo, anche se chiudi la pagina (<a href="#privacy" style="color:var(--accento)">come trattiamo i dati</a>). Il file serve a portartelo via: su un altro telefono, sul computer, o per rimandarmelo se c'è da metterci mano.</p>
@@ -11530,6 +11623,344 @@ PAGINE.impostazioni = {
 function chiediRicomincia(){
   chiedi('Butto via tutto quello che hai fatto e torni alla schermata di partenza, quella dove scegli fra la dimostrazione e la tua ditta. Se ti serve, esporta prima il file.', tornaAllaScelta);
 }
+
+/* =====================================================================
+   LA COPIA AL SICURO
+   Andrea, 3 ottobre 2026: «portiamoci in pari con Klivo, partendo dalle cose
+   urgenti». La prima: fino a oggi il lavoro stava solo su questo telefono, e
+   un telefono perso era un anno di preventivi perso.
+
+   Poco dopo ogni salvataggio il telefono manda una copia di tutto al server.
+   Prima di partire la CHIUDE A CHIAVE (AES-GCM) con una chiave che si inventa
+   lui la prima volta e che non lascia mai il telefono. Al server arrivano solo
+   un nome (un'impronta della chiave) e un pacchetto illeggibile: noi non vediamo
+   ne' clienti ne' prezzi, e l'informativa resta vera.
+   Su un altro telefono si scrive la chiave e il lavoro torna.
+   Il rovescio, detto chiaro anche nell'app: chiave persa, copia persa.
+   Il server tiene il conto delle versioni: se un altro telefono ha salvato dopo,
+   questa copia non lo schiaccia, si chiede alla persona cosa tenere.
+   ===================================================================== */
+const CHIAVE_COPIA = 'rilievo-copia-2026-10';
+const ALFABETO_COPIA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function statoCopia(){
+  try{ const c = JSON.parse(localStorage.getItem(CHIAVE_COPIA) || 'null');
+       return (c && typeof c === 'object') ? c : {}; }catch(e){ return {}; }
+}
+function segnaCopia(cambi){
+  const c = Object.assign(statoCopia(), cambi);
+  try{ localStorage.setItem(CHIAVE_COPIA, JSON.stringify(c)); }catch(e){}
+  return c;
+}
+const chiaveScritta = k => String(k || '').replace(/(.{4})(?=.)/g, '$1-');
+const chiavePulita = k => { const c = String(k || '').toUpperCase().replace(/[\s\-]/g, '')
+  .replace(/0/g, 'O').replace(/1/g, 'I');   // chi ricopia a mano scambia lo zero con la O
+  return c.length === 16 && [...c].every(x => ALFABETO_COPIA.includes(x)) ? c : ''; };
+function nuovaChiaveCopia(){
+  const b = new Uint8Array(16); crypto.getRandomValues(b);
+  return [...b].map(x => ALFABETO_COPIA[x % 32]).join('');
+}
+const cifraOk = () => typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined';
+const aEsa = buf => [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+function aB64(buf){ let s = ''; const u = new Uint8Array(buf);
+  for(let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(s); }
+const daB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+/* dalla chiave, due cose diverse: il nome della copia (lo vede il server) e la
+   chiave che chiude il pacchetto (non esce mai di qui) */
+async function nomeCopia(k){
+  return aEsa(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('rilievo-id:' + k)));
+}
+async function serraturaCopia(k){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(k), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt:new TextEncoder().encode('rilievo-copia-2026'), iterations:150000, hash:'SHA-256'},
+    base, {name:'AES-GCM', length:256}, false, ['encrypt', 'decrypt']);
+}
+async function chiudiLavoro(k, stato){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const dentro = await crypto.subtle.encrypt({name:'AES-GCM', iv}, await serraturaCopia(k),
+    new TextEncoder().encode(JSON.stringify(stato)));
+  return {iv: aB64(iv), dati: aB64(dentro)};
+}
+async function apriLavoro(k, copia){
+  const fuori = await crypto.subtle.decrypt({name:'AES-GCM', iv: daB64(copia.iv)}, await serraturaCopia(k), daB64(copia.dati));
+  return JSON.parse(new TextDecoder().decode(fuori));
+}
+/* la copia parte solo per chi lavora con la sua ditta: la dimostrazione non ha niente da salvare */
+function copiaAccesa(){
+  return suaDitta() && !statoCopia().spenta && cifraOk() && typeof fetch === 'function';
+}
+function telefonoCheSalva(){
+  const u = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  return /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : 'computer';
+}
+let copiaTimer = null, copiaInViaggio = false, copiaDiNuovo = false;
+function copiaFraPoco(){
+  if(!copiaAccesa()) return;
+  clearTimeout(copiaTimer);
+  copiaTimer = setTimeout(() => mandaCopia(), 6000);
+}
+async function mandaCopia(forza){
+  if(!copiaAccesa()) return false;
+  if(copiaInViaggio){ copiaDiNuovo = true; return false; }
+  copiaInViaggio = true;
+  try{
+    let c = statoCopia();
+    if(!c.chiave) c = segnaCopia({chiave: nuovaChiaveCopia(), versione: 0, nata: new Date().toISOString()});
+    if(c.conflitto && !forza) return false;      // aspetta che la persona scelga
+    const testo = JSON.stringify(S);
+    const impronta = testo.length + ':' + aEsa(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo))).slice(0, 16);
+    if(!forza && impronta === c.impronta) return true;   // niente di nuovo da mandare
+    const corpo = {id: await nomeCopia(c.chiave), copia: await chiudiLavoro(c.chiave, S),
+                   partenza: forza ? (c.conflitto && c.conflitto.versione) || c.versione || 0 : (c.versione || 0),
+                   da: telefonoCheSalva()};
+    const r = await fetch(SPORTELLO_RILIEVO + '/copia/salva', {method:'POST', mode:'cors',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
+    const d = await r.json().catch(() => ({}));
+    if(r.status === 409){
+      segnaCopia({conflitto: {versione: d.versione, quando: d.quando, da: d.da}});
+      avvisaConflittoCopia();
+      return false;
+    }
+    if(!r.ok){ segnaCopia({errore: d.errore || 'Il server non ha preso la copia.'}); return false; }
+    segnaCopia({versione: d.versione, ultima: d.quando || new Date().toISOString(), impronta, errore: '', conflitto: null});
+    aggiornaRiquadroCopia();
+    return true;
+  } catch(e){
+    segnaCopia({errore: 'Senza rete: la copia parte appena torna.'});
+    return false;
+  } finally {
+    copiaInViaggio = false;
+    if(copiaDiNuovo){ copiaDiNuovo = false; copiaFraPoco(); }
+  }
+}
+function avvisaConflittoCopia(){
+  const c = statoCopia().conflitto; if(!c) return;
+  chiedi('Su un altro telefono (' + (c.da || 'un altro telefono') + ') il tuo lavoro è stato salvato dopo, ' +
+    quandoOra(c.quando) + '. Per non perdere niente non l’ho sovrascritto. Prendo il lavoro di quel telefono e lo metto qui?',
+    () => riprendiCopia(statoCopia().chiave, true), 'Sì, prendi quello');
+}
+/* "oggi alle 20:41", "ieri alle 9:05", "il 3 ottobre alle 18:00" */
+function quandoOra(iso){
+  const t = new Date(iso); if(isNaN(t)) return '';
+  const ora = t.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+  const g = Math.round((new Date(new Date().toDateString()) - new Date(t.toDateString())) / 864e5);
+  return (g === 0 ? 'oggi' : g === 1 ? 'ieri' : 'il ' + t.toLocaleDateString('it-IT', {day:'numeric', month:'long'})) + ' alle ' + ora;
+}
+async function riprendiCopia(chiave, sostituisci){
+  const k = chiavePulita(chiave);
+  if(!k){ avvisa('La chiave sono 16 lettere e numeri, a gruppi di quattro. Ricontrollala.'); return false; }
+  if(!cifraOk()){ avvisa('Questo browser non sa aprire la copia. Prova con Chrome o Safari aggiornati.'); return false; }
+  let d;
+  try{
+    const r = await fetch(SPORTELLO_RILIEVO + '/copia/prendi', {method:'POST', mode:'cors',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: await nomeCopia(k)})});
+    d = await r.json().catch(() => ({}));
+    if(r.status === 404){ avvisa('Con questa chiave non c’è nessuna copia. Ricontrolla le lettere.'); return false; }
+    if(!r.ok) throw new Error(d.errore || 'server');
+  } catch(e){ avvisa('Non riesco a raggiungere il server. Riprova fra poco, con la rete.'); return false; }
+  let lavoro;
+  try{ lavoro = await apriLavoro(k, d.copia); }
+  catch(e){ avvisa('La copia c’è ma questa chiave non la apre. Ricontrolla le lettere.'); return false; }
+  const metti = () => {
+    S = lavoro; normalizza(); segnaScelta('mia');
+    segnaCopia({chiave: k, versione: d.versione, ultima: d.quando, impronta: '', conflitto: null, errore: '', spenta: false});
+    salva(); chiudiPorta(); chiudiScheda(); intestaUtente();
+    location.hash = '#oggi'; vai();
+    avvisa('Fatto: c’è il lavoro di ' + (S.azienda && S.azienda.nome ? S.azienda.nome : 'la tua ditta') +
+           ', salvato ' + quandoOra(d.quando) + '. Da qui in avanti si salva da questo telefono.');
+  };
+  if(sostituisci || !suaDitta()) metti();
+  else chiedi('Ho trovato il lavoro di ' + ((lavoro.azienda && lavoro.azienda.nome) || 'una ditta') + ', salvato ' +
+              quandoOra(d.quando) + '. Lo metto su questo telefono al posto di quello che c’è adesso?', metti, 'Sì, mettilo qui');
+  return true;
+}
+function schedaRiprendi(){
+  scheda({
+    titolo: 'Riprendi il tuo lavoro',
+    sotto: 'Scrivi la chiave della copia al sicuro. La trovi in Impostazioni sul telefono di prima, o nel messaggio che ti sei mandato.',
+    campi: [{k:'chiave', l:'La chiave', p:'ABCD-EFGH-JKLM-NPQR'}],
+    controlla: d => chiavePulita(d.chiave) ? '' : 'La chiave sono 16 lettere e numeri, a gruppi di quattro.',
+    testoSalva: 'Riprendi',
+    salva: d => { riprendiCopia(d.chiave); return false; }
+  });
+}
+function riquadroCopia(){
+  if(!suaDitta()) return '';
+  const c = statoCopia();
+  const k = c.chiave ? chiaveScritta(c.chiave) : '';
+  const testoWa = 'La chiave della copia al sicuro di Rilievo (' + (S.azienda.nome || '') + '): ' + k +
+    '\nServe per ritrovare il lavoro su un altro telefono: ' + SPORTELLO_RILIEVO;
+  return `<div class="riquadro" id="riquadro-copia">
+      <div class="lbl" style="margin-bottom:12px">La copia al sicuro</div>
+      ${c.spenta ? `<p style="font-size:16px;color:var(--soft)">Spenta. Il lavoro sta solo su questo telefono: se lo perdi, lo perdi.</p>`
+        : `<p style="font-size:16px;color:var(--soft)">Il tuo lavoro si salva da solo anche fuori dal telefono, chiuso con una chiave che
+           ha solo lui. Noi non lo possiamo leggere. Se cambi telefono, con la chiave lo ritrovi.</p>
+           <div class="riga-tot"><span>Ultima copia</span><span id="copia-quando">${c.conflitto ? 'ferma: scegli quale tenere'
+             : c.ultima ? esc(quandoOra(c.ultima)) : (c.errore ? esc(c.errore) : 'fra pochi secondi')}</span></div>
+           ${k ? `<div class="riga-tot"><span>La chiave</span><span style="font-family:monospace;letter-spacing:.06em"><b>${esc(k)}</b></span></div>
+           <p class="fattura-nota" style="margin-top:10px">Senza la chiave la copia non si apre, nemmeno noi possiamo aiutarti. Mandatela su WhatsApp adesso.</p>` : ''}`}
+      <div class="azioni" style="margin-top:16px">
+        ${!c.spenta && k ? `<a class="bottone" href="https://wa.me/?text=${esc(encodeURIComponent(testoWa))}" target="_blank" rel="noopener">Mandati la chiave su WhatsApp</a>` : ''}
+        ${c.conflitto ? `<button class="bottone vuoto" onclick="avvisaConflittoCopia()">Prendi il lavoro dell’altro telefono</button>
+                         <button class="bottone vuoto" onclick="tieniQuesto()">Tieni quello di questo telefono</button>` : ''}
+        ${!c.spenta && !c.conflitto ? `<button class="bottone vuoto" onclick="copiaAdesso()">Fai la copia adesso</button>` : ''}
+        <button class="bottone vuoto" onclick="schedaRiprendi()">Riprendi da un altro telefono</button>
+        <button class="bottone tenue piccolo" onclick="accendiCopia(${c.spenta ? 'true' : 'false'})">${c.spenta ? 'Riaccendila' : 'Spegnila'}</button>
+      </div>
+    </div>`;
+}
+function aggiornaRiquadroCopia(){
+  const r = document.getElementById('riquadro-copia');
+  if(r) r.outerHTML = riquadroCopia();
+}
+async function copiaAdesso(){
+  const ok = await mandaCopia(false);
+  aggiornaRiquadroCopia();
+  avvisa(ok ? 'Copia fatta.' : (statoCopia().errore || 'La copia non è partita. Riprovo da solo appena posso.'));
+}
+function tieniQuesto(){
+  chiedi('Tengo il lavoro di questo telefono e lo salvo sopra quello dell’altro. Quello che hai fatto là dopo l’ultima copia si perde.',
+    async () => { const ok = await mandaCopia(true); vai(); avvisa(ok ? 'Tenuto quello di questo telefono.' : 'Non sono riuscito: riprova con la rete.'); },
+    'Sì, tieni questo');
+}
+function accendiCopia(si){
+  segnaCopia({spenta: !si});
+  if(si) mandaCopia();
+  vai();
+  avvisa(si ? 'Copia al sicuro accesa.' : 'Copia al sicuro spenta. Il lavoro resta solo su questo telefono.');
+}
+
+/* =====================================================================
+   IL PREVENTIVO COL LINK
+   La seconda cosa urgente del confronto con Klivo. Prima il preventivo arrivava
+   al cliente solo come PDF, e si firmava solo davanti all'artigiano. Adesso si
+   manda un link: il cliente lo apre dal suo telefono, lo legge con lo stesso
+   aspetto del PDF, scrive il suo nome e preme «Accetto». Qui si vede quando l'ha
+   aperto, e appena accetta il preventivo passa da solo fra gli accettati.
+   Il server tiene il preventivo 180 giorni. Il link si ritira quando il
+   preventivo si cancella. La pagina del cliente non fa girare nessuno script
+   (vedi server-rilievo/preventivo_col_link.py).
+   ===================================================================== */
+const linkVivo = p => !!(p && p.link && p.link.id && !p.link.ritirato);
+const indirizzoLink = p => SPORTELLO_RILIEVO + '/p/' + p.link.id;
+function corpoPerLink(id){
+  return PAGINE.documento.corpo(id);
+}
+function bloccoLink(id){
+  const p = prev(id); if(!p) return '';
+  return `<div class="pdf-consegna" id="link-consegna">
+      <div><span class="lbl">Il link da mandare</span>
+        <span>Lo apre dal telefono, lo legge e lo accetta con un tocco. Tu vedi quando l’ha aperto.</span></div>
+      <button class="bottone piccolo" id="btn-link" onclick="preparaLink('${id}')">${linkVivo(p) ? 'Usa il link' : 'Prepara il link'}</button>
+    </div>`;
+}
+const firmaCorpo = s => s.length + ':' + [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
+async function preparaLink(id){
+  const p = prev(id); if(!p) return;
+  const b = document.getElementById('btn-link');
+  if(b){ b.disabled = true; b.textContent = 'Preparo il link…'; }
+  const corpo = corpoPerLink(id), firma = firmaCorpo(corpo);
+  try{
+    /* stesso preventivo di prima: stesso link. Cambiato: il vecchio si ritira */
+    if(!(linkVivo(p) && p.link.firma === firma)){
+      if(linkVivo(p)) ritiraLink(p);
+      const r = await fetch(SPORTELLO_RILIEVO + '/link/metti', {method:'POST', mode:'cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({corpo, ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
+                              titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : '')})});
+      const d = await r.json().catch(() => ({}));
+      if(!r.ok || !d.link) throw new Error(d.errore || 'Il server non ha preso il preventivo.');
+      p.link = {id: d.link, gestione: d.gestione, firma, creato: new Date().toISOString(), aperto: 0};
+      salva();
+    }
+  } catch(e){
+    if(b){ b.disabled = false; b.textContent = 'Prepara il link'; }
+    avvisa(e && e.message && !/fetch|network|Failed/i.test(e.message) ? e.message
+      : 'Il link non si è preparato: serve la rete. Intanto puoi mandare il PDF.');
+    return;
+  }
+  const cl = p.cliente ? cliente(p.cliente) : null;
+  const c = document.getElementById('link-consegna'); if(!c) return;
+  c.outerHTML = `<div id="link-consegna">
+      <div class="pdf-consegna"><div><span class="lbl">Il link è pronto</span>
+        <span style="word-break:break-all">${esc(indirizzoLink(p))}</span></div>
+        <a class="bottone vuoto piccolo" href="${esc(indirizzoLink(p))}?anteprima=1" target="_blank" rel="noopener">Guardalo</a></div>
+      ${vieConsegna(testoLink(p), cl, 'Preventivo n. ' + p.numero + ' · ' + S.azienda.nome,
+                    `inviaPreventivo('${p.id}','link su __COME__')`, 'col link al preventivo')}
+    </div>`;
+  /* con il link pronto le altre strade restano, ma piegate: due coppie WhatsApp e
+     Mail una sotto l'altra facevano chiedere «quale dei due premo?» */
+  const qui = document.getElementById('link-consegna'), altre = [];
+  for(let x = qui && qui.nextElementSibling; x && !x.classList.contains('form') && !x.classList.contains('piede'); x = x.nextElementSibling) altre.push(x);
+  if(altre.length){
+    const piega = document.createElement('details');
+    piega.className = 'senza-link';
+    piega.innerHTML = '<summary class="lbl" style="cursor:pointer;margin:16px 0 10px">Oppure senza link: il PDF o il messaggio scritto</summary>';
+    qui.after(piega); altre.forEach(x => piega.appendChild(x));
+  }
+}
+function testoLink(p){
+  const c = conti(p);
+  return 'Buongiorno, come d’accordo le mando il preventivo n. ' + p.numero + (p.luogo ? ' per ' + p.luogo : '') +
+    ': ' + euro(c.totale) + ', IVA compresa.\n\nLo trova qui, e se le va bene lo accetta direttamente dalla pagina:\n' +
+    indirizzoLink(p) + '\n\nResto a disposizione per qualsiasi domanda.\n\n' + firmaDitta();
+}
+function ritiraLink(p){
+  if(!linkVivo(p)) return;
+  const {id, gestione} = p.link;
+  p.link.ritirato = new Date().toISOString();
+  if(typeof fetch === 'function')
+    fetch(SPORTELLO_RILIEVO + '/link/ritira', {method:'POST', mode:'cors', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({link: id, gestione})}).catch(() => {});
+}
+/* come vanno i link: si chiede all'apertura e quando si torna sull'app, non piu'
+   di una volta ogni due minuti. Un'accettazione arrivata dal link sposta il
+   preventivo da solo, e lo si dice. */
+let linkGuardatiAlle = 0;
+async function guardaILink(){
+  if(typeof fetch !== 'function' || !S || !Array.isArray(S.preventivi)) return;
+  if(Date.now() - linkGuardatiAlle < 120000) return;
+  const da = S.preventivi.filter(p => linkVivo(p) && !(p.link.accettato) && (p.stato === 'bozza' || p.stato === 'inviato'));
+  if(!da.length) return;
+  linkGuardatiAlle = Date.now();
+  let d;
+  try{
+    const r = await fetch(SPORTELLO_RILIEVO + '/link/stato', {method:'POST', mode:'cors', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({voci: da.map(p => ({link: p.link.id, gestione: p.link.gestione}))})});
+    d = await r.json();
+  } catch(e){ return; }
+  const stati = (d && d.stati) || {};
+  let cambiato = false; const accettati = [];
+  da.forEach(p => {
+    const s = stati[p.link.id]; if(!s) return;
+    if(s.aperto !== p.link.aperto){ p.link.aperto = s.aperto; p.link.ultima = s.ultima_volta; cambiato = true; }
+    if(s.accettato && !p.link.accettato){
+      p.link.accettato = {nome: s.accettato.nome, quando: s.accettato.quando};
+      if(p.stato === 'bozza' || p.stato === 'inviato'){
+        if(p.stato === 'bozza'){ p.consegna = p.consegna || {come: 'link', quando: S.oggi}; }
+        p.stato = 'accettato';
+        const sp = p.sopralluogo ? sopr(p.sopralluogo) : null;
+        const rq = sp ? richiesta(sp.richiesta) : null;
+        if(rq) rq.stato = 'lavoro_accettato';
+      }
+      accettati.push(p); cambiato = true;
+    }
+  });
+  if(!cambiato) return;
+  salva(); vai();
+  if(accettati.length)
+    avvisa(accettati.map(p => p.link.accettato.nome + ' ha accettato il preventivo n. ' + p.numero).join('. ') + '. Il lavoro è tuo.');
+}
+function rigaLink(p){
+  if(!linkVivo(p)) return '';
+  const l = p.link;
+  const detto = l.accettato ? 'accettato da ' + esc(l.accettato.nome) + ', ' + esc(quandoOra(l.accettato.quando))
+    : l.aperto ? (l.aperto === 1 ? 'aperto una volta' : 'aperto ' + l.aperto + ' volte') + (l.ultima ? ', l’ultima ' + esc(quandoOra(l.ultima)) : '')
+    : 'non ancora aperto';
+  return `<div class="riga-tot"><span>Il link</span><span>${detto}</span></div>`;
+}
+addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') guardaILink(); });
+
 
 avvia();
 </script>
