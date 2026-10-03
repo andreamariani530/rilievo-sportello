@@ -944,6 +944,7 @@ async function avvia(){
   S = leggiStato();
   normalizza();
   intestaUtente();
+  const linkPassword = leggiLinkPassword();   /* arrivati dalla mail «scegli una password nuova» */
   addEventListener('hashchange', vai);
   preparaInstallazione();
   ascoltaIlTiro();
@@ -953,7 +954,8 @@ async function avvia(){
   vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
   controllaIngresso();     /* se il controllo e' spento non si vede niente */
   guardaILink();           /* chi ha aperto o accettato un preventivo col link */
-  copiaFraPoco();          /* la prima copia al sicuro, anche per chi c'era gia' */
+  copiaFraPoco();          /* la copia al sicuro, se si e' entrati con la mail */
+  if(linkPassword) schedaNuovaPassword(linkPassword);
 }
 /* Servita dal server del rilievo, l'app ha un indirizzo fisso, si mette sul telefono come
    un'icona e si apre anche senza rete (sw.js tiene una copia). Sulla pagina pubblicata
@@ -996,7 +998,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-03 20:43';
+const COSTRUITA = '2026-10-04 01:00';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1189,10 +1191,9 @@ function apriPorta(){
         </button>
       </div>
       <p class="porta-piede" style="margin-bottom:6px">Hai gi&agrave; Rilievo su un altro telefono?
-        <a href="#" onclick="schedaRiprendi();return false">Riprendi il tuo lavoro</a></p>
-      <p class="porta-piede">Quello che scrivi resta su questo dispositivo, e in una copia al sicuro chiusa
-        con una chiave che ha solo il tuo telefono: noi non la possiamo leggere. Esce in chiaro solo
-        l&rsquo;indirizzo, quando chiedi il rilievo, e il preventivo che scegli di mandare col link.
+        <a href="#" onclick="schedaEntra();return false">Entra con la tua mail</a></p>
+      <p class="porta-piede">Quello che scrivi resta su questo dispositivo e, se scegli una password, in una
+        copia sul nostro server in Europa, che non guardiamo. Cos&igrave; ritrovi tutto anche cambiando telefono.
         <a href="#privacy" onclick="apriPrivacy();return false">Come trattiamo i dati</a></p>
     </div>`;
   document.body.appendChild(velo);
@@ -1223,11 +1224,20 @@ function chiediDitta(){
       {k:'piva',  l:'Partita IVA', m:true, p:'Es. 01234567890'},
       {k:'iva',   l:'Aliquota IVA', t:'numero', m:true, p:'22'},
       {k:'tel',   l:'Telefono', m:true, p:'Es. 340 1234567'},
-      {k:'mail',  l:'Mail', m:true, p:'Es. info@verdevivo.it'}
+      {k:'mail',  l:'Mail', m:true, p:'Es. info@verdevivo.it'},
+      {k:'password', l:'Una password, per ritrovare tutto su un altro telefono', t:'password', p:'Almeno 8 caratteri', nuova: true}
     ],
-    controlla: d => d.nome ? controllaSedeDitta(d) : 'Serve almeno il nome della ditta: e\u2019 quello che esce stampato sul preventivo.',
+    controlla: d => !d.nome ? 'Serve almeno il nome della ditta: e\u2019 quello che esce stampato sul preventivo.'
+      : d.password && String(d.password).length < 8 ? 'La password deve avere almeno 8 caratteri. Se non la vuoi adesso, lasciala vuota.'
+      : d.password && !mailBuona(d.mail) ? 'Per la password serve anche la mail, scritta per intero.'
+      : controllaSedeDitta(d),
     testoSalva: 'Parti con i miei dati',
-    salva: d => partiMia(d),
+    salva: d => {
+      /* la password non finisce mai nei dati della ditta: va solo al server */
+      const pw = d.password; delete d.password;
+      partiMia(d);
+      if(pw) creaAccesso(d.mail, pw);
+    },
     messaggio: 'Fatto. Da qui in avanti i documenti escono col tuo nome.'
   });
 }
@@ -2330,8 +2340,10 @@ function scheda(o){
     if(c.t === 'scelta')
       return `<select class="campo" id="c-${c.k}">${c.opzioni.map(x =>
         `<option value="${esc(x[0])}" ${String(x[0])===String(val)?'selected':''}>${esc(x[1])}</option>`).join('')}</select>`;
-    const tipo = c.t === 'data' ? 'date' : c.t === 'ora' ? 'time' : 'text';
-    const extra = c.t === 'numero' ? ' inputmode="decimal"' : '';
+    const tipo = c.t === 'data' ? 'date' : c.t === 'ora' ? 'time' : c.t === 'password' ? 'password' : c.t === 'mail' ? 'email' : 'text';
+    const extra = c.t === 'numero' ? ' inputmode="decimal"'
+      : c.t === 'password' ? ' autocomplete="' + (c.nuova ? 'new-password' : 'current-password') + '"'
+      : c.t === 'mail' ? ' autocomplete="email" autocapitalize="off" spellcheck="false"' : '';
     return `<input class="campo" id="c-${c.k}" type="${tipo}"${extra} value="${esc(val)}" placeholder="${esc(c.p||'')}">`;
   };
   const velo = document.createElement('div');
@@ -11463,22 +11475,23 @@ function testoPrivacy(){
   return `<div class="privacy">
     <h3>In breve</h3>
     <p>Quello che scrivi in Rilievo resta <b>sul tuo telefono</b>: la ditta, i clienti, i preventivi,
-      le foto, il listino. La copia al sicuro parte <b>chiusa a chiave</b> dal telefono: noi non la
-      possiamo leggere. In chiaro escono solo <b>l&rsquo;indirizzo del giardino</b>, quando chiedi il
-      rilievo, e <b>il preventivo che mandi col link</b>, perch&eacute; il tuo cliente lo possa aprire.
+      le foto, il listino. Se scegli una password, ne teniamo anche una <b>copia sul nostro server</b>, per
+      fartela ritrovare su un altro telefono: &egrave; protetta e noi non la guardiamo. Escono anche
+      <b>l&rsquo;indirizzo del giardino</b>, quando chiedi il rilievo, e <b>il preventivo che mandi col link</b>,
+      perch&eacute; il tuo cliente lo possa aprire.
       Niente pubblicit&agrave;, niente statistiche su di te, nessun dato venduto.</p>
 
     <h3>Chi risponde dei dati</h3>
     <p>Rilievo &egrave; in prova gratuita e lo costruisce Andrea Mariani, come persona privata.
       Per qualunque domanda sui dati: <a href="mailto:andreamariani530a@gmail.com">andreamariani530a@gmail.com</a>.</p>
 
-    <h3>Cosa resta sul telefono, e la copia al sicuro</h3>
-    <p>Tutto il tuo lavoro sta nella memoria del browser di questo dispositivo. Se lavori con la tua ditta,
-      il telefono ne manda anche una <b>copia al sicuro</b> al nostro server, poco dopo ogni modifica.
-      Prima di partire la chiude con una chiave che si crea il tuo telefono e che non arriva mai a noi
-      (cifratura AES-GCM): sul server c&rsquo;&egrave; un pacchetto che nessuno, noi compresi, pu&ograve; aprire.
-      Con la chiave ritrovi il lavoro su un altro telefono. Senza la chiave la copia non si apre pi&ugrave;.
-      La copia si spegne da Impostazioni, e per farla cancellare basta una mail.</p>
+    <h3>Cosa resta sul telefono, e la copia sul server</h3>
+    <p>Tutto il tuo lavoro sta nella memoria del browser di questo dispositivo. Se crei il tuo accesso
+      (mail e password), il telefono ne manda anche una <b>copia al nostro server</b>, poco dopo ogni modifica.
+      Sta su un disco del servizio Render a Francoforte, nell&rsquo;Unione Europea, si apre solo con la tua mail
+      e la tua password, e noi non la guardiamo. La password non la conserviamo: teniamo solo un suo calcolo
+      che non si pu&ograve; rovesciare. Se la dimentichi ti mandiamo una mail per sceglierne una nuova.
+      L&rsquo;accesso si chiude da Impostazioni, e per far cancellare la copia basta una mail.</p>
 
     <h3>Cosa passa dal nostro server, e perch&eacute;</h3>
     <ul>
@@ -11625,23 +11638,22 @@ function chiediRicomincia(){
 }
 
 /* =====================================================================
-   LA COPIA AL SICURO
+   LA COPIA AL SICURO, CON MAIL E PASSWORD
    Andrea, 3 ottobre 2026: «portiamoci in pari con Klivo, partendo dalle cose
    urgenti». La prima: fino a oggi il lavoro stava solo su questo telefono, e
    un telefono perso era un anno di preventivi perso.
 
-   Poco dopo ogni salvataggio il telefono manda una copia di tutto al server.
-   Prima di partire la CHIUDE A CHIAVE (AES-GCM) con una chiave che si inventa
-   lui la prima volta e che non lascia mai il telefono. Al server arrivano solo
-   un nome (un'impronta della chiave) e un pacchetto illeggibile: noi non vediamo
-   ne' clienti ne' prezzi, e l'informativa resta vera.
-   Su un altro telefono si scrive la chiave e il lavoro torna.
-   Il rovescio, detto chiaro anche nell'app: chiave persa, copia persa.
+   Poco dopo ogni salvataggio il telefono manda una copia di tutto al server,
+   legata all'accesso della ditta: mail e password, «come tutti» (Andrea, stessa
+   sera, dopo aver visto la prima versione con una chiave di 16 segni da tenere
+   da parte: un giardiniere non se la ricorda). Sul telefono nuovo si entra con
+   mail e password e torna tutto; la password dimenticata si rimette con una mail.
+   La copia la teniamo noi, protetta, e non la guardiamo: l'informativa dice
+   proprio questo, non di piu'.
    Il server tiene il conto delle versioni: se un altro telefono ha salvato dopo,
    questa copia non lo schiaccia, si chiede alla persona cosa tenere.
    ===================================================================== */
-const CHIAVE_COPIA = 'rilievo-copia-2026-10';
-const ALFABETO_COPIA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CHIAVE_COPIA = 'rilievo-accesso-2026-10';
 function statoCopia(){
   try{ const c = JSON.parse(localStorage.getItem(CHIAVE_COPIA) || 'null');
        return (c && typeof c === 'object') ? c : {}; }catch(e){ return {}; }
@@ -11651,47 +11663,26 @@ function segnaCopia(cambi){
   try{ localStorage.setItem(CHIAVE_COPIA, JSON.stringify(c)); }catch(e){}
   return c;
 }
-const chiaveScritta = k => String(k || '').replace(/(.{4})(?=.)/g, '$1-');
-const chiavePulita = k => { const c = String(k || '').toUpperCase().replace(/[\s\-]/g, '')
-  .replace(/0/g, 'O').replace(/1/g, 'I');   // chi ricopia a mano scambia lo zero con la O
-  return c.length === 16 && [...c].every(x => ALFABETO_COPIA.includes(x)) ? c : ''; };
-function nuovaChiaveCopia(){
-  const b = new Uint8Array(16); crypto.getRandomValues(b);
-  return [...b].map(x => ALFABETO_COPIA[x % 32]).join('');
-}
-const cifraOk = () => typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined';
-const aEsa = buf => [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
-function aB64(buf){ let s = ''; const u = new Uint8Array(buf);
-  for(let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
-  return btoa(s); }
-const daB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-/* dalla chiave, due cose diverse: il nome della copia (lo vede il server) e la
-   chiave che chiude il pacchetto (non esce mai di qui) */
-async function nomeCopia(k){
-  return aEsa(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('rilievo-id:' + k)));
-}
-async function serraturaCopia(k){
-  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(k), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({name:'PBKDF2', salt:new TextEncoder().encode('rilievo-copia-2026'), iterations:150000, hash:'SHA-256'},
-    base, {name:'AES-GCM', length:256}, false, ['encrypt', 'decrypt']);
-}
-async function chiudiLavoro(k, stato){
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const dentro = await crypto.subtle.encrypt({name:'AES-GCM', iv}, await serraturaCopia(k),
-    new TextEncoder().encode(JSON.stringify(stato)));
-  return {iv: aB64(iv), dati: aB64(dentro)};
-}
-async function apriLavoro(k, copia){
-  const fuori = await crypto.subtle.decrypt({name:'AES-GCM', iv: daB64(copia.iv)}, await serraturaCopia(k), daB64(copia.dati));
-  return JSON.parse(new TextDecoder().decode(fuori));
-}
-/* la copia parte solo per chi lavora con la sua ditta: la dimostrazione non ha niente da salvare */
-function copiaAccesa(){
-  return suaDitta() && !statoCopia().spenta && cifraOk() && typeof fetch === 'function';
-}
+const mailBuona = m => /^[^\s@<>"']+@[^\s@<>"']+\.[a-z]{2,24}$/i.test(String(m || '').trim());
 function telefonoCheSalva(){
   const u = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   return /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : 'computer';
+}
+async function chiamaServer(strada, corpo){
+  const r = await fetch(SPORTELLO_RILIEVO + strada, {method:'POST', mode:'cors',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
+  const d = await r.json().catch(() => ({}));
+  return {stato: r.status, ok: r.ok, d};
+}
+const nonRaggiungo = 'Non riesco a raggiungere il server. Riprova fra poco, con la rete.';
+/* la copia parte solo per chi lavora con la sua ditta ed e' entrato */
+function copiaAccesa(){
+  const c = statoCopia();
+  return suaDitta() && !!c.gettone && !c.spenta && typeof fetch === 'function';
+}
+function fuoriDalServer(){
+  segnaCopia({gettone: '', errore: 'Entra di nuovo con la tua mail e la tua password.'});
+  aggiornaRiquadroCopia();
 }
 let copiaTimer = null, copiaInViaggio = false, copiaDiNuovo = false;
 function copiaFraPoco(){
@@ -11699,29 +11690,31 @@ function copiaFraPoco(){
   clearTimeout(copiaTimer);
   copiaTimer = setTimeout(() => mandaCopia(), 6000);
 }
+/* un'impronta corta del lavoro, per non rimandare la stessa copia due volte */
+function improntaLavoro(testo){
+  let h = 2166136261;
+  for(let i = 0; i < testo.length; i++){ h ^= testo.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return testo.length + ':' + (h >>> 0).toString(36);
+}
 async function mandaCopia(forza){
   if(!copiaAccesa()) return false;
   if(copiaInViaggio){ copiaDiNuovo = true; return false; }
   copiaInViaggio = true;
   try{
-    let c = statoCopia();
-    if(!c.chiave) c = segnaCopia({chiave: nuovaChiaveCopia(), versione: 0, nata: new Date().toISOString()});
+    const c = statoCopia();
     if(c.conflitto && !forza) return false;      // aspetta che la persona scelga
-    const testo = JSON.stringify(S);
-    const impronta = testo.length + ':' + aEsa(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo))).slice(0, 16);
+    const testo = JSON.stringify(S), impronta = improntaLavoro(testo);
     if(!forza && impronta === c.impronta) return true;   // niente di nuovo da mandare
-    const corpo = {id: await nomeCopia(c.chiave), copia: await chiudiLavoro(c.chiave, S),
-                   partenza: forza ? (c.conflitto && c.conflitto.versione) || c.versione || 0 : (c.versione || 0),
-                   da: telefonoCheSalva()};
-    const r = await fetch(SPORTELLO_RILIEVO + '/copia/salva', {method:'POST', mode:'cors',
-      headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
-    const d = await r.json().catch(() => ({}));
-    if(r.status === 409){
+    const {stato, ok, d} = await chiamaServer('/copia/salva', {mail: c.mail, gettone: c.gettone, copia: S,
+      partenza: forza ? (c.conflitto && c.conflitto.versione) || c.versione || 0 : (c.versione || 0),
+      da: telefonoCheSalva()});
+    if(stato === 401){ fuoriDalServer(); return false; }
+    if(stato === 409){
       segnaCopia({conflitto: {versione: d.versione, quando: d.quando, da: d.da}});
       avvisaConflittoCopia();
       return false;
     }
-    if(!r.ok){ segnaCopia({errore: d.errore || 'Il server non ha preso la copia.'}); return false; }
+    if(!ok){ segnaCopia({errore: d.errore || 'Il server non ha preso la copia.'}); return false; }
     segnaCopia({versione: d.versione, ultima: d.quando || new Date().toISOString(), impronta, errore: '', conflitto: null});
     aggiornaRiquadroCopia();
     return true;
@@ -11737,7 +11730,7 @@ function avvisaConflittoCopia(){
   const c = statoCopia().conflitto; if(!c) return;
   chiedi('Su un altro telefono (' + (c.da || 'un altro telefono') + ') il tuo lavoro è stato salvato dopo, ' +
     quandoOra(c.quando) + '. Per non perdere niente non l’ho sovrascritto. Prendo il lavoro di quel telefono e lo metto qui?',
-    () => riprendiCopia(statoCopia().chiave, true), 'Sì, prendi quello');
+    () => prendiLavoro(true), 'Sì, prendi quello');
 }
 /* "oggi alle 20:41", "ieri alle 9:05", "il 3 ottobre alle 18:00" */
 function quandoOra(iso){
@@ -11746,66 +11739,150 @@ function quandoOra(iso){
   const g = Math.round((new Date(new Date().toDateString()) - new Date(t.toDateString())) / 864e5);
   return (g === 0 ? 'oggi' : g === 1 ? 'ieri' : 'il ' + t.toLocaleDateString('it-IT', {day:'numeric', month:'long'})) + ' alle ' + ora;
 }
-async function riprendiCopia(chiave, sostituisci){
-  const k = chiavePulita(chiave);
-  if(!k){ avvisa('La chiave sono 16 lettere e numeri, a gruppi di quattro. Ricontrollala.'); return false; }
-  if(!cifraOk()){ avvisa('Questo browser non sa aprire la copia. Prova con Chrome o Safari aggiornati.'); return false; }
-  let d;
-  try{
-    const r = await fetch(SPORTELLO_RILIEVO + '/copia/prendi', {method:'POST', mode:'cors',
-      headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: await nomeCopia(k)})});
-    d = await r.json().catch(() => ({}));
-    if(r.status === 404){ avvisa('Con questa chiave non c’è nessuna copia. Ricontrolla le lettere.'); return false; }
-    if(!r.ok) throw new Error(d.errore || 'server');
-  } catch(e){ avvisa('Non riesco a raggiungere il server. Riprova fra poco, con la rete.'); return false; }
-  let lavoro;
-  try{ lavoro = await apriLavoro(k, d.copia); }
-  catch(e){ avvisa('La copia c’è ma questa chiave non la apre. Ricontrolla le lettere.'); return false; }
+/* appena entrati: c'e' gia' un lavoro sul server? Se si', torna qui. Se no, parte quello di qui. */
+async function prendiLavoro(sostituisci){
+  const c = statoCopia();
+  let r;
+  try{ r = await chiamaServer('/copia/prendi', {mail: c.mail, gettone: c.gettone}); }
+  catch(e){ avvisa(nonRaggiungo); return false; }
+  if(r.stato === 401){ fuoriDalServer(); avvisa('Entra di nuovo con la tua mail e la tua password.'); return false; }
+  const d = r.d || {};
+  if(!d.copia){                                   // account nuovo: si parte da quello che c'e' qui
+    segnaCopia({versione: 0, impronta: '', conflitto: null, errore: ''});
+    if(suaDitta()) await mandaCopia();
+    aggiornaRiquadroCopia();
+    avvisa(suaDitta() ? 'Fatto: da adesso il tuo lavoro si salva anche fuori dal telefono.'
+                      : 'Sei entrato. Metti i dati della tua ditta e il lavoro si salverà da solo.');
+    return true;
+  }
   const metti = () => {
-    S = lavoro; normalizza(); segnaScelta('mia');
-    segnaCopia({chiave: k, versione: d.versione, ultima: d.quando, impronta: '', conflitto: null, errore: '', spenta: false});
+    S = d.copia; normalizza(); segnaScelta('mia');
+    segnaCopia({versione: d.versione, ultima: d.quando, impronta: improntaLavoro(JSON.stringify(S)),
+                conflitto: null, errore: '', spenta: false});
     salva(); chiudiPorta(); chiudiScheda(); intestaUtente();
     location.hash = '#oggi'; vai();
     avvisa('Fatto: c’è il lavoro di ' + (S.azienda && S.azienda.nome ? S.azienda.nome : 'la tua ditta') +
-           ', salvato ' + quandoOra(d.quando) + '. Da qui in avanti si salva da questo telefono.');
+           ', salvato ' + quandoOra(d.quando) + '.');
   };
-  if(sostituisci || !suaDitta()) metti();
-  else chiedi('Ho trovato il lavoro di ' + ((lavoro.azienda && lavoro.azienda.nome) || 'una ditta') + ', salvato ' +
+  const qui = suaDitta() && S && Array.isArray(S.preventivi) && (S.preventivi.length || (S.clienti || []).length);
+  if(sostituisci || !qui) metti();
+  else chiedi('Sul server c’è il lavoro di ' + ((d.copia.azienda && d.copia.azienda.nome) || 'una ditta') + ', salvato ' +
               quandoOra(d.quando) + '. Lo metto su questo telefono al posto di quello che c’è adesso?', metti, 'Sì, mettilo qui');
   return true;
 }
-function schedaRiprendi(){
+async function creaAccesso(mail, password){
+  let r;
+  try{ r = await chiamaServer('/accesso/registra', {mail, password, da: telefonoCheSalva()}); }
+  catch(e){ avvisa('Il tuo lavoro è salvato su questo telefono. L’accesso lo crei da Impostazioni quando torna la rete.'); return false; }
+  if(r.stato === 409){ avvisa(r.d.errore); schedaEntra(mail); return false; }
+  if(!r.ok){ avvisa(r.d.errore || 'L’accesso non si è creato. Riprova da Impostazioni.'); return false; }
+  segnaCopia({mail: r.d.mail, gettone: r.d.gettone, versione: 0, impronta: '', conflitto: null, errore: '', spenta: false});
+  return prendiLavoro();
+}
+async function entraConMail(mail, password){
+  let r;
+  try{ r = await chiamaServer('/accesso/entra', {mail, password, da: telefonoCheSalva()}); }
+  catch(e){ avvisa(nonRaggiungo); return false; }
+  if(!r.ok){ avvisa(r.d.errore || 'Non sono riuscito a farti entrare.'); schedaEntra(mail); return false; }
+  segnaCopia({mail: r.d.mail, gettone: r.d.gettone, impronta: '', conflitto: null, errore: '', spenta: false});
+  return prendiLavoro();
+}
+function schedaEntra(mail){
   scheda({
-    titolo: 'Riprendi il tuo lavoro',
-    sotto: 'Scrivi la chiave della copia al sicuro. La trovi in Impostazioni sul telefono di prima, o nel messaggio che ti sei mandato.',
-    campi: [{k:'chiave', l:'La chiave', p:'ABCD-EFGH-JKLM-NPQR'}],
-    controlla: d => chiavePulita(d.chiave) ? '' : 'La chiave sono 16 lettere e numeri, a gruppi di quattro.',
-    testoSalva: 'Riprendi',
-    salva: d => { riprendiCopia(d.chiave); return false; }
+    titolo: 'Entra con la tua mail',
+    sotto: 'La mail e la password che hai scelto la prima volta. Il tuo lavoro torna su questo telefono.',
+    valori: {mail: mail || statoCopia().mail || ''},
+    extra: `<p style="margin:0 0 6px;font-size:15.5px"><a href="#" style="color:var(--accento)" onclick="schedaDimenticata(document.getElementById('c-mail').value);return false">Password dimenticata?</a>
+            &nbsp;·&nbsp; <a href="#" style="color:var(--accento)" onclick="schedaCreaAccesso(document.getElementById('c-mail').value);return false">Non hai ancora un accesso? Crealo</a></p>`,
+    campi: [{k:'mail', l:'La tua mail', t:'mail', p:'mario@verdevivo.it'},
+            {k:'password', l:'La password', t:'password', p:'La tua password'}],
+    controlla: d => !mailBuona(d.mail) ? 'Scrivi la mail per intero, per esempio mario@verdevivo.it.'
+                  : !d.password ? 'Scrivi la password.' : '',
+    testoSalva: 'Entra',
+    salva: d => { entraConMail(d.mail, d.password); }
   });
+}
+function schedaCreaAccesso(mail){
+  scheda({
+    titolo: 'Il tuo accesso',
+    sotto: 'Con la mail e una password ritrovi tutto il tuo lavoro anche su un altro telefono. Se la password la dimentichi, te ne facciamo scegliere una nuova con una mail.',
+    valori: {mail: mail || statoCopia().mail || (S && S.azienda && S.azienda.mail) || ''},
+    campi: [{k:'mail', l:'La tua mail', t:'mail', p:'mario@verdevivo.it'},
+            {k:'password', l:'Scegli una password', t:'password', p:'Almeno 8 caratteri', nuova: true}],
+    controlla: d => !mailBuona(d.mail) ? 'Scrivi la mail per intero, per esempio mario@verdevivo.it.'
+                  : String(d.password || '').length < 8 ? 'La password deve avere almeno 8 caratteri.' : '',
+    testoSalva: 'Crea l’accesso',
+    salva: d => { creaAccesso(d.mail, d.password); }
+  });
+}
+function schedaDimenticata(mail){
+  scheda({
+    titolo: 'Password dimenticata',
+    sotto: 'Scrivi la mail del tuo accesso: ti mandiamo un link per sceglierne una nuova. Vale un’ora.',
+    valori: {mail: mail || statoCopia().mail || ''},
+    campi: [{k:'mail', l:'La tua mail', t:'mail', p:'mario@verdevivo.it'}],
+    controlla: d => mailBuona(d.mail) ? '' : 'Scrivi la mail per intero, per esempio mario@verdevivo.it.',
+    testoSalva: 'Mandami il link',
+    salva: async d => {
+      try{ await chiamaServer('/accesso/dimenticata', {mail: d.mail}); }
+      catch(e){ avvisa(nonRaggiungo); return; }
+      avvisa('Se questa mail ha un accesso, fra poco ti arriva il link. Guarda anche nella posta indesiderata.');
+    }
+  });
+}
+/* il link della mail apre l'app su #nuova-password/<mail>/<gettone> */
+function leggiLinkPassword(){
+  const m = /^#nuova-password\/([^/]+)\/([A-Za-z0-9_-]{10,})$/.exec(location.hash || '');
+  if(!m) return null;
+  try{ history.replaceState(null, '', location.pathname + location.search + '#oggi'); }catch(e){ location.hash = '#oggi'; }
+  return {mail: decodeURIComponent(m[1]), reset: m[2]};
+}
+function schedaNuovaPassword(r){
+  scheda({
+    titolo: 'Scegli una password nuova',
+    sotto: 'Per ' + r.mail + '. Da adesso entri con questa, anche sugli altri telefoni.',
+    campi: [{k:'password', l:'La password nuova', t:'password', p:'Almeno 8 caratteri', nuova: true}],
+    controlla: d => String(d.password || '').length < 8 ? 'La password deve avere almeno 8 caratteri.' : '',
+    testoSalva: 'Salva la password',
+    salva: async d => {
+      let x;
+      try{ x = await chiamaServer('/accesso/nuova', {mail: r.mail, reset: r.reset, password: d.password, da: telefonoCheSalva()}); }
+      catch(e){ avvisa(nonRaggiungo); return; }
+      if(!x.ok){ avvisa(x.d.errore || 'La password non è cambiata.'); return; }
+      segnaCopia({mail: x.d.mail, gettone: x.d.gettone, impronta: '', conflitto: null, errore: '', spenta: false});
+      await prendiLavoro();
+    }
+  });
+}
+function esciDaQui(){
+  chiedi('Esci da questo telefono? Il lavoro resta qui e sul server, ma da adesso non si salva più fuori finché non rientri.', async () => {
+    const c = statoCopia();
+    try{ await chiamaServer('/accesso/esci', {mail: c.mail, gettone: c.gettone}); }catch(e){}
+    segnaCopia({gettone: '', errore: ''}); vai();
+    avvisa('Uscito. Per rientrare: Impostazioni, «Entra con la tua mail».');
+  }, 'Sì, esci');
 }
 function riquadroCopia(){
   if(!suaDitta()) return '';
   const c = statoCopia();
-  const k = c.chiave ? chiaveScritta(c.chiave) : '';
-  const testoWa = 'La chiave della copia al sicuro di Rilievo (' + (S.azienda.nome || '') + '): ' + k +
-    '\nServe per ritrovare il lavoro su un altro telefono: ' + SPORTELLO_RILIEVO;
+  const dentro = !!c.gettone;
   return `<div class="riquadro" id="riquadro-copia">
-      <div class="lbl" style="margin-bottom:12px">La copia al sicuro</div>
-      ${c.spenta ? `<p style="font-size:16px;color:var(--soft)">Spenta. Il lavoro sta solo su questo telefono: se lo perdi, lo perdi.</p>`
-        : `<p style="font-size:16px;color:var(--soft)">Il tuo lavoro si salva da solo anche fuori dal telefono, chiuso con una chiave che
-           ha solo lui. Noi non lo possiamo leggere. Se cambi telefono, con la chiave lo ritrovi.</p>
-           <div class="riga-tot"><span>Ultima copia</span><span id="copia-quando">${c.conflitto ? 'ferma: scegli quale tenere'
-             : c.ultima ? esc(quandoOra(c.ultima)) : (c.errore ? esc(c.errore) : 'fra pochi secondi')}</span></div>
-           ${k ? `<div class="riga-tot"><span>La chiave</span><span style="font-family:monospace;letter-spacing:.06em"><b>${esc(k)}</b></span></div>
-           <p class="fattura-nota" style="margin-top:10px">Senza la chiave la copia non si apre, nemmeno noi possiamo aiutarti. Mandatela su WhatsApp adesso.</p>` : ''}`}
+      <div class="lbl" style="margin-bottom:12px">Il tuo accesso</div>
+      ${dentro ? `<p style="font-size:16px;color:var(--soft)">Il tuo lavoro si salva da solo anche fuori dal telefono. Se cambi telefono,
+           entri con la mail e la password e ritrovi tutto.</p>
+           <div class="riga-tot"><span>Entrato come</span><span><b>${esc(c.mail || '')}</b></span></div>
+           <div class="riga-tot"><span>Ultima copia</span><span id="copia-quando">${c.spenta ? 'spenta' : c.conflitto ? 'ferma: scegli quale tenere'
+             : c.ultima ? esc(quandoOra(c.ultima)) : (c.errore ? esc(c.errore) : 'fra pochi secondi')}</span></div>`
+        : `<p style="font-size:16px;color:var(--soft)">${c.errore ? esc(c.errore) + ' '
+             : 'Per ora il tuo lavoro sta solo su questo telefono: se lo perdi, lo perdi. '}Con la mail e una password si salva
+           anche fuori, e lo ritrovi su qualsiasi telefono.</p>`}
       <div class="azioni" style="margin-top:16px">
-        ${!c.spenta && k ? `<a class="bottone" href="https://wa.me/?text=${esc(encodeURIComponent(testoWa))}" target="_blank" rel="noopener">Mandati la chiave su WhatsApp</a>` : ''}
-        ${c.conflitto ? `<button class="bottone vuoto" onclick="avvisaConflittoCopia()">Prendi il lavoro dell’altro telefono</button>
-                         <button class="bottone vuoto" onclick="tieniQuesto()">Tieni quello di questo telefono</button>` : ''}
-        ${!c.spenta && !c.conflitto ? `<button class="bottone vuoto" onclick="copiaAdesso()">Fai la copia adesso</button>` : ''}
-        <button class="bottone vuoto" onclick="schedaRiprendi()">Riprendi da un altro telefono</button>
-        <button class="bottone tenue piccolo" onclick="accendiCopia(${c.spenta ? 'true' : 'false'})">${c.spenta ? 'Riaccendila' : 'Spegnila'}</button>
+        ${dentro ? (c.conflitto ? `<button class="bottone vuoto" onclick="avvisaConflittoCopia()">Prendi il lavoro dell’altro telefono</button>
+                                   <button class="bottone vuoto" onclick="tieniQuesto()">Tieni quello di questo telefono</button>`
+                               : `<button class="bottone vuoto" onclick="copiaAdesso()">Fai la copia adesso</button>`) +
+                   `<button class="bottone tenue piccolo" onclick="esciDaQui()">Esci da questo telefono</button>`
+                 : `<button class="bottone" onclick="schedaCreaAccesso()">Crea il tuo accesso</button>
+                    <button class="bottone vuoto" onclick="schedaEntra()">Entra con la tua mail</button>`}
       </div>
     </div>`;
 }
@@ -11822,12 +11899,6 @@ function tieniQuesto(){
   chiedi('Tengo il lavoro di questo telefono e lo salvo sopra quello dell’altro. Quello che hai fatto là dopo l’ultima copia si perde.',
     async () => { const ok = await mandaCopia(true); vai(); avvisa(ok ? 'Tenuto quello di questo telefono.' : 'Non sono riuscito: riprova con la rete.'); },
     'Sì, tieni questo');
-}
-function accendiCopia(si){
-  segnaCopia({spenta: !si});
-  if(si) mandaCopia();
-  vai();
-  avvisa(si ? 'Copia al sicuro accesa.' : 'Copia al sicuro spenta. Il lavoro resta solo su questo telefono.');
 }
 
 /* =====================================================================

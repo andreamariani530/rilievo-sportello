@@ -144,7 +144,7 @@ def ritira(lid, gestione):
         if not _vale(d, gestione):
             return False
         if not d.get("ritirato"):
-            d["ritirato"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            d["ritirato"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             _scrivi(lid, d)
         return True
 
@@ -156,7 +156,7 @@ def segna_aperto(lid):
             return
         ap = d.get("aperture") or []
         if len(ap) < 200:
-            ap.append(time.strftime("%Y-%m-%dT%H:%M:%S"))
+            ap.append(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
         d["aperture"] = ap
         _scrivi(lid, d)
 
@@ -169,10 +169,10 @@ def accetta(lid, nome, ip="", browser=""):
     with _chiave:
         d = _leggi(lid)
         if not d or d.get("ritirato") or time.time() > d.get("scade", 0):
-            return False, "Questo preventivo non e' piu' valido."
+            return False, "Questo preventivo non è più valido."
         if d.get("accettato"):
-            return True, "Era gia' accettato."
-        d["accettato"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%S"), "nome": nome,
+            return True, "Era già accettato."
+        d["accettato"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nome": nome,
                           "ip": str(ip or "")[:60], "browser": str(browser or "")[:200],
                           "impronta": d.get("impronta")}
         _scrivi(lid, d)
@@ -203,6 +203,8 @@ html,body{background:#F4EFE6;margin:0}
 .accetta .errore{color:#9A4B3A}
 .accetta .contatti a{color:#2B2822;margin-right:18px}
 .nota{font-size:13px;color:#7A746A}
+/* sul link si accetta qui sotto: le righe per la firma a penna non servono */
+.carta .firma-doc{display:none}
 </style>"""
 
 
@@ -214,26 +216,27 @@ def pagina(lid, stili_app, messaggio="", errore=""):
     e = html.escape
     ditta = e(d.get("ditta") or "")
     if d.get("ritirato") or time.time() > d.get("scade", 0):
-        corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>Questo preventivo non e\' piu\' valido</h1></div>'
-                 '<div class="accetta"><p>Chi te l\'ha mandato lo ha ritirato o ne ha fatto uno nuovo. '
+        corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>Questo preventivo non è più valido</h1></div>'
+                 '<div class="accetta"><p>Chi te l’ha mandato lo ha ritirato o ne ha fatto uno nuovo. '
                  'Chiedigli il link aggiornato.</p></div>')
         return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
     tel = d.get("telefono") or ""
     contatti = ""
+    domanda = "Per qualsiasi cosa:" if d.get("accettato") else "Una domanda prima di decidere?"
     if tel:
         wa = tel.lstrip("+")
         if not wa.startswith("39") and len(wa) <= 10:
             wa = "39" + wa
-        contatti = (f'<p class="contatti">Una domanda prima di decidere? '
+        contatti = (f'<p class="contatti">{domanda} '
                     f'<a href="tel:{e(tel)}">Chiama</a><a href="https://wa.me/{e(wa)}" target="_blank" rel="noopener">Scrivi su WhatsApp</a></p>')
     acc = d.get("accettato")
     if acc:
         fondo = (f'<div class="accetta"><p class="fatto">Accettato da {e(acc.get("nome",""))}, '
                  f'il {e(_data(acc.get("quando","")))}.</p>'
-                 f'<p>{ditta} lo ha gia\' saputo. Grazie.</p>{contatti}</div>')
+                 f'<p>{ditta} lo ha già saputo. Grazie.</p>{contatti}</div>')
     else:
         fondo = (f'<div class="accetta"><h2>Ti va bene?</h2>'
-                 f'<p>Se il preventivo e\' come lo vuoi, scrivi il tuo nome e premi «Accetto». '
+                 f'<p>Se il preventivo è come lo vuoi, scrivi il tuo nome e premi «Accetto». '
                  f'{ditta} lo sa subito.</p>'
                  + (f'<p class="errore">{e(errore)}</p>' if errore else '') +
                  f'<form method="post" action="/p/{lid}/accetto">'
@@ -241,16 +244,22 @@ def pagina(lid, stili_app, messaggio="", errore=""):
                  f'<label class="ok"><input type="checkbox" name="ok" value="1" required>'
                  f'<span>Ho letto il preventivo e lo accetto.</span></label>'
                  f'<button type="submit">Accetto</button></form>{contatti}'
-                 f'<p class="nota">Rimangono segnati il tuo nome, il giorno e l\'ora. Il preventivo resta '
-                 f'valido per le condizioni scritte sopra.</p></div>')
+                 f'<p class="nota">Restano segnati il tuo nome, il giorno e l’ora. Valgono le condizioni '
+                 f'scritte nel preventivo.</p></div>')
     corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>{e(d.get("titolo") or "Il tuo preventivo")}</h1></div>'
              f'<div class="carta">{d.get("corpo","")}</div>{fondo}')
     return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
 
 
 def _data(iso):
-    m = re.match(r"(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)", iso or "")
-    return f"{m[3]}/{m[2]}/{m[1]} alle {m[4]}:{m[5]}" if m else iso
+    """Il giorno e l'ora in Italia: il server di Render vive in ora di Greenwich."""
+    try:
+        import datetime, zoneinfo
+        t = datetime.datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+        t = t.astimezone(zoneinfo.ZoneInfo("Europe/Rome"))
+        return t.strftime("%d/%m/%Y alle %H:%M")
+    except Exception:                       # noqa: BLE001
+        return iso
 
 
 def _intera(titolo, stili_app, corpo):

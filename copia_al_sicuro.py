@@ -3,32 +3,30 @@
 
 PERCHE' ESISTE
 Fino al 3 ottobre 2026 tutto quello che un artigiano scrive in Rilievo stava solo
-nella memoria del suo telefono. Telefono perso, rotto o cambiato: lavoro perso,
-a meno di aver premuto «Esporta tutto in un file». Klivo tiene tutto sul server e
-per un artigiano e' la cosa piu' ovvia del mondo; per noi era la mancanza piu'
-grave (confronto del 3/10, `valutazioni/rilievo-contro-klivo-2026-10-03.pdf`).
+nella memoria del suo telefono. Telefono perso, rotto o cambiato: lavoro perso.
+Klivo tiene tutto sul server; per noi era la mancanza piu' grave (confronto del 3/10,
+`valutazioni/rilievo-contro-klivo-2026-10-03.pdf`).
 
-COME FUNZIONA, IN DUE RIGHE
-Il telefono si inventa una chiave lunga e casuale la prima volta, e con quella
-manda al server una copia di tutto, da solo, poco dopo ogni salvataggio. Su un
-altro telefono si scrive la stessa chiave e la copia torna indietro.
+COME FUNZIONA
+Il telefono, entrato con mail e password (vedi accessi.py), manda una copia di tutto
+poco dopo ogni salvataggio. Su un altro telefono si entra con la stessa mail e la copia
+torna indietro. La copia e' legata all'account: il nome del file e' l'impronta della
+mail, non la mail.
 
-NIENTE ACCOUNT, NIENTE PASSWORD
-La chiave non la sceglie la persona: la tira fuori il telefono, 80 bit a caso.
-Nessuno la indovina, e non c'e' una password debole da rubare. Il server non la
-conserva nemmeno: tiene solo la sua impronta (sha256), e il file ha quel nome.
-Chi legge il disco non sa a chi appartiene una copia, e non puo' rifare la chiave.
+PRIMA ERA CHIUSA A CHIAVE SUL TELEFONO, ADESSO NO
+La prima versione (3/10, 20:20) cifrava la copia sul telefono con una chiave di 16
+segni che noi non vedevamo mai. Andrea ha scelto mail e password «come tutti», cioe'
+anche la password dimenticata che si rimette con una mail: per poterlo fare la copia
+deve essere leggibile dal server. Sta sul disco permanente di Render, in Europa, e non
+la guarda nessuno. L'informativa lo dice cosi', senza promettere di piu'.
 
 DUE TELEFONI CHE SCRIVONO
 Ogni copia ha un numero di versione. Il telefono dice «parto dalla versione 7».
-Se sul server c'e' gia' la 8, vuol dire che un altro telefono ha salvato dopo, e
-questa scrittura NON passa: il telefono deve chiedere alla persona cosa tenere.
-Cosi' non si mangia mai il lavoro di un altro telefono senza dirlo.
+Se sul server c'e' gia' la 8, un altro telefono ha salvato dopo, e questa scrittura
+NON passa: il telefono chiede alla persona cosa tenere.
 
 DOVE STANNO I FILE
-Nella stessa cartella dell'archivio della squadra (`RILIEVO_ARCHIVIO`, il disco
-permanente su Render), sotto `copie/`. Un file per chiave, piu' la copia di prima
-(`.prima`), per rimettere a posto un salvataggio andato storto.
+`RILIEVO_ARCHIVIO/copie/`, un file per account, piu' la copia di prima (`.prima`).
 """
 import hashlib, json, os, pathlib, re, threading, time
 
@@ -37,16 +35,10 @@ import archivio
 MAX_COPIA = 12 * 1024 * 1024       # il telefono ne tiene al massimo 5-10 MB
 _chiave = threading.RLock()
 
-# la chiave come la scrive il telefono: 16 lettere/cifre (base32 senza 0, 1, O, I),
-# a gruppi di quattro. Si accettano anche minuscole, spazi e trattini.
-_ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-
-
 def pulisci_chiave(c):
-    c = re.sub(r"[\s\-]", "", str(c or "")).upper()
-    if len(c) != 16 or any(x not in _ALFABETO for x in c):
-        return ""
-    return c
+    """Il nome della copia che manda il telefono: 64 cifre esadecimali."""
+    c = str(c or "").strip().lower()
+    return c if re.fullmatch(r"[0-9a-f]{64}", c) else ""
 
 
 def _cartella():
@@ -91,8 +83,9 @@ def salva(chiave, stato, partenza, da=""):
     """
     chiave = pulisci_chiave(chiave)
     if not chiave:
-        return "no", {"errore": "La chiave della copia non e' scritta bene."}
-    if not isinstance(stato, dict) or not isinstance(stato.get("preventivi", []), list):
+        return "no", {"errore": "Il nome della copia non e' scritto bene."}
+    if (not isinstance(stato, dict) or not isinstance(stato.get("azienda"), dict)
+            or not isinstance(stato.get("preventivi", []), list)):
         return "no", {"errore": "Quello che mi mandi non sembra il lavoro di Rilievo."}
     try:
         partenza = int(partenza or 0)
@@ -108,7 +101,7 @@ def salva(chiave, stato, partenza, da=""):
             return "dopo", {"versione": ora, "quando": vecchia.get("quando", ""),
                             "da": vecchia.get("da", "")}
         nuova = {"versione": ora + 1,
-                 "quando": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
+                 "quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                  "da": str(da or "")[:60],
                  "stato": stato}
         f = _file(chiave)

@@ -31,7 +31,12 @@ import urllib.parse, urllib.request
 import logging
 import xml.etree.ElementTree as ET
 import archivio            # l'archivio condiviso della ditta
+import copia_al_sicuro     # il lavoro di un artigiano fuori dal telefono
+import accessi             # mail e password, come in ogni app
+import posta               # la mail per scegliere una password nuova
+import preventivo_col_link # il preventivo che il cliente apre e accetta da un link
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
+import assistente          # l'assistente in chat, col manuale dell'app dentro
 from PIL import Image, ImageDraw, ImageFilter
 
 QUI          = pathlib.Path(__file__).parent
@@ -2759,14 +2764,15 @@ def servizio(porta=8787, pubblico=False):
             self._apri(codice)
             self.wfile.write(json.dumps(dati, ensure_ascii=False).encode())
 
-        def _corpo(self):
+        def _corpo(self, massimo=4 * 1024 * 1024):
             """Quello che arriva nel corpo di una POST, gia' aperto. Al massimo 4 MB:
-            un elenco di lavori di una ditta non arriva neanche vicino."""
+            un elenco di lavori di una ditta non arriva neanche vicino. La copia al
+            sicuro e il preventivo col link chiedono di piu' (ci sono le foto)."""
             try:
                 quanto = int(self.headers.get("Content-Length") or 0)
             except ValueError:
                 return None
-            if quanto <= 0 or quanto > 4 * 1024 * 1024:
+            if quanto <= 0 or quanto > massimo:
                 return None
             try:
                 return json.loads(self.rfile.read(quanto).decode("utf-8"))
@@ -2781,6 +2787,22 @@ def servizio(porta=8787, pubblico=False):
             codice = (q.get("codice") or [""])[0]
             if u.path == "/fattura/invia":
                 self._fattura_invia(codice)
+                return
+            if u.path.startswith("/accesso/"):
+                self._accesso(u.path)
+                return
+            if u.path == "/assistente":
+                self._assistente()
+                return
+            if u.path.startswith("/copia/"):
+                self._copia(u.path)
+                return
+            if u.path.startswith("/link/"):
+                self._link(u.path)
+                return
+            m = re.fullmatch(r"/p/([a-z2-9]{14})/accetto", u.path)
+            if m:
+                self._accetta_dal_link(m.group(1))
                 return
             if not u.path.startswith("/squadra/"):
                 self._manda(404, {"errore": "Non c'e' nulla qui."})
@@ -2824,6 +2846,167 @@ def servizio(porta=8787, pubblico=False):
                 return
 
             self._manda(404, {"errore": "Non c'e' nulla qui."})
+
+        # ---- gli accessi: mail e password ------------------------------------
+        def _ip(self):
+            return (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+
+        def _accesso(self, percorso):
+            dentro = self._corpo(64 * 1024)
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+            mail, pw, da = dentro.get("mail"), dentro.get("password"), dentro.get("da")
+            if percorso in ("/accesso/registra", "/accesso/entra"):
+                fa = accessi.registra if percorso.endswith("registra") else None
+                g, motivo, codice = (accessi.registra(mail, pw, da) if fa
+                                     else accessi.entra(mail, pw, self._ip(), da))
+                if not g:
+                    self._manda(codice, {"errore": motivo})
+                    return
+                self._manda(200, {"gettone": g, "mail": accessi.mail_pulita(mail)})
+                return
+            if percorso == "/accesso/esci":
+                accessi.esci(mail, dentro.get("gettone"))
+                self._manda(200, {"uscito": True})
+                return
+            if percorso == "/accesso/dimenticata":
+                g, m = accessi.chiedi_reset(mail, self._ip())
+                if g:
+                    base = (os.environ.get("RILIEVO_INDIRIZZO") or "https://rilievo-sportello.onrender.com").rstrip("/")
+                    link = base + "/#nuova-password/" + urllib.parse.quote(m) + "/" + g
+                    posta.manda(m, "Rilievo: scegli una password nuova",
+                                "Buongiorno,\n\nqualcuno (speriamo tu) ha chiesto di cambiare la password di Rilievo "
+                                "per questa mail.\n\nPer sceglierne una nuova apri questo link entro un'ora:\n"
+                                + link + "\n\nSe non sei stato tu, lascia stare questa mail: la password resta quella di prima."
+                                "\n\nRilievo")
+                # la stessa risposta sempre: non si dice a nessuno se una mail ha un accesso
+                self._manda(200, {"fatto": True})
+                return
+            if percorso == "/accesso/nuova":
+                g, motivo, codice = accessi.nuova_password(mail, dentro.get("reset"), pw, da)
+                if not g:
+                    self._manda(codice, {"errore": motivo})
+                    return
+                self._manda(200, {"gettone": g, "mail": accessi.mail_pulita(mail)})
+                return
+            self._manda(404, {"errore": "Non c'e' nulla qui."})
+
+        # ---- l'assistente in chat ----------------------------------------------
+        def _assistente(self):
+            """Una domanda all'assistente. Con mail e gettone buoni conta l'account
+            (300 al mese), senza conta il telefono (20 al mese)."""
+            dentro = self._corpo(64 * 1024)
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+            m = accessi.chi_e(dentro.get("mail"), dentro.get("gettone")) if dentro.get("gettone") else None
+            conto = dentro.get("solo_conto")
+            if conto:
+                resta, tetto = assistente.restano(m and accessi.id_account(m), dentro.get("telefono"), self._ip())
+                self._manda(200, {"restano": resta, "tetto": tetto,
+                                  "acceso": bool(os.environ.get("ANTHROPIC_API_KEY"))})
+                return
+            codice, dati = assistente.rispondi(dentro.get("domanda"), dentro.get("storia"),
+                                               dentro.get("pagina"),
+                                               account=m and accessi.id_account(m),
+                                               telefono=dentro.get("telefono"), ip=self._ip())
+            self._manda(codice, dati)
+
+        # ---- la copia al sicuro ------------------------------------------------
+        def _copia(self, percorso):
+            """Il telefono manda o riprende il suo lavoro. Vale solo con un accesso buono."""
+            dentro = self._corpo(14 * 1024 * 1024)
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+            m = accessi.chi_e(dentro.get("mail"), dentro.get("gettone"))
+            if not m:
+                self._manda(401, {"errore": "Entra di nuovo con la tua mail e la tua password.",
+                                  "fuori": True})
+                return
+            nome = accessi.id_account(m)
+            if percorso == "/copia/salva":
+                esito, r = copia_al_sicuro.salva(nome, dentro.get("copia"),
+                                                 dentro.get("partenza"), dentro.get("da"))
+                self._manda({"ok": 200, "dopo": 409, "no": 400}[esito], r)
+                return
+            if percorso == "/copia/prendi":
+                c = copia_al_sicuro.leggi(nome)
+                if not c:
+                    self._manda(200, {"versione": 0, "copia": None})
+                    return
+                self._manda(200, {"versione": c.get("versione"), "quando": c.get("quando"),
+                                  "da": c.get("da"), "copia": c.get("stato")})
+                return
+            self._manda(404, {"errore": "Non c'e' nulla qui."})
+
+        # ---- il preventivo col link ------------------------------------------
+        def _link(self, percorso):
+            dentro = self._corpo(8 * 1024 * 1024)
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+            if percorso == "/link/metti":
+                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+                r, errore = preventivo_col_link.metti(dentro.get("corpo"), dentro.get("ditta"),
+                                                     dentro.get("titolo"), dentro.get("telefono"), ip)
+                if not r:
+                    self._manda(400, {"errore": errore})
+                    return
+                print("  link: nuovo preventivo da %s" % (dentro.get("ditta") or "?")[:40])
+                self._manda(200, r)
+                return
+            if percorso == "/link/stato":
+                voci = dentro.get("voci") if isinstance(dentro.get("voci"), list) else []
+                fuori = {}
+                for v in voci[:100]:
+                    if isinstance(v, dict):
+                        s = preventivo_col_link.stato(v.get("link"), v.get("gestione"))
+                        if s:
+                            fuori[str(v.get("link"))] = s
+                self._manda(200, {"stati": fuori})
+                return
+            if percorso == "/link/ritira":
+                ok = preventivo_col_link.ritira(dentro.get("link"), dentro.get("gestione"))
+                self._manda(200 if ok else 404, {"ritirato": ok})
+                return
+            self._manda(404, {"errore": "Non c'e' nulla qui."})
+
+        def _pagina_cliente(self, codice, testo):
+            dati = (testo or "").encode("utf-8")
+            self.send_response(codice)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Security-Policy", preventivo_col_link.REGOLE)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Robots-Tag", "noindex, nofollow")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(dati)))
+            self.end_headers()
+            self.wfile.write(dati)
+
+        def _accetta_dal_link(self, lid):
+            try:
+                quanto = min(int(self.headers.get("Content-Length") or 0), 4096)
+            except ValueError:
+                quanto = 0
+            campi = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace")) if quanto > 0 else {}
+            stili = preventivo_col_link.stili_dell_app(APP / "index.html")
+            if not (campi.get("ok") or [""])[0]:
+                self._pagina_cliente(200, preventivo_col_link.pagina(
+                    lid, stili, errore="Spunta «Ho letto il preventivo e lo accetto»."))
+                return
+            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+            ok, msg = preventivo_col_link.accetta(lid, (campi.get("nome") or [""])[0], ip,
+                                                  self.headers.get("User-Agent") or "")
+            pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg)
+            if pagina is None:
+                self._pagina_cliente(404, "<!doctype html><meta charset=utf-8><p>Questo link non esiste.</p>")
+                return
+            if ok:
+                print("  link: preventivo accettato")
+            self._pagina_cliente(200, pagina)
 
         def _fattura_invia(self, codice):
             """La fattura dall'app ad Aruba. Con l'Aruba finto passa chi passa per
@@ -2885,6 +3068,21 @@ def servizio(porta=8787, pubblico=False):
                 self.send_header("Location", "/#privacy")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
+                return
+            # il preventivo col link: la pagina che apre il cliente
+            m = re.fullmatch(r"/p/([a-z2-9]{14})/?", u.path)
+            if m:
+                lid = m.group(1)
+                pagina = preventivo_col_link.pagina(lid, preventivo_col_link.stili_dell_app(APP / "index.html"))
+                if pagina is None:
+                    self._pagina_cliente(404, "<!doctype html><meta charset=utf-8><title>Rilievo</title>"
+                                              "<p style='font-family:Georgia,serif;padding:30px'>Questo link non esiste "
+                                              "o è scaduto. Chiedi a chi te l’ha mandato quello nuovo.</p>")
+                    return
+                # l'artigiano che si guarda il suo link non conta come «aperto»
+                if (q.get("anteprima") or [""])[0] != "1":
+                    preventivo_col_link.segna_aperto(lid)
+                self._pagina_cliente(200, pagina)
                 return
             # l'applicazione stessa, se c'e' la cartella app/: cosi' ha un indirizzo
             # fisso e si installa sul telefono, e si apre anche senza rete
