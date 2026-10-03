@@ -686,6 +686,7 @@ body.disegno-aperto{overflow:hidden}
   color:var(--accento);font-size:18px}
 .via:hover{border-color:var(--accento)}
 .via .lbl{color:var(--accento)}
+button.via{font:inherit;text-align:left;width:100%}
 .testo-messaggio{margin-bottom:18px;font-size:15px;color:var(--soft)}
 .testo-messaggio summary{cursor:pointer;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--tenue)}
@@ -993,7 +994,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-03 02:04';
+const COSTRUITA = '2026-10-03 20:14';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2497,6 +2498,7 @@ function schedaRichiesta(id){
     valori: r || {canale:'Telefonata', arrivata:S.oggi, stato:'da_richiamare'},
     campi:[
       {k:'nome', l:'Nome', p:'Sig.ra Rossi'},
+      {k:'tel', l:'Telefono', p:'340 1234567'},
       {k:'luogo', l:'Paese', p:'Pandino (CR)'},
       {k:'indirizzo', l:'Indirizzo', p:'Via Roma 4, 26025 Pandino (CR)'},
       {k:'cosa', l:'Cosa vuole', t:'lungo', p:"Due parole, come te l'ha detto lei."},
@@ -2659,7 +2661,7 @@ function duplicaPreventivo(id){
   n.id = nuovoId('p'); n.numero = nuovoNumero(); n.data = S.oggi;
   n.stato = 'bozza'; n.sopralluogo = null;
   /* la copia e' un preventivo nuovo: niente firma, solleciti o esito di quello vecchio */
-  ['firma','solleciti','motivo','motivo_nota','consegna','iva','stato_prima','pagato'].forEach(k => { delete n[k]; });
+  ['firma','solleciti','solleciti_saldo','promemoria','motivo','motivo_nota','consegna','iva','stato_prima','pagato'].forEach(k => { delete n[k]; });
   n.note = 'Ripreso dal preventivo n. ' + p.numero + '.';
   S.preventivi.unshift(n); salva();
   location.hash = '#preventivo/' + n.id;
@@ -3668,7 +3670,7 @@ PAGINE.oggi = {
   },
   spiega:{
     testo:'La prima cosa che vedi la mattina. Cosa hai in programma, cosa aspetta una risposta e quanto hai fatto uscire questa settimana. Niente altro.',
-    punti:['I sopralluoghi di oggi, con l\'indirizzo','I preventivi che aspettano una risposta, col messaggio pronto per risentire il cliente','Quanto hai preventivato e quanto è stato accettato']
+    punti:['I sopralluoghi di oggi e i prossimi appuntamenti, da ricordare al cliente su WhatsApp con un tocco','I preventivi che aspettano una risposta, col messaggio pronto per risentire il cliente','Quanto hai preventivato e quanto è stato accettato']
   },
   corpo(){
     const orario = s => oraBuona(s.ora) ? s.ora : '24';
@@ -3694,6 +3696,21 @@ PAGINE.oggi = {
        apre tutti i giorni (Andrea, 24 settembre 2026). */
     const daChiudere = S.preventivi.filter(lavoroDaChiudere)
       .sort((a,b) => ultimoGiornoLavoro(a).localeCompare(ultimoGiornoLavoro(b)));
+    /* gli appuntamenti dei prossimi giorni, da ricordare al cliente: il giorno del
+       lavoro (anche il passaggio che si ripete) e i sopralluoghi da domani in poi.
+       Quelli di oggi stanno gia' in «In programma», col loro tasto. */
+    const fino = dopoGiorni(S.oggi, GIORNI_AVANTI);
+    const appuntamenti = S.preventivi.filter(p => preso(p) && !lavoroFinito(p))
+        .map(p => ({tipo:'lavoro', x:p, giorno:prossimoPassaggio(p), ora:p.lavoro && p.lavoro.ora}))
+      .concat(S.sopralluoghi.filter(s => s.quando && s.quando > S.oggi && !s.preventivo && s.stato !== 'da_fissare')
+        .map(s => ({tipo:'sopralluogo', x:s, giorno:s.quando, ora:s.ora})))
+      .filter(a => a.giorno && a.giorno <= fino)
+      .sort((a, b) => (a.giorno + (oraBuona(a.ora) ? a.ora : '24')).localeCompare(b.giorno + (oraBuona(b.ora) ? b.ora : '24')));
+    /* finiti e non pagati: i soldi che aspetti. Stessa regola della linguetta
+       «Da incassare» di Preventivi. */
+    const daIncassare = S.preventivi.filter(p => lavoroFinito(p) && p.stato !== 'pagato'
+                                              && p.stato !== 'messo_via' && p.stato !== 'rifiutato')
+      .sort((a, b) => String(a.lavoro_fatto.quando).localeCompare(String(b.lavoro_fatto.quando)));
     const daRisentire = S.clienti.filter(c => statoCliente(c) === 'richiamare')
       .map(c => {
         const ultimo = lavoriDi(c.id).map(x => x.data).sort().slice(-1)[0];
@@ -3713,7 +3730,7 @@ PAGINE.oggi = {
             <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
               <div><div class="tit">${esc(s.nome)}</div>
                    <div class="sub">${sotto(oraBuona(s.ora) ? 'Alle ' + oraBella(s.ora) : '', s.luogo)}</div></div>
-              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${tagSopralluogo(s)}</div>
+              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${!s.preventivo ? tastoRicorda('sopralluogo', s, 'Ricordaglielo') : ''}${tagSopralluogo(s)}</div>
             </div>`).join('')}
           ${daFissare.map(s => `
             <div class="r"><div><div class="tit">${esc(s.nome)}</div>
@@ -3751,6 +3768,19 @@ PAGINE.oggi = {
       <div>
         <div class="lbl" style="margin-bottom:12px">In programma</div>
         ${programma}
+        <div class="lbl" style="margin:28px 0 12px">Prossimi appuntamenti</div>
+        ${appuntamenti.length ? `<div class="elenco" id="prossimi-appuntamenti">
+          ${appuntamenti.map(a => `
+            <div class="r cliccabile" onclick="location.hash='#${a.tipo === 'lavoro' ? 'preventivo' : 'sopralluogo'}/${a.x.id}'">
+              <div><div class="tit">${esc(a.x.nome)}</div>
+                <div class="sub">${sotto(a.tipo === 'lavoro' ? 'Lavoro' : 'Sopralluogo',
+                  quandoDetto(a.giorno) + (oraBuona(a.ora) ? ' alle ' + oraBella(a.ora) : ''), a.x.luogo)}</div></div>
+              <div class="azioni" onclick="event.stopPropagation()">
+                ${a.giorno === S.oggi ? tastoNaviga(a.x.luogo, 'Naviga') : ''}${tastoRicorda(a.tipo, a.x, 'Ricordaglielo')}</div>
+            </div>`).join('')}
+          </div>
+          <p style="font-size:15px;color:var(--tenue);margin-top:12px">«Ricordaglielo» apre WhatsApp col messaggio già scritto: giorno, ora e posto. Un cliente avvisato il giorno prima ti fa trovare il cancello aperto.</p>`
+        : '<div class="niente" style="padding:20px 0">Nei prossimi sette giorni non hai lavori o sopralluoghi fissati.</div>'}
       </div>
       <div class="scheda">
         <div class="lbl" style="margin-bottom:10px">Aspettano una risposta</div>
@@ -3766,6 +3796,18 @@ PAGINE.oggi = {
           </div>
           <p style="font-size:15px;color:var(--tenue);margin-top:14px">Un preventivo fermo da più di quattro giorni te lo ricordo qui, con il messaggio già scritto. Si perdono più lavori per il silenzio che per il prezzo.</p>`
         : '<div class="niente" style="padding:20px 0">Nessuno ti deve una risposta.</div>'}
+        <div class="lbl" style="margin:26px 0 10px">Da incassare</div>
+        ${daIncassare.length ? `<div class="elenco" style="border-top:0" id="da-incassare">
+          ${daIncassare.map(p => `
+            <div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'">
+              <div><div class="tit">${esc(p.nome)}</div>
+                <div class="sub">Finito ${quando(p.lavoro_fatto.quando)} · ${euro(conti(p).totale)}</div></div>
+              <div class="azioni" onclick="event.stopPropagation()">
+                ${tastoRicorda('saldo', p, 'Sollecita')}
+                ${p.stato === 'accettato' ? `<button class="bottone vuoto piccolo" onclick="segnaPagato('${p.id}')">È pagato</button>` : ''}</div>
+            </div>`).join('')}
+          </div>`
+        : '<div class="niente" style="padding:20px 0">Nessun lavoro finito aspetta i soldi.</div>'}
       </div>
     </div>
     <div style="margin-top:30px">
@@ -7993,7 +8035,9 @@ function mancaPerFattura(a, cl){
   const manca = [];
   const m = (testo, chi, campo) => manca.push({testo, chi, campo});
   a = a || {}; cl = cl || {};
-  if(!pivaValida(a.piva)) m('la tua partita IVA (11 cifre)', 'ditta', 'piva');
+  if(!pivaValida(a.piva)) m(String(a.piva || '').trim()
+      ? 'una partita IVA che torni: quella scritta non passa il controllo delle cifre'
+      : 'la tua partita IVA (11 cifre)', 'ditta', 'piva');
   if(!cfValido(a.cf)) m('il tuo codice fiscale', 'ditta', 'cf');
   if(!sedeDitta(a)){
     const sd = sedeDivisa(a);
@@ -8213,15 +8257,10 @@ function riquadroFattura(){
     <button class="bottone vuoto piccolo interruttore${on ? ' acceso' : ''}" id="interruttore-fattura" onclick="cambiaFattura()"
       aria-pressed="${on}">Fattura elettronica (in prova) <span class="stato">${on ? 'Accesa' : 'Spenta'}</span></button>
     ${on ? `<div class="fattura-dati">
-      <div class="riga-tot"><span>Codice fiscale</span><span>${esc(a.cf || '—')}</span></div>
-      <div class="riga-tot"><span>Regime</span><span>${esc(nomeRegime(a.regime) || '—')}</span></div>
       <div class="riga-tot"><span>Prossima fattura</span><span>n. ${esc(prossimaFattura(false).numero)}</span></div>
       <div class="riga-tot"><span>Prossima di prova</span><span>n. ${esc(prossimaFattura(true).numero)}</span></div>
-      <p class="fattura-nota">${manca.length ? 'Per fare le fatture ti manca ' + esc(manca.map(x => x.testo).join(', ')) + '.'
+      <p class="fattura-nota">${manca.length ? 'Per fare le fatture manca qualcosa nei tuoi dati: lo trovi segnato qui accanto.'
         : 'I tuoi dati per la fattura ci sono tutti.'} Le fatture di prova hanno una numerazione loro e non vanno allo Stato.</p>
-      <div class="azioni" style="margin-top:12px">
-        <button class="bottone vuoto piccolo" onclick="schedaAzienda({fuoco:'${manca.length ? manca[0].campo : 'cf'}'})">${manca.length ? 'Completa i tuoi dati' : 'Cambia i tuoi dati'}</button>
-      </div>
     </div>` : ''}
   </div>`;
 }
@@ -9844,25 +9883,40 @@ function gruppoDocumento(d){
 }
 const LINGUETTE_DOCUMENTI = [['tutti','Tutti'],['chiusi','Lavori chiusi'],
   ['preventivi','Preventivi di prima'],['rapportini','Rapportini'],
-  ['resoconti','Resoconti'],['altro','Altro']];
+  ['resoconti','Resoconti'],['altro','Altro'],['fatture','Fatture']];
 function etichettaDocumento(d){ return tag(d.chiuso ? 'finito_pagato' : d.stato); }
 let filtroDocumenti = 'tutti';
 function setFiltroDocumenti(f){ filtroDocumenti = f; vai(); }
 PAGINE.documenti = {
   guida:false,
   testata(){ return {occhiello:'L\'archivio: i lavori chiusi e le carte caricate', titolo:'Documenti',
-    destra:'<div class="azioni"><button class="bottone vuoto" onclick="apriListinoDaVecchi()">Fai il listino da un preventivo</button>' +
+    destra:'<div class="azioni"><button class="bottone" id="btn-fai-fattura" onclick="sceltaFattura()">Fai una fattura</button>' +
+      '<button class="bottone vuoto" onclick="apriListinoDaVecchi()">Fai il listino da un preventivo</button>' +
       '<button class="bottone vuoto" onclick="document.getElementById(\'scelta-archivio\').click()">Carica preventivi di prima</button>' +
-      '<button class="bottone" onclick="schedaDocumento(null)">+ Nuovo documento</button>' + inputArchivio() + '</div>'}; },
+      '<button class="bottone vuoto" onclick="schedaDocumento(null)">+ Nuovo documento</button>' + inputArchivio() + '</div>'}; },
   spiega:{
     testo:'L\'archivio. Qui finiscono i lavori chiusi (fatti e pagati) e le carte che arrivano da fuori: i preventivi di prima, i rapportini, i resoconti. Quello che aspetta ancora qualcosa resta in Preventivi.',
-    punti:['Un lavoro entra qui da solo quando è fatto e incassato','Da un preventivo di prima si costruisce il tuo listino','Nel pacchetto base la fattura non c\'è ancora: arriva più avanti, compresa']
+    punti:['Un lavoro entra qui da solo quando è fatto e incassato','Da un preventivo di prima si costruisce il tuo listino','La fattura elettronica si fa da qui, col tasto «Fai una fattura»: scegli il lavoro e parte']
   },
   corpo(){
     const l = cassetto();
     if(!l.length) return `<div class="niente">L'archivio è vuoto. Ci finiscono da soli i lavori chiusi, cioè quelli fatti e pagati, più le carte che carichi tu.<br><br>Quello su cui stai lavorando sta in <a href="#preventivi" style="color:var(--accento)">Preventivi</a>.</div>`;
-    const conta = k => k === 'tutti' ? l.length : l.filter(d => gruppoDocumento(d) === k).length;
+    const fatture = S.preventivi.filter(p => p.fattura).sort((a,b) => String(b.fattura.data || '').localeCompare(String(a.fattura.data || '')));
+    const conta = k => k === 'tutti' ? l.length : k === 'fatture' ? fatture.length : l.filter(d => gruppoDocumento(d) === k).length;
     const visti = filtroDocumenti === 'tutti' ? l : l.filter(d => gruppoDocumento(d) === filtroDocumenti);
+    /* le fatture non sono una carta in piu' del cassetto: sono il seguito di un
+       lavoro chiuso. La linguetta le mette in fila, senza toglierle da «Lavori chiusi». */
+    if(filtroDocumenti === 'fatture') return `
+    <div class="filtri">
+      ${LINGUETTE_DOCUMENTI.map(([k,n]) => `<button class="${filtroDocumenti===k?'attivo':''}" onclick="setFiltroDocumenti('${k}')">${n} (${conta(k)})</button>`).join('')}
+    </div>
+    ${fatture.length ? `<div class="elenco">${fatture.map(p => `
+      <div class="r cliccabile" onclick="${p.fattura.file ? `location.hash='#fattura/${p.id}'` : `fatturaDi('${p.id}')`}">
+        <div><div class="tit">Fattura n. ${esc(p.fattura.numero)} · ${esc(p.nome)}</div>
+          <div class="sub">${dataLunga(p.fattura.data)} · ${euro(contiFattura(datiDellaFattura(p, p.fattura)).totale)}</div></div>
+        <div class="riga-azione">${tagFattura(p.fattura)}</div>
+      </div>`).join('')}</div>`
+      : `<div class="niente">Nessuna fattura ancora. Tocca «Fai una fattura» qui sopra e scegli un lavoro finito e pagato.</div>`}`;
     return `
     <div class="filtri">
       ${LINGUETTE_DOCUMENTI.map(([k,n]) => `<button class="${filtroDocumenti===k?'attivo':''}" onclick="setFiltroDocumenti('${k}')">${n} (${conta(k)})</button>`).join('')}
@@ -9874,6 +9928,7 @@ PAGINE.documenti = {
           <div class="sub">${dataLunga(d.data)}${d.nota ? ' · ' + esc(d.nota) : ''}</div></div>
         <div class="riga-azione">
           ${etichettaDocumento(d)}
+          ${d.chiuso ? tastoFatturaRiga(prev(d.id)) : ''}
           ${comandi([{t:'Modifica o cancella', i:MATITA,
              f: d.apribile ? `schedaPreventivo('${d.id}')` : `schedaDocumento('${d.id}')`}])}
         </div>
@@ -10092,14 +10147,14 @@ function testoSollecito(p){
 }
 /* le strade per mandare un messaggio: link veri, da toccare col dito. Il link
    apre WhatsApp o la mail; dopo segna nell'app cosa e' successo. */
-function vieConsegna(testo, cl, oggetto, dopo){
+function vieConsegna(testo, cl, oggetto, dopo, dentro){
   const num = cl ? numeroWhatsApp(cl.tel) : '';
   const posta = cl && /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(cl.mail || '') ? cl.mail : '';
   const wa = 'https://wa.me/' + num + '?text=' + encodeURIComponent(testo);
   const mail = 'mailto:' + posta + '?subject=' + encodeURIComponent(oggetto) + '&body=' + encodeURIComponent(testo);
   return `<div class="vie">
       <a class="via" href="${esc(wa)}" target="_blank" rel="noopener" onclick="chiudiScheda();${dopo.replace('__COME__', 'WhatsApp')}">
-        <span class="lbl">WhatsApp</span><span>${num ? 'Al ' + esc(cl.tel) : 'Scegli tu il contatto'}, con le voci e il totale già scritti</span></a>
+        <span class="lbl">WhatsApp</span><span>${num ? 'Al ' + esc(cl.tel) : 'Scegli tu il contatto'}, ${esc(dentro || 'con le voci e il totale già scritti')}</span></a>
       <a class="via" href="${esc(mail)}" onclick="chiudiScheda();${dopo.replace('__COME__', 'mail')}">
         <span class="lbl">Mail</span><span>${posta ? esc(posta) : 'Scrivi tu l\'indirizzo'}</span></a>
     </div>
@@ -10323,6 +10378,152 @@ function segnaSollecito(id){
   p.solleciti = (p.solleciti || []).concat([S.oggi]);
   salva(); vai();
   avvisa('Segnato. Se fra quattro giorni non ha ancora risposto, te lo ricordo di nuovo.');
+}
+
+/* ===== LA FATTURA DAI DOCUMENTI =====
+   Andrea, 3 ottobre 2026: «la fattura elettronica si dovrebbe mettere in Documenti,
+   la possibilita' di crearla in maniera piu' semplice, e' troppo nascosta». Prima il
+   tasto stava solo dentro il preventivo fatto e pagato, e solo con l'interruttore
+   acceso in Impostazioni: dai Documenti, dove finiscono i lavori chiusi, non c'era
+   modo di farla. Adesso c'e' un tasto in cima ai Documenti, e ogni lavoro chiuso ha
+   la sua fattura sulla riga. Chi tocca «Fai una fattura» la vuole: l'interruttore si
+   accende da solo (resta in Impostazioni per spegnerla). */
+const fatturaFatta = p => !!(p && p.fattura && p.fattura.file && p.fattura.stato !== 'scartata');
+function accendiFattura(){
+  if(!fatturaAccesa()){ S.azienda.fattura_elettronica = true; salva(); }
+}
+function tastoFatturaRiga(p){
+  if(!p) return '';
+  if(p.fattura && p.fattura.file)
+    return `<a href="#fattura/${p.id}" onclick="event.stopPropagation()" style="text-decoration:none">${tagFattura(p.fattura)}</a>`;
+  return `<button class="bottone vuoto piccolo" onclick="event.stopPropagation();fatturaDi('${p.id}')">${p.fattura ? 'Manda la fattura' : 'Fai la fattura'}</button>`;
+}
+function fatturaDi(id){
+  accendiFattura(); chiudiScheda();
+  faiLaFattura(id);
+}
+/* manca solo un segno per poterla fare: si mette il segno e si va avanti, un tocco solo */
+function pagatoEFattura(id){
+  const p = prev(id); if(!p || p.stato !== 'accettato') return;
+  p.stato = 'pagato'; p.pagato = {quando: S.oggi};
+  salva(); chiudiScheda(); vai();
+  fatturaDi(id);
+}
+function finitoEFattura(id){
+  const p = prev(id); if(!p || lavoroFinito(p)) return;
+  p.lavoro_fatto = {quando: S.oggi};
+  salva(); chiudiScheda(); vai();
+  fatturaDi(id);
+}
+function sceltaFattura(){
+  accendiFattura();
+  const vivo = p => p.stato !== 'messo_via' && p.stato !== 'rifiutato' && p.stato !== 'bozza';
+  const pronti   = S.preventivi.filter(p => preventivoChiuso(p) && !fatturaFatta(p));
+  const daPagare = S.preventivi.filter(p => vivo(p) && lavoroFinito(p) && p.stato === 'accettato');
+  const daFinire = S.preventivi.filter(p => p.stato === 'pagato' && !lavoroFinito(p));
+  const riga = (p, f, cosa) => `<button type="button" class="via" onclick="${f}('${p.id}')">
+      <span class="lbl">${esc(p.nome)} · ${euro(conti(p).totale)}</span><span>${esc(cosa)}</span></button>`;
+  const blocco = (titolo, l, f, cosa) => l.length
+    ? `<div class="lbl" style="margin:4px 0 8px">${titolo}</div><div class="vie">${l.map(p => riga(p, f, cosa(p))).join('')}</div>` : '';
+  const extra = pronti.length + daPagare.length + daFinire.length
+    ? blocco('Fatti e pagati', pronti, 'fatturaDi', p => 'Preventivo n. ' + p.numero + (p.fattura ? ' · la fattura è pronta, manca solo mandarla' : (p.luogo ? ' · ' + p.luogo : '')))
+      + blocco('Finiti, ma non ancora pagati', daPagare, 'pagatoEFattura', () => 'Tocca se ti ha pagato: lo segno pagato e faccio la fattura')
+      + blocco('Pagati, ma il lavoro non risulta finito', daFinire, 'finitoEFattura', () => 'Tocca se il lavoro è fatto: lo segno finito e faccio la fattura')
+    : '<div class="niente" style="padding:12px 0 18px">Adesso non c\'è un lavoro da fatturare. La fattura si fa su un lavoro finito e pagato: quando lo segni, lo trovi qui.</div>';
+  scheda({
+    titolo: 'Fai una fattura',
+    sotto: 'Scegli il lavoro: cliente, righe e importi li prendo dal preventivo.' + (fatturaDiProva ? ' Per ora è in prova, non parte niente allo Stato.' : ''),
+    extra, campi: [],
+    testoSalva: 'Vedi le fatture fatte',
+    salva: () => { filtroDocumenti = 'fatture'; if(location.hash !== '#documenti') location.hash = '#documenti'; }
+  });
+}
+
+/* ===== RICORDARE AL CLIENTE, DA OGGI =====
+   Andrea, 3 ottobre 2026: «servirebbe in Oggi, nei lavori da fare, un collegamento a
+   WhatsApp per i solleciti e per ricordare al cliente l'appuntamento». Tre messaggi
+   gia' scritti: il sopralluogo, il giorno del lavoro, il saldo di un lavoro finito.
+   Partono dal telefono del giardiniere, come il preventivo; l'app segna solo il
+   giorno in cui l'ha fatto, cosi' in Oggi si vede chi e' gia' stato avvisato. */
+const GIORNI_AVANTI = 7;
+function quandoDetto(iso){
+  const n = -giorniDa(iso);
+  if(n === 0) return 'oggi';
+  if(n === 1) return 'domani';
+  const d = gg(iso);
+  return GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()];
+}
+/* il prossimo giorno in cui si va dal cliente, contando i passaggi che si ripetono */
+function prossimoPassaggio(p){
+  if(!p || !lavoroBuono(p.lavoro)) return '';
+  const l = p.lavoro;
+  for(let i = 0; i < l.volte; i++){
+    const d = gg(l.quando); d.setDate(d.getDate() + i * l.ogni);
+    const iso = giornoIso(d);
+    if(iso >= S.oggi) return iso;
+  }
+  return '';
+}
+/* a chi si scrive: la scheda del cliente, se no la richiesta da cui e' nato */
+function contattoDi(x){
+  const c = x && x.cliente ? cliente(x.cliente) : null;
+  if(c) return c;
+  const r = x && x.richiesta ? richiesta(x.richiesta) : null;
+  return r ? {nome: r.nome, tel: r.tel, mail: r.mail} : null;
+}
+function testoRicordaSopralluogo(s){
+  return 'Buongiorno, le ricordo il sopralluogo di ' + quandoDetto(s.quando) +
+    (oraBuona(s.ora) ? ' alle ' + oraBella(s.ora) : '') + (s.luogo ? ', in ' + s.luogo : '') +
+    '. Vengo a vedere il lavoro e poi le preparo il preventivo. Se l\'orario non le va più bene me lo dica pure, troviamo un altro momento.\n\n' + firmaDitta();
+}
+function testoRicordaLavoro(p){
+  const g = prossimoPassaggio(p) || p.lavoro.quando;
+  return 'Buongiorno, le ricordo che ' + quandoDetto(g) + (p.lavoro.ora ? ' alle ' + oraBella(p.lavoro.ora) : '') +
+    ' veniamo per il lavoro' + (p.luogo ? ' in ' + p.luogo : '') + ' (preventivo n. ' + p.numero + '). ' +
+    'Se serve aprire un cancello o spostare l\'auto, ce lo dica. Per qualsiasi cambio mi scriva pure.\n\n' + firmaDitta();
+}
+function testoRicordaSaldo(p){
+  const fatto = p.lavoro_fatto && p.lavoro_fatto.quando;
+  return 'Buongiorno, ' + (fatto ? 'il ' + dataLunga(fatto) + ' abbiamo finito il lavoro' : 'il lavoro è finito') +
+    (p.luogo ? ' in ' + p.luogo : '') + '. Le ricordo il saldo del preventivo n. ' + p.numero + ': ' +
+    euro(conti(p).totale) + ', IVA compresa. Se l\'ha già fatto, non tenga conto di questo messaggio. Grazie ancora per la fiducia.\n\n' + firmaDitta();
+}
+const RICORDA = {
+  sopralluogo: {trova: id => sopr(id), titolo: 'Ricordagli il sopralluogo', campo: 'promemoria',
+    testo: testoRicordaSopralluogo, oggetto: s => 'Sopralluogo di ' + quandoDetto(s.quando),
+    dentro: 'col giorno e l\'ora già scritti', fatto: 'Segnato: il cliente sa che arrivi.'},
+  lavoro: {trova: id => prev(id), titolo: 'Ricordagli il lavoro', campo: 'promemoria',
+    testo: testoRicordaLavoro, oggetto: p => 'Lavoro di ' + quandoDetto(prossimoPassaggio(p) || p.lavoro.quando),
+    dentro: 'col giorno e l\'ora già scritti', fatto: 'Segnato: il cliente sa che arrivi.'},
+  saldo: {trova: id => prev(id), titolo: 'Ricordagli il saldo, con garbo', campo: 'solleciti_saldo',
+    testo: testoRicordaSaldo, oggetto: p => 'Saldo del preventivo n. ' + p.numero,
+    dentro: 'col totale già scritto', fatto: 'Segnato. Quando paga, toccalo «È pagato».'}
+};
+function ricordaAlCliente(tipo, id){
+  const t = RICORDA[tipo], x = t && t.trova(id); if(!x) return;
+  scheda({
+    titolo: t.titolo,
+    sotto: (x.nome ? x.nome + '. ' : '') + 'Il messaggio è già scritto. Prima di mandarlo lo puoi cambiare, dentro WhatsApp o nella mail.',
+    extra: vieConsegna(t.testo(x), contattoDi(x), t.oggetto(x) + ' · ' + S.azienda.nome, `segnaRicordato('${tipo}','${id}')`, t.dentro),
+    campi: [],
+    testoSalva: 'L\'ho chiamato al telefono',
+    salva: () => segnaRicordato(tipo, id)
+  });
+}
+function segnaRicordato(tipo, id){
+  const t = RICORDA[tipo], x = t && t.trova(id); if(!x) return;
+  x[t.campo] = (x[t.campo] || []).concat([S.oggi]);
+  salva(); vai();
+  avvisa(t.fatto);
+}
+/* il tasto sulla riga di Oggi. Un appuntamento ricordato negli ultimi tre giorni
+   e' avvisato; un saldo sollecitato torna a farsi vedere dopo quattro giorni, come
+   i preventivi che aspettano risposta. */
+function tastoRicorda(tipo, x, testo){
+  const t = RICORDA[tipo], ultimo = (x[t.campo] || []).slice(-1)[0];
+  if(ultimo && giorniDa(ultimo) >= 0 && giorniDa(ultimo) <= (tipo === 'saldo' ? 4 : 3))
+    return '<span class="tag v">' + (tipo === 'saldo' ? 'Sollecitato ' : 'Avvisato ') + esc(quando(ultimo)) + '</span>';
+  return `<button class="bottone piccolo" onclick="event.stopPropagation();ricordaAlCliente('${tipo}','${x.id}')">${esc(testo)}</button>`;
 }
 function rifiutaPreventivo(id){
   const p = prev(id); if(!p) return;
@@ -11265,6 +11466,10 @@ PAGINE.impostazioni = {
   },
   corpo(){
     const a = S.azienda;
+    /* i dati della ditta stanno in un posto solo: qui. Il riquadro della fattura
+       non ha un secondo tasto per gli stessi dati (Matteo, 3 ottobre 2026). */
+    const fattOn = fatturaAccesa();
+    const mancaDitta = fattOn ? mancaPerFattura(a, {}).filter(x => x.chi === 'ditta') : [];
     const quanti = [
       ['Voci di listino', S.listino.length],
       ['Clienti', S.clienti.length],
@@ -11284,14 +11489,15 @@ PAGINE.impostazioni = {
         <div style="margin-top:16px;color:var(--soft);font-size:16.5px;line-height:1.7">
           ${esc(a.via)}<br>${esc(a.citta)}<br>
           P. IVA ${esc(a.piva)}<br>${esc(a.tel)}${a.mail ? ' · ' + esc(a.mail) : ''}<br>
-          IVA al ${a.iva}%
+          IVA al ${a.iva}%${fattOn ? `<br>Codice fiscale ${esc(a.cf || '—')}<br>Regime ${esc(nomeRegime(a.regime) || '—')}` : ''}
         </div>
+        ${mancaDitta.length ? `<p class="fattura-nota" id="dati-mancanti" style="margin-top:12px">Per fare le fatture manca ${esc(mancaDitta.map(x => x.testo).join(', '))}.</p>` : ''}
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--filetto);color:var(--soft);font-size:15.5px;line-height:1.65">
           Il preventivo vale ${Number(a.validita) > 0 ? Number(a.validita) : 30} giorni${Number(a.acconto) > 0 ? ' · acconto del ' + cifra(Number(a.acconto)) + '% alla firma' : ''}.
           ${a.condizioni ? `<br><span style="color:var(--tenue)">${esc(a.condizioni)}</span>` : ''}
         </div>
         <div class="azioni" style="margin-top:20px">
-          <button class="bottone" onclick="schedaAzienda()">Modifica i tuoi dati</button>
+          <button class="bottone" onclick="schedaAzienda(${mancaDitta.length ? `{fuoco:'${mancaDitta[0].campo}'}` : ''})">${mancaDitta.length ? 'Completa i tuoi dati' : 'Modifica i tuoi dati'}</button>
         </div>
       </div>
 
