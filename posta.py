@@ -20,7 +20,7 @@ def accesa():
                 and (os.environ.get("RILIEVO_POSTA_PASSWORD") or "").strip())
 
 
-def manda(a, oggetto, testo, html=""):
+def manda(a, oggetto, testo, html="", nome="Rilievo", rispondi_a=""):
     """Torna True se la mail e' partita (o e' stata messa da parte nei collaudi)."""
     utente = (os.environ.get("RILIEVO_POSTA_UTENTE") or "").strip()
     chiave = (os.environ.get("RILIEVO_POSTA_PASSWORD") or "").replace(" ", "").strip()
@@ -28,11 +28,13 @@ def manda(a, oggetto, testo, html=""):
         d = pathlib.Path(archivio.CARTELLA) / "posta-in-uscita"
         d.mkdir(parents=True, exist_ok=True)
         (d / ("%d-%s.json" % (int(time.time() * 1000), a.split("@")[0][:20]))).write_text(
-            json.dumps({"a": a, "oggetto": oggetto, "testo": testo}, ensure_ascii=False), encoding="utf-8")
+            json.dumps({"a": a, "oggetto": oggetto, "testo": testo, "nome": nome, "rispondi_a": rispondi_a}, ensure_ascii=False), encoding="utf-8")
         print("  posta spenta (mancano RILIEVO_POSTA_UTENTE e RILIEVO_POSTA_PASSWORD): mail messa da parte")
         return True
     m = EmailMessage()
-    m["From"] = formataddr(("Rilievo", utente))
+    m["From"] = formataddr((str(nome or "Rilievo")[:80], utente))
+    if rispondi_a:
+        m["Reply-To"] = rispondi_a
     m["To"] = a
     m["Subject"] = oggetto
     m["Message-ID"] = make_msgid(domain=utente.split("@")[-1])

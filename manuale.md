@@ -40,7 +40,7 @@ in Documenti.
 ## Oggi (`#oggi`)
 
 La prima schermata della mattina.
-- In alto i numeri della settimana: sopralluoghi di oggi, preventivi in attesa,
+- In alto i numeri della settimana: sopralluoghi di oggi, preventivi senza risposta,
   quanto hai preventivato, quanto è stato accettato, clienti da risentire.
 - «Il lavoro è stato fatto?»: i lavori con la data passata. «Sì, è finito» li chiude,
   «Sposta la data» li rimanda.
@@ -49,7 +49,7 @@ La prima schermata della mattina.
 - «Prossimi appuntamenti»: lavori e sopralluoghi dei prossimi sette giorni, ognuno con
   «Ricordaglielo». Il messaggio parte già scritto con giorno, ora e posto. Dopo l'invio
   la riga dice «Avvisato».
-- «Aspettano una risposta»: i preventivi mandati. Dopo quattro giorni compare
+- «Non ti hanno ancora risposto»: i preventivi consegnati a cui il cliente non ha ancora detto sì o no. Dopo quattro giorni compare
   «Risentilo», con il messaggio di sollecito già scritto.
 - «Da incassare»: i lavori finiti ma non pagati. «Sollecita» manda il messaggio per il
   saldo, «È pagato» lo segna incassato.
@@ -88,7 +88,7 @@ Il cuore del lavoro: cammini nel giardino e parli.
 
 ## Preventivi (`#preventivi`) e il singolo preventivo
 
-- L'elenco ha le linguette: Tutti, Bozze, In attesa, Accettati, Pagati, Da incassare,
+- L'elenco ha le linguette: Tutti, Bozze, Senza risposta, Accettati, Pagati, Da incassare,
   Non andati, Messi via. «+ Nuovo preventivo» per farne uno senza sopralluogo.
 - Dentro un preventivo cambi quantità, togli o aggiungi voci («+ Voce nuova»), metti
   lo sconto: il totale si rifà subito davanti al cliente.

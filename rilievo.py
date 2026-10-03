@@ -34,6 +34,7 @@ import archivio            # l'archivio condiviso della ditta
 import copia_al_sicuro     # il lavoro di un artigiano fuori dal telefono
 import accessi             # mail e password, come in ogni app
 import posta               # la mail per scegliere una password nuova
+import promemoria          # i promemoria automatici ai clienti, se la ditta li accende
 import preventivo_col_link # il preventivo che il cliente apre e accetta da un link
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 import assistente          # l'assistente in chat, col manuale dell'app dentro
@@ -2794,7 +2795,7 @@ def servizio(porta=8787, pubblico=False):
             if u.path == "/assistente":
                 self._assistente()
                 return
-            if u.path.startswith("/copia/"):
+            if u.path.startswith("/copia/") or u.path == "/promemoria/stato":
                 self._copia(u.path)
                 return
             if u.path.startswith("/link/"):
@@ -2866,6 +2867,15 @@ def servizio(porta=8787, pubblico=False):
                     return
                 self._manda(200, {"gettone": g, "mail": accessi.mail_pulita(mail)})
                 return
+            if percorso == "/accesso/stato":
+                m = accessi.chi_e(mail, dentro.get("gettone"))
+                if not m:
+                    self._manda(401, {"errore": "Entra di nuovo con la tua mail e la tua password.", "fuori": True})
+                    return
+                c = accessi.creato(m)
+                self._manda(200, {"mail": m, "creato": c, "prova_fino": c + 30 * 86400 if c else 0,
+                                  "posta": posta.accesa()})
+                return
             if percorso == "/accesso/esci":
                 accessi.esci(mail, dentro.get("gettone"))
                 self._manda(200, {"uscito": True})
@@ -2926,6 +2936,9 @@ def servizio(porta=8787, pubblico=False):
                                   "fuori": True})
                 return
             nome = accessi.id_account(m)
+            if percorso == "/promemoria/stato":
+                self._manda(200, {"inviati": promemoria.registro(copia_al_sicuro._file(nome).stem)})
+                return
             if percorso == "/copia/salva":
                 esito, r = copia_al_sicuro.salva(nome, dentro.get("copia"),
                                                  dentro.get("partenza"), dentro.get("da"))
@@ -3323,6 +3336,7 @@ def servizio(porta=8787, pubblico=False):
         indirizzo_ascolto = "127.0.0.1"
 
     socketserver.TCPServer.allow_reuse_address = True
+    promemoria.avvia()     # ogni mezz'ora, nei giorni feriali dalle 9 alle 19
     with socketserver.ThreadingTCPServer((indirizzo_ascolto, porta), Sportello) as s:
         print("Il rilievo è acceso su http://%s:%d" % (indirizzo_ascolto, porta))
         print("Lascia questa finestra aperta e usa Rilievo. Ctrl-C per fermare.")

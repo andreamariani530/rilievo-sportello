@@ -190,6 +190,8 @@ th.n{text-align:right;padding-right:0}
 .finestra .piede{display:flex;gap:10px;align-items:center;margin-top:24px;padding-top:18px;
   border-top:1px solid var(--filetto);flex-wrap:wrap;position:relative;z-index:3;background:var(--bianco)}
 .finestra .piede .a-destra{margin-left:auto}
+.finestra .errore-scheda{flex-basis:100%;margin:0 0 4px;color:#8C4A3F;font-size:15.5px;line-height:1.4}
+.finestra .errore-scheda:empty{display:none}
 .pericolo{background:none;border:0;cursor:pointer;font-family:'Jost',sans-serif;font-size:10px;
   letter-spacing:.14em;text-transform:uppercase;color:#8C4A3F;padding:8px 0}
 .pericolo:hover{text-decoration:underline}
@@ -335,7 +337,7 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
 /* avviso a comparsa */
 .avviso{position:fixed;left:50%;bottom:34px;transform:translate(-50%,12px);background:var(--inchiostro);
   color:var(--carta);padding:13px 22px;font-size:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);
-  z-index:60;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none;max-width:88vw;text-align:center}
+  z-index:95;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none;max-width:88vw;text-align:center}
 .avviso.on{opacity:1;transform:translate(-50%,0)}
 
 /* quando il telefono ha scaricato una versione nuova dell'app */
@@ -992,6 +994,7 @@ async function avvia(){
   vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
   controllaIngresso();     /* se il controllo e' spento non si vede niente */
   guardaILink();           /* chi ha aperto o accettato un preventivo col link */
+  guardaIPromemoria();     /* quali promemoria automatici sono partiti, e da quando c'e' l'accesso */
   copiaFraPoco();          /* la copia al sicuro, se si e' entrati con la mail */
   preparaChat();           /* il tasto «Chiedi»: l'assistente col manuale dell'app */
   if(linkPassword) schedaNuovaPassword(linkPassword);
@@ -1037,7 +1040,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 01:13';
+const COSTRUITA = '2026-10-04 01:40';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1741,7 +1744,7 @@ const ETICHETTE = {
   lavoro_accettato:   {t:'Lavoro accettato',   c:'v'},
   lavoro_perso:       {t:'Non andata',         c:''},
   bozza:              {t:'Bozza',              c:''},
-  inviato:            {t:'In attesa',          c:'o'},
+  inviato:            {t:'Senza risposta',     c:'o'},
   accettato:          {t:'Accettato',          c:'v'},
   /* dopo "accettato" il lavoro si fa e poi si incassa: finche' non e' incassato,
      il preventivo accettato e' solo una promessa (Matteo, 20/09/2026) */
@@ -1768,7 +1771,7 @@ const ETICHETTE = {
   /* Andrea, 27 settembre 2026: «consegnato deve metterlo quando il lavoro e' concluso
      e pagato, da consegnare non me ne faccio nulla». Quindi «Consegnato» vuol dire
      lavoro fatto e soldi incassati; finche' il preventivo e' aperto il sopralluogo
-     mostra lo stato del preventivo (Bozza, In attesa, Accettato, Finito da incassare). */
+     mostra lo stato del preventivo (Bozza, Senza risposta, Accettato, Finito da incassare). */
   preventivo_in_corso:{t:'Preventivo in corso', c:'o'},
   consegnato:         {t:'Consegnato',         c:'v'},
   fatto:              {t:'Consegnato',         c:'v'}
@@ -2400,6 +2403,7 @@ function scheda(o){
       </div>
       ${o.conto ? '<div class="conto-vivo" id="scheda-conto"></div>' : ''}
       <div class="piede">
+        <p class="errore-scheda" id="scheda-errore" role="alert"></p>
         ${o.elimina ? `<button class="pericolo" id="btn-elimina">Cancella</button>` : ''}
         <div class="a-destra riga-azione">
           <button class="bottone vuoto piccolo" onclick="chiudiScheda()">Lascia stare</button>
@@ -2471,6 +2475,13 @@ function scheda(o){
     });
   }
 
+  /* Un errore si scrive li' sopra i tasti, non solo nell'avviso in fondo: Andrea,
+     4 ottobre 2026, «il tasto è come non premerlo». L'avviso stava sotto la finestra
+     e non si vedeva, quindi Salva sembrava rotto. */
+  const errore = testo => {
+    avvisa(testo);
+    const r = velo.querySelector('#scheda-errore'); if(r) r.textContent = testo;
+  };
   velo.querySelector('#btn-salva').onclick = () => {
     const dati = {};
     let sbagliato = null;
@@ -2486,11 +2497,11 @@ function scheda(o){
       dati[c.k] = x;
     });
     if(sbagliato){
-      avvisa('Nel campo «' + sbagliato.c.l + '» c\'è «' + sbagliato.x + '»: scrivi il numero in cifre, per esempio 1.250 oppure 186,5.');
+      errore('Nel campo «' + sbagliato.c.l + '» c\'è «' + sbagliato.x + '»: scrivi il numero in cifre, per esempio 1.250 oppure 186,5.');
       return;
     }
     const problema = o.controlla ? o.controlla(dati) : null;
-    if(problema){ avvisa(problema); return; }
+    if(problema){ errore(problema); return; }
     chiudiScheda();
     o.salva(dati);
     salva(); vai();
@@ -2657,7 +2668,7 @@ function schedaVoce(id){
 
 /* ---------------- preventivi ---------------- */
 const STATI_PREVENTIVO = [
-  ['bozza','Bozza'], ['inviato','Consegnato, in attesa'],
+  ['bozza','Bozza'], ['inviato','Consegnato, senza risposta'],
   ['accettato','Accettato'], ['pagato','Pagato'], ['rifiutato','Non accettato'],
   ['messo_via','Messo via']
 ];
@@ -3726,8 +3737,8 @@ PAGINE.oggi = {
     return {occhiello: GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()], titolo:'Oggi'};
   },
   spiega:{
-    testo:'La prima cosa che vedi la mattina. Cosa hai in programma, cosa aspetta una risposta e quanto hai fatto uscire questa settimana. Niente altro.',
-    punti:['I sopralluoghi di oggi e i prossimi appuntamenti, da ricordare al cliente su WhatsApp con un tocco','I preventivi che aspettano una risposta, col messaggio pronto per risentire il cliente','Quanto hai preventivato e quanto è stato accettato']
+    testo:'La prima cosa che vedi la mattina. Cosa hai in programma, quali clienti non ti hanno ancora risposto e quanto hai fatto uscire questa settimana. Niente altro.',
+    punti:['I sopralluoghi di oggi e i prossimi appuntamenti, da ricordare al cliente su WhatsApp con un tocco','I preventivi a cui il cliente non ha ancora risposto, col messaggio pronto per risentire il cliente','Quanto hai preventivato e quanto è stato accettato']
   },
   corpo(){
     const orario = s => oraBuona(s.ora) ? s.ora : '24';
@@ -3800,7 +3811,7 @@ PAGINE.oggi = {
     return `
     <div class="riga-numeri">
       <div class="numero"><div class="val">${inGiornata.length + inRitardo.length}</div><div class="lbl">Sopralluoghi oggi</div></div>
-      <div class="numero"><div class="val">${attesa.length}</div><div class="lbl">Preventivi in attesa</div></div>
+      <div class="numero"><div class="val">${attesa.length}</div><div class="lbl">Preventivi senza risposta</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(fatti, 0)}</div><div class="lbl">Preventivato in sette giorni</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(chiusi, 0)}</div><div class="lbl">Accettato</div></div>
       <div class="numero"><div class="val">${daRisentire.length}</div><div class="lbl">Clienti da risentire</div></div>
@@ -3840,7 +3851,7 @@ PAGINE.oggi = {
         : '<div class="niente" style="padding:20px 0">Nei prossimi sette giorni non hai lavori o sopralluoghi fissati.</div>'}
       </div>
       <div class="scheda">
-        <div class="lbl" style="margin-bottom:10px">Aspettano una risposta</div>
+        <div class="lbl" style="margin-bottom:10px">Non ti hanno ancora risposto</div>
         ${attesa.length ? `<div class="elenco" style="border-top:0">
           ${attesa.map(p => {
             const risentito = (p.solleciti || []).slice(-1)[0];
@@ -8223,8 +8234,8 @@ const CAMPI_CLIENTE_FATTURA = [
   {k:'cap', l:'CAP', m:true, p:'26025'},
   {k:'comune', l:'Comune', m:true, p:'Pandino'},
   {k:'provincia', l:'Provincia', m:true, p:'CR'},
-  {k:'fiscale', l:'Codice fiscale o partita IVA', m:true, p:'16 lettere e numeri, o 11 cifre'},
-  {k:'sdi', l:'Codice destinatario', m:true, p:'Se ce l\'ha: 7 lettere o numeri'},
+  {k:'fiscale', l:'Codice fiscale o partita IVA', m:true, p:'Privato: codice fiscale. Ditta: partita IVA'},
+  {k:'sdi', l:'Codice destinatario', m:true, p:'Privato: lascia vuoto. Ditta: 7 lettere o numeri'},
   {k:'pec', l:'PEC', m:true, p:'Se non ha il codice'}
 ];
 
@@ -8288,6 +8299,8 @@ function valoriClientePerFattura(c){
 function controllaClientePerFattura(d){
   if(d.cap && !/^\d{5}$/.test(d.cap)) return 'Il CAP sono 5 cifre, per esempio 26025.';
   if(d.provincia && !/^[A-Za-z]{2}$/.test(d.provincia)) return 'La provincia si scrive con la sigla di due lettere, per esempio LO.';
+  if(/^0{7}$/.test(String(d.fiscale || '').replace(/\s/g, '')))
+    return 'Qui va il codice fiscale del cliente (16 lettere e numeri, lo trovi sulla tessera sanitaria). Lo 0000000 non serve scriverlo: se è un privato, lascia vuoto il codice destinatario e lo mette la fattura da sola.';
   if(d.fiscale && !cfValido(d.fiscale.replace(/\s/g, '')) && !pivaValida(d.fiscale))
     return 'Il codice fiscale ha 16 lettere e numeri, la partita IVA 11 cifre: controlla di averlo scritto giusto.';
   if(d.sdi && !codiceDestinatario(d.sdi)) return 'Il codice destinatario sono 7 lettere o numeri. Se il cliente non ce l\'ha, lascialo vuoto.';
@@ -9359,7 +9372,7 @@ PAGINE.preventivi = {
     return `
 
     <div class="filtri">
-      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','In attesa'],['accettato','Accettati'],['pagato','Pagati'],['incassare','Da incassare'],['rifiutato','Non andati'],['messo_via','Messi via']]
+      ${[['tutti','Tutti'],['bozza','Bozze'],['inviato','Senza risposta'],['accettato','Accettati'],['pagato','Pagati'],['incassare','Da incassare'],['rifiutato','Non andati'],['messo_via','Messi via']]
         .map(([k,n]) => `<button class="${filtroPrev===k?'attivo':''}" onclick="setFiltroPrev('${k}')">${n} (${conta(k)})</button>`).join('')}
     </div>
     ${campoCerca('Cerca per nome, numero o luogo')}
@@ -9382,7 +9395,7 @@ PAGINE.preventivi = {
     ${consegnati.length ? `<div class="riga-numeri">
       <div class="numero"><div class="val">${presi.length} <small>su ${consegnati.length}</small></div><div class="lbl">Accettati fra i consegnati</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(presi.reduce((t,p) => t + conti(p).netto, 0), 0)}</div><div class="lbl">Lavoro preso</div></div>
-      <div class="numero"><div class="val">${conta('inviato')}</div><div class="lbl">Aspettano una risposta</div></div>
+      <div class="numero"><div class="val">${conta('inviato')}</div><div class="lbl">Senza risposta del cliente</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Ancora da incassare</div></div>
       <div class="numero"><div class="val">${persi.length}</div><div class="lbl">${spesso ? 'Non andati · più spesso: ' + esc(nomeMotivo(spesso).toLowerCase()) : 'Non andati'}</div></div>
     </div>` : ''}`;
@@ -9491,6 +9504,7 @@ PAGINE.preventivo = {
           <div class="riga-tot"><span>Stato</span><span>${tagPreventivo(p)}</span></div>
           <div class="riga-tot"><span>Data</span><span>${dataCorta(p.data)}</span></div>
           ${rigaLink(p)}
+          ${rigaPromemoria(p)}
           ${(p.solleciti || []).length ? `<div class="riga-tot"><span>Risentito</span><span>${p.solleciti.length === 1 ? 'una volta' : p.solleciti.length + ' volte'}, l'ultima ${quando(p.solleciti[p.solleciti.length - 1])}</span></div>` : ''}
           ${p.cliente ? `<div class="riga-tot"><span>Cliente</span><a href="#cliente/${p.cliente}" style="color:var(--accento)">in rubrica</a></div>` : ''}
           ${misureGiardino(giardino && giardino.ril).length
@@ -9848,7 +9862,7 @@ PAGINE.numeri = {
     <div class="riga-numeri">
       <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Incassato nel ${anno}</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Lavoro preso, ancora da incassare</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(inAttesa, 0)}</div><div class="lbl">Fermo in attesa di risposta</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(inAttesa, 0)}</div><div class="lbl">Fermo: il cliente non ha risposto</div></div>
       <div class="numero"><div class="val">${quota}<small>%</small></div><div class="lbl">Ne prendi ${presi.length} su ${consegnati.length}</div></div>
     </div>
     <div class="griglia2">
@@ -10414,7 +10428,7 @@ function consegnaPreventivo(id){
   const cl = p.cliente ? cliente(p.cliente) : null;
   scheda({
     titolo: 'Come glielo consegni?',
-    sotto: 'Il preventivo passa fra quelli che aspettano una risposta e il cliente entra in rubrica.',
+    sotto: 'Il preventivo passa fra quelli senza risposta, finché il cliente non ti dice sì o no. E il cliente entra in rubrica.',
     extra: bloccoLink(p.id) + bloccoPdf(p.id) + vieConsegna(testoPreventivo(p), cl, 'Preventivo n. ' + p.numero + ' · ' + S.azienda.nome, `inviaPreventivo('${p.id}','__COME__')`),
     campi: [],
     testoSalva: 'Gliel\'ho dato a mano',
@@ -11483,7 +11497,8 @@ PAGINE.piani = {
     const totale = base.prezzo + personeInSquadra * PIANI.squadra.prezzo;
     return `
     <div class="spiega"><p>Tre piani, senza vincoli. Scegli in base al lavoro che fai.
-      <b>I pagamenti non sono ancora attivi:</b> oggi tutte le funzioni sono aperte e non paghi niente.</p></div>
+      <b>I pagamenti non sono ancora attivi:</b> oggi tutte le funzioni sono aperte e non paghi niente.</p>
+      ${giorniProva() !== null ? `<p style="margin-top:8px">${giorniProva() > 0 ? 'La tua prova gratuita di 30 giorni: <b>' + (giorniProva() === 1 ? 'oggi è l’ultimo giorno' : 'mancano ' + giorniProva() + ' giorni') + '</b>.' : 'La tua prova gratuita è finita: per ora Rilievo resta aperto lo stesso.'}</p>` : ''}</div>
     <div class="piani">
       ${tessera('preventivi')}
       ${tessera('pro')}
@@ -11555,6 +11570,9 @@ function testoPrivacy(){
         il cliente lo possa aprire. Chi ha il link lo pu&ograve; leggere. Se il cliente lo accetta, si segnano
         il nome che scrive, il giorno, l&rsquo;ora e l&rsquo;indirizzo di rete da cui accetta. Cancellando il
         preventivo, il link smette di funzionare.</li>
+      <li><b>I promemoria automatici.</b> Se li accendi, il nostro server usa la mail del tuo cliente, il numero,
+        il luogo e il totale del preventivo per mandargli un promemoria a nome tuo, dalla casella di Rilievo.
+        Le risposte arrivano a te. Teniamo il giorno e l&rsquo;ora di ogni promemoria partito.</li>
       <li><b>WhatsApp e mail.</b> Quando mandi un preventivo, lo mandi tu dalla tua app: noi non lo vediamo.</li>
       <li><b>L&rsquo;assistente.</b> Se tocchi &laquo;Chiedi&raquo;, la tua domanda, le ultime domande e risposte
         di quella conversazione e il nome della pagina dove sei passano dal nostro server ad Anthropic
@@ -11655,6 +11673,7 @@ PAGINE.impostazioni = {
         ${riquadroMestiere()}
         ${riquadroFattura()}
         ${riquadroCopia()}
+        ${riquadroPromemoria()}
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il tuo lavoro, in un file</div>
           <p style="font-size:16px;color:var(--soft)">Quello che fai resta su questo dispositivo, anche se chiudi la pagina (<a href="#privacy" style="color:var(--accento)">come trattiamo i dati</a>). Il file serve a portartelo via: su un altro telefono, sul computer, o per rimandarmelo se c'è da metterci mano.</p>
@@ -11752,12 +11771,22 @@ function disegnaChat(){
   const fila = document.getElementById('chat-fila');
   if(!fila) return;
   const conto = document.getElementById('chat-conto');
+  /* Senza accesso le domande sono 20 di prova: va detto come prova, e va detto
+     subito come diventano 300, se no sembra un limite dell'app (Andrea, 4/10). */
+  const diProva = !statoCopia().gettone;
   if(conto) conto.textContent = chatConto && chatConto.tetto
-    ? (chatConto.restano === 1 ? 'Ti resta 1 domanda questo mese' : 'Ti restano ' + chatConto.restano + ' domande questo mese')
+    ? (diProva ? 'Prova: ' + chatConto.restano + ' domande su ' + chatConto.tetto + ' questo mese'
+       : chatConto.restano === 1 ? 'Ti resta 1 domanda questo mese' : 'Ti restano ' + chatConto.restano + ' domande questo mese')
     : 'Conosce l\'app da cima a fondo';
+  const invitoAccesso = diProva
+    ? '<div class="msg lui accesso-chat">Stai usando la prova: 20 domande al mese. Entra con la tua mail e la tua password e diventano 300.' +
+      '<div class="portami"><button class="bottone piccolo" data-accesso="entra">Entra con la tua mail</button> ' +
+      '<button class="bottone vuoto piccolo" data-accesso="crea">Crea il tuo accesso</button></div></div>'
+    : '';
   let h = '';
   if(!chatStoria.length){
     h += '<div class="msg lui">Ciao! Chiedimi come si fa una cosa in Rilievo e ti dico i passi, uno per uno.</div>' +
+         invitoAccesso +
          '<div class="esempi">' + ESEMPI_CHAT.map((e, i) => `<button type="button" data-esempio="${i}">${esc(e)}</button>`).join('') + '</div>';
   }
   chatStoria.forEach((m, i) => {
@@ -11769,7 +11798,11 @@ function disegnaChat(){
       '</div>';
   });
   if(chatInViaggio) h += '<div class="msg lui pensa">Sto guardando nel manuale…</div>';
+  if(chatStoria.length && chatConto && chatConto.restano === 0) h += invitoAccesso;
   fila.innerHTML = h;
+  fila.querySelectorAll('[data-accesso]').forEach(b => b.onclick = () => {
+    chiudiChat(); (b.dataset.accesso === 'crea' ? schedaCreaAccesso : schedaEntra)();
+  });
   fila.querySelectorAll('[data-esempio]').forEach(b => b.onclick = () => chiediAllAssistente(ESEMPI_CHAT[+b.dataset.esempio]));
   fila.querySelectorAll('[data-portami]').forEach(b => b.onclick = () => {
     chiudiChat(); location.hash = '#' + b.dataset.portami;
@@ -11894,8 +11927,9 @@ async function mandaCopia(forza){
     if(c.conflitto && !forza) return false;      // aspetta che la persona scelga
     const testo = JSON.stringify(S), impronta = improntaLavoro(testo);
     if(!forza && impronta === c.impronta) return true;   // niente di nuovo da mandare
-    const {stato, ok, d} = await chiamaServer('/copia/salva', {mail: c.mail, gettone: c.gettone, copia: S,
+    const {stato, ok, d} = await chiamaServer('/copia/salva', {mail: c.mail, gettone: c.gettone, copia: copiaDaMandare(),
       partenza: forza ? (c.conflitto && c.conflitto.versione) || c.versione || 0 : (c.versione || 0),
+      /* dentro va anche l'elenco gia' pronto per i promemoria automatici (promemoria.py) */
       da: telefonoCheSalva()});
     if(stato === 401){ fuoriDalServer(); return false; }
     if(stato === 409){
@@ -11965,7 +11999,8 @@ async function creaAccesso(mail, password){
   catch(e){ avvisa('Il tuo lavoro è salvato su questo telefono. L’accesso lo crei da Impostazioni quando torna la rete.'); return false; }
   if(r.stato === 409){ avvisa(r.d.errore); schedaEntra(mail); return false; }
   if(!r.ok){ avvisa(r.d.errore || 'L’accesso non si è creato. Riprova da Impostazioni.'); return false; }
-  segnaCopia({mail: r.d.mail, gettone: r.d.gettone, versione: 0, impronta: '', conflitto: null, errore: '', spenta: false});
+  segnaCopia({mail: r.d.mail, gettone: r.d.gettone, versione: 0, impronta: '', conflitto: null, errore: '', spenta: false,
+              creato: Math.floor(Date.now() / 1000)});
   return prendiLavoro();
 }
 async function entraConMail(mail, password){
@@ -12060,6 +12095,7 @@ function riquadroCopia(){
       ${dentro ? `<p style="font-size:16px;color:var(--soft)">Il tuo lavoro si salva da solo anche fuori dal telefono. Se cambi telefono,
            entri con la mail e la password e ritrovi tutto.</p>
            <div class="riga-tot"><span>Entrato come</span><span><b>${esc(c.mail || '')}</b></span></div>
+           ${rigaProva()}
            <div class="riga-tot"><span>Ultima copia</span><span id="copia-quando">${c.spenta ? 'spenta' : c.conflitto ? 'ferma: scegli quale tenere'
              : c.ultima ? esc(quandoOra(c.ultima)) : (c.errore ? esc(c.errore) : 'fra pochi secondi')}</span></div>`
         : `<p style="font-size:16px;color:var(--soft)">${c.errore ? esc(c.errore) + ' '
@@ -12088,6 +12124,118 @@ function tieniQuesto(){
   chiedi('Tengo il lavoro di questo telefono e lo salvo sopra quello dell’altro. Quello che hai fatto là dopo l’ultima copia si perde.',
     async () => { const ok = await mandaCopia(true); vai(); avvisa(ok ? 'Tenuto quello di questo telefono.' : 'Non sono riuscito: riprova con la rete.'); },
     'Sì, tieni questo');
+}
+
+/* =====================================================================
+   I PROMEMORIA AUTOMATICI E LA PROVA DI 30 GIORNI
+   Andrea, 4 ottobre 2026: «ok ci sto con il piano» (punti 4 e 5 del confronto
+   con Klivo). Klivo risente da solo il cliente che non risponde; Rilievo lo
+   faceva solo col tocco su WhatsApp, cioe' solo se l'artigiano se ne ricordava.
+   Adesso, se la ditta li accende, il server manda lui la mail al cliente
+   (server-rilievo/promemoria.py). L'elenco di cosa si potrebbe ricordare lo
+   prepara l'app, perche' e' lei che sa fare i conti del preventivo, e viaggia
+   dentro la copia al sicuro. Di base sono SPENTI: si scrive ai clienti della ditta.
+   ===================================================================== */
+const PROMEMORIA_BASE = {preventivi: false, giorni: 5, volte: 2, pagamenti: false};
+const impPromemoria = () => Object.assign({}, PROMEMORIA_BASE, (S && S.azienda && S.azienda.promemoria) || {});
+function mailCliente(p){
+  const cl = p && p.cliente ? cliente(p.cliente) : null;
+  return cl && mailBuona(cl.mail) ? {mail: String(cl.mail).trim(), nome: cl.nome || ''} : null;
+}
+/* le voci che il server puo' ricordare: preventivi consegnati e lavori finiti da incassare */
+function daRicordare(){
+  if(!S || !Array.isArray(S.preventivi)) return [];
+  const fuori = [];
+  S.preventivi.forEach(p => {
+    if(typeof soloFattura === 'function' && soloFattura(p)) return;
+    const c = mailCliente(p); if(!c) return;
+    const base = {id: p.id, mail: c.mail, nome: c.nome, numero: p.numero || '', luogo: p.luogo || '',
+                  totale: Math.round(conti(p).totale * 100) / 100};
+    if(p.stato === 'inviato' && p.data)
+      fuori.push(Object.assign(base, {tipo: 'preventivo', dal: p.data, link: linkVivo(p) ? indirizzoLink(p) : ''}));
+    else if(p.stato === 'accettato' && lavoroFinito(p))
+      fuori.push(Object.assign(base, {tipo: 'pagamento', dal: p.lavoro_fatto.quando}));
+  });
+  return fuori;
+}
+const copiaDaMandare = () => Object.assign({}, S, {daRicordare: daRicordare()});
+function riquadroPromemoria(){
+  if(!suaDitta()) return '';
+  const i = impPromemoria(), dentro = !!statoCopia().gettone;
+  const senzaMail = S.preventivi.filter(p => p.stato === 'inviato' && !mailCliente(p)).length;
+  return `<div class="riquadro" id="riquadro-promemoria">
+      <div class="lbl" style="margin-bottom:12px">Promemoria automatici</div>
+      <p style="font-size:16px;color:var(--soft)">Se il cliente non risponde al preventivo, gli scriviamo noi una mail garbata a nome tuo.
+        Se ti risponde, la risposta arriva a te. Parte solo nei giorni feriali, dalle 9 alle 19.</p>
+      <div class="riga-tot"><span>Preventivi senza risposta</span><span><b>${i.preventivi ? 'dopo ' + i.giorni + ' giorni, al massimo ' + i.volte + ' volte' : 'spento'}</b></span></div>
+      <div class="riga-tot"><span>Lavori finiti non pagati</span><span><b>${i.pagamenti ? 'dopo 7 giorni, al massimo 2 volte' : 'spento'}</b></span></div>
+      ${!dentro ? `<p class="fattura-nota" style="margin-top:10px">Per farli partire serve il tuo accesso: i promemoria li manda il server, che vede il tuo lavoro solo dalla copia.</p>`
+        : !mailBuona(S.azienda.mail) ? `<p class="fattura-nota" style="margin-top:10px">Metti la mail della ditta nei tuoi dati: è lì che ti arrivano le risposte dei clienti.</p>`
+        : senzaMail ? `<p class="fattura-nota" style="margin-top:10px">${senzaMail === 1 ? 'Un preventivo senza risposta non ha' : senzaMail + ' preventivi senza risposta non hanno'} la mail del cliente in rubrica: lì il promemoria non parte.</p>` : ''}
+      <div class="azioni" style="margin-top:16px">
+        ${dentro ? `<button class="bottone${i.preventivi ? ' vuoto' : ''}" onclick="schedaPromemoria()">${i.preventivi || i.pagamenti ? 'Cambia i promemoria' : 'Accendi i promemoria'}</button>`
+                 : `<button class="bottone vuoto" onclick="schedaCreaAccesso()">Crea il tuo accesso</button>`}
+      </div>
+    </div>`;
+}
+function schedaPromemoria(){
+  const i = impPromemoria();
+  scheda({
+    titolo: 'Promemoria automatici',
+    sotto: 'Le mail partono da Rilievo col nome della tua ditta. Il cliente risponde a te.',
+    valori: {preventivi: i.preventivi ? 'si' : 'no', giorni: String(i.giorni), volte: String(i.volte), pagamenti: i.pagamenti ? 'si' : 'no'},
+    campi: [
+      {k:'preventivi', l:'Risenti chi non risponde al preventivo', t:'scelta', opzioni:[['si','Sì'],['no','No']]},
+      {k:'giorni', l:'Dopo quanti giorni', t:'scelta', opzioni:[['3','3 giorni'],['5','5 giorni'],['7','7 giorni'],['10','10 giorni']]},
+      {k:'volte', l:'Quante volte al massimo', t:'scelta', opzioni:[['1','Una volta'],['2','Due volte'],['3','Tre volte']]},
+      {k:'pagamenti', l:'Ricorda il pagamento dei lavori finiti (dopo 7 giorni)', t:'scelta', opzioni:[['no','No'],['si','Sì']]}
+    ],
+    testoSalva: 'Salva',
+    salva: d => {
+      S.azienda.promemoria = {preventivi: d.preventivi === 'si', giorni: Number(d.giorni) || 5,
+                              volte: Number(d.volte) || 2, pagamenti: d.pagamenti === 'si'};
+    },
+    messaggio: 'Fatto. I promemoria partono dal server, con la prossima copia del tuo lavoro.'
+  });
+}
+/* cosa e' gia' partito: lo dice il server, e si mostra sul preventivo */
+const CHIAVE_INVIATI = 'rilievo-promemoria-2026-10';
+function inviatiPromemoria(){
+  try{ return JSON.parse(localStorage.getItem(CHIAVE_INVIATI) || '{}') || {}; }catch(e){ return {}; }
+}
+let promemoriaGuardatiAlle = 0;
+async function guardaIPromemoria(){
+  const c = statoCopia();
+  if(!c.gettone || typeof fetch !== 'function' || Date.now() - promemoriaGuardatiAlle < 120000) return;
+  promemoriaGuardatiAlle = Date.now();
+  try{
+    const r = await chiamaServer('/promemoria/stato', {mail: c.mail, gettone: c.gettone});
+    if(r.ok){ localStorage.setItem(CHIAVE_INVIATI, JSON.stringify(r.d.inviati || {})); }
+    if(!c.creato){
+      const s = await chiamaServer('/accesso/stato', {mail: c.mail, gettone: c.gettone});
+      if(s.ok && s.d.creato) segnaCopia({creato: s.d.creato});
+    }
+  }catch(e){}
+}
+function rigaPromemoria(p){
+  const inv = inviatiPromemoria(), date = (inv['preventivo:' + p.id] || []).concat(inv['pagamento:' + p.id] || []);
+  if(date.length)
+    return `<div class="riga-tot"><span>Promemoria per mail</span><span>${date.map(d => esc(quandoOra(d))).join(', ')}</span></div>`;
+  const i = impPromemoria();
+  if(p.stato === 'inviato' && i.preventivi && !mailCliente(p))
+    return `<div class="riga-tot"><span>Promemoria per mail</span><span>il cliente non ha la mail in rubrica</span></div>`;
+  return '';
+}
+/* la prova gratuita: trenta giorni dal giorno dell'accesso. Niente si blocca: i pagamenti non ci sono */
+function giorniProva(){
+  const c = statoCopia();
+  if(!c.creato) return null;
+  return 30 - Math.floor((Date.now() - c.creato * 1000) / 864e5);
+}
+function rigaProva(){
+  const g = giorniProva();
+  if(g === null) return '';
+  return `<div class="riga-tot" id="riga-prova"><span>Prova gratuita</span><span><b>${g > 1 ? 'mancano ' + g + ' giorni' : g === 1 ? 'ultimo giorno' : 'finita'}</b></span></div>`;
 }
 
 /* =====================================================================
@@ -12219,7 +12367,7 @@ function rigaLink(p){
     : 'non ancora aperto';
   return `<div class="riga-tot"><span>Il link</span><span>${detto}</span></div>`;
 }
-addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') guardaILink(); });
+addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ guardaILink(); guardaIPromemoria(); } });
 
 
 avvia();

@@ -159,6 +159,12 @@ def chi_e(mail, gettone):
     return ""
 
 
+def creato(mail):
+    """Quando e' nato l'account (secondi), per contare i giorni della prova."""
+    c = _leggi(mail_pulita(mail))
+    return int((c or {}).get("creato") or 0)
+
+
 def esci(mail, gettone):
     m = mail_pulita(mail)
     with _chiave:
