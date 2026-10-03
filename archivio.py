@@ -50,7 +50,9 @@ pezzo su cui poggia il lavoro senza campo.
 import json, os, pathlib, re, threading, time
 
 QUI = pathlib.Path(__file__).parent
-CARTELLA = pathlib.Path(os.environ.get("RILIEVO_ARCHIVIO") or (QUI / "archivio"))
+# .strip(): il 3/10/2026 sul pannello di Render il valore era finito con un "a capo" in fondo,
+# e l'archivio andava in una cartella "rilievo\n" fuori dal disco, che si azzera a ogni riavvio
+CARTELLA = pathlib.Path((os.environ.get("RILIEVO_ARCHIVIO") or "").strip() or (QUI / "archivio"))
 
 # una scrittura per volta: il server risponde su piu' fili contemporaneamente e
 # due salvataggi nello stesso istante si mangerebbero a vicenda
