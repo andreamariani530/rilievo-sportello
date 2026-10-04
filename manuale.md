@@ -124,6 +124,9 @@ Il cuore del lavoro: cammini nel giardino e parli.
   Se cambi il prezzo di una voce presa dal listino, l'avviso offre un tasto «Tieni» col
   prezzo nuovo «anche nel listino»: toccalo e il prossimo preventivo esce col prezzo nuovo (quelli già mandati
   non cambiano). Se non lo tocchi, il listino resta com'era.
+- Toccando il nome di una voce si apre «Modifica la voce»: lì c'è anche «Metti una foto»
+  (la caldaia, il faretto, la pianta). La foto finisce piccola accanto alla voce, nel PDF e
+  sul link; la riga dice «con foto». «Toglila» la toglie.
 - «Cliente e data», in cima, cambia a chi è intestato il preventivo, la data e il numero.
 - «Consegnalo al cliente» apre «Come glielo consegni?»:
   - «Prepara il link»: il cliente apre una pagina, scrive il nome e tocca «Accetto».

@@ -793,6 +793,8 @@ button.via{font:inherit;text-align:left;width:100%}
 .foglio .condizioni-doc{margin-top:28px;padding-top:14px;border-top:1px solid var(--filetto);font-size:14.5px;
   color:var(--soft);line-height:1.6}
 .foglio .condizioni-doc p{margin-top:6px;max-width:72ch}
+.foglio .voce-con-foto{display:flex;gap:12px;align-items:flex-start}
+.foglio .foto-voce{width:72px;height:72px;object-fit:cover;flex:none;border:1px solid var(--filetto2)}
 .foglio .pagare-doc{margin-top:18px;padding:12px 14px;border:1px solid var(--filetto2);font-size:14.5px;color:var(--soft);
   line-height:1.6;break-inside:avoid;page-break-inside:avoid}
 .foglio .pagare-doc b{color:var(--inchiostro);font-weight:500}
@@ -1178,7 +1180,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 13:15';
+const COSTRUITA = '2026-10-04 13:23';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1645,6 +1647,8 @@ function normalizza(){
        silenzio. Qui si ferma il valore di adesso, che e' quello con cui il
        preventivo e' stato consegnato. */
     if(typeof r.iva !== 'number' || !isFinite(r.iva)) r.iva = aliquotaRiga(p, r);
+    /* la foto sulla voce: si tiene solo un'immagine scritta bene */
+    if(r.foto !== undefined && !fotoVoceBuona(r.foto)) delete r.foto;
   }));
   S.sopralluoghi.forEach(s => {
     if(!Array.isArray(s.foto)) s.foto = [];
@@ -2934,11 +2938,36 @@ function contoDellaRiga(d, r){
          ((d.facoltativa === 'si') ? ' · <b>facoltativa: fuori dal totale</b>' : '') +
          '</span><span class="quanto">' + esc(euro(importo)) + '</span>';
 }
+/* ===== LA FOTO SULLA VOCE (Joist, Danea, PreventivArt: 4 ottobre 2026) =====
+   La caldaia, il faretto, la pianta: stampata piccola accanto alla riga, nel PDF e sul
+   link. Il cliente vede cosa paga. Sta sulla riga di quel preventivo, rimpicciolita
+   (640 px, circa 40 KB): la memoria del telefono e' poca. Nel PDF le pagine si tagliano
+   solo all'inizio di una riga, quindi la foto non resta mai a cavallo di due pagine. */
+const FOTO_VOCE_LATO = 640, FOTO_VOCE_QUALITA = .6;
+const fotoVoceBuona = f => typeof f === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(f) && f.length < 400000;
+let fotoVoceInArrivo;
+function vistaFotoVoce(src){
+  return src ? `<div class="scontrino-messo"><img src="${src}" alt="La foto della voce" id="miniatura-voce">
+      <span>Foto messa · <button type="button" class="link-piccolo" onclick="fotoVoceScelta(null)">Toglila</button></span></div>`
+    : `<button type="button" class="bottone vuoto piccolo" id="btn-foto-voce" onclick="document.getElementById('foto-voce').click()">Metti una foto</button>
+       <p class="fattura-nota" style="margin-top:6px">Finisce piccola accanto alla voce, nel PDF e sul link: il cliente vede cosa paga.</p>`;
+}
+function fotoVoceScelta(src){
+  fotoVoceInArrivo = src || null;
+  const v = document.getElementById('vista-foto-voce'); if(v) v.innerHTML = vistaFotoVoce(src);
+}
+function fotoVoceDalTelefono(input){
+  const f = input.files && input.files[0]; input.value = '';
+  if(f) rimpicciolisci(f, src => { if(src) fotoVoceScelta(src); }, FOTO_VOCE_LATO, FOTO_VOCE_QUALITA);
+}
 function schedaRiga(id, k){
   const p = prev(id), r = p.righe[k];
+  fotoVoceInArrivo = undefined;
   scheda({
     titolo: 'Modifica la voce',
     sotto: 'Vale solo su questo preventivo. Il listino non si tocca.',
+    extra: '<input type="file" id="foto-voce" accept="image/*" style="display:none" onchange="fotoVoceDalTelefono(this)">',
+    dopoCampi: `<div id="vista-foto-voce" class="vista-scontrino">${vistaFotoVoce(fotoVoceBuona(r.foto) ? r.foto : null)}</div>`,
     valori: Object.assign({}, r, {iva:aliquotaRiga(p,r), facoltativa: r.facoltativa ? 'si' : 'no', volte: volteRiga(r) > 1 ? r.volte : ''}),
     campi:[
       {k:'nome', l:'Lavorazione'},
@@ -2958,6 +2987,9 @@ function schedaRiga(id, k){
     salva: d => {
       const primaP = r.p;
       Object.assign(r, {nome:d.nome, u:d.u, p:d.p, iva:d.iva, q: (d.q > 0 ? d.q : 1)});
+      if(fotoVoceInArrivo === null) delete r.foto;
+      else if(fotoVoceInArrivo && fotoVoceBuona(fotoVoceInArrivo)) r.foto = fotoVoceInArrivo;
+      fotoVoceInArrivo = undefined;
       r.facoltativa = d.facoltativa === 'si';
       if(d.volte > 1) r.volte = d.volte; else delete r.volte;
       prezzoNelListino = null;
@@ -2967,6 +2999,8 @@ function schedaRiga(id, k){
     elimina: () => p.righe.splice(k, 1),
     testoElimina: 'Tolgo questa voce dal preventivo.',
     dopo: () => {
+      /* la memoria del telefono e' piena: la foto non entra, il resto si' */
+      if(!salva() && r.foto){ delete r.foto; salva(); avvisa('La foto non è entrata: la memoria del telefono è piena. In Impostazioni salva tutto in un file.'); return; }
       /* PreventivAI (4 ottobre 2026): il prezzo cambiato puo' tornare nel listino,
          cosi' il prossimo preventivo esce giusto. Solo se lo chiedi tu. */
       const x = prezzoNelListino; prezzoNelListino = null;
@@ -10093,7 +10127,7 @@ function disegnaVoci(id){
     <div class="voce ${r.on?'':'spenta'}" id="v-${k}">
       <div class="sotto-voce">
         <div class="nome modificabile" onclick="schedaRiga('${id}',${k})" title="Cambia nome, prezzo, volte nell'anno, o rendila facoltativa">${esc(r.nome)}</div>
-        <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}</div>
+        <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}${fotoVoceBuona(r.foto) ? ' · con foto' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${aCorpo(r) ? '<div class="a-corpo">prezzo fisso</div>' : `<div class="qta">
@@ -10690,7 +10724,7 @@ PAGINE.documento = {
         <thead><tr><th>Lavorazione</th><th class="n">Quantità</th><th class="n">Prezzo</th><th class="n">Importo</th></tr></thead>
         <tbody>
           ${righe.map(r => `<tr>
-            <td>${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}</div></td>
+            <td>${fotoVoceBuona(r.foto) ? `<div class="voce-con-foto"><img class="foto-voce" src="${r.foto}" alt=""><div>` : ''}${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}</div>${fotoVoceBuona(r.foto) ? '</div></div>' : ''}</td>
             <td class="n" data-l="Quantità">${aCorpo(r) ? 'a corpo' : cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
             <td class="n" data-l="Prezzo">${euro(r.p)}</td>
             <td class="n" data-l="Importo">${euro(importoRiga(r))}</td>
@@ -10709,7 +10743,7 @@ PAGINE.documento = {
       ${fac.length ? `<div class="facoltative-doc">
         <div class="lbl">Proposte a parte, non comprese nel totale</div>
         <table><tbody>${fac.map(r => `<tr>
-          <td>${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}</div></td>
+          <td>${fotoVoceBuona(r.foto) ? `<div class="voce-con-foto"><img class="foto-voce" src="${r.foto}" alt=""><div>` : ''}${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}</div>${fotoVoceBuona(r.foto) ? '</div></div>' : ''}</td>
           <td class="n">${euro(importoRiga(r))}<div class="sub-doc">più IVA</div></td>
         </tr>`).join('')}</tbody></table>
       </div>` : ''}
