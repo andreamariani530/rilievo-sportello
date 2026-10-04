@@ -1,7 +1,7 @@
 {
   "name": "Rilievo",
   "short_name": "Rilievo",
-  "description": "Sopralluogo, rilievo e preventivo per chi cura il verde.",
+  "description": "Sopralluogo, rilievo e preventivo per artigiani, dal telefono.",
   "lang": "it",
   "start_url": "./",
   "scope": "./",

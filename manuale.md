@@ -39,13 +39,12 @@ in Documenti.
 
 ## Oggi (`#oggi`)
 
-La prima schermata della mattina.
-- In alto i numeri della settimana: sopralluoghi di oggi, preventivi senza risposta,
-  quanto hai preventivato, quanto è stato accettato, clienti da risentire.
+La prima schermata della mattina. Prima le cose da fare, in fondo i numeri.
 - «Il lavoro è stato fatto?»: i lavori con la data passata. «Sì, è finito» li chiude,
   «Sposta la data» li rimanda.
 - «In programma»: i sopralluoghi di oggi, con «Naviga» per la strada e «Ricordaglielo»
-  per mandare al cliente un promemoria su WhatsApp.
+  per mandare al cliente un promemoria su WhatsApp. Quelli senza giorno hanno
+  «Fissa il giorno».
 - «Prossimi appuntamenti»: lavori e sopralluoghi dei prossimi sette giorni, ognuno con
   «Ricordaglielo». Il messaggio parte già scritto con giorno, ora e posto. Dopo l'invio
   la riga dice «Avvisato».
@@ -55,6 +54,8 @@ La prima schermata della mattina.
   saldo, «È pagato» lo segna incassato.
 - «Clienti da risentire»: chi non senti da più di sei mesi, con «Chiamalo» e
   «Nuovo preventivo».
+- In fondo, «Come sta andando»: quanto hai preventivato e quanto è stato accettato negli
+  ultimi sette giorni, i preventivi senza risposta, i clienti da risentire.
 
 ## Richieste (`#richieste`)
 
@@ -68,18 +69,23 @@ Chi ti ha chiamato o scritto.
 
 Il cuore del lavoro: cammini nel giardino e parli.
 - «+ Nuovo sopralluogo» oppure parti da una richiesta.
+- In cima, finché non hai dettato niente, c'è «Detta il lavoro ↓»: porta giù al microfono
+  in un tocco, senza scorrere foto e misure.
 - **Il rilievo dall'indirizzo:** «Prepara dall'indirizzo» cerca la casa, prende la foto
   dall'alto e i confini del catasto, e calcola i metri del lotto. Si può fare a casa,
   prima di partire. Se la casa trovata è quella sbagliata: «Sposta sulla casa giusta» e
   tocchi il tetto giusto sulla foto. Se il giardino è fatto di più pezzi di terreno:
   «Scegli le particelle». Se i confini non tornano: «Correggi i confini».
+  Sopra la foto: «Correggi le misure» per scrivere a mano i metri giusti,
+  «Rifallo dall'indirizzo» per rifare il rilievo da capo.
 - Senza catasto si può sempre: «Segna il giardino sulla foto» e lo disegni col dito,
   oppure «Scrivi le misure a mano», oppure «Carica un rilievo» da un file.
 - «Disegna il giardino da vicino»: segni sulla foto prato, aiuole, siepi e alberi. I
   metri li conta l'app e finiscono da soli nelle righe del preventivo.
 - **La voce:** tocchi il microfono e racconti il lavoro come lo diresti a un collega
   («il prato sono circa duecento metri, la siepe una cinquantina»). L'app scrive e
-  riconosce le lavorazioni del tuo listino con le quantità. Ritocchi il microfono per
+  riconosce le lavorazioni del tuo listino con le quantità, scritte come misure
+  (per esempio: Sfalcio prato · 200 mq, Potatura siepe · 50 m). Ritocchi il microfono per
   fermare. Se ha capito male: «Correggi il testo» oppure «Cancella e ridetta».
   Su Brave e Firefox la voce non va: compare la casella per scrivere.
 - «+ Aggiungi una lavorazione» per quello che non hai detto. Se correggi una lavorazione
@@ -89,9 +95,12 @@ Il cuore del lavoro: cammini nel giardino e parli.
 ## Preventivi (`#preventivi`) e il singolo preventivo
 
 - L'elenco ha le linguette: Tutti, Bozze, Senza risposta, Accettati, Pagati, Da incassare,
-  Non andati, Messi via. «+ Nuovo preventivo» per farne uno senza sopralluogo.
-- Dentro un preventivo cambi quantità, togli o aggiungi voci («+ Voce nuova»), metti
-  lo sconto: il totale si rifà subito davanti al cliente.
+  Non andati, Messi via. Si vedono solo quelle che hanno qualcosa dentro.
+  «+ Nuovo preventivo» per farne uno senza sopralluogo.
+- Dentro un preventivo cambi quantità, spegni una voce col suo interruttore (esce dal
+  totale e si riaccende), aggiungi una voce del listino con «Aggiungi questa» o una nuova
+  con «+ Voce nuova», metti lo sconto: il totale si rifà subito davanti al cliente.
+- «Cliente e data», in cima, cambia a chi è intestato il preventivo, la data e il numero.
 - «Consegnalo al cliente» apre «Come glielo consegni?»:
   - «Prepara il link»: il cliente apre una pagina, scrive il nome e tocca «Accetto».
     L'app segna da sola il preventivo accettato e ti dice quante volte l'ha aperto.
@@ -129,7 +138,8 @@ Le tue lavorazioni con i tuoi prezzi.
 L'archivio: i lavori chiusi (fatti e pagati) e le carte caricate da fuori.
 - «+ Nuovo documento»: rapportini, resoconti, note, preventivi di prima, anche con un
   file allegato.
-- «Carica preventivi di prima» e «Fai il listino da un preventivo».
+- «Carica preventivi di prima». Quando ce ne sono, compare «Fai il listino da questi»:
+  l'app legge i prezzi e ne fa il tuo listino.
 - **La fattura elettronica:** ogni riga ha il suo tasto «Fai la fattura», accanto allo
   stato. Su un lavoro chiuso prende le righe del preventivo. Su un rapportino o un
   resoconto si apre un modulo corto con cliente, cosa scrivere e importo senza IVA.
@@ -137,8 +147,9 @@ L'archivio: i lavori chiusi (fatti e pagati) e le carte caricate da fuori.
   Se mancano dati tuoi o del cliente, l'app li chiede uno alla volta.
   Dopo l'invio la riga dice a che punto è: Partita, Arrivata, Tornata indietro. Se torna
   indietro l'app dice perché e dove correggere.
-  La linguetta «Fatture» le mette in fila. Per ora la fattura è in prova: c'è scritto
-  «di prova» e non parte niente allo Stato.
+  La linguetta «Fatture» le mette in fila. Le fatture passano da Openapi, l'intermediario
+  che le consegna all'Agenzia delle Entrate. Finché su una fattura c'è scritto «di prova»,
+  quella non arriva allo Stato.
 
 ## I tuoi numeri (`#numeri`)
 
@@ -149,6 +160,8 @@ lavori (i motivi dei «no»). «Vai a risentirli» porta ai preventivi da sollec
 
 Per chi lavora con altre persone (piano Squadra): un elenco di lavori in comune, ognuno
 col suo telefono. «+ Nuovo lavoro»; tirando giù lo schermo l'elenco si aggiorna.
+Si apre una ditta alla volta: chi non ha ancora il codice della ditta tocca
+«Mettimi in lista» e lo ricontattiamo noi.
 
 ## Impostazioni (`#impostazioni`)
 
@@ -159,7 +172,7 @@ col suo telefono. «+ Nuovo lavoro»; tirando giù lo schermo l'elenco si aggior
   «Password dimenticata?» manda una mail per cambiarla. «Esci da questo telefono».
   Se due telefoni hanno lavoro diverso l'app chiede quale tenere: 
   «Prendi il lavoro dell’altro telefono» o «Tieni quello di questo telefono».
-- «Esporta tutto in un file» e «Ricarica un salvataggio»: una copia tua, da tenere.
+- «Salva tutto in un file» e «Ricarica un salvataggio»: una copia tua, da tenere.
 - La fattura elettronica si accende da sola la prima volta che la usi.
 
 ## Piani e prezzi (`#piani`)
@@ -179,6 +192,6 @@ col suo telefono. «+ Nuovo lavoro»; tirando giù lo schermo l'elenco si aggior
 - *Non vedo una cosa nuova dopo un aggiornamento?* In fondo compare «Aggiorna adesso».
   Se non compare, chiudi l'app e riaprila.
 - *Ho cancellato per sbaglio?* Se hai l'accesso con la mail, il lavoro è copiato sul
-  server. Altrimenti si recupera solo da un file esportato.
+  server. Altrimenti si recupera solo da un file salvato con «Salva tutto in un file».
 - *Posso usarla senza internet?* Sì per scrivere, dettare a mano e fare i preventivi.
   Il rilievo dall'indirizzo, la voce, i link e la fattura vogliono internet.

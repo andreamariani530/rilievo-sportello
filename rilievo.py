@@ -2741,6 +2741,10 @@ STATICI = {
     "/icona-512.png":        ("icona-512.png", "image/png"),
     "/icona-180.png":        ("icona-180.png", "image/png"),
 }
+# le immagini d'apertura dell'iPhone (avvio-1170x2532.png e sorelle): la R sulla carta
+# alla misura di ogni telefono, fatte da fai-avvio-iphone.mjs
+for _f in sorted(APP.glob("avvio-*.png")):
+    STATICI["/" + _f.name] = (_f.name, "image/png")
 
 
 def servizio(porta=8787, pubblico=False):
