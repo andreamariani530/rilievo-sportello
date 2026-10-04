@@ -79,6 +79,12 @@ Chi ti ha chiamato o scritto.
   con «Chiamalo» e «Fissa il sopralluogo». Dalla scheda: «Copia il link»,
   «Mandalo su WhatsApp», «Guardalo», e «Fai un link nuovo» se quello vecchio gira dove non vuoi.
   Serve il tuo accesso con mail e password. Al massimo 20 richieste al giorno.
+  Nella stessa scheda puoi accendere il prezzo indicativo: scegli una voce del listino a
+  metro quadro (per esempio lo sfalcio) e chi scrive l'indirizzo tocca
+  «Vedi il prezzo indicativo»: vede la foto del suo lotto, lo spazio all'aperto misurato sul
+  catasto e una forbice di prezzo (più o meno 15%), IVA compresa, con scritto che lo confermi
+  tu dopo il sopralluogo. Se il catasto non è sicuro il prezzo non compare. Di base è spento.
+  Nella richiesta vedi che prezzo ha visto il cliente.
 
 ## Sopralluogo (`#sopralluogo`)
 

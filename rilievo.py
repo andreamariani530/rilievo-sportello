@@ -2080,6 +2080,19 @@ def firma_fonte(immagine, nome_fonte="Esri World Imagery"):
     return fondo
 
 
+def _foto_piccola(dato, lato=720):
+    """La foto del rilievo, rimpicciolita per la pagina del cliente (sta dentro l'HTML)."""
+    try:
+        testa, corpo = str(dato).split(",", 1)
+        im = Image.open(io.BytesIO(base64.b64decode(corpo))).convert("RGB")
+        im.thumbnail((lato, lato))
+        b = io.BytesIO()
+        im.save(b, "JPEG", quality=72)
+        return "data:image/jpeg;base64," + base64.b64encode(b.getvalue()).decode()
+    except Exception:                       # noqa: BLE001
+        return ""
+
+
 def in_base64(immagine, lato=TETTO_FOTO, qualita=88):
     """La foto pronta da mandare. Non si rimpicciolisce piu' a 1600: quel taglio
     buttava via un terzo del dettaglio che le tessere avevano gia'. Sopra i 1600
@@ -2980,7 +2993,8 @@ def servizio(porta=8787, pubblico=False):
                 return
             conto = accessi.id_account(m)
             if percorso == "/richieste/link":
-                c = richieste_dal_link.link_di(conto, m, dentro.get("ditta"), dentro.get("tel"), bool(dentro.get("rifai")))
+                c = richieste_dal_link.link_di(conto, m, dentro.get("ditta"), dentro.get("tel"), bool(dentro.get("rifai")),
+                                               dentro.get("prezzo") if "prezzo" in dentro else False)
                 self._manda(200, {"codice": c})
                 return
             if percorso == "/richieste/prendi":
@@ -3002,6 +3016,9 @@ def servizio(porta=8787, pubblico=False):
             campi = {k: (v or [""])[0] for k, v in grezzo.items()}
             ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
             stili = preventivo_col_link.stili_dell_app(APP / "index.html")
+            if campi.get("fai") == "prezzo":
+                self._chiedi_prezzo(codice, campi, ip, stili)
+                return
             esito, msg, cosa = richieste_dal_link.ricevi(codice, campi, ip)
             if esito == "ok":
                 oggetto, testo = richieste_dal_link.mail_alla_ditta(cosa["ditta"], cosa["richiesta"])
@@ -3012,6 +3029,31 @@ def servizio(porta=8787, pubblico=False):
                 print("  richiesta dal link per %s" % (cosa["ditta"].get("ditta") or "?")[:40])
             pagina, stato = richieste_dal_link.pagina(codice, stili, errore=msg if esito == "errore" else "",
                                                       fatto=esito in ("ok", "finto"), valori=campi if esito == "errore" else None)
+            self._pagina_cliente(stato, pagina)
+
+        def _chiedi_prezzo(self, codice, campi, ip, stili):
+            """«Vedi il prezzo indicativo»: il rilievo dall'indirizzo, come per l'app, e la forbice."""
+            indirizzo = re.sub(r"\s+", " ", str(campi.get("indirizzo") or "")).strip()[:200]
+            stima, foto, nota = None, "", ""
+            if len(indirizzo) < 6:
+                nota = "Scrivi l'indirizzo per intero: via, numero e paese."
+            else:
+                si, nota = richieste_dal_link.puo_fare_prezzo(codice, ip)
+                if si:
+                    try:
+                        r = rilievo(indirizzo)
+                        stima = richieste_dal_link.stima_dal_rilievo(codice, indirizzo, r)
+                        if stima:
+                            foto = _foto_piccola(r.get("foto") or "")
+                            print("  prezzo indicativo dal link: %s mq" % stima["mq"])
+                        else:
+                            nota = ("Da qui non riesco a misurare bene questo lotto. Manda la richiesta: "
+                                    "la ditta ti fa sapere il prezzo dopo un sopralluogo.")
+                    except Exception as e:      # noqa: BLE001
+                        print("  prezzo indicativo non riuscito:", str(e)[:80])
+                        nota = ("Non trovo questo indirizzo, o il catasto adesso è lento. Controllalo, "
+                                "oppure manda la richiesta: la ditta ti fa sapere.")
+            pagina, stato = richieste_dal_link.pagina(codice, stili, valori=campi, stima=stima, foto=foto, nota_prezzo=nota)
             self._pagina_cliente(stato, pagina)
 
         # ---- il preventivo col link ------------------------------------------

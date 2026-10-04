@@ -17,6 +17,17 @@ COME FUNZIONA
   - La pagina del cliente non fa girare nessuno script (stessa gabbia del preventivo
     col link). Solo un modulo normale.
 
+IL PREZZO INDICATIVO DALL'INDIRIZZO (passo 2, spento di base)
+  Se l'artigiano lo accende e sceglie una voce del listino a metro quadro, il cliente
+  scrive l'indirizzo e tocca «Vedi il prezzo indicativo»: il server fa il rilievo come per
+  l'app (catasto e foto dall'alto) e mostra lo spazio scoperto del lotto e una forbice del
+  15% intorno a «voce x metri», IVA compresa, con la frase fissa che lo conferma la ditta
+  dopo il sopralluogo. Se il catasto non e' sicuro (civico sulla strada, niente
+  particella) il prezzo non si mostra: meglio niente che un numero sbagliato. La stima
+  viaggia con la richiesta, cosi' l'artigiano sa cosa ha visto il cliente.
+  Massimo 15 prezzi al giorno per ditta e 4 l'ora per indirizzo di rete: ogni rilievo
+  chiede al catasto e alle foto.
+
 LE DIFESE
   - massimo 20 richieste al giorno per ditta e 6 l'ora dallo stesso indirizzo di rete;
   - un campo nascosto che le persone non vedono: chi lo riempie e' un programma, e la
@@ -33,6 +44,10 @@ MAX_GIORNO = 20
 MAX_ORA_IP = 6
 MAX_IN_ATTESA = 200
 _per_ip = {}                        # impronta dell'indirizzo -> [istanti]
+_prezzi_ip = {}                     # lo stesso, per i prezzi indicativi
+_stime = {}                         # (codice, indirizzo) -> la stima mostrata, per un'ora
+MAX_PREZZI_GIORNO = 15
+MAX_PREZZI_ORA_IP = 4
 
 
 def _cartella():
@@ -66,12 +81,29 @@ def _cassetta(account):
     return _cartella() / (re.sub(r"[^a-f0-9]", "", account)[:64] + ".json")
 
 
-def link_di(account, mail, ditta="", tel="", rifai=False):
-    """Il codice della ditta: lo stesso di sempre, oppure uno nuovo che spegne il vecchio."""
+def prezzo_buono(x):
+    """La voce del listino per il prezzo indicativo: nome e prezzo al metro quadro, IVA compresa."""
+    if not isinstance(x, dict):
+        return None
+    nome = re.sub(r"\s+", " ", str(x.get("nome") or "")).strip()[:80]
+    try:
+        al_mq = round(float(x.get("al_mq")), 4)
+    except (TypeError, ValueError):
+        return None
+    return {"nome": nome, "al_mq": al_mq} if nome and 0 < al_mq < 1000 else None
+
+
+def link_di(account, mail, ditta="", tel="", rifai=False, prezzo=False):
+    """Il codice della ditta: lo stesso di sempre, oppure uno nuovo che spegne il vecchio.
+    prezzo=False: non si tocca; None: spento; un dict: la voce per il prezzo indicativo."""
     with _chiave:
         tutti = _codici()
         vecchio = next((c for c, v in tutti.items() if v.get("account") == account), None)
+        if vecchio and rifai:
+            prezzo = tutti[vecchio].get("prezzo") if prezzo is False else prezzo
         if vecchio and not rifai:
+            if prezzo is not False:
+                tutti[vecchio]["prezzo"] = prezzo_buono(prezzo)
             # nome e telefono si aggiornano solo se arrivano: una chiamata senza non li cancella
             if str(ditta or "").strip():
                 tutti[vecchio]["ditta"] = str(ditta)[:120]
@@ -86,7 +118,8 @@ def link_di(account, mail, ditta="", tel="", rifai=False):
         while nuovo in tutti:
             nuovo = "".join(secrets.choice(_ALFABETO) for _ in range(10))
         tutti[nuovo] = {"account": account, "mail": mail, "ditta": str(ditta or "")[:120],
-                        "tel": re.sub(r"[^\d+ ]", "", str(tel or ""))[:20], "creato": int(time.time()), "giorni": {}}
+                        "tel": re.sub(r"[^\d+ ]", "", str(tel or ""))[:20], "creato": int(time.time()), "giorni": {},
+                        "prezzo": prezzo_buono(prezzo) if prezzo is not False else None}
         _scrivi_json(_cartella() / "codici.json", tutti)
         return nuovo
 
@@ -136,9 +169,67 @@ def ricevi(codice, campi, ip=""):
         attesa = _leggi_json(f, [])[-(MAX_IN_ATTESA - 1):]
         nuova = {"id": "rl" + secrets.token_hex(6), "quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(adesso)),
                  "nome": nome, "tel": tel, "indirizzo": indirizzo, "cosa": cosa}
+        st = _stime.get((codice, _chiave_ind(indirizzo)))
+        if st and adesso - st["quando"] < 3600:
+            nuova["stima"] = {k: st[k] for k in ("mq", "da", "a", "voce")}
         attesa.append(nuova)
         _scrivi_json(f, attesa)
     return "ok", "", {"ditta": d, "richiesta": nuova}
+
+
+def _chiave_ind(x):
+    return re.sub(r"[^a-z0-9]", "", str(x or "").lower())[:120]
+
+
+def _a_cinque(x):
+    return int(round(x / 5.0)) * 5 or 5
+
+
+def puo_fare_prezzo(codice, ip=""):
+    """(True, '') se si puo' calcolare un altro prezzo, se no (False, cosa dire)."""
+    d = di_chi(codice)
+    if not d or not d.get("prezzo"):
+        return False, ""
+    adesso = time.time()
+    chi_ip = hashlib.sha256(("ip:" + str(ip or "")).encode()).hexdigest()[:16]
+    with _chiave:
+        recenti = [t for t in _prezzi_ip.get(chi_ip, []) if adesso - t < 3600]
+        if len(recenti) >= MAX_PREZZI_ORA_IP:
+            return False, "Hai chiesto tanti prezzi in poco tempo. Manda la richiesta: la ditta ti fa sapere."
+        tutti = _codici()
+        x = tutti.get(codice)
+        oggi = time.strftime("%Y-%m-%d", time.gmtime(adesso))
+        conta = {k: v for k, v in (x.get("prezzi_giorni") or {}).items() if k == oggi}
+        if conta.get(oggi, 0) >= MAX_PREZZI_GIORNO:
+            return False, "Per oggi i prezzi indicativi sono finiti. Manda la richiesta: la ditta ti fa sapere."
+        conta[oggi] = conta.get(oggi, 0) + 1
+        x["prezzi_giorni"] = conta
+        _scrivi_json(_cartella() / "codici.json", tutti)
+        _prezzi_ip[chi_ip] = recenti + [adesso]
+    return True, ""
+
+
+def stima_dal_rilievo(codice, indirizzo, r):
+    """Dal rilievo alla forbice di prezzo. None se il rilievo non e' sicuro."""
+    d = di_chi(codice)
+    if not d or not d.get("prezzo") or not isinstance(r, dict):
+        return None
+    if r.get("da_disegnare") or r.get("catasto_incerto"):
+        return None
+    try:
+        mq = int(round(float(r.get("scoperto_mq") or 0)))
+    except (TypeError, ValueError):
+        return None
+    if mq < 20 or mq > 20000:
+        return None
+    centro = mq * d["prezzo"]["al_mq"]
+    st = {"mq": mq, "da": _a_cinque(centro * 0.85), "a": _a_cinque(centro * 1.15), "voce": d["prezzo"]["nome"],
+          "quando": time.time()}
+    with _chiave:
+        if len(_stime) > 2000:
+            _stime.clear()
+        _stime[(codice, _chiave_ind(indirizzo))] = st
+    return st
 
 
 def in_attesa(account):
@@ -172,11 +263,22 @@ html,body{background:#F4EFE6;margin:0}
 .rl-pagina .fatto{font-family:'Cormorant',Georgia,serif;font-size:26px;color:#4F6B4A}
 .rl-pagina .nascosto{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
 .rl-pagina .nota{font-size:13px;color:#7A746A;margin-top:18px}
+.rl-stima{margin:14px 0 4px;padding:14px 16px;border:1px solid #D9D1C2;background:#FBF8F2}
+.rl-stima img{display:block;width:100%;height:auto;margin-bottom:10px}
+.rl-stima .rl-mq{margin:0 0 4px}
+.rl-nw{white-space:nowrap}
+.rl-stima .rl-forbice{font-family:'Cormorant',Georgia,serif;font-size:24px;line-height:1.25;color:#2B2822;margin:0 0 8px}
+.rl-stima .rl-nota-prezzo{font-size:14px;color:#7A746A;margin:6px 0 0}
+.rl-pagina button.rl-secondario{margin-top:0;background:#fff;color:#2B2822;border:1px solid #2B2822;font-size:16px;padding:12px 20px}
 .rl-pagina .contatti a{color:#2B2822;margin-right:18px}
 </style>"""
 
 
-def pagina(codice, stili_app, errore="", fatto=False, valori=None):
+def _euro_tondo(x):
+    return "€ " + f"{int(x):,}".replace(",", ".")
+
+
+def pagina(codice, stili_app, errore="", fatto=False, valori=None, stima=None, foto="", nota_prezzo=""):
     d = di_chi(codice)
     e = html.escape
     if not d:
@@ -199,12 +301,29 @@ def pagina(codice, stili_app, errore="", fatto=False, valori=None):
              f'<label for="tel">Telefono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required value="{e(v.get("tel", ""))}">'
              f'<label for="indirizzo">Indirizzo del lavoro</label><input id="indirizzo" name="indirizzo" autocomplete="street-address" '
              f'placeholder="Via, numero e paese" value="{e(v.get("indirizzo", ""))}">'
+             + (_riquadro_prezzo(d, e, stima, foto, nota_prezzo) if d.get("prezzo") else "") +
              f'<label for="cosa">Cosa ti serve</label><textarea id="cosa" name="cosa" required minlength="3" '
              f'placeholder="Per esempio: tagliare il prato e la siepe, circa 300 metri">{e(v.get("cosa", ""))}</textarea>'
              f'<div class="nascosto" aria-hidden="true"><label for="sito">Lascia vuoto</label><input id="sito" name="sito" tabindex="-1" autocomplete="off"></div>'
              f'<button type="submit">Manda la richiesta</button></form>{contatti}'
              f'<p class="nota">I tuoi dati vanno solo a {ditta}, per richiamarti. Non li usiamo per altro.</p></div>')
     return _intera("Chiedi un preventivo a " + (d.get("ditta") or "la ditta"), stili_app, corpo), 200
+
+
+def _riquadro_prezzo(d, e, stima, foto, nota):
+    ditta = e(d.get("ditta") or "La ditta")
+    voce = e(d["prezzo"]["nome"])
+    if stima:
+        return (f'<div class="rl-stima" id="stima">'
+                + (f'<img src="{e(foto)}" alt="Il lotto visto dall\'alto">' if foto else '') +
+                f'<p class="rl-mq">Spazio all’aperto del lotto: circa <b>{stima["mq"]:,} m²</b></p>'.replace(",", ".") +
+                f'<p class="rl-forbice">{voce}: da circa <b class="rl-nw">{_euro_tondo(stima["da"])}</b> a <b class="rl-nw">{_euro_tondo(stima["a"])}</b>, IVA compresa.</p>'
+                f'<p class="rl-nota-prezzo">Prezzo indicativo, misurato sul catasto e sulla foto dall’alto: lo conferma {ditta} dopo un sopralluogo. '
+                f'Se va bene, manda la richiesta qui sotto.</p></div>')
+    return (f'<div class="rl-stima">'
+            + (f'<p class="rl-nota-prezzo">{e(nota)}</p>' if nota else '') +
+            f'<button type="submit" name="fai" value="prezzo" formnovalidate class="rl-secondario">Vedi il prezzo indicativo</button>'
+            f'<p class="rl-nota-prezzo">Per {voce.lower()}: scrivi l’indirizzo e tocca qui. Ci vuole fino a mezzo minuto: misuriamo il lotto sul catasto.</p></div>')
 
 
 def _intera(titolo, stili_app, corpo):
@@ -220,6 +339,8 @@ def mail_alla_ditta(d, r):
     oggetto = "Nuova richiesta da " + r["nome"] + (", " + paese if paese else "")
     testo = ("Ti ha scritto " + r["nome"] + " dal tuo link per le richieste.\n\n"
              "Telefono: " + r["tel"] + "\n" + ("Indirizzo: " + r["indirizzo"] + "\n" if r.get("indirizzo") else "") +
-             "Cosa gli serve: " + r["cosa"] + "\n\n"
+             "Cosa gli serve: " + r["cosa"] + "\n" +
+             ("Ha visto il prezzo indicativo: %s, da %s a %s euro (%s m2).\n" % (r["stima"]["voce"], r["stima"]["da"], r["stima"]["a"], r["stima"]["mq"])
+              if r.get("stima") else "") + "\n"
              "La trovi anche in Rilievo, in Richieste, appena apri l'app.\n\nRilievo")
     return oggetto, testo

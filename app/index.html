@@ -1178,7 +1178,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 13:04';
+const COSTRUITA = '2026-10-04 13:15';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -4185,6 +4185,7 @@ PAGINE.richieste = {
           <div class="tit">${esc(r.nome)}</div>
           <div class="sub">${esc(r.cosa)}</div>
           <div class="sub" style="margin-top:3px">${sotto(r.canale, quando(r.arrivata), r.luogo)}${r.rilievo ? ' · <b style="color:var(--accento)">rilievo pronto</b>' : ''}</div>
+          ${r.stima ? `<div class="sub stima-vista">Ha visto il prezzo indicativo: ${esc(r.stima.voce)}, ${euro(r.stima.da)}–${euro(r.stima.a)} (${cifra(r.stima.mq, 0)} m²)</div>` : ''}
           <div class="azioni">${azione}</div>
         </div>
         <div class="riga-azione">
@@ -12236,7 +12237,9 @@ function testoPrivacy(){
       <li><b>Le richieste dal tuo link.</b> Se fai il tuo link per le richieste, chi lo apre ci scrive nome,
         telefono, indirizzo e cosa gli serve. Teniamo la richiesta sul nostro server finch&eacute; la tua app non la
         prende (di solito pochi minuti), e ti mandiamo una mail per avvisarti. Per difenderci dagli abusi contiamo
-        quante richieste arrivano dallo stesso indirizzo di rete, senza conservarlo. Se fai un link nuovo, il vecchio smette di funzionare.</li>
+        quante richieste arrivano dallo stesso indirizzo di rete, senza conservarlo. Se fai un link nuovo, il vecchio smette di funzionare.
+        Se accendi il prezzo indicativo, l&rsquo;indirizzo che il cliente scrive viene cercato sul catasto e sulle foto dall&rsquo;alto,
+        come fai tu dall&rsquo;app; la stima resta un&rsquo;ora per finire nella sua richiesta, poi si butta.</li>
       <li><b>I promemoria automatici.</b> Se li accendi, il nostro server usa la mail del tuo cliente, il numero,
         il luogo e il totale del preventivo per mandargli un promemoria a nome tuo, dalla casella di Rilievo.
         Le risposte arrivano a te. Teniamo il giorno e l&rsquo;ora di ogni promemoria partito.</li>
@@ -13127,6 +13130,15 @@ addEventListener('visibilitychange', () => { if(document.visibilityState === 'vi
    server-rilievo/richieste_dal_link.py).
    ===================================================================== */
 const indirizzoRichieste = c => SPORTELLO_RILIEVO + '/chiedi/' + c;
+/* il passo 2: il prezzo indicativo dall'indirizzo, spento di base. Vale solo per una
+   voce a metro quadro; al server va il prezzo di un metro quadro, IVA compresa */
+const vociAMq = () => S.listino.filter(v => tipoUnita(v.u).k === 'mq' && Number(v.p) > 0);
+function prezzoPerLink(){
+  const v = S.azienda.prezzo_dal_link ? voce(S.azienda.prezzo_dal_link) : null;
+  if(!v || tipoUnita(v.u).k !== 'mq' || !(Number(v.p) > 0)) return null;
+  const iva = forfettario(S.azienda) ? 0 : (typeof v.iva === 'number' ? v.iva : Number(S.azienda.iva) || 0);
+  return {nome: v.nome, al_mq: Math.round(Number(v.p) / tipoUnita(v.u).per * (1 + iva / 100) * 10000) / 10000};
+}
 function testoLinkRichieste(c){
   return 'Per un preventivo, scrivimi qui: in un minuto mi dici dove e cosa ti serve, e ti richiamo io.\n' +
     indirizzoRichieste(c) + '\n\n' + firmaDitta();
@@ -13143,7 +13155,8 @@ async function schedaLinkRichieste(rifai){
   const b = document.getElementById('btn-link-richieste');
   if(b){ b.disabled = true; b.textContent = 'Un attimo…'; }
   let r;
-  try{ r = await chiamaServer('/richieste/link', {mail: c.mail, gettone: c.gettone, ditta: S.azienda.nome || '', tel: S.azienda.tel || '', rifai: !!rifai}); }
+  try{ r = await chiamaServer('/richieste/link', {mail: c.mail, gettone: c.gettone, ditta: S.azienda.nome || '', tel: S.azienda.tel || '',
+                                                  rifai: !!rifai, prezzo: prezzoPerLink()}); }
   catch(e){ r = null; }
   if(b){ b.disabled = false; b.textContent = 'Il tuo link per le richieste'; }
   if(!r || !r.ok || !r.d.codice){
@@ -13163,8 +13176,20 @@ async function schedaLinkRichieste(rifai){
           <a class="bottone vuoto" href="${esc(ind)}" target="_blank" rel="noopener">Guardalo</a>
         </div>
         <p class="fattura-nota">Al massimo 20 richieste al giorno. Se il link gira dove non vuoi, ne fai uno nuovo: il vecchio smette di funzionare.</p>
+        ${vociAMq().length ? `<p class="fattura-nota" style="margin-top:14px">Se vuoi, chi scrive l'indirizzo vede un prezzo indicativo: lo spazio all'aperto del suo lotto, misurato sul catasto, per la voce che scegli qui sotto, con una forbice del 15% e la frase che lo confermi tu dopo il sopralluogo. Di base è spento.</p>` : ''}
       </div>`,
-    campi: [], testoSalva: 'Chiudi', soloSalva: true, salva: () => {},
+    valori: {prezzo_voce: prezzoPerLink() ? S.azienda.prezzo_dal_link : ''},
+    campi: vociAMq().length ? [{k:'prezzo_voce', l:'Prezzo indicativo a chi scrive l\'indirizzo', t:'scelta',
+      opzioni: [['', 'Spento: non mostro prezzi']].concat(vociAMq().map(v => [v.id, v.nome + ' · ' + euro(v.p) + ' ' + v.u]))}] : [],
+    testoSalva: vociAMq().length ? 'Fatto' : 'Chiudi', soloSalva: true,
+    salva: d => {
+      if(!vociAMq().length || (d.prezzo_voce || '') === (prezzoPerLink() ? S.azienda.prezzo_dal_link : '')) return;
+      if(d.prezzo_voce) S.azienda.prezzo_dal_link = d.prezzo_voce; else delete S.azienda.prezzo_dal_link;
+      const cc = statoCopia();
+      chiamaServer('/richieste/link', {mail: cc.mail, gettone: cc.gettone, ditta: S.azienda.nome || '', tel: S.azienda.tel || '', prezzo: prezzoPerLink()})
+        .then(x => avvisa(x.ok ? (prezzoPerLink() ? 'Acceso: chi scrive l\'indirizzo vede il prezzo indicativo di «' + prezzoPerLink().nome + '».' : 'Spento: sul link non si vedono prezzi.') : nonRaggiungo))
+        .catch(() => avvisa(nonRaggiungo));
+    },
     elimina: () => {}, testoBottoneElimina: 'Fai un link nuovo'
   });
   /* «Fai un link nuovo» non cancella niente: chiede e rifa' il codice */
@@ -13192,7 +13217,9 @@ async function guardaRichiesteDalLink(){
   r.d.richieste.forEach(x => {
     if(!x || !x.id || gia.has(x.id)) return;
     const ind = String(x.indirizzo || '').slice(0, 200);
-    const nuova = {id: nuovoId('r'), cliente: null, rilievo: null, dal_link: String(x.id),
+    const st = x.stima && typeof x.stima === 'object' && [x.stima.mq, x.stima.da, x.stima.a].every(n => typeof n === 'number' && isFinite(n))
+      ? {mq: x.stima.mq, da: x.stima.da, a: x.stima.a, voce: String(x.stima.voce || '').slice(0, 80)} : null;
+    const nuova = {id: nuovoId('r'), cliente: null, rilievo: null, dal_link: String(x.id), stima: st,
       nome: String(x.nome || '').slice(0, 80), tel: String(x.tel || '').slice(0, 30), indirizzo: ind,
       luogo: ind.split(',').slice(-1)[0].trim(), cosa: String(x.cosa || '').slice(0, 1000),
       canale: 'Dal tuo link', arrivata: /^\d{4}-\d{2}-\d{2}/.test(String(x.quando || '')) ? String(x.quando).slice(0, 10) : S.oggi,
