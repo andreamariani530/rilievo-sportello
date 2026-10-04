@@ -109,6 +109,10 @@ Il cuore del lavoro: cammini nel giardino e parli.
   (per esempio: Sfalcio prato · 200 mq, Potatura siepe · 50 m). Ritocchi il microfono per
   fermare. Se ha capito male: «Correggi il testo» oppure «Cancella e ridetta».
   Su Brave e Firefox la voce non va: compare la casella per scrivere.
+- Le misure si dicono come vengono: "dodici metri e mezzo", "12,5 metri", "due metri e
+  quaranta". Un foro si dice larghezza per altezza in centimetri, "finestra 120 per 140",
+  e l'app fa i metri quadri (1,68); "tre finestre 120 per 140" sono tre fori uguali. Una
+  stanza: "cucina quattro per tre alta due e settanta" dà pareti, soffitto e pavimento.
 - «+ Aggiungi una lavorazione» per quello che non hai detto. Se correggi una lavorazione
   riconosciuta male, l'app chiede se ricordare la frase per la prossima volta.
 - Quando è a posto: «Genera il preventivo».
@@ -144,6 +148,11 @@ Il cuore del lavoro: cammini nel giardino e parli.
     diventa pagato da solo: lo dici tu.
   - WhatsApp o mail, col messaggio già scritto con le voci e il totale.
   - Il PDF con la tua intestazione, da allegare.
+- **Tempo di lavoro:** sotto il totale l'app dice quanto ci metti ("circa 3 giorni") e le
+  ore, sommando le ore per unità scritte nel listino. Con − e + dici quante persone
+  lavorano. Le voci che nel listino non hanno le ore non contano, e l'app le elenca.
+  Sul foglio del cliente la durata va solo se accendi «Scrivi la durata sul preventivo»,
+  e ci vanno solo i giorni, mai le ore.
 - «Fallo firmare sul posto»: il cliente firma col dito sul telefono.
 - Dopo: «Ha detto sì», «Ha detto no» (con il perché), «Risentilo» per sollecitare.
 - Pagamento: «L’ha pagato» o «Non l’ha ancora pagato».
@@ -155,7 +164,9 @@ Il cuore del lavoro: cammini nel giardino e parli.
 ## Il tuo listino (`#listino`)
 
 Le tue lavorazioni con i tuoi prezzi.
-- «+ Nuova voce»: nome, unità (al metro quadro, al metro, a pezzo, a corpo…), prezzo.
+- «+ Nuova voce»: nome, unità (al metro quadro, al metro, a pezzo, a corpo…), prezzo,
+  e le «Ore di lavoro per unità» (vuoto: la voce non conta nel tempo di lavoro). Le voci
+  di partenza hanno già le ore dei prezzari regionali 2026, scritte sotto il nome.
 - «Come la chiami a voce?»: scrivi le parole che usi tu per quella lavorazione, così la
   voce la riconosce.
 - «Prendilo da un preventivo vecchio»: carichi un tuo preventivo di prima (PDF, Word,
@@ -241,6 +252,15 @@ Si apre una ditta alla volta: chi non ha ancora il codice della ditta tocca
   «Prendi il lavoro dell’altro telefono» o «Tieni quello di questo telefono».
 - «Salva tutto in un file» e «Ricarica un salvataggio»: una copia tua, da tenere.
 - La fattura elettronica si accende da sola la prima volta che la usi.
+
+## Il tuo mestiere
+
+Si sceglie sulla porta d'ingresso o in Impostazioni («Il tuo mestiere e il tuo piano»):
+giardiniere, elettricista, idraulico, imbianchino, piastrellista, serramentista, muratore
+(cartongesso compreso), termoidraulico (caldaie e condizionatori), altro. Ogni mestiere
+parte col suo listino, prezzi e ore presi dai prezzari regionali 2026, da cambiare coi
+tuoi, e la voce capisce le sue parole (tapparella, tavolato, split, termosifone...).
+Cambiando mestiere le voci nuove si aggiungono e le tue restano coi tuoi prezzi.
 
 ## Piani e prezzi (`#piani`)
 
