@@ -358,6 +358,9 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
   color:var(--carta);padding:13px 22px;font-size:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);
   z-index:95;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none;max-width:88vw;text-align:center}
 .avviso.on{opacity:1;transform:translate(-50%,0)}
+.avviso.con-tasto{pointer-events:auto}
+.tasto-avviso{background:none;border:1px solid var(--carta);color:var(--carta);font:inherit;font-size:14px;
+  padding:6px 12px;margin-left:8px;cursor:pointer;white-space:nowrap}
 
 /* quando il telefono ha scaricato una versione nuova dell'app */
 .aggiorna{position:fixed;left:0;right:0;bottom:0;z-index:61;background:var(--bianco);
@@ -794,6 +797,7 @@ button.via{font:inherit;text-align:left;width:100%}
   line-height:1.6;break-inside:avoid;page-break-inside:avoid}
 .foglio .pagare-doc b{color:var(--inchiostro);font-weight:500}
 .chiede-cambio{color:var(--oro)!important;margin-top:2px}
+.scade-presto{color:var(--oro)!important}
 .foglio .pagare-doc .iban-doc{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--inchiostro);word-break:normal}
 .foglio .firma-doc{display:grid;grid-template-columns:1.6fr 1fr;gap:34px;margin-top:30px;break-inside:avoid;page-break-inside:avoid}
 .foglio .firma-doc img{display:block;height:74px;width:auto;max-width:100%;margin-top:4px}
@@ -1173,7 +1177,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 12:35';
+const COSTRUITA = '2026-10-04 12:52';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1879,8 +1883,17 @@ const nuovoId = pre => pre + '-' + Date.now().toString(36) + (contatore++);
 
 function avvisa(testo){
   const a = document.getElementById('avviso');
-  a.textContent = testo; a.classList.add('on');
+  a.textContent = testo; a.classList.add('on'); a.classList.remove('con-tasto');
   clearTimeout(a._t); a._t = setTimeout(() => a.classList.remove('on'), 3200);
+}
+/* un avviso con un tasto dentro: resta un po' di piu', e se non lo tocchi non
+   succede niente (nessuna finestra in piu' da chiudere) */
+function avvisaConTasto(testo, tasto, azione){
+  const a = document.getElementById('avviso');
+  a.innerHTML = esc(testo) + ' <button type="button" class="tasto-avviso" id="tasto-avviso">' + esc(tasto) + '</button>';
+  a.classList.add('on', 'con-tasto');
+  a.querySelector('#tasto-avviso').onclick = () => { a.classList.remove('on', 'con-tasto'); azione(); };
+  clearTimeout(a._t); a._t = setTimeout(() => a.classList.remove('on', 'con-tasto'), 8000);
 }
 
 const ETICHETTE = {
@@ -2942,14 +2955,30 @@ function schedaRiga(id, k){
       : (d.volte !== null && !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60)
          ? 'Le volte nell\'anno sono un numero intero, da 1 a 60.' : null),
     salva: d => {
+      const primaP = r.p;
       Object.assign(r, {nome:d.nome, u:d.u, p:d.p, iva:d.iva, q: (d.q > 0 ? d.q : 1)});
       r.facoltativa = d.facoltativa === 'si';
       if(d.volte > 1) r.volte = d.volte; else delete r.volte;
+      prezzoNelListino = null;
+      const v = r.v ? voce(r.v) : null;
+      if(v && d.p !== primaP && d.p > 0 && Math.abs(Number(v.p) - d.p) > 0.004 && r.u === v.u) prezzoNelListino = {v: v.id, p: d.p};
     },
     elimina: () => p.righe.splice(k, 1),
     testoElimina: 'Tolgo questa voce dal preventivo.',
-    messaggio: 'Voce aggiornata.'
+    dopo: () => {
+      /* PreventivAI (4 ottobre 2026): il prezzo cambiato puo' tornare nel listino,
+         cosi' il prossimo preventivo esce giusto. Solo se lo chiedi tu. */
+      const x = prezzoNelListino; prezzoNelListino = null;
+      if(!x){ avvisa('Voce aggiornata.'); return; }
+      avvisaConTasto('Voce aggiornata.', 'Tieni ' + euro(x.p) + ' anche nel listino', () => tieniNelListino(x.v, x.p));
+    }
   });
+}
+let prezzoNelListino = null;
+function tieniNelListino(idVoce, prezzo){
+  const v = voce(idVoce); if(!v || !(prezzo > 0)) return;
+  v.p = cent(prezzo); salva();
+  avvisa('Listino aggiornato: «' + v.nome + '» adesso costa ' + euro(v.p) + '. I preventivi già mandati restano come sono.');
 }
 
 /* ---------------- sopralluoghi ---------------- */
@@ -3982,7 +4011,7 @@ PAGINE.oggi = {
             <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
               <div><div class="tit">${esc(s.nome)}</div>
                    <div class="sub">${sotto(oraBuona(s.ora) ? 'Alle ' + oraBella(s.ora) : '', s.luogo)}</div></div>
-              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${!s.preventivo ? tastoRicorda('sopralluogo', s, 'Ricordaglielo') : ''}${tagSopralluogo(s)}</div>
+              <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${!s.preventivo ? tastoArrivo('sopralluogo', s) : ''}${tagSopralluogo(s)}</div>
             </div>`).join('')}
           ${daFissare.map(s => `
             <div class="r"><div><div class="tit">${esc(s.nome)}</div>
@@ -4021,7 +4050,7 @@ PAGINE.oggi = {
                 <div class="sub">${sotto(a.tipo === 'lavoro' ? 'Lavoro' : 'Sopralluogo',
                   quandoDetto(a.giorno) + (oraBuona(a.ora) ? ' alle ' + oraBella(a.ora) : ''), a.x.luogo)}</div></div>
               <div class="azioni" onclick="event.stopPropagation()">
-                ${a.giorno === S.oggi ? tastoNaviga(a.x.luogo, 'Naviga') : ''}${tastoRicorda(a.tipo, a.x, 'Ricordaglielo')}</div>
+                ${a.giorno === S.oggi ? tastoNaviga(a.x.luogo, 'Naviga') + tastoArrivo(a.tipo, a.x) : tastoRicorda(a.tipo, a.x, 'Ricordaglielo')}</div>
             </div>`).join('')}
           </div>
           <p style="font-size:15px;color:var(--tenue);margin-top:12px">«Ricordaglielo» apre WhatsApp col messaggio già scritto: giorno, ora e posto. Un cliente avvisato il giorno prima ti fa trovare il cancello aperto.</p>`
@@ -4045,10 +4074,11 @@ PAGINE.oggi = {
             <div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'">
               <div><div class="tit">${esc(p.nome)}</div>
                    <div class="sub">Consegnato ${quando(p.data)} · ${euro(conti(p).netto)}${risentito ? ' · risentito ' + quando(risentito) : ''}</div>
+                   ${scadeFraPoco(p) ? `<div class="sub scade-presto">Scade ${quandoScade(p)}</div>` : ''}
                    ${p.link && p.link.cambia && !p.link.cambia.visto ? `<div class="sub chiede-cambio">Vorrebbe cambiare: “${esc(p.link.cambia.testo)}”</div>` : ''}</div>
               ${p.link && p.link.cambia && !p.link.cambia.visto
                 ? `<button class="bottone piccolo" onclick="event.stopPropagation();cambiaVisto('${p.id}')">Apri il preventivo</button>`
-                : daSollecitare(p) ? `<button class="bottone piccolo" onclick="event.stopPropagation();sollecita('${p.id}')">Risentilo</button>` : tag('inviato')}
+                : daSollecitare(p) || (scadeFraPoco(p) && !(risentito && giorniDa(risentito) <= 1)) ? `<button class="bottone piccolo" onclick="event.stopPropagation();sollecita('${p.id}')">Risentilo</button>` : tag('inviato')}
             </div>`; }).join('')}
           </div>
           <p style="font-size:15px;color:var(--tenue);margin-top:14px">Un preventivo fermo da più di quattro giorni te lo ricordo qui, con il messaggio già scritto. Si perdono più lavori per il silenzio che per il prezzo.</p>`
@@ -10754,6 +10784,20 @@ function ultimoContatto(p){
   return l && l > p.data ? l : p.data;
 }
 function daSollecitare(p){ return p.stato === 'inviato' && giorniDa(ultimoContatto(p)) > 4; }
+/* «Scade fra 3 giorni» (Preventivi Facili Artigiani, 4 ottobre 2026): la scusa gentile
+   per risentire il cliente, al momento giusto. Il preventivo vale «validita'» giorni
+   dalla sua data: e' la stessa data che sta scritta nelle condizioni e sul link. */
+const giorniValidita = () => Number(S.azienda.validita) > 0 ? Number(S.azienda.validita) : 30;
+const scadenzaPreventivo = p => dopoGiorni(p.data, giorniValidita());
+function scadeFraPoco(p){
+  if(!p || p.stato !== 'inviato' || !p.data) return false;
+  const restano = -giorniDa(scadenzaPreventivo(p));
+  return restano >= 0 && restano <= 3;
+}
+function quandoScade(p){
+  const restano = -giorniDa(scadenzaPreventivo(p));
+  return restano === 0 ? 'oggi' : restano === 1 ? 'domani' : GIORNI[gg(scadenzaPreventivo(p)).getDay()];
+}
 /* il numero per WhatsApp: solo cifre, col prefisso dell'Italia se manca.
    Un fisso (0371...) WhatsApp non ce l'ha: meglio lasciar scegliere il contatto. */
 function numeroWhatsApp(tel){
@@ -10785,6 +10829,11 @@ function testoPreventivo(p){
     .join('\n');
 }
 function testoSollecito(p){
+  if(scadeFraPoco(p))
+    return 'Buongiorno, le ricordo che il preventivo n. ' + p.numero + (p.luogo ? ' per ' + p.luogo : '') + ' (' + euro(conti(p).totale) +
+      ' IVA compresa) vale fino a ' + quandoScade(p) + ' ' + dataLunga(scadenzaPreventivo(p)).replace(/ \d{4}$/, '') + '. ' +
+      'Se le va bene, me lo dica entro quel giorno: dopo, i prezzi potrebbero cambiare.' +
+      (linkVivo(p) ? ' Lo trova sempre qui: ' + indirizzoLink(p) : '') + '\n\n' + firmaDitta();
   const g = giorniDa(p.data);
   return 'Buongiorno, le scrivo per il preventivo n. ' + p.numero + (p.luogo ? ' per ' + p.luogo : '') +
     ' che le ho mandato ' + (g <= 1 ? 'ieri' : g + ' giorni fa') + ' (' + euro(conti(p).totale) + ' IVA compresa). ' +
@@ -11218,6 +11267,37 @@ const RICORDA = {
     testo: testoRicordaSaldo, oggetto: p => 'Saldo del preventivo n. ' + p.numero,
     dentro: 'col totale già scritto', fatto: 'Segnato. Quando paga, toccalo «È pagato».'}
 };
+/* «Sto arrivando» (Jobber, Housecall Pro: 4 ottobre 2026). Il giorno del lavoro o del
+   sopralluogo, un tocco: quanto manca, e WhatsApp parte col messaggio scritto. Il
+   cliente si fa trovare a casa, col cancello aperto. */
+function testoArrivo(x, minuti){
+  return 'Buongiorno, qui ' + (S.azienda.nome || 'la ditta') + ': arrivo fra circa ' + minuti + ' minuti' +
+    (x.luogo ? ' in ' + x.luogo : '') + '. A fra poco!\n\n' + firmaDitta();
+}
+function stoArrivando(tipo, id){
+  const x = tipo === 'sopralluogo' ? sopr(id) : prev(id); if(!x) return;
+  const cl = contattoDi(x), num = cl ? numeroWhatsApp(cl.tel) : '';
+  scheda({
+    titolo: 'Avvisa che stai arrivando',
+    sotto: (x.nome ? x.nome + '. ' : '') + 'Scegli fra quanto arrivi: WhatsApp si apre col messaggio già scritto.',
+    extra: `<div class="vie">${[15, 30, 60].map(m => `<a class="via" id="arrivo-${m}" href="${esc('https://wa.me/' + num + '?text=' + encodeURIComponent(testoArrivo(x, m)))}"
+        target="_blank" rel="noopener" onclick="chiudiScheda();segnaArrivo('${tipo}','${id}')">
+        <span class="lbl">Fra ${m} minuti</span><span>${num ? 'Al ' + esc(cl.tel) : 'Scegli tu il contatto'}</span></a>`).join('')}</div>`,
+    campi: [],
+    testoSalva: 'L\'ho chiamato al telefono',
+    salva: () => segnaArrivo(tipo, id)
+  });
+}
+function segnaArrivo(tipo, id){
+  const x = tipo === 'sopralluogo' ? sopr(id) : prev(id); if(!x) return;
+  x.arrivo = S.oggi;
+  salva(); vai();
+  avvisa('Segnato: sa che stai arrivando.');
+}
+function tastoArrivo(tipo, x){
+  if(x.arrivo === S.oggi) return '<span class="tag v">Avvisato che arrivi</span>';
+  return `<button class="bottone piccolo" onclick="event.stopPropagation();stoArrivando('${tipo}','${x.id}')">Sto arrivando</button>`;
+}
 function ricordaAlCliente(tipo, id){
   const t = RICORDA[tipo], x = t && t.trova(id); if(!x) return;
   scheda({

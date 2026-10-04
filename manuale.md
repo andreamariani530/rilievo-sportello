@@ -42,16 +42,18 @@ in Documenti.
 La prima schermata della mattina. Prima le cose da fare, in fondo i numeri.
 - «Il lavoro è stato fatto?»: i lavori con la data passata. «Sì, è finito» li chiude,
   «Sposta la data» li rimanda.
-- «In programma»: i sopralluoghi di oggi, con «Naviga» per la strada e «Ricordaglielo»
-  per mandare al cliente un promemoria su WhatsApp. Quelli senza giorno hanno
-  «Fissa il giorno».
+- «In programma»: i sopralluoghi di oggi, con «Naviga» per la strada e «Sto arrivando»:
+  scegli fra quanto arrivi (15, 30 o 60 minuti) e WhatsApp parte col messaggio scritto;
+  dopo la riga dice «Avvisato che arrivi». Quelli senza giorno hanno «Fissa il giorno».
 - «Prossimi appuntamenti»: lavori e sopralluoghi dei prossimi sette giorni, ognuno con
-  «Ricordaglielo». Il messaggio parte già scritto con giorno, ora e posto. Dopo l'invio
+  «Ricordaglielo» (quelli di oggi hanno «Sto arrivando»). Il messaggio parte già scritto con giorno, ora e posto. Dopo l'invio
   la riga dice «Avvisato».
 - «Hanno detto sì: dai un giorno al lavoro»: i preventivi accettati che non hanno ancora
   un giorno, con «Fissa il giorno». Così nessun sì si perde.
 - «Non ti hanno ancora risposto»: i preventivi consegnati a cui il cliente non ha ancora detto sì o no. Dopo quattro giorni compare
-  «Risentilo», con il messaggio di sollecito già scritto. Se dal link il cliente ha
+  «Risentilo», con il messaggio di sollecito già scritto. Tre giorni prima che il
+  preventivo scada la riga dice «Scade» e il giorno, e «Risentilo» usa un messaggio che
+  ricorda fino a quando vale. Se dal link il cliente ha
   chiesto di cambiare qualcosa, la sua frase si legge lì, con «Apri il preventivo».
 - «Da incassare»: i lavori finiti ma non pagati. «Sollecita» manda il messaggio per il
   saldo, «È pagato» lo segna incassato. In cima, chi dal link dice di aver fatto il
@@ -105,6 +107,9 @@ Il cuore del lavoro: cammini nel giardino e parli.
 - Dentro un preventivo cambi quantità, spegni una voce col suo interruttore (esce dal
   totale e si riaccende), aggiungi una voce del listino con «Aggiungi questa» o una nuova
   con «+ Voce nuova», metti lo sconto: il totale si rifà subito davanti al cliente.
+  Se cambi il prezzo di una voce presa dal listino, l'avviso offre un tasto «Tieni» col
+  prezzo nuovo «anche nel listino»: toccalo e il prossimo preventivo esce col prezzo nuovo (quelli già mandati
+  non cambiano). Se non lo tocchi, il listino resta com'era.
 - «Cliente e data», in cima, cambia a chi è intestato il preventivo, la data e il numero.
 - «Consegnalo al cliente» apre «Come glielo consegni?»:
   - «Prepara il link»: il cliente apre una pagina, scrive il nome e tocca «Accetto».
