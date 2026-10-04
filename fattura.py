@@ -1,30 +1,21 @@
-"""La fattura elettronica: dall'app al servizio SdI (Openapi in prova, Aruba), e lo stato.
+"""La fattura elettronica: dall'app al servizio SdI, e lo stato.
 
-Dal 29 settembre 2026 la strada scelta e' Openapi (Aruba Premium costa troppo):
-vedi OpenapiProva piu' sotto. Solo sandbox finche' Andrea non decide.
+La strada e' Openapi a consumo (dal 29 settembre 2026; Aruba Premium e' stato scartato
+per il costo). Vedi OpenapiProva piu' sotto: oggi solo sandbox, finche' Andrea non apre
+la produzione. Le chiavi stanno SOLO nelle variabili d'ambiente del server.
 
-Le fatture di Rilievo partono dall'account Aruba Premium multicedente di Andrea
-(decisione del 27 settembre 2026: la fattura sta dentro Rilievo e si paga
-nell'abbonamento). Le credenziali stanno SOLO sul server, nelle variabili
-d'ambiente, e non vengono mai scritte in un file del progetto:
+Questo modulo serve la strada «Mandala con Rilievo». L'altra strada dell'app, «Scarica
+il file» (4 ottobre 2026), non passa da qui: il file lo carica l'artigiano da solo.
 
-    ARUBA_UTENTE     il nome utente dell'account Aruba
-    ARUBA_PASSWORD   la sua password
-    ARUBA_AMBIENTE   "demo" (prova di Aruba) oppure "vero"
-
-Finche' le credenziali non ci sono (oggi, 28 settembre 2026: le demo sono state
-chieste ad Aruba il 27, richiesta 19076965A), risponde un ARUBA FINTO che si
-comporta come quello vero: accetta il file, lo chiama come lo chiamerebbe
-Aruba, dice «Inviata» e dopo una ventina di secondi «Consegnata». Sa anche
-scartare, per provare i messaggi: partita IVA del cliente 00000000000, oppure
-codice destinatario SCARTA0. Ogni sua risposta porta `prova: true`.
-
-Per passare ad Aruba vero non si tocca il codice: si mettono le tre variabili
-sul server e si riaccende.
+Senza variabili risponde un servizio FINTO (classe ArubaFinto, nome rimasto dalla prima
+prova) che si comporta come quello vero: accetta il file, dice «Inviata» e dopo una
+ventina di secondi «Consegnata». Sa anche scartare, per provare i messaggi: partita IVA
+del cliente 00000000000, oppure codice destinatario SCARTA0. Ogni risposta porta
+`prova: true`. Le classi Aruba restano per i collaudi e non si usano in produzione.
 
 Quello che arriva all'app e' sempre della stessa forma, finto o vero:
 
-    invia  -> {"file": "IT01879020517_a1b2c.xml.p7m", "stato": "inviata", "prova": bool}
+    invia  -> {"file": "<nome o id>", "stato": "inviata", "prova": bool}
     stato  -> {"file": ..., "stato": "inviata" | "consegnata" | "non_consegnata" | "scartata",
                "codice": "00305", "motivo": "...", "prova": bool}
 """

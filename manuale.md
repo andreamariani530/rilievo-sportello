@@ -145,11 +145,22 @@ L'archivio: i lavori chiusi (fatti e pagati) e le carte caricate da fuori.
   resoconto si apre un modulo corto con cliente, cosa scrivere e importo senza IVA.
   In cima c'è anche «Fai una fattura», che elenca i lavori da fatturare.
   Se mancano dati tuoi o del cliente, l'app li chiede uno alla volta.
-  Dopo l'invio la riga dice a che punto è: Partita, Arrivata, Tornata indietro. Se torna
-  indietro l'app dice perché e dove correggere.
-  La linguetta «Fatture» le mette in fila. Le fatture passano da Openapi, l'intermediario
-  che le consegna all'Agenzia delle Entrate. Finché su una fattura c'è scritto «di prova»,
-  quella non arriva allo Stato.
+- **Come la mandi?** Ogni volta si sceglie fra due strade, e l'ultima scelta esce per prima:
+  - «Mandala con Rilievo»: parte da Openapi, l'intermediario che la consegna all'Agenzia
+    delle Entrate, compresa nell'abbonamento. La riga dice a che punto è: Partita,
+    Arrivata, Tornata indietro (e l'app dice perché e dove correggere). Finché su una
+    fattura c'è scritto «di prova», quella non arriva allo Stato. Serve la rete.
+  - «Scarica il file»: una fattura vera, col numero vero, anche senza rete. Si apre
+    «Il file è pronto» con «Salvalo sul telefono» (e «Mandalo», se il telefono sa
+    condividere i file). Si carica gratis sul sito «Fatture e Corrispettivi»
+    dell'Agenzia delle Entrate, con lo SPID: «Trasmissione», poi «Invia il file». Oppure
+    si manda al commercialista. Sul lavoro resta «File pronto, da caricare» finché non
+    tocchi «Fatto, è partita»; «Rifai il file» lo rifà con lo stesso numero.
+  - Chi carica il file sul programma di un suo intermediario, se quello vuole il suo
+    codice nel file, lo scrive una volta nei suoi dati:
+    «Codice di chi trasmette il file (facoltativo)». Altrimenti si lascia vuoto.
+  - Le password di altri servizi non si danno a Rilievo e non si chiedono.
+  La linguetta «Fatture» le mette in fila; quelle col file da caricare dicono «Da caricare».
 
 ## I tuoi numeri (`#numeri`)
 

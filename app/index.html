@@ -709,6 +709,17 @@ body.disegno-aperto{overflow:hidden}
   color:var(--accento);font-size:18px}
 .via:hover{border-color:var(--accento)}
 .via .lbl{color:var(--accento)}
+/* «Come la mandi?»: la strada scelta l'ultima volta esce per prima, segnata */
+.via-fattura .nome-via{font-family:'Cormorant',serif;font-size:21px;line-height:1.15;color:var(--inchiostro)}
+.via-fattura span{font-size:15px;color:var(--soft);line-height:1.45}
+.via-fattura.prima{border-color:var(--accento);box-shadow:inset 3px 0 0 var(--accento)}
+.via-fattura[disabled]{opacity:.55;cursor:default}
+.via-fattura .di-prova{margin-top:6px;font-size:9.5px;padding:5px 0}
+.file-fattura .nome-file{font-family:ui-monospace,Menlo,monospace;font-size:14px;padding:10px 12px;border:1px solid var(--filetto2);
+  background:var(--bianco);word-break:break-all;margin-bottom:12px}
+.file-fattura .azioni-fattura{display:grid;gap:10px}
+.passi-file{margin:0 0 4px 20px;font-size:15.5px;color:var(--soft);line-height:1.55}
+.passi-file li{margin:3px 0}
 button.via{font:inherit;text-align:left;width:100%}
 .testo-messaggio{margin-bottom:18px;font-size:15px;color:var(--soft)}
 .testo-messaggio summary{cursor:pointer;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.16em;
@@ -1139,7 +1150,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 11:44';
+const COSTRUITA = '2026-10-04 12:02';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1891,7 +1902,7 @@ const ETICHETTE = {
    e "consegnata" li' vogliono gia' dire altro */
 function tagFattura(f){
   const e = {inviata: ['Partita', ''], consegnata: ['Arrivata', 'v'], non_consegnata: ['Pronta', 'v'],
-             scartata: ['Tornata indietro', 'o']}[f && f.stato] || ['Da mandare', 'o'];
+             scartata: ['Tornata indietro', 'o'], scaricata: ['Da caricare', 'o'], caricata: ['Partita', 'v']}[f && f.stato] || ['Da mandare', 'o'];
   return '<span class="tag ' + e[1] + '">' + esc(e[0]) + (f && f.prova ? ' · prova' : '') + '</span>';
 }
 function tag(stato){
@@ -2523,8 +2534,8 @@ function scheda(o){
         <p class="errore-scheda" id="scheda-errore" role="alert"></p>
         ${o.elimina ? `<button class="pericolo" id="btn-elimina">Cancella</button>` : ''}
         <div class="a-destra riga-azione">
-          <button class="bottone vuoto piccolo" onclick="chiudiScheda()">Lascia stare</button>
-          <button class="bottone piccolo" id="btn-salva">${esc(o.testoSalva || 'Salva')}</button>
+          ${o.soloSalva ? '' : '<button class="bottone vuoto piccolo" onclick="chiudiScheda()">Lascia stare</button>'}
+          ${o.senzaSalva ? '' : `<button class="bottone piccolo" id="btn-salva">${esc(o.testoSalva || 'Salva')}</button>`}
         </div>
       </div>
     </div>`;
@@ -2599,7 +2610,7 @@ function scheda(o){
     avvisa(testo);
     const r = velo.querySelector('#scheda-errore'); if(r) r.textContent = testo;
   };
-  velo.querySelector('#btn-salva').onclick = () => {
+  if(!o.senzaSalva) velo.querySelector('#btn-salva').onclick = () => {
     const dati = {};
     let sbagliato = null;
     o.campi.forEach(c => {
@@ -8139,12 +8150,32 @@ function azzera(id){
 /* ===== FATTURA ELETTRONICA ==========================================
    Dal preventivo pagato al file che l'Agenzia delle Entrate accetta
    (tracciato FatturaPA 1.2.2, fattura fra privati FPR12). La fattura sta dentro
-   Rilievo e si paga nell'abbonamento (Andrea, 27 settembre 2026). Il codice del
-   trasmittente scritto qui e' solo un segnaposto valido: il server lo sostituisce
-   con quello dell'intermediario che la manda davvero (oggi Openapi).
+   Rilievo e si paga nell'abbonamento (Andrea, 27 settembre 2026).
+   Il trasmittente e' chi porta il file allo SdI, e cambia con la strada:
+   - «Mandala con Rilievo»: Openapi (il server lo riscrive comunque);
+   - «Scarica il file»: l'artigiano stesso, col suo codice fiscale, perche' lo
+     carica lui sul sito dell'Agenzia. Se usa un intermediario che vuole il
+     proprio codice nel file, lo scrive una volta nei dati della fattura.
    Qui dentro non si legge niente dall'app: si riceve tutto come argomento,
    cosi' il collaudo lo prova contro lo schema ufficiale senza aprire l'app. */
-const TRASMITTENTE = '01879020517';
+const TRASMITTENTE = '10442360961';
+function trasmittenteDelFile(a){
+  a = a || {};
+  const suo = String(a.trasmittente || '').replace(/\s/g, '').toUpperCase().replace(/^IT(?=\d{11}$)/, '');
+  if(suo && cfValido(suo)) return suo;
+  const cf = String(a.cf || '').trim().toUpperCase();
+  return cfValido(cf) ? cf : String(a.piva || '').replace(/\s/g, '').replace(/^IT/i, '');
+}
+/* il nome che lo SdI vuole: IT + codice di chi trasmette + _ + cinque segni.
+   Un nome gia' usato viene scartato (00002): i cinque segni si tirano a sorte
+   ogni volta, non dall'ora (che si ripete). */
+function nomeFileSdi(codice){
+  const segni = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const sorte = typeof crypto !== 'undefined' && crypto.getRandomValues ? crypto.getRandomValues(new Uint8Array(5)) : null;
+  let x = '';
+  for(let i = 0; i < 5; i++) x += segni[(sorte ? sorte[i] : Math.floor(Math.random() * 256)) % 62];
+  return 'IT' + codice + '_' + x + '.xml';
+}
 const FRANCHIGIA_FORFETTARI = 'Operazione in franchigia da IVA ai sensi dell\'art. 1, commi 54-89, L. 190/2014';
 const SOGLIA_BOLLO = 77.47;
 
@@ -8329,7 +8360,7 @@ function xmlFattura(d){
   return `<?xml version="1.0" encoding="UTF-8"?>
 <p:FatturaElettronica versione="FPR12" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
 `<FatturaElettronicaHeader>` +
-`<DatiTrasmissione><IdTrasmittente><IdPaese>IT</IdPaese><IdCodice>${TRASMITTENTE}</IdCodice></IdTrasmittente>` +
+`<DatiTrasmissione><IdTrasmittente><IdPaese>IT</IdPaese><IdCodice>${xmlTesto(d.trasmittente || TRASMITTENTE, 28)}</IdCodice></IdTrasmittente>` +
 `<ProgressivoInvio>${xmlTesto(String(d.progressivo).replace(/[^\w.-]/g, ''), 10)}</ProgressivoInvio><FormatoTrasmissione>FPR12</FormatoTrasmissione>` +
 `<CodiceDestinatario>${codice}</CodiceDestinatario>` + (pec ? `<PECDestinatario>${xmlTesto(pec, 256)}</PECDestinatario>` : '') + `</DatiTrasmissione>` +
 `<CedentePrestatore><DatiAnagrafici><IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>${piva}</IdCodice></IdFiscaleIVA>` +
@@ -8361,9 +8392,10 @@ basi.map(b => `<DatiRiepilogo><AliquotaIVA>${dueDec(b.aliquota)}</AliquotaIVA>` 
    Impostazioni, spento di partenza: chi non lo accende (Cafagna e gli altri
    giardinieri di prova) non vede nessuna casella e nessun tasto nuovo.
    Andrea lo accende sul suo telefono e la prova prima lui (28 settembre 2026).
-   Finche' Aruba non ci ha dato le chiavi, il server risponde con un Aruba
-   finto: ogni fattura e' DI PROVA, lo dice dappertutto, e ha una numerazione
-   sua che non tocca quella vera. */
+   Con «Mandala con Rilievo», finche' il servizio delle fatture (Openapi) e' in
+   prova, ogni fattura e' DI PROVA, lo dice dappertutto, e ha una numerazione
+   sua che non tocca quella vera. «Scarica il file» invece da' subito una
+   fattura vera, che l'artigiano carica da solo (4 ottobre 2026). */
 const fatturaAccesa = () => !!(S && S.azienda && S.azienda.fattura_elettronica === true);
 function cambiaFattura(){
   if(fatturaAccesa()) delete S.azienda.fattura_elettronica;
@@ -8379,7 +8411,8 @@ const CAMPI_DITTA_FATTURA = [
 ];
 const CAMPI_NUMERAZIONE_FATTURA = [
   {k:'fattura_prossima', l:'Prossima fattura n.', t:'numero', m:true, p:'1'},
-  {k:'fattura_anno', l:'Dell\'anno', t:'numero', m:true, p:'2026'}
+  {k:'fattura_anno', l:'Dell\'anno', t:'numero', m:true, p:'2026'},
+  {k:'trasmittente', l:'Codice di chi trasmette il file (facoltativo)', p:'Lascia vuoto: serve solo se il tuo intermediario te lo chiede'}
 ];
 const CAMPI_CLIENTE_FATTURA = [
   {k:'cap', l:'CAP', m:true, p:'26025'},
@@ -8423,11 +8456,14 @@ function controllaDittaPerFattura(d){
     return 'Il numero della prossima fattura è un numero intero, da 1 in su.';
   if(d.fattura_prossima !== null && numeriUsati(false, anno).has(d.fattura_prossima))
     return 'La fattura n. ' + d.fattura_prossima + '/' + anno + ' l\'hai già fatta: due fatture con lo stesso numero non si possono fare.';
+  const tr = String(d.trasmittente || '').replace(/\s/g, '').replace(/^IT(?=\d{11}$)/i, '');
+  if(tr && !cfValido(tr)) return 'Il codice di chi trasmette è un codice fiscale o una partita IVA. Se non sai cos\'è, lascia vuoto.';
   return null;
 }
 function sistemaDittaPerFattura(d){
   if(d.cf) d.cf = d.cf.toUpperCase(); else delete d.cf;
   if(!d.regime) delete d.regime;
+  d.trasmittente = String(d.trasmittente || '').replace(/\s/g, '').toUpperCase().replace(/^IT(?=\d{11}$)/, '');
   const anno = d.fattura_anno === null ? annoDi(S.oggi) : d.fattura_anno;
   if(d.fattura_prossima !== null) S.azienda.fatture = {anno, prossimo: d.fattura_prossima};
   delete d.fattura_prossima; delete d.fattura_anno;
@@ -8487,7 +8523,7 @@ function riquadroFattura(){
 }
 
 /* ---- il giro del tasto: cosa manca, conferma, invio, stato ---- */
-/* l'ultima cosa detta dal server: prova (Aruba finto o la demo di Aruba) o vero.
+/* l'ultima cosa detta dal server: prova (il servizio delle fatture in prova) o vero.
    Finche' non ha risposto si tiene "prova": meglio una scritta di troppo che una
    fattura vera creduta finta. */
 let fatturaDiProva = true;
@@ -8503,13 +8539,16 @@ function chiediSportelloFattura(){
 function datiDellaFattura(p, f){
   const cl = p.cliente ? cliente(p.cliente) : null;
   return {cedente: S.azienda, cliente: cl || {nome: p.nome}, numero: f.numero, data: f.data,
-          progressivo: f.progressivo || 'x', righe: righeFattura(p), basi: conti(p).aliquote};
+          progressivo: f.progressivo || 'x', righe: righeFattura(p), basi: conti(p).aliquote,
+          trasmittente: f.via === 'file' ? trasmittenteDelFile(S.azienda) : TRASMITTENTE};
 }
+/* «Scarica il file»: la fattura preparata per caricarla da se' */
+const fatturaDaFile = f => !!(f && f.via === 'file');
 function faiLaFattura(id){
   const p = prev(id);
   if(!p || !fatturaAccesa() || !preventivoChiuso(p) || fatturaInViaggio[id]) return;
   const f = p.fattura;
-  if(f && f.file && f.stato !== 'scartata'){ location.hash = '#fattura/' + id; return; }
+  if(f && (f.file || fatturaDaFile(f)) && f.stato !== 'scartata'){ location.hash = '#fattura/' + id; return; }
   /* un preventivo senza scheda cliente: il cliente entra in rubrica, come alla consegna */
   let cl = p.cliente ? cliente(p.cliente) : null;
   if(!cl){
@@ -8535,36 +8574,128 @@ function apriCasellaFattura(id, manca, poi){
   if(x.chi === 'ditta') schedaAzienda({fuoco: x.campo, sotto, dopo});
   else schedaCliente(p.cliente, {fuoco: x.campo, sotto, dopo});
 }
+/* «Come la mandi?»: due strade, scelte ogni volta (Andrea, 4 ottobre 2026: «noi il
+   servizio lo mettiamo a disposizione e poi a sua discrezione»). L'ultima scelta
+   esce per prima. Senza rete la strada di Rilievo aspetta, quella del file no. */
 function confermaFattura(id){
   const b = document.getElementById('btn-fattura');
   if(b){ b.disabled = true; b.textContent = 'Un attimo…'; }
   return chiediSportelloFattura().then(pronto => {
     if(b){ b.disabled = false; }
-    if(!pronto){ vaiRestandoQui(); avvisa('Per mandare la fattura serve la rete. Riprova appena c\'è campo.'); return; }
-    const p = prev(id), f = p.fattura, prova = fatturaDiProva;
+    const p = prev(id); if(!p) return;
+    const f = p.fattura, prova = fatturaDiProva;
     /* rimandata dopo uno scarto: tiene il suo numero e la sua data */
-    const stessa = f && !!f.prova === prova;
+    const stessa = f && !fatturaDaFile(f) && !!f.prova === prova;
     const numero = stessa ? f.numero : prossimaFattura(prova).numero;
+    const numeroFile = f && !f.prova ? f.numero : prossimaFattura(false).numero;
     const d = datiDellaFattura(p, {numero, data: stessa ? f.data : S.oggi});
     const c = contiFattura(d), cp = conti(p), cl = cliente(p.cliente);
+    const conRilievo = `<button type="button" class="via via-fattura${S.azienda.fattura_via !== 'file' && pronto ? ' prima' : ''}" id="via-rilievo"
+        ${pronto ? '' : 'disabled'} onclick="chiudiScheda();inviaFattura('${p.id}')">
+        <span class="nome-via">Mandala con Rilievo</span>
+        <span>${!pronto ? 'Adesso non c\'è rete: riprova appena c\'è campo, oppure scarica il file.'
+          : prova ? 'Fattura di prova n. ' + esc(numero) + ': arriva al cliente come una vera, ma non va allo Stato.'
+          : 'Fattura n. ' + esc(numero) + '. Arriva al cliente in qualche minuto, ed è compresa nell\'abbonamento.'}</span>
+        ${pronto && prova ? '<span class="di-prova">Di prova · non mandata allo Stato</span>' : ''}
+      </button>`;
+    const colFile = `<button type="button" class="via via-fattura${S.azienda.fattura_via === 'file' || !pronto ? ' prima' : ''}" id="via-file"
+        onclick="chiudiScheda();preparaFileFattura('${p.id}')">
+        <span class="nome-via">Scarica il file</span>
+        <span>Fattura n. ${esc(numeroFile)}. La carichi tu sul sito gratuito dell'Agenzia delle Entrate, o la dai al tuo commercialista.</span>
+      </button>`;
     scheda({
-      titolo: (prova ? 'Fattura di prova n. ' : 'Fattura n. ') + numero,
-      sotto: 'A ' + cl.nome + ', ' + perIlLavoro(p) + '.',
+      titolo: 'La fattura a ' + cl.nome,
+      sotto: perIlLavoro(p, true) + '.',
       extra: `<div class="conferma-fattura">
-        ${prova ? '<div class="di-prova">Di prova · non mandata allo Stato</div>' : ''}
         ${c.basi.map(x => `<div class="riga-tot"><span>${c.forf ? 'Imponibile' : 'Imponibile al ' + cifra(x.aliquota) + '%'}</span><span>${euro(x.base)}</span></div>` +
           (c.forf ? '' : `<div class="riga-tot"><span>IVA ${cifra(x.aliquota)}%</span><span>${euro(x.iva)}</span></div>`)).join('')}
         <div class="riga-tot" style="color:var(--inchiostro)"><span>Totale</span><span><b>${euro(c.totale)}</b></span></div>
         ${c.forf && Math.abs(cp.totale - c.totale) > 0.005 ? `<p class="fattura-nota">Sei nel forfettario: la fattura esce senza IVA, ${euro(c.totale)} invece dei ${euro(cp.totale)} del preventivo.</p>` : ''}
         ${c.bollo ? '<p class="fattura-nota">Sopra i 77,47 euro ci va il bollo da 2 euro: lo scrive la fattura da sola.</p>' : ''}
+        <div class="lbl" style="margin:18px 0 8px">Come la mandi?</div>
+        <div class="vie">${S.azienda.fattura_via === 'file' || !pronto ? colFile + conRilievo : conRilievo + colFile}</div>
       </div>`,
       campi: [],
-      testoSalva: prova ? 'Mandala (di prova)' : 'Mandala',
-      salva: () => {},
-      dopo: () => inviaFattura(id)
+      senzaSalva: true,
+      salva: () => {}
     });
   });
 }
+
+/* ---- «Scarica il file» ----
+   Una fattura vera, col numero vero (niente «P»): non passa dal server, quindi
+   non c'e' niente di prova, e si fa anche senza rete. Resta «Da caricare»
+   finche' l'artigiano non dice che e' partita. */
+function preparaFileFattura(id, rifai){
+  const p = prev(id);
+  if(!p || !fatturaAccesa() || !preventivoChiuso(p) || fatturaInViaggio[id]) return;
+  let f = p.fattura;
+  if(!rifai){
+    if(!f || f.prova){
+      const x = prossimaFattura(false);
+      consumaNumero(false, x);
+      f = p.fattura = {n: x.n, anno: x.anno, numero: x.numero, data: S.oggi, prova: false};
+    }
+    f.via = 'file'; f.stato = 'scaricata'; f.preparata = istante();
+    delete f.file; delete f.codice; delete f.motivo; delete f.inviata; delete f.arrivata;
+    S.azienda.fattura_via = 'file';
+  }
+  if(!fatturaDaFile(f)) return;
+  f.progressivo = Date.now().toString(36).slice(-9);
+  f.xml = xmlFattura(datiDellaFattura(p, f));
+  f.nome_file = nomeFileSdi(trasmittenteDelFile(S.azienda));
+  salva(); vaiRestandoQui();
+  schedaFileFattura(id);
+}
+const puoCondividereFile = file => !!(navigator.share && navigator.canShare && (() => { try { return navigator.canShare({files: [file]}); } catch(_){ return false; } })());
+const fileDellaFattura = f => new File([f.xml], f.nome_file || 'fattura.xml', {type: 'application/xml'});
+function schedaFileFattura(id){
+  const p = prev(id), f = p && p.fattura;
+  if(!f || !fatturaDaFile(f) || !f.xml) return;
+  const condividi = puoCondividereFile(fileDellaFattura(f));
+  scheda({
+    titolo: 'Il file è pronto',
+    sotto: 'Fattura n. ' + f.numero + ', ' + perIlLavoro(p) + '. È una fattura vera: caricala una volta sola.',
+    extra: `<div class="file-fattura">
+      <div class="nome-file" id="nome-file-fattura">${esc(f.nome_file)}</div>
+      <div class="azioni-fattura">
+        ${condividi ? `<button class="bottone" id="btn-manda-file" onclick="mandaFileFattura('${p.id}')">Mandalo</button>` : ''}
+        <button class="bottone${condividi ? ' vuoto' : ''}" id="btn-salva-file" onclick="salvaFileFattura('${p.id}')">Salvalo sul telefono</button>
+      </div>
+      <div class="lbl" style="margin:18px 0 6px">Sul sito dell'Agenzia delle Entrate</div>
+      <ol class="passi-file">
+        <li>Apri il sito «Fatture e Corrispettivi» dell'Agenzia delle Entrate ed entra con lo SPID.</li>
+        <li>Vai in «Trasmissione», premi «Invia il file» e scegli questo file.</li>
+        <li>Dopo qualche minuto, nel «Monitoraggio» dello stesso sito vedi se è arrivata.</li>
+      </ol>
+      <p class="fattura-nota">Se la fa il tuo commercialista, mandagli il file: ci pensa lui. Quando è partita, segnalo sul lavoro con «Fatto, è partita».</p>
+    </div>`,
+    campi: [], testoSalva: 'Chiudi', soloSalva: true, salva: () => {}
+  });
+}
+function salvaFileFattura(id){
+  const f = (prev(id) || {}).fattura; if(!f || !f.xml) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([f.xml], {type: 'application/xml'}));
+  a.download = f.nome_file || nomeFileFattura(prev(id), '.xml');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  avvisa('File salvato: lo trovi fra i file scaricati del telefono.');
+}
+function mandaFileFattura(id){
+  const f = (prev(id) || {}).fattura; if(!f || !f.xml) return;
+  const file = fileDellaFattura(f);
+  if(!puoCondividereFile(file)){ salvaFileFattura(id); return; }
+  navigator.share({files: [file], title: 'Fattura n. ' + f.numero}).catch(() => {});
+}
+function fatturaPartitaAMano(id){
+  const p = prev(id), f = p && p.fattura;
+  if(!f || !fatturaDaFile(f)) return;
+  f.stato = 'caricata'; f.arrivata = istante();
+  salva(); vaiRestandoQui();
+  avvisa('Segnata come partita. Il file resta qui, nella fattura.');
+}
+
 function messaggioInvio(stato, d){
   /* il credito del servizio delle fatture e' finito: lo si dice, se no si riprova a vuoto */
   if(d && d.credito_finito === true && typeof d.errore === 'string') return d.errore.slice(0, 200);
@@ -8584,6 +8715,8 @@ function inviaFattura(id){
     consumaNumero(prova, x);
     f = p.fattura = {n: x.n, anno: x.anno, numero: x.numero, data: S.oggi, prova};
   }
+  delete f.via; delete f.nome_file; delete f.preparata;
+  S.azienda.fattura_via = 'rilievo';
   f.progressivo = Date.now().toString(36).slice(-9);
   f.xml = xmlFattura(datiDellaFattura(p, f));
   delete f.file; delete f.codice; delete f.motivo;
@@ -8673,6 +8806,18 @@ function bloccoFattura(p){
   const f = p.fattura, prova = f ? !!f.prova : fatturaDiProva, viaggio = !!fatturaInViaggio[p.id];
   const fascia = prova ? '<div class="di-prova">Di prova · non mandata allo Stato</div>' : '';
   const dove = `<a class="bottone vuoto" href="#fattura/${p.id}">Apri la fattura${prova ? ' di prova' : ''}</a>`;
+  if(fatturaDaFile(f)){
+    const quando = dataLunga(String(f.preparata || '').slice(0, 10) || f.data);
+    const corpo = f.stato === 'caricata'
+      ? `<div class="stato-fattura" id="stato-fattura">Partita</div><p>Preparata il ${quando} e caricata da te${f.arrivata ? ' il ' + dataLunga(String(f.arrivata).slice(0, 10)) : ''}.</p>`
+      : `<div class="stato-fattura" id="stato-fattura">File pronto, da caricare</div><p>L'hai preparata il ${quando}. Quando è partita, segnalo qui.</p>
+        <div class="azioni-fattura">
+          <button class="bottone" id="btn-fattura-partita" onclick="fatturaPartitaAMano('${p.id}')">Fatto, è partita</button>
+          <button class="bottone vuoto" id="btn-rifai-file" onclick="preparaFileFattura('${p.id}', true)">Rifai il file</button>
+        </div>`;
+    return `<div class="fattura-app" id="fattura-app"><div class="lbl">La fattura n. ${esc(f.numero)}</div>${corpo}
+      <div class="azioni-fattura">${dove}</div></div>`;
+  }
   if(!f || !f.file){
     return `<div class="fattura-app" id="fattura-app">
       <div class="lbl">La fattura</div>
@@ -8777,7 +8922,8 @@ function scaricaFileFattura(id){
   a.download = nomeFileFattura(p, '.xml');
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-  avvisa(p.fattura.prova ? 'File scaricato. È di prova: non darlo al commercialista come fattura vera.' : 'File scaricato: è quello da dare al commercialista.');
+  avvisa(p.fattura.prova ? 'File scaricato. È di prova: non darlo al commercialista come fattura vera.'
+    : 'File scaricato. È una copia: la fattura è già partita, non va caricata di nuovo.');
 }
 function schedaPdfFattura(id){
   scheda({titolo: 'La fattura in PDF',
@@ -8795,7 +8941,8 @@ PAGINE.fattura = {
       destra: `<div class="azioni">
         <a class="torna" href="#preventivo/${p.id}" style="margin:0">← Torna al lavoro</a>
         <button class="bottone piccolo" onclick="schedaPdfFattura('${p.id}')">Manda il PDF</button>
-        <button class="bottone vuoto piccolo" onclick="scaricaFileFattura('${p.id}')">Il file per il commercialista</button>
+        ${fatturaDaFile(f) ? `<button class="bottone vuoto piccolo" onclick="schedaFileFattura('${p.id}')">Il file da caricare</button>`
+          : `<button class="bottone vuoto piccolo" onclick="scaricaFileFattura('${p.id}')">Il file per il commercialista</button>`}
       </div>`};
   },
   corpo(id){ return corpoFattura(id); },
@@ -10131,7 +10278,7 @@ PAGINE.documenti = {
     if(filtroDocumenti === 'fatture') return `
     ${linguette(LINGUETTE_DOCUMENTI.map(([k,n]) => [k, n, conta(k), '', k === 'fatture' && fatturaAccesa()]), filtroDocumenti, 'setFiltroDocumenti')}
     ${fatture.length ? `<div class="elenco">${fatture.map(p => `
-      <div class="r cliccabile" onclick="${p.fattura.file ? `location.hash='#fattura/${p.id}'` : `fatturaDi('${p.id}')`}">
+      <div class="r cliccabile" onclick="${p.fattura.file || fatturaDaFile(p.fattura) ? `location.hash='#fattura/${p.id}'` : `fatturaDi('${p.id}')`}">
         <div><div class="tit">Fattura n. ${esc(p.fattura.numero)} · ${esc(p.nome)}</div>
           <div class="sub">${dataLunga(p.fattura.data)} · ${euro(contiFattura(datiDellaFattura(p, p.fattura)).totale)}</div></div>
         <div class="riga-azione">${tagFattura(p.fattura)}</div>
@@ -10609,13 +10756,13 @@ function segnaSollecito(id){
    modo di farla. Adesso c'e' un tasto in cima ai Documenti, e ogni lavoro chiuso ha
    la sua fattura sulla riga. Chi tocca «Fai una fattura» la vuole: l'interruttore si
    accende da solo (resta in Impostazioni per spegnerla). */
-const fatturaFatta = p => !!(p && p.fattura && p.fattura.file && p.fattura.stato !== 'scartata');
+const fatturaFatta = p => !!(p && p.fattura && (p.fattura.file || fatturaDaFile(p.fattura)) && p.fattura.stato !== 'scartata');
 function accendiFattura(){
   if(!fatturaAccesa()){ S.azienda.fattura_elettronica = true; salva(); }
 }
 function tastoFatturaRiga(p){
   if(!p) return '';
-  if(p.fattura && p.fattura.file)
+  if(p.fattura && (p.fattura.file || fatturaDaFile(p.fattura)))
     return `<a href="#fattura/${p.id}" onclick="event.stopPropagation()" style="text-decoration:none">${tagFattura(p.fattura)}</a>`;
   return `<button class="bottone vuoto piccolo" onclick="event.stopPropagation();fatturaDi('${p.id}')">${p.fattura ? 'Manda la fattura' : 'Fai la fattura'}</button>`;
 }
