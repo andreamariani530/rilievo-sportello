@@ -48,10 +48,15 @@ La prima schermata della mattina. Prima le cose da fare, in fondo i numeri.
 - «Prossimi appuntamenti»: lavori e sopralluoghi dei prossimi sette giorni, ognuno con
   «Ricordaglielo». Il messaggio parte già scritto con giorno, ora e posto. Dopo l'invio
   la riga dice «Avvisato».
+- «Hanno detto sì: dai un giorno al lavoro»: i preventivi accettati che non hanno ancora
+  un giorno, con «Fissa il giorno». Così nessun sì si perde.
 - «Non ti hanno ancora risposto»: i preventivi consegnati a cui il cliente non ha ancora detto sì o no. Dopo quattro giorni compare
-  «Risentilo», con il messaggio di sollecito già scritto.
+  «Risentilo», con il messaggio di sollecito già scritto. Se dal link il cliente ha
+  chiesto di cambiare qualcosa, la sua frase si legge lì, con «Apri il preventivo».
 - «Da incassare»: i lavori finiti ma non pagati. «Sollecita» manda il messaggio per il
-  saldo, «È pagato» lo segna incassato.
+  saldo, «È pagato» lo segna incassato. In cima, chi dal link dice di aver fatto il
+  bonifico: «È arrivato» lo segna (l'acconto, o tutto se era il totale), «Non ancora» lo
+  toglie dalla lista.
 - «Clienti da risentire»: chi non senti da più di sei mesi, con «Chiamalo» e
   «Nuovo preventivo».
 - In fondo, «Come sta andando»: quanto hai preventivato e quanto è stato accettato negli
@@ -104,6 +109,17 @@ Il cuore del lavoro: cammini nel giardino e parli.
 - «Consegnalo al cliente» apre «Come glielo consegni?»:
   - «Prepara il link»: il cliente apre una pagina, scrive il nome e tocca «Accetto».
     L'app segna da sola il preventivo accettato e ti dice quante volte l'ha aperto.
+    Sul link il cliente può anche: spuntare le voci facoltative («Puoi aggiungere»,
+    «Rifai il conto») e accettare il totale che ha scelto, e le voci entrano da sole nel
+    tuo preventivo; dire «No, grazie» col motivo (il preventivo diventa «Ha detto no»);
+    scrivere «Vorrei cambiare qualcosa» (lo leggi in Oggi e sul preventivo, e i
+    promemoria per mail si fermano). Il link vale quanto il preventivo: passata la data
+    scritta nelle condizioni, il cliente legge «Il preventivo è scaduto» e ti chiede di
+    rinnovarlo. Dopo il sì resta leggibile.
+  - Se nei tuoi dati c'è l'IBAN, il preventivo (PDF, link e messaggio) dice come pagare:
+    quanto (l'acconto, o il totale), a chi, IBAN e causale già scritta. Sul link, dopo il
+    sì, il cliente preme «Ho fatto il bonifico» e te lo ritrovi in Oggi. Il preventivo non
+    diventa pagato da solo: lo dici tu.
   - WhatsApp o mail, col messaggio già scritto con le voci e il totale.
   - Il PDF con la tua intestazione, da allegare.
 - «Fallo firmare sul posto»: il cliente firma col dito sul telefono.
@@ -193,6 +209,9 @@ Si apre una ditta alla volta: chi non ha ancora il codice della ditta tocca
 
 - I dati della ditta che finiscono stampati sui documenti: nome, indirizzo, partita IVA,
   telefono, IVA, logo. Il logo si mette anche da un documento con «Metti il tuo logo».
+  «IBAN per i bonifici» e «Il conto è intestato a» (se è vuoto vale il nome della ditta):
+  con l'IBAN il cliente vede come pagarti. L'IBAN si controlla da solo: se una cifra è
+  sbagliata l'app lo dice.
 - **Il tuo accesso:** «Crea il tuo accesso» con mail e password. Il lavoro si copia da
   solo sul server e lo ritrovi su un altro telefono con «Entra con la tua mail».
   «Password dimenticata?» manda una mail per cambiarla. «Esci da questo telefono».

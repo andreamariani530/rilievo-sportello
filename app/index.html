@@ -790,6 +790,11 @@ button.via{font:inherit;text-align:left;width:100%}
 .foglio .condizioni-doc{margin-top:28px;padding-top:14px;border-top:1px solid var(--filetto);font-size:14.5px;
   color:var(--soft);line-height:1.6}
 .foglio .condizioni-doc p{margin-top:6px;max-width:72ch}
+.foglio .pagare-doc{margin-top:18px;padding:12px 14px;border:1px solid var(--filetto2);font-size:14.5px;color:var(--soft);
+  line-height:1.6;break-inside:avoid;page-break-inside:avoid}
+.foglio .pagare-doc b{color:var(--inchiostro);font-weight:500}
+.chiede-cambio{color:var(--oro)!important;margin-top:2px}
+.foglio .pagare-doc .iban-doc{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--inchiostro);word-break:normal}
 .foglio .firma-doc{display:grid;grid-template-columns:1.6fr 1fr;gap:34px;margin-top:30px;break-inside:avoid;page-break-inside:avoid}
 .foglio .firma-doc img{display:block;height:74px;width:auto;max-width:100%;margin-top:4px}
 .foglio .firma-riga{height:54px;border-bottom:1px solid var(--inchiostro)}
@@ -1168,7 +1173,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 12:15';
+const COSTRUITA = '2026-10-04 12:35';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3593,6 +3598,8 @@ function schedaAzienda(per){
       {k:'mail', l:'Mail', m:true, p:'info@esempio.it'},
       {k:'validita', l:'Il preventivo vale (giorni)', t:'numero', m:true, facoltativo:true, p:'30'},
       {k:'acconto', l:'Acconto alla firma (%)', t:'numero', m:true, facoltativo:true, p:'Vuoto se non lo chiedi'},
+      {k:'iban', l:'IBAN per i bonifici', p:'Se lo scrivi, il cliente vede come pagarti'},
+      {k:'intestatario', l:'Il conto è intestato a', p:'Vuoto: il nome della ditta'},
       ...(fatt ? CAMPI_NUMERAZIONE_FATTURA : []),
       {k:'condizioni', l:'Condizioni stampate in fondo', t:'lungo',
        p:'Es. Con il maltempo gli interventi slittano al primo giorno utile. Il verde tagliato si porta via, compreso nel prezzo.'}
@@ -3600,9 +3607,10 @@ function schedaAzienda(per){
     controlla: d => !d.nome ? 'Serve almeno il nome.'
       : (d.validita !== null && !(d.validita >= 1 && d.validita <= 365) ? 'La validità va da 1 a 365 giorni.'
       : (d.acconto !== null && !(d.acconto >= 0 && d.acconto <= 100) ? 'L\'acconto è una percentuale, da 0 a 100.'
-      : controllaSedeDitta(d) || (fatt ? controllaDittaPerFattura(d) : null))),
+      : controllaSedeDitta(d) || controllaIban(d.iban) || (fatt ? controllaDittaPerFattura(d) : null))),
     salva: d => {
       sistemaSedeDitta(d);
+      d.iban = ibanPulito(d.iban);
       if(fatt) sistemaDittaPerFattura(d);
       if(d.validita === null) delete d.validita;
       if(d.acconto === null) delete d.acconto;
@@ -3947,6 +3955,11 @@ PAGINE.oggi = {
       .sort((a, b) => (a.giorno + (oraBuona(a.ora) ? a.ora : '24')).localeCompare(b.giorno + (oraBuona(b.ora) ? b.ora : '24')));
     /* finiti e non pagati: i soldi che aspetti. Stessa regola della linguetta
        «Da incassare» di Preventivi. */
+    /* «Hanno detto si'»: un accettato senza giorno non deve perdersi (idea presa a
+       LawnPro, 4 ottobre 2026). E i bonifici che il cliente dice di aver fatto. */
+    const hannoDettoSi = S.preventivi.filter(p => p.stato === 'accettato' && !soloFattura(p) && !lavoroBuono(p.lavoro) && !lavoroFinito(p))
+      .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    const bonifici = S.preventivi.filter(bonificoDaGuardare);
     const daIncassare = S.preventivi.filter(p => lavoroFinito(p) && p.stato !== 'pagato'
                                               && p.stato !== 'messo_via' && p.stato !== 'rifiutato')
       .sort((a, b) => String(a.lavoro_fatto.quando).localeCompare(String(b.lavoro_fatto.quando)));
@@ -4015,6 +4028,15 @@ PAGINE.oggi = {
         : '<div class="niente" style="padding:20px 0">Nei prossimi sette giorni non hai lavori o sopralluoghi fissati.</div>'}
       </div>
       <div class="scheda">
+        ${hannoDettoSi.length ? `<div class="lbl" style="margin-bottom:10px">Hanno detto sì: dai un giorno al lavoro</div>
+          <div class="elenco" style="border-top:0;margin-bottom:24px" id="hanno-detto-si">
+          ${hannoDettoSi.map(p => `
+            <div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'">
+              <div><div class="tit">${esc(p.nome)}</div>
+                <div class="sub">${sotto('Accettato' + (p.link && p.link.accettato ? ' dal link' : p.firma ? ' con la firma' : ''), euro(conti(p).netto), p.luogo)}</div></div>
+              <button class="bottone piccolo" style="white-space:nowrap" onclick="event.stopPropagation();fissaLavoro('${p.id}')">Fissa il giorno</button>
+            </div>`).join('')}
+          </div>` : ''}
         <div class="lbl" style="margin-bottom:10px">Non ti hanno ancora risposto</div>
         ${attesa.length ? `<div class="elenco" style="border-top:0">
           ${attesa.map(p => {
@@ -4022,13 +4044,27 @@ PAGINE.oggi = {
             return `
             <div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'">
               <div><div class="tit">${esc(p.nome)}</div>
-                   <div class="sub">Consegnato ${quando(p.data)} · ${euro(conti(p).netto)}${risentito ? ' · risentito ' + quando(risentito) : ''}</div></div>
-              ${daSollecitare(p) ? `<button class="bottone piccolo" onclick="event.stopPropagation();sollecita('${p.id}')">Risentilo</button>` : tag('inviato')}
+                   <div class="sub">Consegnato ${quando(p.data)} · ${euro(conti(p).netto)}${risentito ? ' · risentito ' + quando(risentito) : ''}</div>
+                   ${p.link && p.link.cambia && !p.link.cambia.visto ? `<div class="sub chiede-cambio">Vorrebbe cambiare: “${esc(p.link.cambia.testo)}”</div>` : ''}</div>
+              ${p.link && p.link.cambia && !p.link.cambia.visto
+                ? `<button class="bottone piccolo" onclick="event.stopPropagation();cambiaVisto('${p.id}')">Apri il preventivo</button>`
+                : daSollecitare(p) ? `<button class="bottone piccolo" onclick="event.stopPropagation();sollecita('${p.id}')">Risentilo</button>` : tag('inviato')}
             </div>`; }).join('')}
           </div>
           <p style="font-size:15px;color:var(--tenue);margin-top:14px">Un preventivo fermo da più di quattro giorni te lo ricordo qui, con il messaggio già scritto. Si perdono più lavori per il silenzio che per il prezzo.</p>`
         : '<div class="niente" style="padding:20px 0">Nessuno ti deve una risposta.</div>'}
         <div class="lbl" style="margin:26px 0 10px">Da incassare</div>
+        ${bonifici.length ? `<div class="elenco" style="border-top:0;margin-bottom:10px" id="bonifici-detti">
+          ${bonifici.map(p => `
+            <div class="r">
+              <div><div class="tit">${esc(p.nome)}</div>
+                <div class="sub">Dice di aver pagato${pagamentoDi(p) && pagamentoDi(p).acconto ? ' l’acconto' : ''} (${euro(pagamentoDi(p) ? pagamentoDi(p).importo : conti(p).totale)}): controlla in banca</div>
+                <div class="azioni">
+                  <button class="bottone piccolo" onclick="bonificoArrivato('${p.id}')">È arrivato</button>
+                  <button class="bottone vuoto piccolo" onclick="bonificoNonAncora('${p.id}')">Non ancora</button>
+                </div></div>
+            </div>`).join('')}
+          </div>` : ''}
         ${daIncassare.length ? `<div class="elenco" style="border-top:0" id="da-incassare">
           ${daIncassare.map(p => `
             <div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'">
@@ -4039,7 +4075,7 @@ PAGINE.oggi = {
                 ${p.stato === 'accettato' ? `<button class="bottone vuoto piccolo" onclick="segnaPagato('${p.id}')">È pagato</button>` : ''}</div>
             </div>`).join('')}
           </div>`
-        : '<div class="niente" style="padding:20px 0">Nessun lavoro finito aspetta i soldi.</div>'}
+        : bonifici.length ? '' : '<div class="niente" style="padding:20px 0">Nessun lavoro finito aspetta i soldi.</div>'}
       </div>
     </div>
     <div style="margin-top:30px">
@@ -10500,6 +10536,50 @@ PAGINE.documenti = {
   }
 };
 
+/* ===== COME PAGARMI (idea presa ai concorrenti, 4 ottobre 2026) =====
+   Con l'IBAN scritto nei dati della ditta, il preventivo dice al cliente quanto
+   versare, a chi e con quale causale: niente telefonate «mi rimandi l'IBAN?».
+   Sul link, dopo il si', il cliente preme «Ho fatto il bonifico» e qui lo si
+   vede in Oggi. Il preventivo non diventa pagato da solo: lo dice l'artigiano. */
+const ibanPulito = v => String(v || '').replace(/[\s-]/g, '').toUpperCase();
+function ibanValido(v){
+  const s = ibanPulito(v);
+  if(!/^IT\d{2}[A-Z]\d{10}[A-Z0-9]{12}$/.test(s)) return false;
+  const giro = (s.slice(4) + s.slice(0, 4)).replace(/[A-Z]/g, c => String(c.charCodeAt(0) - 55));
+  let r = 0;
+  for(let i = 0; i < giro.length; i++) r = (r * 10 + Number(giro[i])) % 97;
+  return r === 1;
+}
+function controllaIban(v){
+  const s = ibanPulito(v);
+  if(!s) return null;
+  if(!/^IT/.test(s)) return 'Qui va un IBAN italiano: comincia con IT.';
+  if(s.length !== 27) return 'L\'IBAN italiano ha 27 caratteri, questo ne ha ' + s.length + ': controlla di averlo copiato tutto.';
+  if(!ibanValido(s)) return 'L\'IBAN non torna: c\'è una cifra sbagliata. Copialo di nuovo dalla banca.';
+  return null;
+}
+const ibanScritto = v => ibanPulito(v).replace(/(.{4})/g, '$1 ').trim();
+function pagamentoDi(p){
+  const a = S.azienda || {};
+  if(!p || !ibanValido(a.iban)) return null;
+  const c = conti(p), acconto = Number(a.acconto) > 0 ? Number(a.acconto) : 0;
+  const rr = rateDi(c, Number.isInteger(p.rate) && p.rate > 1 ? p.rate : 0, acconto);
+  const importo = acconto ? (rr ? rr.anticipo : cent(c.totale * acconto / 100)) : c.totale;
+  return {iban: ibanPulito(a.iban), intestato: String(a.intestatario || a.nome || '').trim(), importo, acconto: !!acconto,
+          causale: (acconto ? 'Acconto preventivo n. ' : 'Preventivo n. ') + p.numero + (p.nome ? ', ' + p.nome : '')};
+}
+function bloccoPagareDoc(p){
+  const pg = pagamentoDi(p); if(!pg) return '';
+  return `<div class="pagare-doc">
+      <div class="lbl">Come pagare</div>
+      <p>${pg.acconto ? 'Acconto alla firma' : 'Il totale'}: <b>${euro(pg.importo)}</b>, con bonifico a ${esc(pg.intestato)}.<br>
+        IBAN <span class="iban-doc">${esc(ibanScritto(pg.iban))}</span><br>Causale: ${esc(pg.causale)}</p>
+    </div>`;
+}
+const rigaIbanMessaggio = p => { const pg = pagamentoDi(p);
+  return pg ? 'Per ' + (pg.acconto ? 'l\'acconto' : 'il pagamento') + ' (' + euro(pg.importo) + '): bonifico a ' + pg.intestato +
+    ', IBAN ' + ibanScritto(pg.iban) + ', causale «' + pg.causale + '».' : ''; };
+
 PAGINE.documento = {
   voce:'#documenti',
   guida:false,
@@ -10601,6 +10681,7 @@ PAGINE.documento = {
         ${a.condizioni ? `<p>${esc(a.condizioni)}</p>` : ''}
         ${p.note ? `<p>${esc(p.note)}</p>` : ''}
       </div>
+      ${bloccoPagareDoc(p)}
 
       <div class="firma-doc">
         <div>
@@ -10699,6 +10780,7 @@ function testoPreventivo(p){
     .concat(c.aliquote.map(x => 'IVA ' + cifra(x.aliquota) + '%: ' + euro(x.iva)))
     .concat(['', 'Totale ' + euro(c.totale) + ', IVA compresa.'])
     .concat(fac.length ? ['', 'Se le interessa, a parte (più IVA):'].concat(fac.map(riga)) : [])
+    .concat(rigaIbanMessaggio(p) ? ['', rigaIbanMessaggio(p)] : [])
     .concat(['', 'Per accettare basta rispondere a questo messaggio. Resto a disposizione per qualsiasi domanda.', '', firmaDitta()])
     .join('\n');
 }
@@ -12057,8 +12139,10 @@ function testoPrivacy(){
       <li><b>Il preventivo col link.</b> Se scegli di mandarlo col link, quel preventivo (con il nome e
         l&rsquo;indirizzo del cliente, le voci e il totale) resta sul nostro server per 180 giorni, perch&eacute;
         il cliente lo possa aprire. Chi ha il link lo pu&ograve; leggere. Se il cliente lo accetta, si segnano
-        il nome che scrive, il giorno, l&rsquo;ora e l&rsquo;indirizzo di rete da cui accetta. Cancellando il
-        preventivo, il link smette di funzionare.</li>
+        il nome che scrive, il giorno, l&rsquo;ora, l&rsquo;indirizzo di rete da cui accetta e le voci in pi&ugrave; che ha
+        scelto. Se invece risponde di no o chiede di cambiare qualcosa, si segnano la sua risposta e quello che
+        scrive. Se nei tuoi dati c&rsquo;&egrave; l&rsquo;IBAN, il link lo mostra al cliente, e si segna quando lui dice di aver
+        fatto il bonifico. Cancellando il preventivo, il link smette di funzionare.</li>
       <li><b>I promemoria automatici.</b> Se li accendi, il nostro server usa la mail del tuo cliente, il numero,
         il luogo e il totale del preventivo per mandargli un promemoria a nome tuo, dalla casella di Rilievo.
         Le risposte arrivano a te. Teniamo il giorno e l&rsquo;ora di ogni promemoria partito.</li>
@@ -12645,7 +12729,7 @@ function daRicordare(){
     const c = mailCliente(p); if(!c) return;
     const base = {id: p.id, mail: c.mail, nome: c.nome, numero: p.numero || '', luogo: p.luogo || '',
                   totale: Math.round(conti(p).totale * 100) / 100};
-    if(p.stato === 'inviato' && p.data)
+    if(p.stato === 'inviato' && p.data && !(p.link && p.link.cambia))
       fuori.push(Object.assign(base, {tipo: 'preventivo', dal: p.data, link: linkVivo(p) ? indirizzoLink(p) : ''}));
     else if(p.stato === 'accettato' && lavoroFinito(p))
       fuori.push(Object.assign(base, {tipo: 'pagamento', dal: p.lavoro_fatto.quando}));
@@ -12757,6 +12841,18 @@ function bloccoLink(id){
     </div>`;
 }
 const firmaCorpo = s => s.length + ':' + [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
+/* quello che il server deve sapere oltre al documento: come pagare, le voci che il
+   cliente puo' aggiungere (con quanto aggiungono, IVA compresa) e fino a quando vale.
+   I numeri veri li rifa' l'app quando legge la risposta. */
+function extraDelLink(p){
+  const base = conti(p).totale;
+  const facoltative = p.righe.map((r, k) => ({r, k})).filter(x => x.r.on && x.r.facoltativa).map(({r, k}) => {
+    const prova = copia(p); prova.righe[k].facoltativa = false;
+    return {k, nome: r.nome, importo: cent(conti(prova).totale - base)};
+  });
+  const giorni = Number(S.azienda.validita) > 0 ? Number(S.azienda.validita) : 30;
+  return {pagamento: pagamentoDi(p), facoltative, base, scade_il: dopoGiorni(p.data, giorni)};
+}
 async function preparaLink(id){
   const p = prev(id); if(!p) return;
   const b = document.getElementById('btn-link');
@@ -12768,8 +12864,8 @@ async function preparaLink(id){
       if(linkVivo(p)) ritiraLink(p);
       const r = await fetch(SPORTELLO_RILIEVO + '/link/metti', {method:'POST', mode:'cors',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({corpo, ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
-                              titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : '')})});
+        body: JSON.stringify(Object.assign({corpo, ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
+                              titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : '')}, extraDelLink(p)))});
       const d = await r.json().catch(() => ({}));
       if(!r.ok || !d.link) throw new Error(d.errore || 'Il server non ha preso il preventivo.');
       p.link = {id: d.link, gestione: d.gestione, firma, creato: new Date().toISOString(), aperto: 0};
@@ -12805,7 +12901,8 @@ function testoLink(p){
   const c = conti(p);
   return 'Buongiorno, come d’accordo le mando il preventivo n. ' + p.numero + (p.luogo ? ' per ' + p.luogo : '') +
     ': ' + euro(c.totale) + ', IVA compresa.\n\nLo trova qui, e se le va bene lo accetta direttamente dalla pagina:\n' +
-    indirizzoLink(p) + '\n\nResto a disposizione per qualsiasi domanda.\n\n' + firmaDitta();
+    indirizzoLink(p) + (rigaIbanMessaggio(p) ? '\n\n' + rigaIbanMessaggio(p) : '') +
+    '\n\nResto a disposizione per qualsiasi domanda.\n\n' + firmaDitta();
 }
 function ritiraLink(p){
   if(!linkVivo(p)) return;
@@ -12822,7 +12919,10 @@ let linkGuardatiAlle = 0;
 async function guardaILink(){
   if(typeof fetch !== 'function' || !S || !Array.isArray(S.preventivi)) return;
   if(Date.now() - linkGuardatiAlle < 120000) return;
-  const da = S.preventivi.filter(p => linkVivo(p) && !(p.link.accettato) && (p.stato === 'bozza' || p.stato === 'inviato'));
+  /* si chiede anche dei preventivi gia' accettati che aspettano il bonifico dell'acconto */
+  const da = S.preventivi.filter(p => linkVivo(p) && (
+    (!(p.link.accettato) && !(p.link.risposta && p.link.risposta.tipo === 'no') && (p.stato === 'bozza' || p.stato === 'inviato')) ||
+    (p.link.accettato && !p.link.bonifico && p.stato === 'accettato' && !!pagamentoDi(p))));
   if(!da.length) return;
   linkGuardatiAlle = Date.now();
   let d;
@@ -12832,12 +12932,46 @@ async function guardaILink(){
     d = await r.json();
   } catch(e){ return; }
   const stati = (d && d.stati) || {};
-  let cambiato = false; const accettati = [];
+  let cambiato = false; const accettati = [], detti = [];
   da.forEach(p => {
     const s = stati[p.link.id]; if(!s) return;
     if(s.aperto !== p.link.aperto){ p.link.aperto = s.aperto; p.link.ultima = s.ultima_volta; cambiato = true; }
+    /* «Vorrei cambiare qualcosa» e «No, grazie» dal link */
+    const r = s.risposta;
+    if(r && !s.accettato && (!p.link.risposta || p.link.risposta.quando !== r.quando)){
+      p.link.risposta = {tipo: r.tipo, quando: r.quando};
+      if(r.tipo === 'cambia'){
+        p.link.cambia = {testo: String(r.testo || '').slice(0, 600), quando: r.quando};
+        detti.push(p.nome + ' vorrebbe cambiare qualcosa nel preventivo n. ' + p.numero + ': lo trovi in Oggi');
+      }
+      if(r.tipo === 'no' && (p.stato === 'bozza' || p.stato === 'inviato')){
+        p.stato = 'rifiutato';
+        p.motivo = MOTIVI_NO.some(x => x[0] === r.motivo) ? r.motivo : 'altro';
+        if(r.nota) p.motivo_nota = String(r.nota).slice(0, 200);
+        delete p.link.cambia;
+        detti.push(p.nome + ' ha risposto di no al preventivo n. ' + p.numero + ' (' + nomeMotivo(p.motivo).toLowerCase() + ')');
+      }
+      cambiato = true;
+    }
+    /* il cliente dice di aver fatto il bonifico */
+    if(s.bonifico && !p.link.bonifico){
+      p.link.bonifico = {quando: s.bonifico.quando};
+      detti.push(p.nome + ' dice di aver fatto il bonifico: controlla in banca');
+      cambiato = true;
+    }
     if(s.accettato && !p.link.accettato){
       p.link.accettato = {nome: s.accettato.nome, quando: s.accettato.quando};
+      delete p.link.cambia;
+      /* le voci in piu' spuntate dal cliente entrano nel preventivo, come con la firma sul posto */
+      const prima = conti(p).totale, aggiunte = [];
+      (Array.isArray(s.accettato.scelte) ? s.accettato.scelte : []).forEach(k => {
+        const rr = p.righe[k];
+        if(rr && rr.on && rr.facoltativa){ rr.facoltativa = false; aggiunte.push(rr.nome); }
+      });
+      if(aggiunte.length){
+        p.link.accettato.aggiunte = aggiunte;
+        detti.push(p.link.accettato.nome + ' ha aggiunto ' + aggiunte.map(x => x.toLowerCase()).join(', ') + ': + ' + euro(cent(conti(p).totale - prima)));
+      }
       if(p.stato === 'bozza' || p.stato === 'inviato'){
         if(p.stato === 'bozza'){ p.consegna = p.consegna || {come: 'link', quando: S.oggi}; }
         p.stato = 'accettato';
@@ -12850,16 +12984,42 @@ async function guardaILink(){
   });
   if(!cambiato) return;
   salva(); vai();
-  if(accettati.length)
-    avvisa(accettati.map(p => p.link.accettato.nome + ' ha accettato il preventivo n. ' + p.numero).join('. ') + '. Il lavoro è tuo.');
+  const frasi = accettati.map(p => p.link.accettato.nome + ' ha accettato il preventivo n. ' + p.numero + '. Il lavoro è tuo').concat(detti);
+  if(frasi.length) avvisa(frasi.join('. ') + '.');
 }
+/* il bonifico detto dal cliente: arrivato davvero (lo segna l'artigiano), o non ancora */
+function bonificoArrivato(id){
+  const p = prev(id); if(!p || !p.link || !p.link.bonifico) return;
+  const pg = pagamentoDi(p);
+  p.link.bonifico.visto = S.oggi;
+  if(pg && !pg.acconto && p.stato === 'accettato'){ segnaPagato(id); return; }
+  p.acconto_preso = {quando: S.oggi, importo: pg ? pg.importo : null};
+  salva(); vai();
+  avvisa('Acconto segnato come arrivato.');
+}
+function bonificoNonAncora(id){
+  const p = prev(id); if(!p || !p.link || !p.link.bonifico) return;
+  p.link.bonifico.rimandato = S.oggi;
+  salva(); vai();
+  avvisa('Va bene: lo riguardi tu in banca nei prossimi giorni.');
+}
+function cambiaVisto(id){
+  const p = prev(id); if(!p || !p.link || !p.link.cambia) return;
+  p.link.cambia.visto = true; salva();
+  location.hash = '#preventivo/' + id;
+}
+const bonificoDaGuardare = p => !!(p && p.link && p.link.bonifico && !p.link.bonifico.visto && !p.link.bonifico.rimandato
+                                   && p.stato === 'accettato' && !p.acconto_preso);
 function rigaLink(p){
   if(!linkVivo(p)) return '';
   const l = p.link;
   const detto = l.accettato ? 'accettato da ' + esc(l.accettato.nome) + ', ' + esc(quandoOra(l.accettato.quando))
     : l.aperto ? (l.aperto === 1 ? 'aperto una volta' : 'aperto ' + l.aperto + ' volte') + (l.ultima ? ', l’ultima ' + esc(quandoOra(l.ultima)) : '')
     : 'non ancora aperto';
-  return `<div class="riga-tot"><span>Il link</span><span>${detto}</span></div>`;
+  return `<div class="riga-tot"><span>Il link</span><span>${detto}</span></div>` +
+    (l.cambia ? `<div class="riga-tot"><span>Chiede di cambiare</span><span>“${esc(l.cambia.testo)}”</span></div>` : '') +
+    (l.bonifico ? `<div class="riga-tot"><span>Bonifico</span><span>${p.acconto_preso ? 'arrivato, segnato ' + esc(quando(p.acconto_preso.quando))
+      : 'fatto, dice il cliente, ' + esc(quandoOra(l.bonifico.quando))}</span></div>` : '');
 }
 addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ guardaILink(); guardaIPromemoria(); } });
 

@@ -2805,9 +2805,9 @@ def servizio(porta=8787, pubblico=False):
             if u.path.startswith("/link/"):
                 self._link(u.path)
                 return
-            m = re.fullmatch(r"/p/([a-z2-9]{14})/accetto", u.path)
+            m = re.fullmatch(r"/p/([a-z2-9]{14})/(accetto|risposta|pagato)", u.path)
             if m:
-                self._accetta_dal_link(m.group(1))
+                self._accetta_dal_link(m.group(1), m.group(2))
                 return
             if not u.path.startswith("/squadra/"):
                 self._manda(404, {"errore": "Non c'e' nulla qui."})
@@ -2967,7 +2967,8 @@ def servizio(porta=8787, pubblico=False):
             if percorso == "/link/metti":
                 ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
                 r, errore = preventivo_col_link.metti(dentro.get("corpo"), dentro.get("ditta"),
-                                                     dentro.get("titolo"), dentro.get("telefono"), ip)
+                                                     dentro.get("titolo"), dentro.get("telefono"), ip,
+                                                     extra=dentro)
                 if not r:
                     self._manda(400, {"errore": errore})
                     return
@@ -3003,26 +3004,38 @@ def servizio(porta=8787, pubblico=False):
             self.end_headers()
             self.wfile.write(dati)
 
-        def _accetta_dal_link(self, lid):
+        def _accetta_dal_link(self, lid, cosa="accetto"):
             try:
                 quanto = min(int(self.headers.get("Content-Length") or 0), 4096)
             except ValueError:
                 quanto = 0
             campi = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace")) if quanto > 0 else {}
             stili = preventivo_col_link.stili_dell_app(APP / "index.html")
-            if not (campi.get("ok") or [""])[0]:
-                self._pagina_cliente(200, preventivo_col_link.pagina(
-                    lid, stili, errore="Spunta «Ho letto il preventivo e lo accetto»."))
-                return
-            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
-            ok, msg = preventivo_col_link.accetta(lid, (campi.get("nome") or [""])[0], ip,
-                                                  self.headers.get("User-Agent") or "")
-            pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg)
+            uno = lambda k: (campi.get(k) or [""])[0]
+            con = campi.get("con") or []
+            if cosa == "pagato":
+                preventivo_col_link.segna_bonifico(lid)
+                pagina = preventivo_col_link.pagina(lid, stili)
+            elif cosa == "risposta":
+                ok, msg = preventivo_col_link.rispondi(lid, uno("tipo"), uno("motivo"), uno("testo"))
+                pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg)
+                if ok:
+                    print("  link: il cliente ha risposto (%s)" % uno("tipo")[:10])
+            elif uno("fai") == "conto":
+                # «Rifai il conto»: si ridisegna la pagina con le voci spuntate, senza accettare
+                pagina = preventivo_col_link.pagina(lid, stili, con=con, nome=uno("nome"))
+            elif not uno("ok"):
+                pagina = preventivo_col_link.pagina(lid, stili, con=con, nome=uno("nome"),
+                                                    errore="Spunta «Ho letto il preventivo e lo accetto».")
+            else:
+                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+                ok, msg = preventivo_col_link.accetta(lid, uno("nome"), ip, self.headers.get("User-Agent") or "", con=con)
+                pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg, con=con)
+                if ok:
+                    print("  link: preventivo accettato")
             if pagina is None:
                 self._pagina_cliente(404, "<!doctype html><meta charset=utf-8><p>Questo link non esiste.</p>")
                 return
-            if ok:
-                print("  link: preventivo accettato")
             self._pagina_cliente(200, pagina)
 
         def _fattura_invia(self, codice):
