@@ -1180,7 +1180,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 13:23';
+const COSTRUITA = '2026-10-04 13:28';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -7214,6 +7214,13 @@ function preparaTesto(t){
     .replace(/metr[io]\s+quadr(at)?[io]/g, ' mq ')
     .replace(/metr[io]\s+linear[ie]/g, ' metri ')
     .replace(/(\d)\.(\d{3})\b/g, '$1$2')          // 1.200 -> 1200
+    /* i decimali detti come li scrive il telefono (cartellino B, 4 ottobre 2026: «siepe
+       12,5 metri» diventava 5 metri). 12.5 col punto e' 12,5; 1.200 resta milleduecento */
+    .replace(/(\d)\.(\d{1,2})\b/g, '$1,$2')        // 12.5 -> 12,5
+    .replace(/(\d+)((?:\s+(?:metri|metro|mq|m|ore|ora))?)\s+e\s+mezzo\b/g, '$1,5$2')   // 12 metri e mezzo -> 12,5 metri
+    /* «2 metri e 40»: i centimetri dopo i metri. Solo con due cifre e se dopo non viene
+       un'altra cosa da contare: «20 metri e 15 alberi» restano due cose */
+    .replace(/(\d+)\s+(metri|metro|m)\s+e\s+(\d{2})\b(?=\s*(?:$|[,;.!?]|e\b|poi\b|centimetri\b|cm\b))/g, '$1,$3 $2')
     .replace(/(\d)(mq|m)\b/g, '$1 $2');
 }
 function numeroDetto(w){
@@ -7954,7 +7961,8 @@ function capisci(testo, listino, mestiere){
     /* niente taglio sulla "e" da sola: dettando, "la siepe e' da spuntare" perde
        l'accento e diventa una "e" qualunque, e la siepe restava senza la sua misura.
        Il taglio vero lo fa tagliaFlusso, che guarda le lavorazioni e non le paroline. */
-    frase.split(/,|\s(?:e\s+poi|poi|inoltre|e\s+anche|anche)\s/)
+    /* la virgola fra due cifre e' quella dei decimali (12,5): li' non si taglia */
+    frase.split(/(?<!\d),|,(?!\d)|\s(?:e\s+poi|poi|inoltre|e\s+anche|anche)\s/)
       .map(p => p.match(/[a-z]+|\d+(?:,\d+)?/g) || [])
       .filter(t => t.length)
       /* e dentro ogni pezzo, il taglio che non dipende dalla punteggiatura */
