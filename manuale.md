@@ -162,6 +162,21 @@ L'archivio: i lavori chiusi (fatti e pagati) e le carte caricate da fuori.
   - Le password di altri servizi non si danno a Rilievo e non si chiedono.
   La linguetta «Fatture» le mette in fila; quelle col file da caricare dicono «Da caricare».
 
+## Le spese (dentro il lavoro e in `#documenti`)
+
+- Su ogni lavoro preso (accettato o pagato) c'è «Le spese di questo lavoro» con il tasto
+  «Aggiungi una spesa»: quanto hai speso, per cosa, quando, e se vuoi
+  «Fotografa lo scontrino». Sotto, la riga che conta: «Hai incassato» quanto, quanto hai
+  speso e quanto «ti restano» (se il lavoro non è ancora pagato: «ti resteranno»). Se le
+  spese superano il lavoro: «ci rimetti».
+- Il conto è senza IVA e non conta le tue ore. Non è contabilità: serve a sapere quanto
+  rende davvero un lavoro e a fare i prezzi giusti.
+- Toccando una spesa la correggi, o la togli con «Togli questa spesa».
+- In Documenti la linguetta «Spese» le mette tutte in fila, col totale del mese. Da lì
+  aggiungi anche quelle della ditta, non legate a un lavoro (gasolio, attrezzi).
+- Le spese viaggiano con il tuo accesso, su ogni telefono. La foto dello scontrino resta sul
+  telefono dove l'hai fatta.
+
 ## I tuoi numeri (`#numeri`)
 
 Quanto hai preventivato, quanto è stato accettato, quanto incassato, e perché perdi i

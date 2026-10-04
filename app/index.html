@@ -720,6 +720,24 @@ body.disegno-aperto{overflow:hidden}
 .file-fattura .azioni-fattura{display:grid;gap:10px}
 .passi-file{margin:0 0 4px 20px;font-size:15.5px;color:var(--soft);line-height:1.55}
 .passi-file li{margin:3px 0}
+/* le spese del lavoro */
+.spese-lavoro{margin-top:18px;padding-top:14px;border-top:1px solid var(--filetto)}
+.spese-lavoro p{font-size:15.5px;color:var(--soft);line-height:1.55;margin:6px 0 10px}
+.elenco-spese{display:grid;margin:8px 0 6px}
+.riga-spesa{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border:0;
+  border-bottom:1px solid var(--filetto);background:none;font:inherit;font-size:16px;color:var(--inchiostro);text-align:left;cursor:pointer;width:100%}
+.riga-spesa .quando-spesa{color:var(--tenue);font-size:14.5px;margin-right:4px}
+.riga-spesa .con-scontrino{color:var(--tenue);font-size:14px}
+.riga-spesa .di-chi{display:block;color:var(--tenue);font-size:14px}
+.riga-spesa .quanto-spesa{white-space:nowrap;font-family:'Cormorant',serif;font-size:19px}
+.spese-lavoro .conto-spese{font-family:'Cormorant',serif;font-size:21px;line-height:1.3;color:var(--inchiostro);margin:12px 0 0}
+.spese-lavoro .conto-spese.in-perdita{color:var(--oro)}
+.testa-spese{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 12px}
+.testa-spese p{font-family:'Cormorant',serif;font-size:21px;margin:0}
+.vista-scontrino{margin:4px 0 10px}
+.scontrino-messo{display:flex;align-items:center;gap:12px;font-size:15px;color:var(--soft)}
+.scontrino-messo img{width:64px;height:64px;object-fit:cover;border:1px solid var(--filetto2)}
+.link-piccolo{background:none;border:0;padding:0;font:inherit;color:var(--accento);text-decoration:underline;cursor:pointer}
 button.via{font:inherit;text-align:left;width:100%}
 .testo-messaggio{margin-bottom:18px;font-size:15px;color:var(--soft)}
 .testo-messaggio summary{cursor:pointer;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.16em;
@@ -1150,7 +1168,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 12:02';
+const COSTRUITA = '2026-10-04 12:15';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1632,6 +1650,7 @@ function normalizza(){
     if(d.importo !== undefined && !(typeof d.importo === 'number' && isFinite(d.importo) && d.importo >= 0)) delete d.importo;
   });
   if(!S.rilievi || typeof S.rilievi !== 'object') S.rilievi = {};
+  sistemaSpese();
   /* le parti disegnate: si tengono solo quelle scritte bene */
   Object.keys(S.rilievi).forEach(k => {
     const r = S.rilievi[k];
@@ -2529,10 +2548,11 @@ function scheda(o){
       <div class="form">
         ${righeCampi(o.campi, campo)}
       </div>
+      ${o.dopoCampi || ''}
       ${o.conto ? '<div class="conto-vivo" id="scheda-conto"></div>' : ''}
       <div class="piede">
         <p class="errore-scheda" id="scheda-errore" role="alert"></p>
-        ${o.elimina ? `<button class="pericolo" id="btn-elimina">Cancella</button>` : ''}
+        ${o.elimina ? `<button class="pericolo" id="btn-elimina">${esc(o.testoBottoneElimina || 'Cancella')}</button>` : ''}
         <div class="a-destra riga-azione">
           ${o.soloSalva ? '' : '<button class="bottone vuoto piccolo" onclick="chiudiScheda()">Lascia stare</button>'}
           ${o.senzaSalva ? '' : `<button class="bottone piccolo" id="btn-salva">${esc(o.testoSalva || 'Salva')}</button>`}
@@ -2642,8 +2662,8 @@ function scheda(o){
       chiedi(o.testoElimina || 'Vuoi cancellarlo? Non si torna indietro.', () => {
         o.elimina(); salva();
         if(o.dopoElimina) location.hash = o.dopoElimina; else vai();
-        avvisa('Cancellato.');
-      });
+        avvisa(o.avvisoElimina || 'Cancellato.');
+      }, o.testoSiElimina);
     };
   }
   /* aperta per riempire una casella precisa (per la fattura): si parte da quella */
@@ -2845,8 +2865,10 @@ function schedaPreventivo(id, idCliente){
       ritiraLink(p);       /* il cliente non deve poter accettare un preventivo cancellato */
       S.sopralluoghi.forEach(s => { if(s.preventivo === id){ s.preventivo = null; s.stato = statoSopralluogo(s); } });
       S.preventivi = S.preventivi.filter(x => x.id !== id);
+      (S.spese || []).forEach(s => { if(s.lavoro === id) s.lavoro = ''; });
     } : null,
-    testoElimina: 'Cancello il preventivo e sparisce anche dal cassetto.',
+    testoElimina: 'Cancello il preventivo e sparisce anche dal cassetto.' +
+      (p && speseDel(p.id).length ? ' ' + (speseDel(p.id).length === 1 ? 'La sua spesa resta' : 'Le sue ' + speseDel(p.id).length + ' spese restano') + ', fra quelle della ditta.' : ''),
     dopoElimina: p ? '#preventivi' : null,
     messaggio: p ? 'Preventivo aggiornato.' : null
   });
@@ -2997,7 +3019,7 @@ function salvaTrascrizione(id){
    attaccate al sopralluogo: didascalia modificabile, cancellabili,
    e stampate in fondo al preventivo che consegni.                        */
 const FOTO_LATO = 1400, FOTO_QUALITA = .72;
-function rimpicciolisci(file, poi){
+function rimpicciolisci(file, poi, lato, qualita){
   if(!file || String(file.type).indexOf('image/') !== 0){ avvisa('Questo file non è una foto.'); poi(null); return; }
   const lettore = new FileReader();
   lettore.onerror = () => { avvisa('Non riesco a leggere questo file.'); poi(null); };
@@ -3005,12 +3027,12 @@ function rimpicciolisci(file, poi){
     const im = new Image();
     im.onerror = () => { avvisa('Questa foto non si apre.'); poi(null); };
     im.onload = () => {
-      const scala = Math.min(1, FOTO_LATO / Math.max(im.width, im.height));
+      const scala = Math.min(1, (lato || FOTO_LATO) / Math.max(im.width, im.height));
       const c = document.createElement('canvas');
       c.width  = Math.max(1, Math.round(im.width  * scala));
       c.height = Math.max(1, Math.round(im.height * scala));
       c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-      poi(c.toDataURL('image/jpeg', FOTO_QUALITA));
+      poi(c.toDataURL('image/jpeg', qualita || FOTO_QUALITA));
     };
     im.src = lettore.result;
   };
@@ -3821,7 +3843,8 @@ async function esporta(){
   const fuori = copia(S);
   S.sopralluoghi.forEach((s, i) => { delete fuori.sopralluoghi[i]._trovate; });
   /* i preventivi di prima viaggiano col loro file, cosi' su un altro telefono si riaprono */
-  const usati = new Set(S.documenti.filter(d => fileBuono(d.file)).map(d => d.file.id));
+  const usati = new Set(S.documenti.filter(d => fileBuono(d.file)).map(d => d.file.id)
+    .concat((S.spese || []).filter(s => fileBuono(s.foto)).map(s => s.foto.id)));
   if(usati.size){
     try{
       fuori.archivio = (await fileTutti()).filter(f => usati.has(f.id))
@@ -8949,6 +8972,172 @@ PAGINE.fattura = {
   poi(id){ const f = (prev(id) || {}).fattura; if(f && f.stato === 'inviata') seguiFattura(id); }
 };
 
+/* ===== LE SPESE =======================================================
+   Andrea, 4 ottobre 2026: «anche le spese, non solo i guadagni». Dentro ogni
+   lavoro preso: quanto hai speso e per cosa, e sotto quanto ti resta davvero.
+   Non e' contabilita': niente conti fiscali, la base e' il lavoro senza IVA.
+   I numeri stanno in S.spese e viaggiano nella copia dell'account. La foto
+   dello scontrino sta nell'archivio del telefono, come i documenti caricati:
+   dentro S trenta scontrini al mese riempirebbero la memoria in pochi mesi.
+   S.spese = [{id, data, importo, cosa, lavoro: id del preventivo | '' (della ditta), foto}] */
+const SCONTRINO_LATO = 1200, SCONTRINO_QUALITA = .6;
+const giornoBreve = iso => { const d = gg(iso); return d.getDate() + ' ' + MESI[d.getMonth()].slice(0, 3); };
+function sistemaSpese(){
+  if(!Array.isArray(S.spese)) S.spese = [];
+  const lavori = new Set(S.preventivi.map(p => p.id));
+  S.spese = S.spese.filter(s => s && typeof s === 'object' && typeof s.importo === 'number' && isFinite(s.importo)
+                                   && s.importo > 0 && s.importo < 10000000).map(s => ({
+    id: typeof s.id === 'string' && s.id ? s.id : nuovoId('sp'),
+    data: /^\d{4}-\d{2}-\d{2}$/.test(String(s.data || '')) ? s.data : S.oggi,
+    importo: cent(s.importo),
+    cosa: String(s.cosa || '').slice(0, 80),
+    /* una spesa di un lavoro che non c'e' piu' resta, fra quelle della ditta */
+    lavoro: typeof s.lavoro === 'string' && lavori.has(s.lavoro) ? s.lavoro : '',
+    foto: fileBuono(s.foto) ? s.foto : null
+  }));
+}
+const speseDel = id => (S.spese || []).filter(s => s.lavoro === id).sort((a, b) => a.data.localeCompare(b.data));
+const sommaSpese = l => cent(l.reduce((t, s) => t + s.importo, 0));
+/* la riga che conta: quanto resta del lavoro, tolte le spese */
+function contoSpese(p){
+  const speso = sommaSpese(speseDel(p.id)), vale = cent(conti(p).netto), resta = cent(vale - speso);
+  if(resta < 0) return {testo: 'Su questo lavoro ci rimetti ' + euro(-resta) + '.', perdita: true, speso, vale, resta};
+  return {testo: p.stato === 'pagato'
+    ? 'Hai incassato ' + euro(vale) + ', speso ' + euro(speso) + ': ti restano ' + euro(resta) + '.'
+    : 'Il lavoro vale ' + euro(vale) + '. Hai speso ' + euro(speso) + ': ti resteranno ' + euro(resta) + '.',
+    perdita: false, speso, vale, resta};
+}
+const lavoroConSpese = p => !!p && preso(p) && !soloFattura(p);
+function rigaSpesa(s, conLavoro){
+  const p = conLavoro && s.lavoro ? prev(s.lavoro) : null;
+  return `<button type="button" class="riga-spesa" onclick="schedaSpesa('${s.id}')">
+    <span><span class="quando-spesa">${giornoBreve(s.data)}</span> ${esc(s.cosa || 'Spesa')}${s.foto ? ' <span class="con-scontrino">· scontrino</span>' : ''}
+      ${conLavoro ? `<span class="di-chi">${p ? esc(p.nome) : 'della ditta'}</span>` : ''}</span>
+    <span class="quanto-spesa">${euro(s.importo)}</span></button>`;
+}
+function bloccoSpese(p){
+  const l = speseDel(p.id);
+  const c = l.length ? contoSpese(p) : null;
+  return `<div class="spese-lavoro" id="spese-lavoro">
+    <div class="lbl">Le spese di questo lavoro</div>
+    ${l.length ? `<div class="elenco-spese">${l.map(s => rigaSpesa(s)).join('')}</div>
+      <p class="conto-spese${c.perdita ? ' in-perdita' : ''}" id="conto-spese">${esc(c.testo).replace(/€ [\d.,]+/g, m => '<span style="white-space:nowrap">' + m + '</span>')}</p>
+      <p class="fattura-nota" style="margin-top:2px">Senza IVA. Le tue ore non sono contate.</p>`
+    : '<p>Hai comprato materiale o pagato la discarica per questo lavoro? Segnalo qui e vedi quanto ti resta davvero.</p>'}
+    <button class="bottone vuoto" id="btn-aggiungi-spesa" onclick="schedaSpesa(null, '${p.id}')">Aggiungi una spesa</button>
+  </div>`;
+}
+/* la foto dello scontrino: undefined = non toccata, null = tolta, {src} = nuova */
+let scontrinoInArrivo;
+function vistaScontrino(src){
+  return src ? `<div class="scontrino-messo"><img src="${src}" alt="Lo scontrino" id="miniatura-scontrino">
+      <span>Scontrino messo · <button type="button" class="link-piccolo" onclick="togliScontrino()">Toglilo</button></span></div>`
+    : `<button type="button" class="bottone vuoto piccolo" id="btn-scontrino" onclick="document.getElementById('foto-scontrino').click()">Fotografa lo scontrino</button>`;
+}
+function scontrinoScelto(input){
+  const f = input.files && input.files[0]; input.value = '';
+  if(!f) return;
+  rimpicciolisci(f, src => {
+    if(!src) return;
+    scontrinoInArrivo = {src};
+    const v = document.getElementById('vista-scontrino'); if(v) v.innerHTML = vistaScontrino(src);
+  }, SCONTRINO_LATO, SCONTRINO_QUALITA);
+}
+function togliScontrino(){
+  scontrinoInArrivo = null;
+  const v = document.getElementById('vista-scontrino'); if(v) v.innerHTML = vistaScontrino(null);
+}
+async function mostraScontrinoSalvato(s){
+  if(!s || !fileBuono(s.foto)) return;
+  let f = null;
+  try{ f = await filePrendi(s.foto.id); }catch(e){}
+  const v = document.getElementById('vista-scontrino');
+  if(!v || scontrinoInArrivo !== undefined) return;
+  if(!f || !f.dati){ v.innerHTML = '<p class="fattura-nota">Lo scontrino sta sul telefono dove l\'hai fotografato.</p>' + vistaScontrino(null); return; }
+  v.innerHTML = vistaScontrino(URL.createObjectURL(new Blob([f.dati], {type: f.tipo || 'image/jpeg'})));
+}
+async function mettiScontrino(s, src){
+  const dati = byteDiBase64(String(src).split(',')[1] || '');
+  const meta = {id: nuovoId('a'), nome: 'Scontrino ' + s.data + '.jpg', tipo: 'image/jpeg', byte: dati.byteLength};
+  try{
+    await fileMetti(Object.assign({dati}, meta));
+    if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    const x = (S.spese || []).find(y => y.id === s.id);
+    if(x){ x.foto = meta; salva(); if(location.hash.indexOf('#preventivo/') === 0 || location.hash === '#documenti') vaiRestandoQui(); }
+  }catch(e){
+    avvisa('Lo scontrino non è entrato: il telefono non ha più posto per le foto. La spesa è salvata lo stesso.');
+  }
+}
+function lavoriPerSpesa(){
+  return S.preventivi.filter(p => preso(p) && !soloFattura(p));
+}
+function schedaSpesa(idSpesa, idLavoro, daDocumenti){
+  const s = idSpesa ? (S.spese || []).find(x => x.id === idSpesa) : null;
+  if(idSpesa && !s) return;
+  const lavoro = s ? s.lavoro : (idLavoro || '');
+  const chiedeLavoro = daDocumenti || (s && !s.lavoro);
+  scontrinoInArrivo = undefined;
+  const scelte = [['', 'Nessuno: spesa della ditta']].concat(lavoriPerSpesa().map(p => [p.id, p.nome + ' · n. ' + p.numero]));
+  scheda({
+    titolo: s ? 'La spesa del ' + dataLunga(s.data).replace(/ \d{4}$/, '') : 'Aggiungi una spesa',
+    sotto: !s && idLavoro && prev(idLavoro) ? 'Per il lavoro di ' + prev(idLavoro).nome + '.' : '',
+    valori: {importo: s ? s.importo : null, cosa: s ? s.cosa : '', data: s ? s.data : S.oggi, lavoro},
+    campi: [
+      {k:'importo', l:'Quanto hai speso (€)', t:'numero', facoltativo:true, m:true, p:'Il totale dello scontrino, per esempio 84,50'},
+      {k:'data', l:'Quando', t:'data', m:true},
+      {k:'cosa', l:'Per cosa', p:'Per esempio: concime, sacchi, discarica'},
+      ...(chiedeLavoro ? [{k:'lavoro', l:'Per quale lavoro', t:'scelta', opzioni: scelte}] : [])
+    ],
+    extra: `<input type="file" id="foto-scontrino" accept="image/*" capture="environment" style="display:none" onchange="scontrinoScelto(this)">`,
+    dopoCampi: `<div id="vista-scontrino" class="vista-scontrino">${vistaScontrino(null)}</div>`,
+    controlla: d => !(d.importo > 0) ? 'Scrivi quanto hai speso, per esempio 84,50.'
+      : d.importo >= 10000000 ? 'Questa cifra è troppo grande: controlla le cifre.'
+      : !d.cosa ? 'Scrivi per cosa: basta una parola.'
+      : !/^\d{4}-\d{2}-\d{2}$/.test(d.data || '') ? 'Scegli il giorno della spesa.' : null,
+    testoSalva: 'Salva la spesa',
+    salva: d => {
+      if(!Array.isArray(S.spese)) S.spese = [];
+      const x = s || {id: nuovoId('sp'), foto: null};
+      x.importo = cent(d.importo); x.cosa = d.cosa.slice(0, 80); x.data = d.data;
+      x.lavoro = chiedeLavoro ? (d.lavoro || '') : lavoro;
+      if(!s) S.spese.push(x);
+      const arrivo = scontrinoInArrivo;
+      if(arrivo === null && x.foto){ const vecchia = x.foto.id; x.foto = null; fileTogli(vecchia).catch(() => {}); }
+      if(arrivo && arrivo.src){
+        const vecchia = x.foto && x.foto.id;
+        mettiScontrino(x, arrivo.src).then(() => { if(vecchia) fileTogli(vecchia).catch(() => {}); });
+      }
+      scontrinoInArrivo = undefined;
+    },
+    messaggio: s ? 'Spesa aggiornata.' : 'Spesa salvata.',
+    elimina: s ? () => {
+      S.spese = S.spese.filter(x => x.id !== s.id);
+      if(s.foto) fileTogli(s.foto.id).catch(() => {});
+    } : null,
+    testoElimina: s ? 'Tolgo la spesa di ' + euro(s.importo) + (s.cosa ? ' per ' + s.cosa : '') + '?' : '',
+    testoBottoneElimina: 'Togli questa spesa',
+    testoSiElimina: 'Sì, toglila',
+    avvisoElimina: 'Spesa tolta.'
+  });
+  if(s) mostraScontrinoSalvato(s);
+}
+/* in Documenti, la linguetta «Spese»: tutte, e il totale del mese */
+function corpoSpese(){
+  const l = (S.spese || []).slice().sort((a, b) => b.data.localeCompare(a.data));
+  const mese = String(S.oggi).slice(0, 7);
+  const delMese = l.filter(s => s.data.slice(0, 7) === mese);
+  const tot = sommaSpese(delMese), suiLavori = sommaSpese(delMese.filter(s => s.lavoro));
+  const nomeMese = MESI[Number(mese.slice(5, 7)) - 1];
+  return `<div class="testa-spese">
+      <p id="totale-spese">${delMese.length ? nomeMese.charAt(0).toUpperCase() + nomeMese.slice(1) + ': hai speso ' + euro(tot)
+        + (suiLavori > 0 && suiLavori < tot ? ', di cui ' + euro(suiLavori) + ' sui lavori.' : suiLavori === tot ? ', tutto sui lavori.' : ', per la ditta.')
+        : 'A ' + nomeMese + ' ancora nessuna spesa.'}</p>
+      <button class="bottone vuoto piccolo" id="btn-spesa-ditta" onclick="schedaSpesa(null, '', true)">Aggiungi una spesa</button>
+    </div>
+    ${l.length ? `<div class="elenco-spese">${l.map(s => rigaSpesa(s, true)).join('')}</div>`
+      : '<div class="niente">Nessuna spesa ancora. Le aggiungi dentro ogni lavoro, o qui per quelle della ditta (gasolio, attrezzi).</div>'}`;
+}
+
 /* ===== LEGGERE UN PREVENTIVO VECCHIO =================================
    Da un preventivo gia' fatto (PDF, Word, mail) alle voci del listino.
 
@@ -9798,6 +9987,7 @@ PAGINE.preventivo = {
             : `<button class="bottone tenue piccolo" onclick="mettiViaPreventivo('${p.id}')">Mettilo via</button>`}
         </div>
         ${fatturaAccesa() && preventivoChiuso(p) ? bloccoFattura(p) : ''}
+        ${lavoroConSpese(p) ? bloccoSpese(p) : ''}
         <div style="margin-top:18px;border-top:1px solid var(--filetto);padding-top:14px">
           <div class="riga-tot"><span>Stato</span><span>${tagPreventivo(p)}</span></div>
           <div class="riga-tot"><span>Data</span><span>${dataCorta(p.data)}</span></div>
@@ -10253,7 +10443,7 @@ function gruppoDocumento(d){
 }
 const LINGUETTE_DOCUMENTI = [['tutti','Tutti'],['chiusi','Lavori chiusi'],
   ['preventivi','Preventivi di prima'],['rapportini','Rapportini'],
-  ['resoconti','Resoconti'],['altro','Altro'],['fatture','Fatture']];
+  ['resoconti','Resoconti'],['altro','Altro'],['fatture','Fatture'],['spese','Spese']];
 function etichettaDocumento(d){ return tag(d.chiuso ? 'finito_pagato' : d.stato); }
 let filtroDocumenti = 'tutti';
 function setFiltroDocumenti(f){ filtroDocumenti = f; vai(); }
@@ -10269,14 +10459,19 @@ PAGINE.documenti = {
   },
   corpo(){
     const l = cassetto();
-    if(!l.length) return `<div class="niente">L'archivio è vuoto. Ci finiscono da soli i lavori chiusi, cioè quelli fatti e pagati, più le carte che carichi tu.<br><br>Quello su cui stai lavorando sta in <a href="#preventivi" style="color:var(--accento)">Preventivi</a>.</div>`;
+    const conSpese = (S.spese || []).length > 0 || lavoriPerSpesa().length > 0;
+    if(!l.length && !(S.spese || []).length && filtroDocumenti !== 'spese') return `<div class="niente">L'archivio è vuoto. Ci finiscono da soli i lavori chiusi, cioè quelli fatti e pagati, più le carte che carichi tu.<br><br>Quello su cui stai lavorando sta in <a href="#preventivi" style="color:var(--accento)">Preventivi</a>.</div>`;
     const fatture = S.preventivi.filter(p => p.fattura).sort((a,b) => String(b.fattura.data || '').localeCompare(String(a.fattura.data || '')));
-    const conta = k => k === 'tutti' ? l.length : k === 'fatture' ? fatture.length : l.filter(d => gruppoDocumento(d) === k).length;
+    const conta = k => k === 'tutti' ? l.length : k === 'fatture' ? fatture.length : k === 'spese' ? (S.spese || []).length
+                       : l.filter(d => gruppoDocumento(d) === k).length;
+    const schede = () => linguette(LINGUETTE_DOCUMENTI.map(([k,n]) => [k, n, conta(k), '',
+      (k === 'fatture' && fatturaAccesa()) || (k === 'spese' && conSpese)]), filtroDocumenti, 'setFiltroDocumenti');
+    if(filtroDocumenti === 'spese') return schede() + corpoSpese();
     const visti = filtroDocumenti === 'tutti' ? l : l.filter(d => gruppoDocumento(d) === filtroDocumenti);
     /* le fatture non sono una carta in piu' del cassetto: sono il seguito di un
        lavoro chiuso. La linguetta le mette in fila, senza toglierle da «Lavori chiusi». */
     if(filtroDocumenti === 'fatture') return `
-    ${linguette(LINGUETTE_DOCUMENTI.map(([k,n]) => [k, n, conta(k), '', k === 'fatture' && fatturaAccesa()]), filtroDocumenti, 'setFiltroDocumenti')}
+    ${schede()}
     ${fatture.length ? `<div class="elenco">${fatture.map(p => `
       <div class="r cliccabile" onclick="${p.fattura.file || fatturaDaFile(p.fattura) ? `location.hash='#fattura/${p.id}'` : `fatturaDi('${p.id}')`}">
         <div><div class="tit">Fattura n. ${esc(p.fattura.numero)} · ${esc(p.nome)}</div>
@@ -10285,7 +10480,7 @@ PAGINE.documenti = {
       </div>`).join('')}</div>`
       : `<div class="niente">Nessuna fattura ancora. Tocca «Fai una fattura» qui sopra e scegli un lavoro finito e pagato.</div>`}`;
     return `
-    ${linguette(LINGUETTE_DOCUMENTI.map(([k,n]) => [k, n, conta(k), '', k === 'fatture' && fatturaAccesa()]), filtroDocumenti, 'setFiltroDocumenti')}
+    ${schede()}
     ${campoCerca('Cerca per nome, numero o parola')}
     ${conta('preventivi') && (filtroDocumenti === 'tutti' || filtroDocumenti === 'preventivi') ? `<div class="dai-vecchi">
       <span>${conta('preventivi') === 1 ? 'Hai un preventivo di prima' : 'Hai ' + conta('preventivi') + ' preventivi di prima'}: i prezzi che ci sono dentro possono diventare il tuo listino.</span>
