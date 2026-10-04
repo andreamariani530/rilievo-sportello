@@ -502,6 +502,12 @@ body.porta-aperta{overflow:hidden}
 .piano li{padding:6px 0 6px 24px;border-top:1px solid var(--filetto);position:relative}
 .piano li::before{content:'✓';position:absolute;left:2px;color:var(--accento)}
 .piano li.in-piu::before{content:'+';color:var(--oro)}
+.promesse{display:grid;grid-template-columns:repeat(4,1fr);gap:0 26px;margin-top:30px;max-width:980px}
+.promessa{border-top:1px solid var(--filetto2);padding:14px 0 4px}
+.promessa h4{font-size:22px;margin:0 0 6px}
+.promessa p{font-size:15.5px;color:var(--soft);line-height:1.5;margin:0}
+@media (max-width:900px){ .promesse{grid-template-columns:1fr 1fr} }
+@media (max-width:560px){ .promesse{grid-template-columns:1fr} }
 .conto-squadra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
 .conto-squadra button{width:44px;height:44px;border:1px solid var(--filetto2);background:var(--bianco);font-size:20px;cursor:pointer}
 .utente .piani-link{display:block;font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.06em;color:var(--accento);margin-top:3px;text-decoration:underline}
@@ -1185,7 +1191,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 13:41';
+const COSTRUITA = '2026-10-04 20:41';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -12655,6 +12661,16 @@ PAGINE.piani = {
           <span id="conto-squadra"><b>${personeInSquadra}</b> ${personeInSquadra === 1 ? 'persona' : 'persone'} oltre a te</span>
           <button type="button" onclick="contaSquadra(1)" aria-label="Una persona in più">+</button>
         </div>`)}
+    </div>
+    <div class="promesse" id="promesse">
+      <div class="promessa"><h4>Tutto dentro, niente extra</h4>
+        <p>Il prezzo del piano è quello che paghi. La fattura elettronica, il PDF col tuo nome e la firma del cliente sono già compresi.</p></div>
+      <div class="promessa"><h4>Nessun limite di preventivi</h4>
+        <p>Ne fai quanti te ne servono, ogni mese, senza contarli.</p></div>
+      <div class="promessa"><h4>I tuoi dati li scarichi sempre, anche se smetti</h4>
+        <p>Clienti, preventivi, fatture e listino in un file tuo, con «Salva tutto in un file» in <a href="#impostazioni" style="color:var(--accento)">Impostazioni</a>.</p></div>
+      <div class="promessa"><h4>Ti risponde una persona</h4>
+        <p>Scrivi a <a href="mailto:andreamariani530a@gmail.com" style="color:var(--accento)">andreamariani530a@gmail.com</a>: legge e risponde chi costruisce Rilievo.</p></div>
     </div>
     <div class="riquadro" style="margin-top:22px;max-width:640px" id="conto-piano">
       <div class="lbl" style="margin-bottom:10px">Il tuo conto, da ${m.nome.toLowerCase()}</div>

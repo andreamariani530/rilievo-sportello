@@ -268,6 +268,11 @@ Cambiando mestiere le voci nuove si aggiungono e le tue restano coi tuoi prezzi.
 - **Pro**, 40 € al mese: tutto quello di Preventivi, più il rilievo dall'alto dal solo
   indirizzo e i metri dal catasto.
 - **Squadra**, 15 € al mese in più: ogni persona col suo telefono, lavori in comune.
+- Sotto i piani, quattro promesse:
+  - «Tutto dentro, niente extra»: fattura elettronica, PDF e firma sono compresi nel prezzo.
+  - «Nessun limite di preventivi».
+  - «I tuoi dati li scarichi sempre, anche se smetti»: con «Salva tutto in un file» in Impostazioni.
+  - «Ti risponde una persona»: si scrive a andreamariani530a@gmail.com e risponde chi costruisce Rilievo.
 - L'assistente («Chiedi») risponde fino a 300 domande al mese per ditta con l'accesso, 20 senza;
   poi riparte il mese dopo.
 
