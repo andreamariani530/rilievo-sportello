@@ -1111,6 +1111,7 @@ async function avvia(){
   vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
   controllaIngresso();     /* se il controllo e' spento non si vede niente */
   guardaILink();           /* chi ha aperto o accettato un preventivo col link */
+  guardaRichiesteDalLink();/* i clienti nuovi che hanno scritto dal link della ditta */
   guardaIPromemoria();     /* quali promemoria automatici sono partiti, e da quando c'e' l'accesso */
   copiaFraPoco();          /* la copia al sicuro, se si e' entrati con la mail */
   preparaChat();           /* il tasto «Chiedi»: l'assistente col manuale dell'app */
@@ -1177,7 +1178,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 12:52';
+const COSTRUITA = '2026-10-04 13:04';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3999,6 +4000,7 @@ PAGINE.oggi = {
       })
       .sort((a,b) => b.giorni - a.giorni);
 
+    const dalLink = S.richieste.filter(r => r.dal_link && r.stato === 'da_richiamare' && giorniDa(r.arrivata) <= 7);
     const programma = inGiornata.length || inRitardo.length || daFissare.length
       ? `<div class="elenco">
           ${inRitardo.map(s => `
@@ -4040,6 +4042,13 @@ PAGINE.oggi = {
     </div>` : ''}
     <div class="griglia2">
       <div>
+        ${dalLink.length ? `<div class="lbl" style="margin-bottom:12px">Nuove richieste dal tuo link</div>
+          <div class="elenco" id="richieste-dal-link" style="margin-bottom:26px">${dalLink.map(r => `
+            <div class="r"><div><div class="tit">${esc(r.nome)}</div>
+              <div class="sub">${sotto(r.cosa, r.luogo, quando(r.arrivata))}</div></div>
+              <div class="azioni">${r.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(r.tel).replace(/[^+\d]/g, ''))}">Chiamalo</a>` : ''}
+                <button class="bottone piccolo" style="white-space:nowrap" onclick="fissaSopralluogo('${r.id}')">Fissa il sopralluogo</button></div>
+            </div>`).join('')}</div>` : ''}
         <div class="lbl" style="margin-bottom:12px">In programma</div>
         ${programma}
         <div class="lbl" style="margin:28px 0 12px">Prossimi appuntamenti</div>
@@ -4141,7 +4150,8 @@ let filtroRichieste = 'tutte';
 function setFiltroRichieste(f){ filtroRichieste = f; vai(); }
 PAGINE.richieste = {
   testata(){ return {occhiello:'Chi ti sta cercando', titolo:'Richieste',
-    destra:'<button class="bottone" onclick="schedaRichiesta(null)">+ Nuova richiesta</button>'}; },
+    destra:'<div class="azioni"><button class="bottone" onclick="schedaRichiesta(null)">+ Nuova richiesta</button>' +
+           '<button class="bottone vuoto" id="btn-link-richieste" onclick="schedaLinkRichieste()">Il tuo link per le richieste</button></div>'}; },
   spiega:{
     testo:'Tutte le persone che ti hanno chiamato o scritto, in un posto solo. Segni cosa vogliono e dove stanno, e quando ci vai il sopralluogo parte già compilato.',
     punti:['Aggiungi una richiesta in dieci secondi mentre sei alla guida','Vedi subito quali non hai ancora richiamato','Dalla richiesta si passa al sopralluogo senza riscrivere niente']
@@ -12223,6 +12233,10 @@ function testoPrivacy(){
         scelto. Se invece risponde di no o chiede di cambiare qualcosa, si segnano la sua risposta e quello che
         scrive. Se nei tuoi dati c&rsquo;&egrave; l&rsquo;IBAN, il link lo mostra al cliente, e si segna quando lui dice di aver
         fatto il bonifico. Cancellando il preventivo, il link smette di funzionare.</li>
+      <li><b>Le richieste dal tuo link.</b> Se fai il tuo link per le richieste, chi lo apre ci scrive nome,
+        telefono, indirizzo e cosa gli serve. Teniamo la richiesta sul nostro server finch&eacute; la tua app non la
+        prende (di solito pochi minuti), e ti mandiamo una mail per avvisarti. Per difenderci dagli abusi contiamo
+        quante richieste arrivano dallo stesso indirizzo di rete, senza conservarlo. Se fai un link nuovo, il vecchio smette di funzionare.</li>
       <li><b>I promemoria automatici.</b> Se li accendi, il nostro server usa la mail del tuo cliente, il numero,
         il luogo e il totale del preventivo per mandargli un promemoria a nome tuo, dalla casella di Rilievo.
         Le risposte arrivano a te. Teniamo il giorno e l&rsquo;ora di ogni promemoria partito.</li>
@@ -13101,7 +13115,93 @@ function rigaLink(p){
     (l.bonifico ? `<div class="riga-tot"><span>Bonifico</span><span>${p.acconto_preso ? 'arrivato, segnato ' + esc(quando(p.acconto_preso.quando))
       : 'fatto, dice il cliente, ' + esc(quandoOra(l.bonifico.quando))}</span></div>` : '');
 }
-addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ guardaILink(); guardaIPromemoria(); } });
+addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ guardaILink(); guardaIPromemoria(); guardaRichiesteDalLink(); } });
+
+/* =====================================================================
+   IL TUO LINK PER LE RICHIESTE (idea presa a Jobber, Deep Lawn, ServiceM8, PrevAI;
+   scelta da Andrea il 4 ottobre 2026). Un indirizzo della ditta da mettere sul sito,
+   su WhatsApp, sul biglietto: il cliente scrive nome, telefono, indirizzo e cosa gli
+   serve, e la richiesta arriva qui, in Richieste, con una mail all'artigiano.
+   Serve l'accesso: il server deve sapere a chi portarla. Le richieste aspettano in
+   una cassetta loro sul server, non nella copia del lavoro (vedi
+   server-rilievo/richieste_dal_link.py).
+   ===================================================================== */
+const indirizzoRichieste = c => SPORTELLO_RILIEVO + '/chiedi/' + c;
+function testoLinkRichieste(c){
+  return 'Per un preventivo, scrivimi qui: in un minuto mi dici dove e cosa ti serve, e ti richiamo io.\n' +
+    indirizzoRichieste(c) + '\n\n' + firmaDitta();
+}
+async function schedaLinkRichieste(rifai){
+  const c = statoCopia();
+  if(!copiaAccesa() || !c.mail){
+    scheda({titolo: 'Il tuo link per le richieste',
+      sotto: 'Un indirizzo tuo da mettere sul sito, su WhatsApp o sul biglietto: chi ti cerca scrive lì, e la richiesta arriva qui da sola.',
+      extra: '<p class="fattura-nota" style="margin-top:0">Per averlo serve il tuo accesso con mail e password: così sappiamo a chi portare le richieste. Lo crei in Impostazioni.</p>',
+      campi: [], testoSalva: 'Vai a Impostazioni', salva: () => { location.hash = '#impostazioni'; }});
+    return;
+  }
+  const b = document.getElementById('btn-link-richieste');
+  if(b){ b.disabled = true; b.textContent = 'Un attimo…'; }
+  let r;
+  try{ r = await chiamaServer('/richieste/link', {mail: c.mail, gettone: c.gettone, ditta: S.azienda.nome || '', tel: S.azienda.tel || '', rifai: !!rifai}); }
+  catch(e){ r = null; }
+  if(b){ b.disabled = false; b.textContent = 'Il tuo link per le richieste'; }
+  if(!r || !r.ok || !r.d.codice){
+    if(r && r.stato === 401) fuoriDalServer();
+    avvisa(r && r.d && r.d.errore ? r.d.errore : nonRaggiungo); return;
+  }
+  S.azienda.link_richieste = r.d.codice; salva();
+  const ind = indirizzoRichieste(r.d.codice);
+  scheda({
+    titolo: 'Il tuo link per le richieste',
+    sotto: 'Mettilo sul sito, nella firma delle mail, su WhatsApp o sul biglietto. Chi ti cerca scrive lì, e la richiesta arriva in Richieste, con una mail per te.',
+    extra: `<div class="file-fattura">
+        <div class="nome-file" id="indirizzo-richieste">${esc(ind)}</div>
+        <div class="azioni-fattura">
+          <button class="bottone" id="btn-copia-link-richieste" onclick="copiaLinkRichieste()">Copia il link</button>
+          <a class="bottone vuoto" id="btn-wa-link-richieste" href="${esc('https://wa.me/?text=' + encodeURIComponent(testoLinkRichieste(r.d.codice)))}" target="_blank" rel="noopener">Mandalo su WhatsApp</a>
+          <a class="bottone vuoto" href="${esc(ind)}" target="_blank" rel="noopener">Guardalo</a>
+        </div>
+        <p class="fattura-nota">Al massimo 20 richieste al giorno. Se il link gira dove non vuoi, ne fai uno nuovo: il vecchio smette di funzionare.</p>
+      </div>`,
+    campi: [], testoSalva: 'Chiudi', soloSalva: true, salva: () => {},
+    elimina: () => {}, testoBottoneElimina: 'Fai un link nuovo'
+  });
+  /* «Fai un link nuovo» non cancella niente: chiede e rifa' il codice */
+  const nuovo = document.getElementById('btn-elimina');
+  if(nuovo){ nuovo.className = 'bottone vuoto piccolo'; nuovo.onclick = () => chiedi('Faccio un link nuovo? Quello vecchio smette di funzionare: chi l\'ha già salvato non potrà più scriverti da lì.',
+    () => schedaLinkRichieste(true), 'Sì, fai il nuovo'); }
+}
+function copiaLinkRichieste(){
+  const e = document.getElementById('indirizzo-richieste'); if(!e) return;
+  const t = e.textContent;
+  const fatto = () => avvisa('Link copiato: incollalo dove vuoi.');
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(fatto, () => avvisa('Tieni premuto sul link per copiarlo.'));
+  else avvisa('Tieni premuto sul link per copiarlo.');
+}
+let richiesteGuardateAlle = 0;
+async function guardaRichiesteDalLink(){
+  if(!copiaAccesa() || !S || !Array.isArray(S.richieste) || !(S.azienda && S.azienda.link_richieste)) return;
+  if(Date.now() - richiesteGuardateAlle < 120000) return;
+  richiesteGuardateAlle = Date.now();
+  const c = statoCopia();
+  let r;
+  try{ r = await chiamaServer('/richieste/prendi', {mail: c.mail, gettone: c.gettone}); }catch(e){ return; }
+  if(!r.ok || !Array.isArray(r.d.richieste) || !r.d.richieste.length) return;
+  const gia = new Set(S.richieste.map(x => x.dal_link).filter(Boolean)), nuove = [];
+  r.d.richieste.forEach(x => {
+    if(!x || !x.id || gia.has(x.id)) return;
+    const ind = String(x.indirizzo || '').slice(0, 200);
+    const nuova = {id: nuovoId('r'), cliente: null, rilievo: null, dal_link: String(x.id),
+      nome: String(x.nome || '').slice(0, 80), tel: String(x.tel || '').slice(0, 30), indirizzo: ind,
+      luogo: ind.split(',').slice(-1)[0].trim(), cosa: String(x.cosa || '').slice(0, 1000),
+      canale: 'Dal tuo link', arrivata: /^\d{4}-\d{2}-\d{2}/.test(String(x.quando || '')) ? String(x.quando).slice(0, 10) : S.oggi,
+      stato: 'da_richiamare'};
+    S.richieste.unshift(nuova); nuove.push(nuova);
+  });
+  if(nuove.length){ salva(); vai(); avvisa(nuove.length === 1 ? 'Nuova richiesta da ' + nuove[0].nome + ': la trovi in Richieste.' : nuove.length + ' richieste nuove dal tuo link: le trovi in Richieste.'); }
+  try{ await chiamaServer('/richieste/viste', {mail: c.mail, gettone: c.gettone, ids: r.d.richieste.map(x => x && x.id).filter(Boolean)}); }catch(e){}
+}
 
 
 avvia();

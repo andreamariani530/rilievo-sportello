@@ -36,6 +36,7 @@ import accessi             # mail e password, come in ogni app
 import posta               # la mail per scegliere una password nuova
 import promemoria          # i promemoria automatici ai clienti, se la ditta li accende
 import preventivo_col_link # il preventivo che il cliente apre e accetta da un link
+import richieste_dal_link  # il link della ditta: i clienti nuovi scrivono da li' (4/10/2026)
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 import assistente          # l'assistente in chat, col manuale dell'app dentro
 from PIL import Image, ImageDraw, ImageFilter
@@ -2796,6 +2797,13 @@ def servizio(porta=8787, pubblico=False):
             if u.path.startswith("/accesso/"):
                 self._accesso(u.path)
                 return
+            if u.path.startswith("/richieste/"):
+                self._richieste_link(u.path)
+                return
+            m = re.fullmatch(r"/chiedi/([a-z2-9]{10})/?", u.path)
+            if m:
+                self._chiedi_manda(m.group(1))
+                return
             if u.path == "/assistente":
                 self._assistente()
                 return
@@ -2958,6 +2966,54 @@ def servizio(porta=8787, pubblico=False):
                 return
             self._manda(404, {"errore": "Non c'e' nulla qui."})
 
+        # ---- il link della ditta per le richieste (4/10/2026) -------------------
+        def _richieste_link(self, percorso):
+            """L'app fa il suo link, prende le richieste arrivate e dice che le ha viste."""
+            dentro = self._corpo(64 * 1024)
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+            m = accessi.chi_e(dentro.get("mail"), dentro.get("gettone"))
+            if not m:
+                self._manda(401, {"errore": "Per il link delle richieste serve il tuo accesso: entra con la tua mail.",
+                                  "fuori": True})
+                return
+            conto = accessi.id_account(m)
+            if percorso == "/richieste/link":
+                c = richieste_dal_link.link_di(conto, m, dentro.get("ditta"), dentro.get("tel"), bool(dentro.get("rifai")))
+                self._manda(200, {"codice": c})
+                return
+            if percorso == "/richieste/prendi":
+                self._manda(200, {"richieste": richieste_dal_link.in_attesa(conto)})
+                return
+            if percorso == "/richieste/viste":
+                resta = richieste_dal_link.viste(conto, dentro.get("ids") if isinstance(dentro.get("ids"), list) else [])
+                self._manda(200, {"restano": resta})
+                return
+            self._manda(404, {"errore": "Non c'e' nulla qui."})
+
+        def _chiedi_manda(self, codice):
+            """Il cliente preme «Manda la richiesta» sulla pagina della ditta."""
+            try:
+                quanto = min(int(self.headers.get("Content-Length") or 0), 8192)
+            except ValueError:
+                quanto = 0
+            grezzo = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace")) if quanto > 0 else {}
+            campi = {k: (v or [""])[0] for k, v in grezzo.items()}
+            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+            stili = preventivo_col_link.stili_dell_app(APP / "index.html")
+            esito, msg, cosa = richieste_dal_link.ricevi(codice, campi, ip)
+            if esito == "ok":
+                oggetto, testo = richieste_dal_link.mail_alla_ditta(cosa["ditta"], cosa["richiesta"])
+                try:
+                    posta.manda(cosa["ditta"]["mail"], oggetto, testo, nome="Rilievo")
+                except Exception as e:      # noqa: BLE001
+                    print("  richiesta dal link: mail non partita", type(e).__name__)
+                print("  richiesta dal link per %s" % (cosa["ditta"].get("ditta") or "?")[:40])
+            pagina, stato = richieste_dal_link.pagina(codice, stili, errore=msg if esito == "errore" else "",
+                                                      fatto=esito in ("ok", "finto"), valori=campi if esito == "errore" else None)
+            self._pagina_cliente(stato, pagina)
+
         # ---- il preventivo col link ------------------------------------------
         def _link(self, percorso):
             dentro = self._corpo(8 * 1024 * 1024)
@@ -3098,6 +3154,12 @@ def servizio(porta=8787, pubblico=False):
                 self.send_header("Location", "/#privacy")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
+                return
+            # il link della ditta: la pagina dove un cliente nuovo chiede un preventivo
+            m = re.fullmatch(r"/chiedi/([a-z2-9]{10})/?", u.path)
+            if m:
+                pagina, stato = richieste_dal_link.pagina(m.group(1), preventivo_col_link.stili_dell_app(APP / "index.html"))
+                self._pagina_cliente(stato, pagina)
                 return
             # il preventivo col link: la pagina che apre il cliente
             m = re.fullmatch(r"/p/([a-z2-9]{14})/?", u.path)

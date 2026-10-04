@@ -72,6 +72,14 @@ Chi ti ha chiamato o scritto.
 - Da una richiesta: «Fissa il sopralluogo» sceglie il giorno; poi «Vai al sopralluogo».
   I dati non si riscrivono: passano da soli.
 
+- «Il tuo link per le richieste»: un indirizzo della tua ditta da mettere sul sito, nella
+  firma delle mail, su WhatsApp o sul biglietto. Chi ti cerca scrive nome, telefono,
+  indirizzo e cosa gli serve, e preme «Manda la richiesta»: arriva qui da sola, come
+  «Dal tuo link», con una mail per te; in Oggi la vedi in «Nuove richieste dal tuo link»
+  con «Chiamalo» e «Fissa il sopralluogo». Dalla scheda: «Copia il link»,
+  «Mandalo su WhatsApp», «Guardalo», e «Fai un link nuovo» se quello vecchio gira dove non vuoi.
+  Serve il tuo accesso con mail e password. Al massimo 20 richieste al giorno.
+
 ## Sopralluogo (`#sopralluogo`)
 
 Il cuore del lavoro: cammini nel giardino e parli.
