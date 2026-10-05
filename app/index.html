@@ -15,14 +15,16 @@
    All'apertura c'e' la R del marchio sulla carta, la stessa dell'icona e dello
    splash del telefono (stesso fondo #F7F1E5, stessa R, stesso filetto): cosi' dal
    tocco sull'icona all'app non c'e' nessun lampo bianco. Appena l'app e' pronta la R
-   si ingrandisce un poco e tutto sfuma. Non ferma mai niente: non prende i tocchi,
-   non aspetta, e se l'app tarda se ne va lo stesso dopo un secondo (4 ottobre 2026). */
+   si ingrandisce un poco e tutto sfuma. Dal 5 ottobre 2026 la R resta ferma almeno
+   1,6 secondi prima di andarsene: piu' veloce sembrava un lampo, un errore (Andrea).
+   Non ferma mai niente: un tocco la manda via subito, e se l'app tarda se ne va lo
+   stesso. */
 html{background:#F7F1E5}
 #avvio{position:fixed;inset:0;z-index:200;background:#F7F1E5;display:grid;place-items:center;
-  pointer-events:none;transition:opacity .42s cubic-bezier(.4,0,.2,1) .06s}
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .5s cubic-bezier(.4,0,.2,1) .08s}
 #avvio svg{width:224px;height:224px;display:block;transform-origin:50% 47%;
-  transition:transform .48s cubic-bezier(.22,.61,.36,1)}
-#avvio.apri{opacity:0}
+  transition:transform .58s cubic-bezier(.22,.61,.36,1)}
+#avvio.apri{opacity:0;pointer-events:none}
 #avvio.apri svg{transform:scale(1.22)}
 @media (prefers-reduced-motion:reduce){
   #avvio{transition:opacity .2s linear}
@@ -900,7 +902,7 @@ button.via{font:inherit;text-align:left;width:100%}
   display:flex;align-items:center;gap:8px;background:var(--accento);color:var(--carta);border:0;
   border-radius:999px;padding:12px 18px 12px 15px;cursor:pointer;box-shadow:0 10px 26px rgba(27,25,23,.22);
   font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
-.chiedi svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
+.chiedi svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}   /* la faccia con le cuffie, solo linee (5/10/2026) */
 .chiedi:hover{background:var(--inchiostro)}
 /* scorrendo in giu' per leggere, «Chiedi» si sposta fuori: non copre la riga che stai leggendo (5/10/2026) */
 .chiedi{transition:transform .22s ease,opacity .22s ease}
@@ -952,11 +954,16 @@ button.via{font:inherit;text-align:left;width:100%}
   <g transform="translate(168.1 320.5) scale(0.2532 -0.2532)"><path fill="#1B1915" d="M546.5 0Q530.4 0 493.9 38.3Q457.3 76.6 405.9 148.5Q354.5 220.3 290.6 319.3L358.4 340.2Q441.7 219.2 500.1 147Q558.6 74.8 603.7 43.4Q648.8 12 690.4 12Q693 12 693 6Q693 0 690.4 0Q634.2 0 598.7 0Q563.2 0 546.5 0ZM306.2 628Q390 628 434.5 592.6Q479.1 557.2 479.1 497.7Q479.1 442 447.2 397.9Q415.3 353.7 363.8 328.7Q312.3 303.7 252.5 303.7Q241.3 303.7 228.1 304.3Q215 304.8 204.1 305.8V81Q204.1 52 209.7 37Q215.2 22 232.7 17Q250.2 12 285 12Q287.6 12 287.6 6Q287.6 0 285 0Q260.1 0 230 1Q200 2 163.6 2Q129.8 2 98.7 1Q67.5 0 42.6 0Q40.2 0 40.2 6Q40.2 12 42.6 12Q77.5 12 95 17Q112.4 22 118.8 37Q125.1 52 125.1 81V544Q125.1 573 119.3 587.5Q113.4 602 96.2 607.5Q79 613 44.2 613Q41.6 613 41.6 619Q41.6 625 44.2 625Q68.5 625 99.2 623.5Q129.8 622 163.6 622Q195.5 622 235.8 625Q276.2 628 306.2 628ZM396.9 465.7Q396.9 522 381.9 553.5Q366.9 585.1 339.6 598.2Q312.3 611.4 274.8 611.4Q237 611.4 220.6 597.5Q204.1 583.6 204.1 542V331.1Q218.1 329.6 234.4 328.6Q250.7 327.6 263.2 327.6Q337.1 327.6 367 362.1Q396.9 396.5 396.9 465.7Z"/></g>
   <rect x="205" y="349" width="102" height="4" fill="#738A63"/></svg></div>
 <script>
-/* rete di sicurezza: se l'app tarda, la schermata d'avvio comincia ad andarsene lo
-   stesso, cosi' in tutto non dura mai piu' di un secondo */
-setTimeout(function(){ if(typeof togliAvvio === 'function') togliAvvio(); else {
-  var a = document.getElementById('avvio'); if(a) a.classList.add('apri');
-  setTimeout(function(){ if(a && a.parentNode) a.remove(); }, 520); } }, 450);
+/* la R resta ferma AVVIO_FERMA millesimi da quando la pagina comincia, poi se ne va.
+   Rete di sicurezza: se l'app tarda, se ne va lo stesso. Un tocco la manda via subito. */
+var AVVIO_DAL = Date.now(), AVVIO_FERMA = 1600;
+(function(){
+  var a = document.getElementById('avvio');
+  function vaVia(){ if(typeof togliAvvio === 'function') togliAvvio(true); else if(a){
+    a.classList.add('apri'); setTimeout(function(){ if(a.parentNode) a.remove(); }, 700); } }
+  if(a) a.addEventListener('pointerdown', vaVia);
+  setTimeout(vaVia, AVVIO_FERMA + 400);
+})();
 </script>
 
 <div class="velo" onclick="menu(false)"></div>
@@ -1136,15 +1143,18 @@ async function avvia(){
 /* La schermata d'avvio se ne va una volta sola: la R cresce, il fondo sfuma, e
    l'elemento si toglie dalla pagina. Due passaggi di disegno prima di accendere
    la transizione, se no il telefono salta direttamente alla fine. */
-function togliAvvio(){
+function togliAvvio(subito){
   const a = typeof document !== 'undefined' && document.getElementById('avvio');
   if(!a || a.dataset.via) return;
+  /* prima di AVVIO_FERMA la R resta: si riprova quando il tempo e' passato */
+  const manca = typeof AVVIO_DAL === 'number' ? AVVIO_FERMA - (Date.now() - AVVIO_DAL) : 0;
+  if(!subito && manca > 0){ setTimeout(() => togliAvvio(true), manca); return; }
   a.dataset.via = '1';
   const via = () => { if(a.parentNode) a.remove(); };
   const prossimo = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (f => setTimeout(f, 16));
   prossimo(() => prossimo(() => a.classList.add('apri')));
   a.addEventListener('transitionend', e => { if(e.target === a) via(); });
-  setTimeout(via, 700);
+  setTimeout(via, 800);
 }
 /* Servita dal server del rilievo, l'app ha un indirizzo fisso, si mette sul telefono come
    un'icona e si apre anche senza rete (sw.js tiene una copia). Sulla pagina pubblicata
@@ -1194,7 +1204,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-05 04:35';
+const COSTRUITA = '2026-10-05 19:40';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -8828,6 +8838,8 @@ function sedeDitta(a){
   const prov = String(a.provincia || '').trim().toUpperCase();
   return {indirizzo: via.replace(/,\s*$/, ''), cap, comune, provincia: /^[A-Z]{2}$/.test(prov) ? prov : ''};
 }
+/* undici zeri sulla scheda di un cliente vogliono dire «privato»: si trattano come casella vuota */
+const pivaCliente = v => pivaValida(v) && !/^0+$/.test(String(v).replace(/\s/g, '').replace(/^IT/i, ''));
 function pivaValida(v){
   const s = String(v || '').replace(/\s/g, '').replace(/^IT/i, '');
   if(!/^\d{11}$/.test(s)) return false;
@@ -8884,7 +8896,7 @@ function mancaPerFattura(a, cl){
   }
   if(!a.regime) m('il tuo regime: forfettario oppure ordinario', 'ditta', 'regime');
   if(!cl.nome) m('il nome del cliente', 'cliente', 'nome');
-  if(!cfValido(cl.cf) && !pivaValida(cl.piva)) m('il codice fiscale o la partita IVA del cliente', 'cliente', 'fiscale');
+  if(!cfValido(cl.cf) && !pivaCliente(cl.piva)) m('il codice fiscale o la partita IVA del cliente', 'cliente', 'fiscale');
   if(!sedeCliente(cl)){
     const campo = !String(cl.indirizzo || '').trim() ? 'indirizzo'
                 : !/^\d{5}$/.test(String(cl.cap || '').trim()) && !leggiSede(cl.indirizzo) ? 'cap' : 'comune';
@@ -8928,7 +8940,7 @@ function xmlFattura(d){
 
   const sede = s => `<Sede><Indirizzo>${xmlTesto(s.indirizzo, 60)}</Indirizzo><CAP>${s.cap}</CAP><Comune>${xmlTesto(s.comune, 60)}</Comune>` +
                     (s.provincia ? `<Provincia>${s.provincia}</Provincia>` : '') + `<Nazione>IT</Nazione></Sede>`;
-  const clPiva = pivaValida(cl.piva) ? String(cl.piva).replace(/\s/g, '').replace(/^IT/i, '') : '';
+  const clPiva = pivaCliente(cl.piva) ? String(cl.piva).replace(/\s/g, '').replace(/^IT/i, '') : '';
   const clCf = String(cl.cf || '').trim().toUpperCase();
   const idCliente = (clPiva ? `<IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>${clPiva}</IdCodice></IdFiscaleIVA>` : '') +
                     (cfValido(clCf) ? `<CodiceFiscale>${clCf}</CodiceFiscale>` : '');
@@ -9407,7 +9419,7 @@ function datiPerFic(p, f){
   const unita = u => String(u || '').replace(/^ogni\s+/i, '').replace(/^(a|al|alla|all')\s+/i, '').trim();
   return {
     data: f.data, forfettario: c.forf, totale: c.totale, bollo: c.bollo,
-    cliente: {nome: cl.nome || '', piva: pivaValida(cl.piva) ? String(cl.piva).replace(/\s/g, '').replace(/^IT/i, '') : '',
+    cliente: {nome: cl.nome || '', piva: pivaCliente(cl.piva) ? String(cl.piva).replace(/\s/g, '').replace(/^IT/i, '') : '',
               cf: cfValido(cl.cf) ? String(cl.cf).trim().toUpperCase() : '',
               indirizzo: sc.indirizzo || '', cap: sc.cap || '', comune: sc.comune || '', provincia: sc.provincia || '',
               sdi: codiceDestinatario(cl.sdi) ? String(cl.sdi).trim().toUpperCase() : '', pec: pecBuona(cl.pec) ? String(cl.pec).trim() : ''},
@@ -13140,7 +13152,7 @@ function preparaChat(){
   const b = document.createElement('button');
   b.className = 'chiedi'; b.id = 'tasto-chiedi'; b.type = 'button';
   b.setAttribute('aria-label', 'Chiedi all\'assistente');
-  b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M9.5 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.7-.9 1.3M12 14.6v.1"/></svg>Chiedi';
+  b.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12.6" r="3.9"/><path d="M5 12.2a7 7 0 0 1 14 0"/><rect x="3.7" y="11.6" width="2.5" height="4.3" rx="1.15"/><rect x="17.8" y="11.6" width="2.5" height="4.3" rx="1.15"/><path d="M19.05 15.9c0 2.1-1.9 3.5-4.4 3.5h-1.1"/><path d="M10.6 11.9v.01M13.4 11.9v.01M10.8 14.1c.75.55 1.65.55 2.4 0"/></svg>Chiedi';
   b.onclick = apriChat;
   document.body.appendChild(b);
   /* giu' = si scansa; su, o in fondo alla pagina (dove c'e' gia' lo spazio libero) = torna */
