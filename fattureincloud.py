@@ -571,6 +571,20 @@ def codice_iva(elenco, aliquota, forfettario=False, natura="N2.2"):
                     % (("%g" % al).replace(".", ",")))
 
 
+def piva_valida(p):
+    """Partita IVA italiana: 11 cifre e l'ultima e' il controllo (la stessa regola dello SdI)."""
+    if not re.fullmatch(r"\d{11}", p or "") or p == "0" * 11:
+        return False
+    tot = 0
+    for i, c in enumerate(p[:10]):
+        n = int(c)
+        if i % 2:
+            n *= 2
+            n = n - 9 if n > 9 else n
+        tot += n
+    return (10 - tot % 10) % 10 == int(p[10])
+
+
 def traduci(f, elenco):
     """La fattura dell'app nei campi di Fatture in Cloud.
 
@@ -592,15 +606,20 @@ def traduci(f, elenco):
         raise Rifiutata("Manca il nome del cliente.")
     if not piva and not cf:
         raise Rifiutata("Manca il codice fiscale o la partita IVA del cliente.")
+    if piva and not piva_valida(piva):
+        raise Rifiutata("La partita IVA di %s (%s) non è valida: controllala nella scheda del cliente. "
+                        "Se è un privato, lascia vuota la partita IVA e metti solo il codice fiscale." % (nome, piva))
     if not (cl.get("indirizzo") and re.fullmatch(r"\d{5}", str(cl.get("cap") or "")) and cl.get("comune")):
         raise Rifiutata("Manca l'indirizzo del cliente, con CAP e comune.")
     sdi = str(cl.get("sdi") or "").strip().upper()
     sdi = sdi if re.fullmatch(r"[A-Z0-9]{7}", sdi) else "0000000"
-    entita = {"name": nome, "vat_number": piva, "tax_code": cf,
+    entita = {"name": nome, "tax_code": cf,
               "address_street": _testo(cl.get("indirizzo"), 60), "address_postal_code": str(cl["cap"]),
               "address_city": _testo(cl.get("comune"), 60),
               "address_province": str(cl.get("provincia") or "").strip().upper()[:2],
               "country": "Italia", "e_invoice": True, "ei_code": sdi}
+    if piva:
+        entita["vat_number"] = piva
     pec = str(cl.get("pec") or "").strip()
     if sdi == "0000000" and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", pec):
         entita["certified_email"] = pec
@@ -660,10 +679,8 @@ def _testi_dentro(x, fuori, prof=0):
         for y in x:
             _testi_dentro(y, fuori, prof + 1)
     elif isinstance(x, dict):
-        for k in ("description", "message", "messages", "errors", "error", "detail", "details",
-                  "validation_result", "result", "field", "name"):
-            if k in x:
-                _testi_dentro(x[k], fuori, prof + 1)
+        for v in x.values():          # xml_errors, errors, messages...: si guarda tutto
+            _testi_dentro(v, fuori, prof + 1)
 
 
 def _errore_loro(r):
