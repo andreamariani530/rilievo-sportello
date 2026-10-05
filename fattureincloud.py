@@ -535,8 +535,15 @@ def codice_iva(elenco, aliquota, forfettario=False, natura="N2.2"):
             if _numero(v.get("value", -1)) == 0 and _natura(v.get("ei_type")) == voluta:
                 return v["id"]
         # nel registro del server, per capire cosa manda davvero Fatture in Cloud (niente dati personali)
-        print("  aliquote dalla ditta:", [(v.get("id"), v.get("value"), v.get("ei_type"), v.get("is_disabled"))
-                                          for v in elenco or [] if isinstance(v, dict)][:40])
+        # ripiego: Fatture in Cloud a volte lascia vuota la natura ma la scrive nella descrizione
+        for v in attivi:
+            testo = " ".join(str(v.get(k) or "") for k in ("description", "notes", "ei_description")).lower()
+            if _numero(v.get("value", -1)) == 0 and not _natura(v.get("ei_type")) and forfettario and (
+                    "forfett" in testo or "190/2014" in testo or "190 del 23" in testo or voluta in _natura(testo)):
+                return v["id"]
+        print("  aliquote dalla ditta:", [(v.get("id"), v.get("value"), v.get("ei_type"), v.get("is_disabled"),
+                                           str(v.get("description") or "")[:40])
+                                          for v in elenco or [] if isinstance(v, dict)][:40], flush=True)
         spenta = any(isinstance(v, dict) and v.get("is_disabled") and _numero(v.get("value", -1)) == 0
                      and _natura(v.get("ei_type")) == voluta for v in elenco or [])
         if spenta:
