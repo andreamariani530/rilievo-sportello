@@ -45,7 +45,7 @@ RITORNO = "https://rilievo-sportello.onrender.com/fic/ritorno"
 PERMESSI = "issued_documents.invoices:a settings:r entity.clients:r"
 DURATA_STATE = 600            # l'indirizzo per collegarsi vale 10 minuti, una volta sola
 MARGINE = 120                 # un permesso che scade fra meno di due minuti si rinnova prima
-DURATA_CODICI = 86400         # i codici IVA della ditta si rileggono una volta al giorno
+DURATA_CODICI = 300           # i codici IVA si rileggono ogni 5 minuti: se l'artigiano li corregge, li vediamo subito
 
 # ei_status di Fatture in Cloud, detti come li capisce gia' l'app
 STATI = {
