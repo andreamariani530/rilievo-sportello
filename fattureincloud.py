@@ -659,6 +659,31 @@ def manda(account, f):
     return {"id": did, "numero": num, "stato": "inviata", "prova": prova()}
 
 
+def controlla(account, f):
+    """Solo per chi prova: crea la fattura e la fa controllare a Fatture in Cloud, ma NON la manda.
+    Se il controllo passa, la bozza resta nel suo Fatture in Cloud da guardare; se no si toglie."""
+    doc = traduci(f, codici_iva(account))
+    codice, r = _con_permesso(account, "POST", "/issued_documents", {"data": doc})
+    if codice == 422:
+        raise Rifiutata("Fatture in Cloud non accetta la fattura: %s." % (_errore_loro(r) or "un dato non torna"))
+    if codice != 200 or not (r.get("data") or {}).get("id"):
+        raise NonRisponde("Fatture in Cloud non ha creato la fattura (%s)." % codice)
+    did, numero = r["data"]["id"], r["data"].get("number")
+    num = str(numero) + str(r["data"].get("numeration") or "") if numero is not None else ""
+    codice, v = _con_permesso(account, "GET", "/issued_documents/%d/e_invoice/xml_verify" % did)
+    if codice != 200 or (v.get("data") or {}).get("success") is False:
+        _con_permesso(account, "DELETE", "/issued_documents/%d" % did)
+        raise Rifiutata("Il controllo di Fatture in Cloud ha trovato un errore: %s."
+                        % (_errore_loro(v) or "un dato non torna"))
+    return {"id": did, "numero": num, "controllo": "passato", "mandata": False, "prova": prova()}
+
+
+def solo_controllo(mail):
+    """Chi vede il tasto «Solo controllo»: le mail in FIC_SOLO_CONTROLLO (separate da virgola)."""
+    lista = os.environ.get("FIC_SOLO_CONTROLLO", "andreamariani530a@gmail.com")
+    return str(mail or "").strip().lower() in {x.strip().lower() for x in lista.split(",") if x.strip()}
+
+
 def come_sta(account, did):
     try:
         did = int(did)

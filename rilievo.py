@@ -3129,7 +3129,9 @@ def servizio(porta=8787, pubblico=False):
             prova = fattureincloud.prova()
             try:
                 if percorso == "/fic/stato":
-                    self._manda(200, fattureincloud.stato(conto))
+                    st = fattureincloud.stato(conto)
+                    st["solo_controllo"] = fattureincloud.solo_controllo(m)
+                    self._manda(200, st)
                     return
                 if not fattureincloud.pronto():
                     self._manda(503, {"errore": "Il collegamento con Fatture in Cloud non è ancora acceso.", "prova": prova})
@@ -3146,6 +3148,14 @@ def servizio(porta=8787, pubblico=False):
                 if percorso == "/fic/manda":
                     r = fattureincloud.manda(conto, dentro.get("fattura"))
                     print("  fattura da Fatture in Cloud n. %s%s" % (r.get("numero"), " (prova)" if prova else ""))
+                    self._manda(200, r)
+                    return
+                if percorso == "/fic/controlla":
+                    if not fattureincloud.solo_controllo(m):
+                        self._manda(403, {"errore": "Questo controllo non è acceso per il tuo account.", "prova": prova})
+                        return
+                    r = fattureincloud.controlla(conto, dentro.get("fattura"))
+                    print("  controllo Fatture in Cloud passato, bozza n. %s" % r.get("numero"))
                     self._manda(200, r)
                     return
                 if percorso == "/fic/come-sta":

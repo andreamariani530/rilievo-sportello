@@ -902,6 +902,9 @@ button.via{font:inherit;text-align:left;width:100%}
   font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
 .chiedi svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6}
 .chiedi:hover{background:var(--inchiostro)}
+/* scorrendo in giu' per leggere, «Chiedi» si sposta fuori: non copre la riga che stai leggendo (5/10/2026) */
+.chiedi{transition:transform .22s ease,opacity .22s ease}
+.chiedi.scansato{transform:translateY(140%);opacity:0;pointer-events:none}
 #schermo{padding-bottom:calc(80px + env(safe-area-inset-bottom))}   /* l'ultima riga non finisce sotto «Chiedi» */
 .velo-chat{position:fixed;inset:0;z-index:72;background:rgba(27,25,23,.36);display:flex;
   justify-content:flex-end;align-items:flex-end}
@@ -1191,7 +1194,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-05 02:00';
+const COSTRUITA = '2026-10-05 04:35';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -9207,6 +9210,9 @@ function confermaFattura(id){
         ${c.bollo ? '<p class="fattura-nota">Sopra i 77,47 euro ci va il bollo da 2 euro: lo scrive la fattura da sola.</p>' : ''}
         <div class="lbl" style="margin:18px 0 8px">Come la mandi?</div>
         <div class="vie">${vieInOrdine}</div>
+        ${daFic && ficStato.soloControllo ? `<div class="azioni" style="margin-top:12px"><button type="button" class="bottone vuoto piccolo" id="btn-fic-controlla"
+          onclick="chiudiScheda();controllaFatturaFic('${p.id}')">Solo controllo</button></div>
+        <p class="fattura-nota" id="nota-fic-controlla">Fatture in Cloud la controlla e la lascia fra le tue fatture, senza mandarla allo Stato.</p>` : ''}
       </div>`,
       campi: [],
       senzaSalva: true,
@@ -9313,7 +9319,7 @@ function chiediStatoFic(){
     if(r.ok && r.d && typeof r.d.collegato === 'boolean'){
       /* era collegato e il server non lo trova piu': il permesso e' scaduto */
       const scaduto = r.d.collegato ? false : !!(ficStato.scaduto || ficStato.collegato);
-      segnaFic({collegato: r.d.collegato, ditta: r.d.ditta || '', prova: !!r.d.prova, pronto: r.d.pronto !== false, scaduto});
+      segnaFic({collegato: r.d.collegato, ditta: r.d.ditta || '', prova: !!r.d.prova, pronto: r.d.pronto !== false, scaduto, soloControllo: !!r.d.solo_controllo});
     }
     return ficStato;
   }).catch(() => ficStato);
@@ -9437,6 +9443,29 @@ function inviaFatturaFic(id){
       return false;
     })
     .catch(() => { p.fattura = null; fine('Non c\'è rete: la fattura non è partita. Riprova appena c\'è campo.'); return false; });
+}
+/* «Solo controllo» (5 ottobre 2026): per chi prova il collegamento, mai per l'artigiano.
+   Fatture in Cloud crea la fattura e la controlla, ma non la manda allo Stato; il preventivo non cambia. */
+function controllaFatturaFic(id){
+  const p = prev(id), c = statoCopia();
+  if(!p || fatturaInViaggio[id]) return Promise.resolve(false);
+  if(!c.gettone){ avvisa('Per il controllo entra prima con la tua mail.'); return Promise.resolve(false); }
+  fatturaInViaggio[id] = true;
+  avvisa('La mando a Fatture in Cloud solo per il controllo…');
+  const f = {via: 'fic', numero: '', data: S.oggi};
+  return Promise.resolve().then(() => chiamaServer('/fic/controlla', {mail: c.mail, gettone: c.gettone, fattura: datiPerFic(p, f)}))
+    .then(({ok, stato, d}) => {
+      delete fatturaInViaggio[id];
+      if(ok && d && d.controllo === 'passato'){
+        avvisa('Controllo passato. La trovi in Fatture in Cloud' + (d.numero ? ' col n. ' + d.numero : '') + ', non mandata allo Stato.');
+        return true;
+      }
+      if(stato === 401) fuoriDalServer();
+      if(d && (d.scaduto || d.non_collegato)) segnaFic({collegato: false, ditta: '', scaduto: !!d.scaduto});
+      avvisa((d && d.errore) || 'Adesso Fatture in Cloud non risponde. Riprova fra poco.');
+      return false;
+    })
+    .catch(() => { delete fatturaInViaggio[id]; avvisa('Non c\'è rete: riprova appena c\'è campo.'); return false; });
 }
 function guardaFatturaFic(id){
   const p = prev(id), f = p && p.fattura, c = statoCopia();
@@ -13114,6 +13143,14 @@ function preparaChat(){
   b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M9.5 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.7-.9 1.3M12 14.6v.1"/></svg>Chiedi';
   b.onclick = apriChat;
   document.body.appendChild(b);
+  /* giu' = si scansa; su, o in fondo alla pagina (dove c'e' gia' lo spazio libero) = torna */
+  let ultimo = window.scrollY || 0;
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY || 0, fondo = document.documentElement.scrollHeight - window.innerHeight - y < 90;
+    if(fondo || y < 60 || y < ultimo - 6) b.classList.remove('scansato');
+    else if(y > ultimo + 6) b.classList.add('scansato');
+    ultimo = y;
+  }, {passive: true});
 }
 /* la pagina dove si trova adesso, per aiutare l'assistente a capire «qui» */
 const paginaAdesso = () => ((location.hash || '#oggi').slice(1).split('/')[0] || 'oggi');
