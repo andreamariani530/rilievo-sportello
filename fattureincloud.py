@@ -202,8 +202,19 @@ class Finto:
         cid, resto = int(m.group(1)), m.group(2)
         if resto == "/info/vat_types":
             return 200, {"data": copy.deepcopy(self.codici_iva)}
+        if resto == "/issued_documents/totals" and metodo == "POST":
+            d = corpo.get("data") or {}
+            netto = sum(float(r.get("qty", 1)) * float(r.get("net_price", 0)) for r in d.get("items_list") or [])
+            dovuto = round(netto * 1.22 if any((r.get("vat") or {}).get("id") == 0 for r in d.get("items_list") or [])
+                           else netto, 2)
+            return 200, {"data": {"amount_net": round(netto, 2), "amount_due": dovuto,
+                                  "stamp_duty": d.get("stamp_duty", 0)}}
         if resto == "/issued_documents" and metodo == "POST":
             d = copy.deepcopy(corpo.get("data") or {})
+            if d.get("items_list") and d.get("payments_list"):
+                _, t = self._chiama("POST", "/c/%d/issued_documents/totals" % cid, {"data": d}, token)
+                if abs(sum(float(x.get("amount", 0)) for x in d["payments_list"]) - t["data"]["amount_due"]) > 0.005:
+                    return 422, {"error": {"message": "Il totale dei pagamenti non corrisponde al totale da pagare."}}
             validi = {v["id"] for v in self.codici_iva}
             if d.get("type") != "invoice" or not d.get("items_list") or not (d.get("entity") or {}).get("name"):
                 return 422, {"error": {"message": "Dati mancanti"}}
@@ -649,9 +660,26 @@ def _errore_loro(r):
 
 # ---------------------------------------------------------------- mandare
 
+def _rata_giusta(account, doc):
+    """La rata deve essere uguale al «totale da pagare» che calcola Fatture in Cloud (col bollo o no,
+    secondo le impostazioni della ditta). Se lo chiediamo a loro, non sbagliamo mai di 2 euro."""
+    codice, t = _con_permesso(account, "POST", "/issued_documents/totals", {"data": doc})
+    dovuto = (t.get("data") or {}).get("amount_due") if codice == 200 and isinstance(t, dict) else None
+    try:
+        dovuto = round(float(dovuto), 2)
+    except (TypeError, ValueError):
+        return doc
+    nostro = doc["payments_list"][0]["amount"]
+    if abs(dovuto - nostro) > 2.005:          # piu' del bollo: qualcosa non torna, meglio fermarsi
+        raise Rifiutata("Per Fatture in Cloud il totale è %s euro, per Rilievo %s: controlla le righe e riprova."
+                        % (("%.2f" % dovuto).replace(".", ","), ("%.2f" % nostro).replace(".", ",")))
+    doc["payments_list"][0]["amount"] = dovuto
+    return doc
+
+
 def manda(account, f):
     """Crea la fattura nel Fatture in Cloud dell'artigiano, la fa controllare, la manda."""
-    doc = traduci(f, codici_iva(account))
+    doc = _rata_giusta(account, traduci(f, codici_iva(account)))
     codice, r = _con_permesso(account, "POST", "/issued_documents", {"data": doc})
     if codice == 422:
         raise Rifiutata("Fatture in Cloud non accetta la fattura: %s." % (_errore_loro(r) or "un dato non torna"))
@@ -677,7 +705,7 @@ def manda(account, f):
 def controlla(account, f):
     """Solo per chi prova: crea la fattura e la fa controllare a Fatture in Cloud, ma NON la manda.
     Se il controllo passa, la bozza resta nel suo Fatture in Cloud da guardare; se no si toglie."""
-    doc = traduci(f, codici_iva(account))
+    doc = _rata_giusta(account, traduci(f, codici_iva(account)))
     codice, r = _con_permesso(account, "POST", "/issued_documents", {"data": doc})
     if codice == 422:
         raise Rifiutata("Fatture in Cloud non accetta la fattura: %s." % (_errore_loro(r) or "un dato non torna"))
