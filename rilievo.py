@@ -38,6 +38,7 @@ import promemoria          # i promemoria automatici ai clienti, se la ditta li 
 import preventivo_col_link # il preventivo che il cliente apre e accetta da un link
 import richieste_dal_link  # il link della ditta: i clienti nuovi scrivono da li' (4/10/2026)
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
+import fattureincloud      # il collegamento col Fatture in Cloud dell'artigiano (4/10/2026)
 import assistente          # l'assistente in chat, col manuale dell'app dentro
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -2761,6 +2762,25 @@ for _f in sorted(APP.glob("avvio-*.png")):
     STATICI["/" + _f.name] = (_f.name, "image/png")
 
 
+def fic_pagina_scelta(gettone, ditte):
+    """Chi ha piu' ditte su Fatture in Cloud sceglie quale collegare, prima di salvare."""
+    import html as _h
+    voci = "".join(
+        '<li><a href="/fic/ritorno?scelta=%s&amp;ditta=%s">%s</a></li>'
+        % (urllib.parse.quote(gettone), urllib.parse.quote(str(d["id"])), _h.escape(d["nome"] or "Ditta senza nome"))
+        for d in ditte)
+    return ("<!doctype html><html lang=it><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Rilievo: quale ditta?</title><style>body{font-family:Georgia,serif;background:#f6f1e7;color:#2b2a26;"
+            "margin:0;padding:34px 22px;max-width:520px}h1{font-weight:400;font-size:28px;margin:0 0 8px}"
+            "p{color:#6b665c;font-size:17px;line-height:1.5}ul{list-style:none;padding:0;margin:22px 0}"
+            "li{border-top:1px solid #d9d1c1}li:last-child{border-bottom:1px solid #d9d1c1}"
+            "a{display:block;padding:18px 4px;color:#2b2a26;text-decoration:none;font-size:20px}"
+            "a:after{content:' \\2192';color:#7d8f74}</style>"
+            "<h1>Quale ditta colleghi?</h1><p>Sul tuo Fatture in Cloud ci sono più ditte. "
+            "Tocca quella da cui devono partire le fatture di Rilievo.</p><ul>" + voci + "</ul>"
+            "<p style='font-size:15px'>Hai dieci minuti per scegliere. Poi si riparte da Impostazioni.</p></html>")
+
+
 def servizio(porta=8787, pubblico=False):
     import http.server, socketserver
 
@@ -2825,6 +2845,9 @@ def servizio(porta=8787, pubblico=False):
                 return
             if u.path.startswith("/link/"):
                 self._link(u.path)
+                return
+            if u.path.startswith("/fic/"):
+                self._fic(u.path)
                 return
             m = re.fullmatch(r"/p/([a-z2-9]{14})/(accetto|risposta|pagato)", u.path)
             if m:
@@ -3089,6 +3112,85 @@ def servizio(porta=8787, pubblico=False):
                 return
             self._manda(404, {"errore": "Non c'e' nulla qui."})
 
+        # ---- il collegamento con Fatture in Cloud (4/10/2026) ---------------------
+        def _fic(self, percorso):
+            """L'app collega, chiede lo stato, scollega, manda e segue la fattura.
+            Tutto vale solo con l'accesso dell'account (mail e gettone)."""
+            dentro = self._corpo(1024 * 1024)
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
+                return
+            m = accessi.chi_e(dentro.get("mail"), dentro.get("gettone"))
+            if not m:
+                self._manda(401, {"errore": "Per Fatture in Cloud serve il tuo accesso: entra con la tua mail.",
+                                  "fuori": True})
+                return
+            conto = accessi.id_account(m)
+            prova = fattureincloud.prova()
+            try:
+                if percorso == "/fic/stato":
+                    self._manda(200, fattureincloud.stato(conto))
+                    return
+                if not fattureincloud.pronto():
+                    self._manda(503, {"errore": "Il collegamento con Fatture in Cloud non è ancora acceso.", "prova": prova})
+                    return
+                if percorso == "/fic/collega":
+                    self._manda(200, {"indirizzo": fattureincloud.indirizzo_collega(conto), "prova": prova})
+                    return
+                if percorso == "/fic/scollega":
+                    fattureincloud.scollega(conto)
+                    self._manda(200, {"scollegato": True, "prova": prova,
+                                      "nota": "Scollegato. Per togliere il permesso anche dal loro lato: "
+                                              "nel tuo Fatture in Cloud, Impostazioni, App collegate."})
+                    return
+                if percorso == "/fic/manda":
+                    r = fattureincloud.manda(conto, dentro.get("fattura"))
+                    print("  fattura da Fatture in Cloud n. %s%s" % (r.get("numero"), " (prova)" if prova else ""))
+                    self._manda(200, r)
+                    return
+                if percorso == "/fic/come-sta":
+                    self._manda(200, fattureincloud.come_sta(conto, dentro.get("id")))
+                    return
+            except fattureincloud.Scaduto as e:
+                self._manda(409, {"errore": str(e), "scaduto": True, "prova": prova})
+                return
+            except fattureincloud.NonCollegato as e:
+                self._manda(409, {"errore": str(e), "non_collegato": True, "prova": prova})
+                return
+            except fattureincloud.Rifiutata as e:
+                self._manda(400, {"errore": str(e), "prova": prova})
+                return
+            except fattureincloud.NonRisponde as e:
+                print("     fatture in cloud:", str(e)[:120])
+                self._manda(502, {"errore": "Fatture in Cloud adesso non risponde. Riprova fra poco.", "prova": prova})
+                return
+            self._manda(404, {"errore": "Non c'e' nulla qui."})
+
+        def _fic_ritorno(self, q):
+            """Il sito di Fatture in Cloud rimanda qui dopo il si' (o il no) dell'artigiano."""
+            uno = lambda k: (q.get(k) or [""])[0][:400]
+            try:
+                if uno("scelta"):
+                    esito = fattureincloud.scegli(uno("scelta"), uno("ditta"))
+                elif uno("error"):
+                    fattureincloud._prendi_state(uno("state"))
+                    esito = ("no", "Su Fatture in Cloud non è stato dato il permesso.")
+                else:
+                    esito = fattureincloud.ritorno(uno("code"), uno("state"))
+            except fattureincloud.NonRisponde:
+                esito = ("no", "Fatture in Cloud adesso non risponde. Riprova fra poco.")
+            if esito[0] == "scegli":
+                self._pagina_cliente(200, fic_pagina_scelta(esito[1], esito[2]))
+                return
+            dove = ("/#impostazioni?fic=ok" if esito[0] == "ok"
+                    else "/#impostazioni?fic=no&perche=" + urllib.parse.quote(esito[1]))
+            self.send_response(302)
+            self.send_header("Location", dove)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
         def _pagina_cliente(self, codice, testo):
             dati = (testo or "").encode("utf-8")
             self.send_response(codice)
@@ -3188,6 +3290,9 @@ def servizio(porta=8787, pubblico=False):
             q = urllib.parse.parse_qs(u.query)
             if u.path == "/fattura/stato":
                 self._fattura_stato(q)
+                return
+            if u.path == "/fic/ritorno":
+                self._fic_ritorno(q)
                 return
             # il link dell'informativa da mettere nei messaggi: porta all'app,
             # che apre «Come trattiamo i dati» anche sopra la porta d'ingresso

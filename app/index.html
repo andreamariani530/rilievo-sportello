@@ -1191,7 +1191,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-04 20:41';
+const COSTRUITA = '2026-10-05 02:00';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2285,6 +2285,7 @@ function ascoltaIlTiro(){
 let paginaMostrata = null;
 function vai(){
   giornataNuova();
+  if(/^#impostazioni\?/.test(location.hash)){ ritornoDaFic(location.hash); return; }
   const grezzo = (location.hash || '#oggi').slice(1);
   const pezzi  = grezzo.split('/');
   const nome   = pezzi[0] || 'oggi';
@@ -9163,14 +9164,14 @@ function apriCasellaFattura(id, manca, poi){
 function confermaFattura(id){
   const b = document.getElementById('btn-fattura');
   if(b){ b.disabled = true; b.textContent = 'Un attimo…'; }
-  return chiediSportelloFattura().then(pronto => {
+  return Promise.all([chiediSportelloFattura(), chiediStatoFic()]).then(([pronto]) => {
     if(b){ b.disabled = false; }
     const p = prev(id); if(!p) return;
     const f = p.fattura, prova = fatturaDiProva;
     /* rimandata dopo uno scarto: tiene il suo numero e la sua data */
-    const stessa = f && !fatturaDaFile(f) && !!f.prova === prova;
+    const stessa = f && !fatturaDaFile(f) && !fatturaDaFic(f) && !!f.prova === prova;
     const numero = stessa ? f.numero : prossimaFattura(prova).numero;
-    const numeroFile = f && !f.prova ? f.numero : prossimaFattura(false).numero;
+    const numeroFile = f && !f.prova && !fatturaDaFic(f) ? f.numero : prossimaFattura(false).numero;
     const d = datiDellaFattura(p, {numero, data: stessa ? f.data : S.oggi});
     const c = contiFattura(d), cp = conti(p), cl = cliente(p.cliente);
     const conRilievo = `<button type="button" class="via via-fattura${S.azienda.fattura_via !== 'file' && pronto ? ' prima' : ''}" id="via-rilievo"
@@ -9186,6 +9187,15 @@ function confermaFattura(id){
         <span class="nome-via">Scarica il file</span>
         <span>Fattura n. ${esc(numeroFile)}. La carichi tu sul sito gratuito dell'Agenzia delle Entrate, o la dai al tuo commercialista.</span>
       </button>`;
+    /* il tasto di Fatture in Cloud c'e' solo per chi l'ha collegato: gli altri non vedono niente */
+    const daFic = ficCollegato() ? `<button type="button" class="via via-fattura${S.azienda.fattura_via === 'fic' ? ' prima' : ''}" id="via-fic"
+        onclick="chiudiScheda();inviaFatturaFic('${p.id}')">
+        <span class="nome-via">Mandala dal tuo Fatture in Cloud</span>
+        <span>Parte dal tuo account, con la tua numerazione${ficStato.ditta ? ' (' + esc(ficStato.ditta) + ')' : ''}.</span>
+        ${ficStato.prova ? '<span class="di-prova">Di prova · non mandata allo Stato</span>' : ''}
+      </button>` : '';
+    const vieInOrdine = S.azienda.fattura_via === 'fic' && daFic ? daFic + conRilievo + colFile
+      : S.azienda.fattura_via === 'file' || !pronto ? colFile + conRilievo + daFic : conRilievo + daFic + colFile;
     scheda({
       titolo: 'La fattura a ' + cl.nome,
       sotto: perIlLavoro(p, true) + '.',
@@ -9196,7 +9206,7 @@ function confermaFattura(id){
         ${c.forf && Math.abs(cp.totale - c.totale) > 0.005 ? `<p class="fattura-nota">Sei nel forfettario: la fattura esce senza IVA, ${euro(c.totale)} invece dei ${euro(cp.totale)} del preventivo.</p>` : ''}
         ${c.bollo ? '<p class="fattura-nota">Sopra i 77,47 euro ci va il bollo da 2 euro: lo scrive la fattura da sola.</p>' : ''}
         <div class="lbl" style="margin:18px 0 8px">Come la mandi?</div>
-        <div class="vie">${S.azienda.fattura_via === 'file' || !pronto ? colFile + conRilievo : conRilievo + colFile}</div>
+        <div class="vie">${vieInOrdine}</div>
       </div>`,
       campi: [],
       senzaSalva: true,
@@ -9214,7 +9224,7 @@ function preparaFileFattura(id, rifai){
   if(!p || !fatturaAccesa() || !preventivoChiuso(p) || fatturaInViaggio[id]) return;
   let f = p.fattura;
   if(!rifai){
-    if(!f || f.prova){
+    if(!f || f.prova || fatturaDaFic(f)){
       const x = prossimaFattura(false);
       consumaNumero(false, x);
       f = p.fattura = {n: x.n, anno: x.anno, numero: x.numero, data: S.oggi, prova: false};
@@ -9279,6 +9289,177 @@ function fatturaPartitaAMano(id){
   avvisa('Segnata come partita. Il file resta qui, nella fattura.');
 }
 
+/* ---- «Mandala dal tuo Fatture in Cloud» (4 ottobre 2026) ----
+   Per chi usa gia' Fatture in Cloud: lo collega una volta in Impostazioni (dice si'
+   sul loro sito, nessuna password passa da noi), e la fattura parte dal SUO account,
+   con la SUA numerazione. Il numero lo decide Fatture in Cloud: Rilievo si annota
+   quello che torna, e il suo contatore non si tocca. Il tasto compare solo a chi e'
+   collegato. Il server parla con Fatture in Cloud (server-rilievo/fattureincloud.py);
+   senza i codici dell'app risponde un Fatture in Cloud finto, e allora e' «di prova». */
+const fatturaDaFic = f => !!(f && f.via === 'fic');
+const CHIAVE_FIC = 'rilievo-fic-2026-10';
+let ficStato = (() => { try{ return JSON.parse(localStorage.getItem(CHIAVE_FIC) || 'null') || {}; }catch(e){ return {}; } })();
+let ficChiestoAlle = 0;
+function segnaFic(cambi){
+  ficStato = Object.assign({}, ficStato, cambi);
+  try{ localStorage.setItem(CHIAVE_FIC, JSON.stringify(ficStato)); }catch(e){}
+}
+const ficCollegato = () => !!(ficStato.collegato && statoCopia().gettone);
+function chiediStatoFic(){
+  const c = statoCopia();
+  if(!c.gettone || typeof fetch !== 'function' || !fatturaAccesa()) return Promise.resolve(ficStato);
+  ficChiestoAlle = Date.now();
+  return chiamaServer('/fic/stato', {mail: c.mail, gettone: c.gettone}).then(r => {
+    if(r.ok && r.d && typeof r.d.collegato === 'boolean'){
+      /* era collegato e il server non lo trova piu': il permesso e' scaduto */
+      const scaduto = r.d.collegato ? false : !!(ficStato.scaduto || ficStato.collegato);
+      segnaFic({collegato: r.d.collegato, ditta: r.d.ditta || '', prova: !!r.d.prova, pronto: r.d.pronto !== false, scaduto});
+    }
+    return ficStato;
+  }).catch(() => ficStato);
+}
+function riquadroFic(){
+  if(!fatturaAccesa()) return '';
+  const c = statoCopia(), dentro = !!c.gettone;
+  if(dentro && Date.now() - ficChiestoAlle > 60000) setTimeout(() => chiediStatoFic().then(aggiornaRiquadroFic), 0);
+  const di = ficStato.prova ? ' <span class="di-prova" style="display:inline-block;margin-left:6px">di prova</span>' : '';
+  let corpo;
+  if(!dentro){
+    corpo = `<p style="font-size:16px;color:var(--soft)">Usi già Fatture in Cloud? Puoi far partire da lì le fatture fatte qui.
+      Per collegarlo serve il tuo accesso: entra con la tua mail, nel riquadro qui sotto.</p>`;
+  } else if(ficStato.collegato){
+    corpo = `<div class="riga-tot"><span>Collegato a</span><span><b id="fic-ditta">${esc(ficStato.ditta || 'Fatture in Cloud')}</b>${di}</span></div>
+      <p class="fattura-nota">Rilievo può solo creare e mandare fatture. Lo togli quando vuoi con Scollega.</p>
+      <div class="azioni" style="margin-top:14px"><button class="bottone vuoto piccolo" id="btn-fic-scollega" onclick="scollegaFic()">Scollega</button></div>`;
+  } else if(ficStato.pronto === false){
+    corpo = `<p style="font-size:16px;color:var(--soft)">Il collegamento con Fatture in Cloud arriva fra pochi giorni.</p>`;
+  } else {
+    corpo = `<p style="font-size:16px;color:var(--soft)" id="fic-spiega">${ficStato.scaduto
+        ? 'Il collegamento con Fatture in Cloud è scaduto. Ricollegalo: ci vuole un minuto.'
+        : 'Usi già Fatture in Cloud? Collegalo una volta: le fatture fatte qui partono dal tuo account, con la tua numerazione.'}</p>
+      <div class="azioni" style="margin-top:14px"><button class="bottone" id="btn-fic-collega" onclick="collegaFic()">${ficStato.scaduto ? 'Ricollega Fatture in Cloud' : 'Collega Fatture in Cloud'}</button></div>
+      <p class="fattura-nota">Si apre il loro sito: entri con i tuoi dati e premi «Autorizza». La password resta loro.</p>`;
+  }
+  return `<div class="riquadro" id="riquadro-fic">
+      <div class="lbl" style="margin-bottom:12px">Il tuo programma delle fatture</div>${corpo}</div>`;
+}
+function aggiornaRiquadroFic(){
+  const r = document.getElementById('riquadro-fic');
+  if(!r) return;
+  ficChiestoAlle = Date.now();
+  const nuovo = riquadroFic();
+  if(nuovo && r.outerHTML !== nuovo) r.outerHTML = nuovo;
+}
+async function collegaFic(){
+  const c = statoCopia();
+  if(!c.gettone){ avvisa('Per collegare Fatture in Cloud entra prima con la tua mail.'); return; }
+  const b = document.getElementById('btn-fic-collega');
+  if(b){ b.disabled = true; b.textContent = 'Un attimo…'; }
+  let r;
+  try{ r = await chiamaServer('/fic/collega', {mail: c.mail, gettone: c.gettone}); }catch(e){ r = {ok: false, d: {}}; }
+  if(!r.ok || !r.d || typeof r.d.indirizzo !== 'string'){
+    if(b){ b.disabled = false; b.textContent = 'Collega Fatture in Cloud'; }
+    if(r.stato === 401) fuoriDalServer();
+    avvisa((r.d && r.d.errore) || nonRaggiungo);
+    return;
+  }
+  /* il loro sito, poi si torna qui su #impostazioni?fic=ok */
+  location.href = r.d.indirizzo.charAt(0) === '/' ? SPORTELLO_RILIEVO + r.d.indirizzo : r.d.indirizzo;
+}
+function scollegaFic(){
+  chiedi('Scolleghi Fatture in Cloud? Le fatture già partite restano dove sono. Da adesso le mandi con Rilievo o col file.', async () => {
+    const c = statoCopia();
+    let r;
+    try{ r = await chiamaServer('/fic/scollega', {mail: c.mail, gettone: c.gettone}); }catch(e){ r = {ok: false, d: {}}; }
+    if(!r.ok){ avvisa((r.d && r.d.errore) || nonRaggiungo); return; }
+    segnaFic({collegato: false, ditta: '', scaduto: false});
+    if(S.azienda.fattura_via === 'fic'){ S.azienda.fattura_via = 'rilievo'; salva(); }
+    vaiRestandoQui();
+    avvisa('Scollegato. Per togliere il permesso anche dal loro lato: nel tuo Fatture in Cloud, Impostazioni, App collegate.');
+  }, 'Sì, scollega');
+}
+/* il ritorno dal loro sito: #impostazioni?fic=ok oppure ?fic=no&perche=... */
+function ritornoDaFic(h){
+  const q = new URLSearchParams(String(h || '').split('?')[1] || '');
+  history.replaceState(null, '', location.pathname + location.search + '#impostazioni');
+  vai();
+  /* il riquadro sta in fondo a Impostazioni: lo si porta sotto gli occhi */
+  const r = document.getElementById('riquadro-fic');
+  if(r && r.scrollIntoView) r.scrollIntoView({block: 'center'});
+  if(q.get('fic') === 'ok'){
+    segnaFic({collegato: true, scaduto: false});
+    chiediStatoFic().then(() => { aggiornaRiquadroFic(); avvisa('Fatture in Cloud è collegato' + (ficStato.ditta ? ' a ' + ficStato.ditta : '') + '. Alla prossima fattura trovi «Mandala dal tuo Fatture in Cloud».'); });
+  } else if(q.get('fic') === 'no'){
+    avvisa(String(q.get('perche') || 'Il collegamento non è riuscito. Riprova.').slice(0, 200));
+  }
+}
+/* la fattura nei campi che il server traduce per Fatture in Cloud: gli stessi conti
+   del file e del PDF (contiFattura), cosi' le carte non dicono numeri diversi */
+function datiPerFic(p, f){
+  const d = datiDellaFattura(p, {numero: '', data: f.data});
+  const c = contiFattura(d), cl = d.cliente || {}, sc = sedeCliente(cl) || {};
+  const unita = u => String(u || '').replace(/^ogni\s+/i, '').replace(/^(a|al|alla|all')\s+/i, '').trim();
+  return {
+    data: f.data, forfettario: c.forf, totale: c.totale, bollo: c.bollo,
+    cliente: {nome: cl.nome || '', piva: pivaValida(cl.piva) ? String(cl.piva).replace(/\s/g, '').replace(/^IT/i, '') : '',
+              cf: cfValido(cl.cf) ? String(cl.cf).trim().toUpperCase() : '',
+              indirizzo: sc.indirizzo || '', cap: sc.cap || '', comune: sc.comune || '', provincia: sc.provincia || '',
+              sdi: codiceDestinatario(cl.sdi) ? String(cl.sdi).trim().toUpperCase() : '', pec: pecBuona(cl.pec) ? String(cl.pec).trim() : ''},
+    righe: c.righe.map(r => ({descrizione: r.descrizione, quantita: r.quantita, unita: unita(r.unita), prezzo: r.prezzo, aliquota: r.aliquota})),
+    sconti: c.sconti,
+    pagamento: {metodo: 'MP05', scadenza: f.data, iban: S.azienda.iban || ''}
+  };
+}
+function inviaFatturaFic(id){
+  const p = prev(id), c = statoCopia();
+  if(!p || fatturaInViaggio[id]) return Promise.resolve(false);
+  if(!c.gettone){ avvisa('Per mandarla da Fatture in Cloud entra prima con la tua mail.'); return Promise.resolve(false); }
+  /* nessun numero di Rilievo: lo da' Fatture in Cloud quando la crea */
+  const f = p.fattura = {via: 'fic', numero: '', data: S.oggi, prova: !!ficStato.prova, stato: 'da_mandare'};
+  S.azienda.fattura_via = 'fic';
+  salva();
+  fatturaInViaggio[id] = true;
+  vaiRestandoQui(); mostraFattura();
+  const fine = testo => { delete fatturaInViaggio[id]; salva(); vaiRestandoQui(); mostraFattura(); if(testo) avvisa(testo); };
+  return Promise.resolve().then(() => chiamaServer('/fic/manda', {mail: c.mail, gettone: c.gettone, fattura: datiPerFic(p, f)}))
+    .then(({ok, stato, d}) => {
+      if(ok && d && d.id){
+        f.fic_id = d.id; f.numero = String(d.numero || d.id); f.file = 'fic:' + d.id;
+        f.prova = !!d.prova; f.stato = 'inviata'; f.inviata = istante();
+        fine('Fattura n. ' + f.numero + ' partita dal tuo Fatture in Cloud. Fra poco sai se è arrivata.');
+        seguiFattura(id);
+        return true;
+      }
+      if(stato === 401) fuoriDalServer();
+      if(d && (d.scaduto || d.non_collegato)) segnaFic({collegato: false, ditta: '', scaduto: !!d.scaduto});
+      p.fattura = null;
+      fine((d && d.errore) || 'Adesso Fatture in Cloud non risponde. La fattura non è partita: riprova fra poco.');
+      return false;
+    })
+    .catch(() => { p.fattura = null; fine('Non c\'è rete: la fattura non è partita. Riprova appena c\'è campo.'); return false; });
+}
+function guardaFatturaFic(id){
+  const p = prev(id), f = p && p.fattura, c = statoCopia();
+  if(!f || !f.fic_id || !c.gettone || typeof fetch !== 'function') return Promise.resolve(null);
+  return chiamaServer('/fic/come-sta', {mail: c.mail, gettone: c.gettone, id: f.fic_id})
+    .then(({ok, d}) => {
+      if(!ok){
+        if(d && d.scaduto){ segnaFic({collegato: false, ditta: '', scaduto: true}); avvisa(d.errore); }
+        return f.stato;
+      }
+      if(!d || !['inviata', 'consegnata', 'non_consegnata', 'scartata'].includes(d.stato) || d.stato === f.stato
+         || !p.fattura || p.fattura.fic_id !== f.fic_id) return f.stato;
+      f.stato = d.stato;
+      if(d.stato === 'scartata'){ f.codice = String(d.codice || ''); f.motivo = String(d.motivo || '').slice(0, 400); }
+      if(d.stato === 'consegnata' || d.stato === 'non_consegnata') f.arrivata = istante();
+      salva();
+      if(fatturaSulloSchermo(id)) vaiRestandoQui();
+      if(d.stato === 'scartata') avvisa('La fattura è tornata indietro: guarda il motivo e rimandala.');
+      return f.stato;
+    })
+    .catch(() => null);
+}
+
 function messaggioInvio(stato, d){
   /* il credito del servizio delle fatture e' finito: lo si dice, se no si riprova a vuoto */
   if(d && d.credito_finito === true && typeof d.errore === 'string') return d.errore.slice(0, 200);
@@ -9293,12 +9474,12 @@ function inviaFattura(id){
   let f = p.fattura;
   /* il numero si prende una volta sola: se la rete cade o lo Stato la scarta, si
      rimanda con lo stesso numero, e il contatore non salta */
-  if(!f || !!f.prova !== prova){
+  if(!f || !!f.prova !== prova || fatturaDaFic(f)){
     const x = prossimaFattura(prova);
     consumaNumero(prova, x);
     f = p.fattura = {n: x.n, anno: x.anno, numero: x.numero, data: S.oggi, prova};
   }
-  delete f.via; delete f.nome_file; delete f.preparata;
+  delete f.via; delete f.nome_file; delete f.preparata; delete f.fic_id;
   S.azienda.fattura_via = 'rilievo';
   f.progressivo = Date.now().toString(36).slice(-9);
   f.xml = xmlFattura(datiDellaFattura(p, f));
@@ -9335,6 +9516,7 @@ const fatturaSulloSchermo = id => location.hash === '#preventivo/' + id || locat
 function guardaFattura(id){
   const p = prev(id), f = p && p.fattura;
   if(!f || !f.file) return Promise.resolve(null);
+  if(fatturaDaFic(f)) return guardaFatturaFic(id);
   return Promise.resolve().then(() => fetch(SPORTELLO_RILIEVO + '/fattura/stato?' + col() + 'file=' + encodeURIComponent(f.file), {mode: 'cors'}))
     .then(r => r.json())
     .then(d => {
@@ -9421,7 +9603,9 @@ function bloccoFattura(p){
     corpo = testa('Pronta per il cliente') + '<p>Il cliente non ha una casella per riceverla: la trova nella sua area dell\'Agenzia delle Entrate. Per te è fatta. Mandagli anche il PDF.</p>';
   } else if(f.stato === 'scartata'){
     const m = motivoScarto(f);
-    corpo = testa('Tornata indietro') + `<p>Non è passata: ${esc(m.testo)}. Correggi e rimandala, il numero resta lo stesso.</p>
+    corpo = testa('Tornata indietro') + (fatturaDaFic(f) && f.motivo
+      ? `<p id="motivo-fic">Non è passata. Fatture in Cloud dice: «${esc(String(f.motivo).replace(/[.\s]+$/, ''))}». Correggi e rimandala.</p>`
+      : `<p>Non è passata: ${esc(m.testo)}. Correggi e rimandala, il numero resta lo stesso.</p>`) + `
       <div class="azioni-fattura">
         ${m.chi ? `<button class="bottone" id="btn-correggi-fattura" onclick="correggiFattura('${p.id}')">${m.chi === 'ditta' ? 'Correggi i tuoi dati' : 'Correggi i dati del cliente'}</button>` : ''}
         <button class="bottone${m.chi ? ' vuoto' : ''}" id="btn-fattura" onclick="faiLaFattura('${p.id}')">Rimandala${prova ? ' (di prova)' : ''}</button>
@@ -12729,6 +12913,12 @@ function testoPrivacy(){
       <li><b>La squadra.</b> Con un codice di ditta, i lavori condivisi si salvano sul nostro server,
         per farli vedere ai tuoi colleghi.</li>
       <li><b>La fattura elettronica.</b> Se la usi, i dati della fattura (i tuoi, quelli del cliente, le righe e gli importi) passano da Openapi, l&rsquo;intermediario che la consegna all&rsquo;Agenzia delle Entrate. Una fattura segnata «di prova» non arriva allo Stato.</li>
+      <li><b>Fatture in Cloud.</b> Solo se lo colleghi tu da Impostazioni. Da quel momento incarichi Rilievo di
+        creare e mandare le fatture dal tuo account di Fatture in Cloud (TeamSystem), e Rilievo tratta quei dati per
+        conto tuo, come responsabile del trattamento. Passano a loro i dati della fattura: i tuoi, quelli del cliente,
+        le righe e gli importi. La tua password di Fatture in Cloud non la vediamo mai: loro ci danno un permesso che
+        vale solo per creare e mandare fatture e leggere le tue aliquote IVA. Lo teniamo cifrato sul nostro server e lo
+        cancelliamo quando premi «Scollega».</li>
       <li><b>Il preventivo col link.</b> Se scegli di mandarlo col link, quel preventivo (con il nome e
         l&rsquo;indirizzo del cliente, le voci e il totale) resta sul nostro server per 180 giorni, perch&eacute;
         il cliente lo possa aprire. Chi ha il link lo pu&ograve; leggere. Se il cliente lo accetta, si segnano
@@ -12844,6 +13034,7 @@ PAGINE.impostazioni = {
       <div>
         ${riquadroMestiere()}
         ${riquadroFattura()}
+        ${riquadroFic()}
         ${riquadroCopia()}
         ${riquadroPromemoria()}
         <div class="riquadro">

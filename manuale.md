@@ -208,6 +208,9 @@ L'archivio: i lavori chiusi (fatti e pagati) e le carte caricate da fuori.
   - Chi carica il file sul programma di un suo intermediario, se quello vuole il suo
     codice nel file, lo scrive una volta nei suoi dati:
     «Codice di chi trasmette il file (facoltativo)». Altrimenti si lascia vuoto.
+  - «Mandala dal tuo Fatture in Cloud»: compare solo a chi ha collegato Fatture in Cloud.
+    La fattura parte dal suo account, con la sua numerazione (il numero lo dà Fatture in
+    Cloud). Lo stato si aggiorna come per le altre; se è scartata l'app dice il motivo.
   - Le password di altri servizi non si danno a Rilievo e non si chiedono.
   La linguetta «Fatture» le mette in fila; quelle col file da caricare dicono «Da caricare».
 
@@ -252,6 +255,12 @@ Si apre una ditta alla volta: chi non ha ancora il codice della ditta tocca
   «Prendi il lavoro dell’altro telefono» o «Tieni quello di questo telefono».
 - «Salva tutto in un file» e «Ricarica un salvataggio»: una copia tua, da tenere.
 - La fattura elettronica si accende da sola la prima volta che la usi.
+- **Se usi già Fatture in Cloud:** con la fattura accesa e il tuo accesso fatto, nel
+  riquadro «Il tuo programma delle fatture» tocchi «Collega Fatture in Cloud». Si apre il
+  loro sito: entri coi tuoi dati e premi «Autorizza». Torni in Rilievo e leggi «Collegato a»
+  e il nome della ditta. Rilievo può solo creare e mandare fatture; la password resta loro.
+  «Scollega» lo toglie; dal loro lato si toglie in Impostazioni, App collegate. Se il
+  collegamento scade, l'app lo dice e c'è «Ricollega Fatture in Cloud».
 
 ## Il tuo mestiere
 
