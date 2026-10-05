@@ -648,12 +648,38 @@ def traduci(f, elenco):
     return doc
 
 
+def _testi_dentro(x, fuori, prof=0):
+    """Raccoglie le frasi d'errore ovunque stiano: liste, dizionari, testo."""
+    if prof > 5 or len(fuori) >= 4:
+        return
+    if isinstance(x, str):
+        t = re.sub(r"\s+", " ", x).strip()
+        if t and t not in fuori:
+            fuori.append(t)
+    elif isinstance(x, list):
+        for y in x:
+            _testi_dentro(y, fuori, prof + 1)
+    elif isinstance(x, dict):
+        for k in ("description", "message", "messages", "errors", "error", "detail", "details",
+                  "validation_result", "result", "field", "name"):
+            if k in x:
+                _testi_dentro(x[k], fuori, prof + 1)
+
+
 def _errore_loro(r):
-    e = (r or {}).get("error")
+    e = (r or {}).get("error") if isinstance(r, dict) else None
+    if e is None and isinstance(r, dict):
+        e = r.get("data") or r
     if isinstance(e, dict):
-        righe = e.get("validation_result") or []
-        if isinstance(righe, list) and righe:
-            return "; ".join(str(x) for x in righe[:3])[:400]
+        dettagli = []
+        _testi_dentro(e.get("validation_result"), dettagli)
+        _testi_dentro(e.get("errors"), dettagli)
+        _testi_dentro(e.get("details") or e.get("detail"), dettagli)
+        if not dettagli:
+            _testi_dentro(e, dettagli)
+        if dettagli:
+            print("  errore da Fatture in Cloud:", json.dumps(r, ensure_ascii=False)[:1500], flush=True)
+            return "; ".join(dettagli[:3])[:400]
         return str(e.get("message") or "")[:300]
     return str(e or "")[:300]
 
