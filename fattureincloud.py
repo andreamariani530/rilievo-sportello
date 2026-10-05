@@ -534,9 +534,14 @@ def codice_iva(elenco, aliquota, forfettario=False, natura="N2.2"):
         for v in attivi:
             if _numero(v.get("value", -1)) == 0 and _natura(v.get("ei_type")) == voluta:
                 return v["id"]
+        spenta = any(isinstance(v, dict) and v.get("is_disabled") and _numero(v.get("value", -1)) == 0
+                     and _natura(v.get("ei_type")) == voluta for v in elenco or [])
+        if spenta:
+            raise Rifiutata("Nel tuo Fatture in Cloud l'aliquota a 0%% con natura N%s c'è, ma è spenta. "
+                            "Accendila in Impostazioni, Aliquote IVA, e riprova." % voluta)
         raise Rifiutata("Nel tuo Fatture in Cloud manca l'aliquota a 0%% con natura N%s%s. "
-                        "Aggiungila fra le aliquote IVA del tuo Fatture in Cloud e rimanda la fattura."
-                        % (voluta, " (regime forfettario)" if forfettario else ""))
+                        "Aggiungila in Impostazioni, Aliquote IVA: valore 0%%, natura «N%s», "
+                        "e riprova." % (voluta, " (regime forfettario)" if forfettario else "", voluta))
     for v in attivi:
         if _numero(v.get("value", -1)) == al and not _natura(v.get("ei_type")):
             return v["id"]
