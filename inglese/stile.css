@@ -2,8 +2,10 @@
    Carta calda, serif per titoli e testo, un solo accento (verde salvia),
    filetti sottili, niente riquadri colorati, molto spazio bianco. Telefono prima di tutto. */
 :root{
-  --carta:#F7F1E5; --inchiostro:#2A2620; --grigio:#7A7164; --filetto:#DCD2C0;
-  --salvia:#4F6B54; --salvia-chiaro:#E6EAE0; --errore:#8A3B2E;
+  /* Stile scuro chiesto da Andrea il 6/10: fondo quasi nero caldo, testo avorio, un accento salvia. */
+  --carta:#15130F; --inchiostro:#ECE4D6; --grigio:#A39A8A; --filetto:#2E2A24;
+  --salvia:#9FB89A; --salvia-chiaro:#232A22; --errore:#E08B78;
+  color-scheme:dark;
   --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
 }
 *{box-sizing:border-box}

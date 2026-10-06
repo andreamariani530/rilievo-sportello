@@ -8,7 +8,7 @@
  * la copia nuova e avvisa la pagina aperta: compare «C'è una versione nuova», e si
  * ricarica solo se Andrea tocca «Aggiorna adesso». Mai da soli.
  */
-const VERSIONE = '2804307d5d56';
+const VERSIONE = '5e1c493f90d9';
 const CASSETTO = 'inglese-' + VERSIONE;
 const FILE = [
  "./",
