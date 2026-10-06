@@ -1204,7 +1204,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-05 19:40';
+const COSTRUITA = '2026-10-06 02:27';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -7296,8 +7296,12 @@ const CONCETTI_MESTIERI = {
       dette: ['quadro','quadri','quadretto','centralino','centralini','contatore'] },
     { chiavi: ['differenziale','salvavita','magnetotermico'],
       dette: ['differenziale','differenziali','salvavita','magnetotermico','magnetotermici'] },
+    /* "la presa della tv" e' il punto TV, non una presa in piu': prima uscivano due righe,
+       o solo la presa e il punto TV spariva (trovato il 6 ottobre 2026 dettando) */
     { chiavi: ['tv','antenna','televisione'],
-      dette: ['tv','tivu','televisione','televisore','antenna','antenne','satellite','parabola'] },
+      dette: ['tv','tivu','televisione','televisore','antenna','antenne','satellite','parabola'],
+      frasi: [['presa','tv'],['prese','tv'],['presa','tivu'],['prese','tivu'],['presa','televisione'],
+              ['prese','televisione'],['presa','antenna'],['prese','antenna']] },
     { chiavi: ['dati','rete','telefono'],
       dette: ['dati','ethernet','internet','telefono','telefonica','telefoniche','modem','fibra'] },
     { chiavi: ['citofono','videocitofono','campanello'],
@@ -7742,6 +7746,7 @@ function numeriDetti(tok){
     }
     if(ALTEZZA.has(cosaDopo(CM.has(tok[i + 2]) || UNITA_DOPO[tok[i + 2]] ? i + 2 : i + 1))) return;
     const foro = {v: Math.round(lato(a) * lato(b) * 10000) / 10000, u: 'mq', i: a.i, f: 1, foro: true};
+    foro.uno = foro.v;          // un foro solo: serve a "e LA zanzariera", "e DUE tapparelle"
     /* quanti fori uguali: il numero che conta le cose, detto prima ("tre finestre") */
     const conta = fuori.filter(n => n.i < a.i && n.conteggio && !n.moltiplicatore && n.v >= 2).pop();
     if(conta){ foro.v = Math.round(foro.v * conta.v * 10000) / 10000; conta.moltiplicatore = true; }
@@ -8116,7 +8121,10 @@ function tagliaFlusso(tok, voci){
       const u = tok.slice(n, c).map(w => UNITA_DOPO[w]).find(Boolean);
       return !!x && !!u && u !== x.tipo.k && !(x.tipo.k === 'mq' && u === 'm');
     };
-    if(n - 1 > ultimoForte && numero(n - 1) && !/^(per|x)$/.test(tok[n - 2] || '') &&
+    /* "quattro per due E SETTANTA e demolire il tramezzo": il settanta e' la coda del 2,70,
+       non la misura della demolizione. Usciva una demolizione da 70 mq (6 ottobre 2026). */
+    const codaDelLato = tok[n - 2] === 'e' && numero(n - 3) && /^(per|x)$/.test(tok[n - 4] || '');
+    if(n - 1 > ultimoForte && numero(n - 1) && !/^(per|x)$/.test(tok[n - 2] || '') && !codaDelLato &&
        (misuraGiaDetta(tok.slice(inizio, n - 1), voci) || nonSua())){
       n--;
       while(n - 1 > ultimoForte && RIEMPITIVI.has(tok[n - 1])) n--;
@@ -8168,6 +8176,11 @@ function tagliaFlusso(tok, voci){
    unita' di misura, si sposta sulla lavorazione dopo, ma soltanto se quella si conta a
    pezzi (alberi, piante, viaggi). Cosi' "il prato duecento siepe trenta metri", dove il
    duecento e' del prato, non si tocca: la siepe si paga a metro, non a pezzi.          */
+/* le cose che stanno SUL foro di una finestra gia' misurata: la tapparella, la zanzariera,
+   lo smontaggio del vecchio. Una portafinestra o una porta sono un foro loro, con la loro
+   misura: "tre finestre 100 per 140 e una portafinestra" non fa la portafinestra da 4,2 mq */
+const sulForo = v => MESTIERE_PARLATO === 'serramentista' &&
+  concettiDellaVoce(v).some(c => c.chiavi.some(k => ['avvolgibile','zanzariera','rimozione'].includes(k)));
 function spostaIlConto(pezzi, voci){
   for(let k = 0; k < pezzi.length - 1; k++){
     const p = pezzi[k];
@@ -8177,7 +8190,9 @@ function spostaIlConto(pezzi, voci){
     const n = numeroDetto(p[j]) != null ? numeroDetto(p[j]) : CIRCA[p[j]];
     if(n == null || n < 2) continue;
     const dopo = scegliVoce(pezzi[k + 1], voci);
-    if(!dopo || dopo.tipo.k !== 'pezzi') continue;
+    /* "una portafinestra E DUE tapparelle": le tapparelle si pagano a metro quadro, ma il
+       due le conta (6 ottobre 2026): la portafinestra restava da 2 mq, le tapparelle a 1 */
+    if(!dopo || (dopo.tipo.k !== 'pezzi' && !(p[j - 1] === 'e' && sulForo(dopo.v)))) continue;
     /* "siepe CINQUANTA alberi TRE": la lavorazione dopo il suo numero ce l'ha gia', quindi
        il cinquanta e' della siepe e resta dov'e'. Senza questo controllo il cinquanta
        scavalcava, la siepe restava a 1 e gli alberi diventavano CINQUANTA piante invece
@@ -8448,6 +8463,12 @@ function capisci(testo, listino, mestiere){
     /* "finestra 120 per 140 e la tapparella": la tapparella va sullo stesso foro, e
        senza una misura sua prende quella (4 ottobre 2026). Solo nella stessa frase. */
     let ultimoForo = null;
+    /* la lavorazione e' detta al singolare, con l'articolo davanti: "la zanzariera" */
+    const unaSola = g => {
+      const forti = (g.voce.parole || []).filter(p => p.peso >= 1);
+      const k = g.tok.findIndex(w => forti.some(p => somiglia(w, p.p)));
+      return k > 0 && /^(la|il|lo|una|un|l)$/.test(g.tok[k - 1]);
+    };
     conVoce.forEach((g, iG) => {
       const numeri = numeriCheContano(g.tok, g.voce, numeriDetti(g.tok));
       /* "bagno tre per due ... il rivestimento ALTO DUE METRI": il due e' l'altezza a cui
@@ -8460,8 +8481,19 @@ function capisci(testo, listino, mestiere){
         !numeri.some(n => !n.altezza && !n.prezzo && !n.tempo);
       let grezza = soloAltezza ? null : quantitaPer(g.voce.tipo, numeri);
       const foro = numeri.find(n => n.foro);
-      if(foro) ultimoForo = foro.v;
-      else if(grezza == null && g.voce.tipo.k === 'mq' && ultimoForo != null) grezza = ultimoForo;
+      if(foro) ultimoForo = foro;
+      /* solo per finestre e porte: al muratore "parete quattro per due e settanta e demolire
+         il tramezzo" dava al tramezzo i metri della parete, una misura mai detta per lui.
+         Senza misura sua esce a 1 con «metti la misura» (6 ottobre 2026) */
+      else if(g.voce.tipo.k === 'mq' && ultimoForo != null && sulForo(g.voce.v)){
+        /* "tre finestre 100 per 140 e DUE tapparelle": due fori, non tre e non due metri
+           quadri; "e LA zanzariera": un foro solo. Prima la zanzariera prendeva i metri
+           di tutte e tre le finestre e le due tapparelle uscivano da 2 mq (6 ottobre 2026) */
+        const quanti = numeri.length === 1 && numeri[0].u === null && !numeri[0].prezzo && !numeri[0].tempo &&
+          !numeri[0].altezza && Number.isInteger(numeri[0].v) && numeri[0].v >= 1 && numeri[0].v <= 30 ? numeri[0].v : null;
+        if(quanti != null) grezza = quanti * ultimoForo.uno;
+        else if(grezza == null) grezza = unaSola(g) ? ultimoForo.uno : ultimoForo.v;
+      }
       const dubbio = grezza == null;
       /* "potatura degli alberi", senza dire quanti: vale 1, ma si segna, cosi'
          se sulla foto gli alberi sono stati contati il preventivo prende quelli */
