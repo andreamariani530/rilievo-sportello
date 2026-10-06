@@ -1,0 +1,121 @@
+{
+  "id": "a1-02",
+  "livello": "A1",
+  "numero": 2,
+  "titolo": "Da dove vieni?",
+  "tema": "Paesi, nazionalità e numeri da 0 a 20",
+  "obiettivo": "Alla fine sai chiedere e dire di dove sei, rispondere sì o no, e dare il tuo numero di telefono.",
+  "grammatica": {
+    "titolo": "To be: domande e negazioni",
+    "spiegazione": [
+      "Per fare una domanda in inglese non basta cambiare il tono della voce. Si sposta il verbo davanti: «You are Italian» diventa «Are you Italian?».",
+      "Funziona con tutte le persone: «Is he English?», «Is she from Morocco?», «Are they from Spain?».",
+      "Per dire di no si mette not dopo il verbo: «I am not», «she is not», «we are not».",
+      "Quando parli usi le forme corte: I'm not, he isn't, she isn't, we aren't, they aren't.",
+      "Alle domande si risponde spesso in breve: «Yes, I am» oppure «No, I'm not». Nella risposta breve con il sì non si usa la forma corta: si dice «Yes, I am», non «Yes, I'm».",
+      "Per chiedere di dove è una persona si dice «Where are you from?». Si risponde «I'm from Italy» (il paese) oppure «I'm Italian» (la nazionalità). Paesi e nazionalità in inglese hanno sempre la lettera maiuscola.",
+      "I numeri da 0 a 20 li trovi nelle parole. Attento: da 13 a 19 finiscono tutti in -teen, come thirteen e fifteen."
+    ],
+    "tabella": [
+      ["I'm not (I am not)", "io non sono"],
+      ["you aren't (you are not)", "tu non sei"],
+      ["he isn't / she isn't (is not)", "lui, lei non è"],
+      ["it isn't (it is not)", "non è (una cosa)"],
+      ["we aren't (we are not)", "noi non siamo"],
+      ["they aren't (they are not)", "loro non sono"],
+      ["Am I...?", "sono...?"],
+      ["Are you...?", "sei...? / siete...?"],
+      ["Is he...? / Is she...? / Is it...?", "è...?"],
+      ["Are we...? / Are they...?", "siamo...? / sono...?"],
+      ["Yes, I am. / No, I'm not.", "sì. / no."]
+    ],
+    "esempi": [
+      {"en": "Are you Italian? Yes, I am.", "it": "Sei italiano? Sì."},
+      {"en": "Is Elena from Spain? No, she isn't. She's from Romania.", "it": "Elena viene dalla Spagna? No. Viene dalla Romania."},
+      {"en": "I'm not English.", "it": "Non sono inglese."},
+      {"en": "Where are you from?", "it": "Di dove sei?"}
+    ],
+    "attenzione": "In italiano «Sei italiano?» si capisce solo dal tono. In inglese no: non «You are Italian?», ma «Are you Italian?». E non si dice «I amn't»: si dice «I'm not»."
+  },
+  "parole": [
+    {"en": "Italy", "it": "Italia", "esempio": {"en": "I'm from Italy.", "it": "Vengo dall'Italia."}},
+    {"en": "Italian", "it": "italiano", "esempio": {"en": "Marco isn't Spanish. He's Italian.", "it": "Marco non è spagnolo. È italiano."}},
+    {"en": "England", "it": "Inghilterra", "esempio": {"en": "London is in England.", "it": "Londra è in Inghilterra."}},
+    {"en": "English", "it": "inglese", "esempio": {"en": "Are you English?", "it": "Sei inglese?"}},
+    {"en": "Spain", "it": "Spagna", "esempio": {"en": "Madrid is in Spain.", "it": "Madrid è in Spagna."}},
+    {"en": "Spanish", "it": "spagnolo", "esempio": {"en": "The new boss is Spanish.", "it": "Il capo nuovo è spagnolo."}},
+    {"en": "Romania", "it": "Romania", "esempio": {"en": "Elena is from Romania.", "it": "Elena viene dalla Romania."}},
+    {"en": "Romanian", "it": "rumeno", "esempio": {"en": "Is your neighbour Romanian?", "it": "Il tuo vicino è rumeno?"}},
+    {"en": "Morocco", "it": "Marocco", "esempio": {"en": "Youssef is from Morocco.", "it": "Youssef viene dal Marocco."}},
+    {"en": "Moroccan", "it": "marocchino", "esempio": {"en": "They're Moroccan.", "it": "Sono marocchini."}},
+    {"en": "country", "it": "paese, nazione", "esempio": {"en": "Italy is a beautiful country.", "it": "L'Italia è un bel paese."}},
+    {"en": "city", "it": "città", "esempio": {"en": "Milan is a big city.", "it": "Milano è una grande città."}},
+    {"en": "where", "it": "dove", "esempio": {"en": "Where is the factory?", "it": "Dov'è la fabbrica?"}},
+    {"en": "from", "it": "da, di (provenienza)", "esempio": {"en": "Where are you from?", "it": "Di dove sei?"}},
+    {"en": "phone number", "it": "numero di telefono", "esempio": {"en": "What's your phone number?", "it": "Qual è il tuo numero di telefono?"}},
+    {"en": "zero, one, two, three, four, five", "it": "0, 1, 2, 3, 4, 5", "esempio": {"en": "I'm number five on the list.", "it": "Sono il numero cinque della lista."}},
+    {"en": "six, seven, eight, nine, ten", "it": "6, 7, 8, 9, 10", "esempio": {"en": "Ten coffees, please!", "it": "Dieci caffè, per favore!"}},
+    {"en": "eleven, twelve, thirteen, fourteen, fifteen", "it": "11, 12, 13, 14, 15", "esempio": {"en": "Twelve euros, please.", "it": "Dodici euro, per favore."}},
+    {"en": "sixteen, seventeen, eighteen, nineteen, twenty", "it": "16, 17, 18, 19, 20", "esempio": {"en": "Twenty, not twelve!", "it": "Venti, non dodici!"}}
+  ],
+  "dialogo": {
+    "titolo": "Alla macchinetta del caffè",
+    "situazione": "Pausa in fabbrica. Andrea incontra una collega nuova alla macchinetta del caffè.",
+    "battute": [
+      {"nome": "Elena", "voce": "donna", "en": "Hi! Are you Andrea?", "it": "Ciao! Sei Andrea?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, I am. Are you the new colleague?", "it": "Sì, sono io. Sei la collega nuova?"},
+      {"nome": "Elena", "voce": "donna", "en": "Yes, I'm Elena. Nice to meet you.", "it": "Sì, sono Elena. Piacere."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Nice to meet you too. Are you Spanish?", "it": "Piacere mio. Sei spagnola?"},
+      {"nome": "Elena", "voce": "donna", "en": "No, I'm not Spanish. I'm Romanian.", "it": "No, non sono spagnola. Sono rumena."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Oh! Where in Romania are you from?", "it": "Ah! Di dove sei, in Romania?"},
+      {"nome": "Elena", "voce": "donna", "en": "I'm from Cluj. It's a big city. And you? Are you from here?", "it": "Sono di Cluj. È una città grande. E tu? Sei di qui?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, I am. I'm Italian, of course!", "it": "Sì. Sono italiano, naturalmente!"},
+      {"nome": "Elena", "voce": "donna", "en": "What's your phone number?", "it": "Qual è il tuo numero di telefono?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "It's three four seven, one two, zero five, one nine.", "it": "È 347 12 05 19."},
+      {"nome": "Elena", "voce": "donna", "en": "Thanks! See you later, Andrea.", "it": "Grazie! A dopo, Andrea."}
+    ],
+    "domande": [
+      {"domanda": "Di dove è Elena?", "scelte": ["Della Spagna", "Dell'Italia", "Della Romania"], "giusta": 2},
+      {"domanda": "Com'è la città di Elena?", "scelte": ["Piccola", "Grande", "Non lo dice"], "giusta": 1},
+      {"domanda": "Cosa chiede Elena alla fine?", "scelte": ["Il numero di telefono di Andrea", "Il nome del capo", "Un caffè"], "giusta": 0}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come chiedi «Sei italiano?»", "scelte": ["You are Italian?", "Are you Italian?", "Is you Italian?"], "giusta": 1, "spiega": "Nella domanda il verbo va davanti: Are you...?"},
+    {"tipo": "scelta", "domanda": "«Is she Spanish?» Sì, lo è. Qual è la risposta giusta?", "scelte": ["Yes, she is.", "Yes, she's.", "Yes, is she."], "giusta": 0, "spiega": "Nella risposta breve con il sì non si usa la forma corta."},
+    {"tipo": "scelta", "domanda": "Come si dice 15?", "scelte": ["fifty", "five", "fifteen"], "giusta": 2, "spiega": "Da 13 a 19 i numeri finiscono in -teen: fifteen."},
+    {"tipo": "completa", "frase": "I ___ not from Spain.", "risposte": ["am"], "it": "Non vengo dalla Spagna.", "spiega": "La negazione è I am not, in breve I'm not."},
+    {"tipo": "completa", "frase": "___ they from Morocco?", "risposte": ["Are"], "it": "Vengono dal Marocco?", "spiega": "Con they la domanda comincia con Are."},
+    {"tipo": "completa", "frase": "He ___ English. He's Italian.", "risposte": ["isn't", "is not"], "it": "Non è inglese. È italiano.", "spiega": "Con he la negazione è isn't (is not)."},
+    {"tipo": "riordina", "parole": ["you", "Where", "from", "are"], "risposte": ["Where are you from?"], "it": "Di dove sei?"},
+    {"tipo": "riordina", "parole": ["not", "I'm", "Spanish"], "risposte": ["I'm not Spanish."], "it": "Non sono spagnolo."},
+    {"tipo": "riordina", "parole": ["Italian", "Is", "Marco"], "risposte": ["Is Marco Italian?"], "it": "Marco è italiano?"},
+    {"tipo": "traduci", "it": "Non sono inglese.", "risposte": ["I'm not English.", "I am not English."]},
+    {"tipo": "traduci", "it": "Di dove sei?", "risposte": ["Where are you from?", "Where do you come from?"]},
+    {"tipo": "traduci", "it": "Loro non sono di qui.", "risposte": ["They aren't from here.", "They're not from here.", "They are not from here."]},
+    {"tipo": "voce", "en": "I'm from Italy. I'm Italian.", "it": "Vengo dall'Italia. Sono italiano."},
+    {"tipo": "voce", "en": "No, I'm not. I'm from Morocco.", "it": "No. Vengo dal Marocco."}
+  ],
+  "parlato": [
+    {"domanda": "Where are you from?", "it": "Di dove sei?", "modello": "I'm from Italy. I'm Italian."},
+    {"domanda": "Are you English?", "it": "Sei inglese?", "modello": "No, I'm not. I'm Italian."},
+    {"domanda": "What's your phone number?", "it": "Qual è il tuo numero di telefono?", "modello": "It's three four seven, one two, zero five, one nine."},
+    {"domanda": "Is your boss Italian?", "it": "Il tuo capo è italiano?", "modello": "Yes, he is. He's from Italy."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice «Non siamo stanchi»?", "scelte": ["We not are tired.", "We aren't tired.", "We don't tired."], "giusta": 1, "spiega": "Il not va dopo il verbo: we are not, in breve we aren't."},
+      {"tipo": "scelta", "domanda": "Quale numero è «twelve»?", "scelte": ["2", "20", "12"], "giusta": 2, "spiega": "Twelve è 12. Venti si dice twenty."},
+      {"tipo": "scelta", "domanda": "«Is he from Morocco?» Lui è italiano. Cosa rispondi?", "scelte": ["No, he isn't.", "Yes, he is.", "No, I'm not."], "giusta": 0, "spiega": "Si parla di lui, quindi: No, he isn't."},
+      {"tipo": "completa", "frase": "___ you tired?", "risposte": ["Are"], "it": "Sei stanco?", "spiega": "Con you la domanda comincia con Are."},
+      {"tipo": "completa", "frase": "She ___ from England. She's from Spain.", "risposte": ["isn't", "is not"], "it": "Non viene dall'Inghilterra. Viene dalla Spagna.", "spiega": "Con she la negazione è isn't (is not)."},
+      {"tipo": "completa", "frase": "Eleven, twelve, thirteen, ___, fifteen.", "risposte": ["fourteen"], "it": "Undici, dodici, tredici, quattordici, quindici.", "spiega": "14 si dice fourteen."},
+      {"tipo": "riordina", "parole": ["Elena", "Is", "Romanian"], "risposte": ["Is Elena Romanian?"], "it": "Elena è rumena?"},
+      {"tipo": "riordina", "parole": ["aren't", "We", "here", "from"], "risposte": ["We aren't from here."], "it": "Non siamo di qui."},
+      {"tipo": "traduci", "it": "Sei spagnolo?", "risposte": ["Are you Spanish?", "Are you from Spain?"]},
+      {"tipo": "traduci", "it": "Lui non è il capo.", "risposte": ["He isn't the boss.", "He's not the boss.", "He is not the boss."]},
+      {"tipo": "traduci", "it": "Siamo italiani.", "risposte": ["We are Italian.", "We're Italian.", "We are Italians.", "We're Italians."]}
+    ]
+  }
+}

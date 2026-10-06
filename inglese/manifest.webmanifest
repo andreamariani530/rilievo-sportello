@@ -1,0 +1,17 @@
+{
+  "name": "Inglese",
+  "short_name": "Inglese",
+  "description": "Il mio inglese, dieci minuti al giorno: lezioni, ripasso, voce in macchina, serie e canzoni.",
+  "lang": "it",
+  "start_url": "./#oggi",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F1E5",
+  "theme_color": "#F7F1E5",
+  "icons": [
+    {"src": "icona-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "id": "a1-10",
+  "livello": "A1",
+  "numero": 10,
+  "titolo": "Cosa sai fare?",
+  "tema": "Sport, hobby, musica e tempo libero",
+  "obiettivo": "Alla fine sai dire cosa sai fare e cosa no, parlare del tuo tempo libero e chiedere il permesso.",
+  "grammatica": {
+    "titolo": "Can e can't: so fare, posso",
+    "spiegazione": [
+      "Can vuol dire «so fare» oppure «posso». È uguale per tutti: I can, you can, he can, she can. Con he e she non si aggiunge la s.",
+      "Dopo can metti il verbo così com'è, senza to: I can swim.",
+      "Per dire di no usi can't, che è la forma corta di cannot: I can't drive.",
+      "Per fare una domanda metti can all'inizio: Can you swim? Rispondi corto: Yes, I can. oppure No, I can't.",
+      "Can serve anche per chiedere il permesso, come «posso?» in italiano: Can I come in? Can I use your phone?"
+    ],
+    "tabella": [
+      ["I can swim.", "So nuotare."],
+      ["She can sing.", "Lei sa cantare."],
+      ["We can play football.", "Sappiamo giocare a calcio."],
+      ["I can't drive.", "Non so guidare."],
+      ["He can't dance.", "Lui non sa ballare."],
+      ["Can you cook?", "Sai cucinare?"],
+      ["Yes, I can. / No, I can't.", "Sì. / No."],
+      ["Can I come in?", "Posso entrare?"]
+    ],
+    "esempi": [
+      {"en": "I can swim, but I can't dance.", "it": "So nuotare, ma non so ballare."},
+      {"en": "Can your son ride a bike? Yes, he can.", "it": "Tuo figlio sa andare in bici? Sì."},
+      {"en": "Can I use your phone?", "it": "Posso usare il tuo telefono?"}
+    ],
+    "attenzione": "Gli italiani dicono «I can to swim» o «she cans swim»: dopo can niente to e niente s. E nella domanda niente do: Can you swim?, non Do you can swim?"
+  },
+  "parole": [
+    {"en": "swim", "it": "nuotare", "esempio": {"en": "I can swim, but not very well.", "it": "So nuotare, ma non molto bene."}},
+    {"en": "ride a bike", "it": "andare in bicicletta", "esempio": {"en": "My son can ride a bike.", "it": "Mio figlio sa andare in bicicletta."}},
+    {"en": "drive", "it": "guidare", "esempio": {"en": "Can you drive?", "it": "Sai guidare?"}},
+    {"en": "cook", "it": "cucinare", "esempio": {"en": "My sister can cook very well.", "it": "Mia sorella sa cucinare molto bene."}},
+    {"en": "sing", "it": "cantare", "esempio": {"en": "She can sing in English.", "it": "Lei sa cantare in inglese."}},
+    {"en": "dance", "it": "ballare", "esempio": {"en": "I can't dance at all.", "it": "Non so ballare per niente."}},
+    {"en": "play the guitar", "it": "suonare la chitarra", "esempio": {"en": "He plays the guitar in a band.", "it": "Suona la chitarra in un gruppo."}},
+    {"en": "play football", "it": "giocare a calcio", "esempio": {"en": "We play football on Saturday.", "it": "Giochiamo a calcio il sabato."}},
+    {"en": "run", "it": "correre", "esempio": {"en": "I can run for an hour.", "it": "Riesco a correre per un'ora."}},
+    {"en": "speak", "it": "parlare", "esempio": {"en": "Can you speak English?", "it": "Sai parlare inglese?"}},
+    {"en": "listen to", "it": "ascoltare", "esempio": {"en": "I listen to music on the bus.", "it": "Ascolto musica sull'autobus."}},
+    {"en": "free time", "it": "tempo libero", "esempio": {"en": "What do you do in your free time?", "it": "Cosa fai nel tempo libero?"}},
+    {"en": "hobby", "it": "hobby, passatempo", "esempio": {"en": "My hobby is music.", "it": "Il mio hobby è la musica."}},
+    {"en": "song", "it": "canzone", "esempio": {"en": "This is my favourite song.", "it": "Questa è la mia canzone preferita."}},
+    {"en": "team", "it": "squadra", "esempio": {"en": "My brother is in a football team.", "it": "Mio fratello è in una squadra di calcio."}},
+    {"en": "match", "it": "partita", "esempio": {"en": "Can we watch the match tonight?", "it": "Possiamo guardare la partita stasera?"}},
+    {"en": "gym", "it": "palestra", "esempio": {"en": "I go to the gym twice a week.", "it": "Vado in palestra due volte a settimana."}},
+    {"en": "well", "it": "bene", "esempio": {"en": "You can sing very well!", "it": "Sai cantare molto bene!"}}
+  ],
+  "dialogo": {
+    "titolo": "In pausa pranzo",
+    "situazione": "In mensa Andrea parla con Sara, una collega, di cosa fanno nel tempo libero.",
+    "battute": [
+      {"nome": "Sara", "voce": "donna", "en": "Hi Andrea! What do you do in your free time?", "it": "Ciao Andrea! Cosa fai nel tempo libero?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "I play football with my friends, and I go to the gym.", "it": "Gioco a calcio con i miei amici e vado in palestra."},
+      {"nome": "Sara", "voce": "donna", "en": "Can you swim?", "it": "Sai nuotare?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, I can, but not very well. And you?", "it": "Sì, ma non molto bene. E tu?"},
+      {"nome": "Sara", "voce": "donna", "en": "I can't swim at all! But I can sing. I sing in a band.", "it": "Io non so nuotare per niente! Però so cantare. Canto in un gruppo."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Really? What songs do you sing?", "it": "Davvero? Che canzoni cantate?"},
+      {"nome": "Sara", "voce": "donna", "en": "Old rock songs, in English. We play at a pub on Friday night.", "it": "Vecchie canzoni rock, in inglese. Suoniamo in un pub il venerdì sera."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Can I come and listen?", "it": "Posso venire ad ascoltare?"},
+      {"nome": "Sara", "voce": "donna", "en": "Of course you can! It starts at nine.", "it": "Certo che puoi! Si comincia alle nove."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Great! But I can't dance, OK?", "it": "Ottimo! Però non so ballare, va bene?"},
+      {"nome": "Sara", "voce": "donna", "en": "No problem. You can just listen!", "it": "Nessun problema. Puoi anche solo ascoltare!"}
+    ],
+    "domande": [
+      {"domanda": "Cosa fa Andrea nel tempo libero?", "scelte": ["Canta in un gruppo", "Gioca a calcio e va in palestra", "Suona la chitarra"], "giusta": 1},
+      {"domanda": "Cosa non sa fare Sara?", "scelte": ["Nuotare", "Cantare", "Parlare inglese"], "giusta": 0},
+      {"domanda": "Quando suona il gruppo di Sara?", "scelte": ["Il sabato pomeriggio", "La domenica mattina", "Il venerdì sera"], "giusta": 2}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Quale frase è giusta?", "scelte": ["She can swims.", "She can swim.", "She cans swim."], "giusta": 1, "spiega": "Con can niente s, né su can né sul verbo."},
+    {"tipo": "scelta", "domanda": "«Sai guidare?» si dice:", "scelte": ["Do you can drive?", "Can you to drive?", "Can you drive?"], "giusta": 2, "spiega": "Nella domanda can va all'inizio, senza do e senza to."},
+    {"tipo": "scelta", "domanda": "Un collega ti chiede «Can I use your pen?». Cosa vuole?", "scelte": ["Il permesso di usare la tua penna", "Sapere se sai scrivere", "Comprare una penna"], "giusta": 0, "spiega": "Can I...? serve a chiedere il permesso, come «posso?»."},
+    {"tipo": "completa", "frase": "My son ___ ride a bike. He is only two.", "risposte": ["can't", "cannot", "can not"], "it": "Mio figlio non sa andare in bici. Ha solo due anni.", "spiega": "Per dire che non sai fare una cosa usi can't."},
+    {"tipo": "completa", "frase": "___ you play the guitar?", "risposte": ["Can"], "it": "Sai suonare la chitarra?", "spiega": "La domanda comincia con Can."},
+    {"tipo": "completa", "frase": "Can you cook? Yes, I ___.", "risposte": ["can"], "it": "Sai cucinare? Sì.", "spiega": "Risposta corta: Yes, I can."},
+    {"tipo": "riordina", "parole": ["can't", "I", "well", "sing", "very"], "risposte": ["I can't sing very well.", "I cannot sing very well."], "it": "Non so cantare molto bene."},
+    {"tipo": "riordina", "parole": ["you", "English", "Can", "speak"], "risposte": ["Can you speak English?"], "it": "Sai parlare inglese?"},
+    {"tipo": "riordina", "parole": ["football", "we", "Can", "in", "play", "the park"], "risposte": ["Can we play football in the park?"], "it": "Possiamo giocare a calcio nel parco?"},
+    {"tipo": "traduci", "it": "Mia sorella sa ballare molto bene.", "risposte": ["My sister can dance very well.", "My sister dances very well."]},
+    {"tipo": "traduci", "it": "Non so cucinare.", "risposte": ["I can't cook.", "I cannot cook.", "I can not cook.", "I don't know how to cook."]},
+    {"tipo": "traduci", "it": "Posso entrare?", "risposte": ["Can I come in?", "May I come in?", "Could I come in?", "Can I go in?"]},
+    {"tipo": "voce", "en": "I can swim, but I can't dance.", "it": "So nuotare, ma non so ballare."},
+    {"tipo": "voce", "en": "Can you play the guitar?", "it": "Sai suonare la chitarra?"},
+    {"tipo": "voce", "en": "What do you do in your free time?", "it": "Cosa fai nel tempo libero?"}
+  ],
+  "parlato": [
+    {"domanda": "What can you do well?", "it": "Cosa sai fare bene?", "modello": "I can cook very well, and I can ride a bike."},
+    {"domanda": "Can you swim?", "it": "Sai nuotare?", "modello": "Yes, I can, but not very well."},
+    {"domanda": "What do you do in your free time?", "it": "Cosa fai nel tempo libero?", "modello": "I listen to music and I watch TV series."},
+    {"domanda": "Can you sing?", "it": "Sai cantare?", "modello": "No, I can't. I can't sing at all!"}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "«Non possiamo venire» si dice:", "scelte": ["We can't to come.", "We can't come.", "We don't can come."], "giusta": 1, "spiega": "Dopo can't il verbo va così com'è, senza to e senza don't."},
+      {"tipo": "scelta", "domanda": "In ufficio vuoi usare il telefono. Cosa chiedi?", "scelte": ["Do I can use the phone?", "Can I to use the phone?", "Can I use the phone?"], "giusta": 2, "spiega": "Per chiedere il permesso: Can I + verbo."},
+      {"tipo": "scelta", "domanda": "«Can your brother swim?» Rispondi di no:", "scelte": ["No, he can't.", "No, he doesn't.", "No, he can't swims."], "giusta": 0, "spiega": "Alla domanda con can si risponde con can o can't."},
+      {"tipo": "completa", "frase": "My father ___ speak English, only Italian.", "risposte": ["can't", "cannot", "can not"], "it": "Mio padre non sa parlare inglese, solo italiano.", "spiega": "Non sa: can't."},
+      {"tipo": "completa", "frase": "Can she drive? Yes, she ___.", "risposte": ["can"], "it": "Lei sa guidare? Sì.", "spiega": "Risposta corta: Yes, she can."},
+      {"tipo": "completa", "frase": "We can ___ the match at my house.", "risposte": ["watch", "see"], "it": "Possiamo guardare la partita a casa mia.", "spiega": "Dopo can il verbo così com'è."},
+      {"tipo": "riordina", "parole": ["ride", "can't", "a bike", "My", "sister"], "risposte": ["My sister can't ride a bike.", "My sister cannot ride a bike."], "it": "Mia sorella non sa andare in bicicletta."},
+      {"tipo": "riordina", "parole": ["go", "Can", "to", "I", "the gym", "tomorrow"], "risposte": ["Can I go to the gym tomorrow?", "Tomorrow can I go to the gym?", "Tomorrow, can I go to the gym?"], "it": "Posso andare in palestra domani?"},
+      {"tipo": "riordina", "parole": ["Can", "dance", "your", "friends"], "risposte": ["Can your friends dance?"], "it": "I tuoi amici sanno ballare?"},
+      {"tipo": "traduci", "it": "Sai cantare questa canzone?", "risposte": ["Can you sing this song?"]},
+      {"tipo": "traduci", "it": "Mio figlio sa nuotare ma non sa guidare.", "risposte": ["My son can swim but he can't drive.", "My son can swim, but he can't drive.", "My son can swim but he cannot drive.", "My son can swim, but he cannot drive.", "My son can swim but can't drive.", "My son can swim but cannot drive."]},
+      {"tipo": "traduci", "it": "Nel tempo libero vado in palestra.", "risposte": ["In my free time I go to the gym.", "In my free time, I go to the gym.", "I go to the gym in my free time.", "In my spare time I go to the gym.", "I go to the gym in my spare time."]}
+    ]
+  }
+}

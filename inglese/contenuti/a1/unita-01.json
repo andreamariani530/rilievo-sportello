@@ -1,0 +1,118 @@
+{
+  "id": "a1-01",
+  "livello": "A1",
+  "numero": 1,
+  "titolo": "Piacere, sono Andrea",
+  "tema": "Salutare e presentarsi",
+  "obiettivo": "Alla fine sai salutare, dire chi sei, come stai, e presentare un collega.",
+  "grammatica": {
+    "titolo": "Il verbo to be: I am, you are, he is",
+    "spiegazione": [
+      "To be vuol dire «essere». È il verbo più usato in inglese: serve per dire chi sei, come stai, di dove sei.",
+      "In italiano il verbo cambia tante volte: sono, sei, è, siamo, siete, sono. In inglese è più facile: ci sono solo tre forme, am, is, are.",
+      "Con I (io) si usa am. Con he, she, it (lui, lei, esso) si usa is. Con you, we, they (tu, voi, noi, loro) si usa are.",
+      "It si usa per le cose e per gli animali: il telefono, la fabbrica, il cane. «It's new» vuol dire «è nuovo», parlando del telefono.",
+      "You vuol dire sia «tu» sia «voi». Si capisce dal discorso.",
+      "Quando si parla si usano quasi sempre le forme corte: I'm, you're, he's, she's, it's, we're, they're. L'apostrofo prende il posto della lettera che manca.",
+      "In inglese il soggetto non si toglie mai. In italiano dici «sono stanco», in inglese devi dire «I'm tired»."
+    ],
+    "tabella": [
+      ["I am / I'm", "io sono"],
+      ["you are / you're", "tu sei"],
+      ["he is / he's", "lui è"],
+      ["she is / she's", "lei è"],
+      ["it is / it's", "è (una cosa o un animale)"],
+      ["we are / we're", "noi siamo"],
+      ["you are / you're", "voi siete"],
+      ["they are / they're", "loro sono"]
+    ],
+    "esempi": [
+      {"en": "I'm Andrea.", "it": "Sono Andrea."},
+      {"en": "She's a new colleague.", "it": "Lei è una collega nuova."},
+      {"en": "We're tired.", "it": "Siamo stanchi."},
+      {"en": "The phone is new. It's very nice.", "it": "Il telefono è nuovo. È molto bello."}
+    ],
+    "attenzione": "In italiano diciamo «sono stanco» senza «io», ma in inglese il soggetto ci vuole sempre: non «Am tired», ma «I'm tired». E per una cosa non si dice «Is new», ma «It's new»."
+  },
+  "parole": [
+    {"en": "hello / hi", "it": "ciao, salve", "esempio": {"en": "Hello, I'm Andrea.", "it": "Ciao, sono Andrea."}},
+    {"en": "good morning", "it": "buongiorno", "esempio": {"en": "Good morning, I'm the new colleague.", "it": "Buongiorno, sono il nuovo collega."}},
+    {"en": "good evening", "it": "buonasera", "esempio": {"en": "Good evening, Mrs Rossi.", "it": "Buonasera, signora Rossi."}},
+    {"en": "goodbye", "it": "arrivederci", "esempio": {"en": "Goodbye, see you tomorrow!", "it": "Arrivederci, a domani!"}},
+    {"en": "see you later", "it": "a dopo", "esempio": {"en": "Bye, Marco! See you later.", "it": "Ciao, Marco! A dopo."}},
+    {"en": "name", "it": "nome", "esempio": {"en": "My name is Andrea.", "it": "Mi chiamo Andrea."}},
+    {"en": "nice to meet you", "it": "piacere (di conoscerti)", "esempio": {"en": "I'm Luca. Nice to meet you.", "it": "Sono Luca. Piacere."}},
+    {"en": "how are you?", "it": "come stai?", "esempio": {"en": "Hi, Anna. How are you?", "it": "Ciao, Anna. Come stai?"}},
+    {"en": "fine", "it": "bene", "esempio": {"en": "I'm fine, thanks.", "it": "Sto bene, grazie."}},
+    {"en": "thanks / thank you", "it": "grazie", "esempio": {"en": "Thank you, Sara!", "it": "Grazie, Sara!"}},
+    {"en": "please", "it": "per favore", "esempio": {"en": "A coffee, please.", "it": "Un caffè, per favore."}},
+    {"en": "friend", "it": "amico, amica", "esempio": {"en": "Paolo is a friend.", "it": "Paolo è un amico."}},
+    {"en": "colleague", "it": "collega", "esempio": {"en": "She's a new colleague.", "it": "È una collega nuova."}},
+    {"en": "neighbour", "it": "vicino di casa (in americano si scrive neighbor)", "esempio": {"en": "He's my neighbour.", "it": "È il mio vicino di casa."}},
+    {"en": "nice", "it": "simpatico, carino", "esempio": {"en": "The boss is very nice.", "it": "Il capo è molto simpatico."}},
+    {"en": "boss", "it": "capo", "esempio": {"en": "He's the boss.", "it": "Lui è il capo."}},
+    {"en": "factory", "it": "fabbrica", "esempio": {"en": "We're at the factory.", "it": "Siamo in fabbrica."}},
+    {"en": "new", "it": "nuovo", "esempio": {"en": "I'm new here.", "it": "Sono nuovo qui."}},
+    {"en": "tired", "it": "stanco", "esempio": {"en": "We're tired today.", "it": "Oggi siamo stanchi."}},
+    {"en": "happy", "it": "contento, felice", "esempio": {"en": "They're happy.", "it": "Sono contenti."}}
+  ],
+  "dialogo": {
+    "titolo": "Il primo giorno in fabbrica",
+    "situazione": "È lunedì mattina. Andrea incontra Sara, una collega nuova, e le presenta Marco.",
+    "battute": [
+      {"nome": "Andrea", "voce": "uomo", "en": "Good morning! I'm Andrea.", "it": "Buongiorno! Sono Andrea."},
+      {"nome": "Sara", "voce": "donna", "en": "Hi, Andrea. My name is Sara. I'm new here.", "it": "Ciao, Andrea. Mi chiamo Sara. Sono nuova qui."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Nice to meet you, Sara.", "it": "Piacere, Sara."},
+      {"nome": "Sara", "voce": "donna", "en": "Nice to meet you too.", "it": "Piacere mio."},
+      {"nome": "Andrea", "voce": "uomo", "en": "This is Marco. He's a colleague and a friend.", "it": "Lui è Marco. È un collega e un amico."},
+      {"nome": "Marco", "voce": "uomo", "en": "Hi, Sara! How are you?", "it": "Ciao, Sara! Come stai?"},
+      {"nome": "Sara", "voce": "donna", "en": "I'm fine, thanks. And you?", "it": "Sto bene, grazie. E tu?"},
+      {"nome": "Marco", "voce": "uomo", "en": "I'm tired, but I'm happy. You're a new colleague!", "it": "Sono stanco, ma sono contento. Sei una collega nuova!"},
+      {"nome": "Andrea", "voce": "uomo", "en": "The boss is here. He's very nice.", "it": "Il capo è qui. È molto simpatico."},
+      {"nome": "Sara", "voce": "donna", "en": "OK. See you later!", "it": "Va bene. A dopo!"},
+      {"nome": "Andrea", "voce": "uomo", "en": "See you later, Sara!", "it": "A dopo, Sara!"}
+    ],
+    "domande": [
+      {"domanda": "Come si chiama la collega nuova?", "scelte": ["Anna", "Sara", "Laura"], "giusta": 1},
+      {"domanda": "Come sta Marco?", "scelte": ["Sta benissimo", "È triste", "È stanco ma contento"], "giusta": 2},
+      {"domanda": "Chi è Marco per Andrea?", "scelte": ["Un collega e un amico", "Il capo", "Il vicino di casa"], "giusta": 0}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come si dice «lei è stanca»?", "scelte": ["She are tired.", "She is tired.", "She am tired."], "giusta": 1, "spiega": "Con she si usa sempre is."},
+    {"tipo": "scelta", "domanda": "Qual è la forma corta di «we are»?", "scelte": ["We're", "We's", "W'are"], "giusta": 0, "spiega": "L'apostrofo prende il posto della a: we are diventa we're."},
+    {"tipo": "scelta", "domanda": "Un collega nuovo ti dice «Hi, I'm Luca». Cosa rispondi?", "scelte": ["Goodbye, Luca.", "See you later, Luca.", "Nice to meet you, Luca. I'm Andrea."], "giusta": 2, "spiega": "Quando conosci una persona dici «Nice to meet you» e il tuo nome."},
+    {"tipo": "completa", "frase": "They ___ colleagues.", "risposte": ["are"], "it": "Loro sono colleghi.", "spiega": "Con they si usa are."},
+    {"tipo": "completa", "frase": "I ___ new here.", "risposte": ["am"], "it": "Sono nuovo qui.", "spiega": "Con I si usa sempre am."},
+    {"tipo": "completa", "frase": "He ___ the boss.", "risposte": ["is"], "it": "Lui è il capo.", "spiega": "Con he si usa is."},
+    {"tipo": "riordina", "parole": ["is", "She", "my", "neighbour"], "risposte": ["She is my neighbour."], "it": "Lei è la mia vicina di casa."},
+    {"tipo": "riordina", "parole": ["fine", "I'm", "thanks"], "risposte": ["I'm fine, thanks.", "Thanks, I'm fine."], "it": "Sto bene, grazie."},
+    {"tipo": "riordina", "parole": ["are", "We", "tired", "very"], "risposte": ["We are very tired."], "it": "Siamo molto stanchi."},
+    {"tipo": "traduci", "it": "Lui è un collega.", "risposte": ["He is a colleague.", "He's a colleague."]},
+    {"tipo": "traduci", "it": "Noi siamo stanchi.", "risposte": ["We are tired.", "We're tired."]},
+    {"tipo": "traduci", "it": "Buongiorno, sono Andrea.", "risposte": ["Good morning, I am Andrea.", "Good morning, I'm Andrea.", "Good morning, my name is Andrea.", "Good morning, my name's Andrea."]},
+    {"tipo": "voce", "en": "Nice to meet you.", "it": "Piacere di conoscerti."},
+    {"tipo": "voce", "en": "I'm fine, thanks. And you?", "it": "Sto bene, grazie. E tu?"}
+  ],
+  "parlato": [
+    {"domanda": "What's your name?", "it": "Come ti chiami?", "modello": "My name is Andrea."},
+    {"domanda": "How are you today?", "it": "Come stai oggi?", "modello": "I'm fine, thanks. I'm a bit tired."},
+    {"domanda": "Tell me about a colleague.", "it": "Parlami di un collega.", "modello": "Marco is a colleague. He's very nice."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice «tu sei simpatico»?", "scelte": ["You is nice.", "You am nice.", "You are nice."], "giusta": 2, "spiega": "Con you si usa sempre are."},
+      {"tipo": "scelta", "domanda": "Il telefono è nuovo. Come si dice «è nuovo»?", "scelte": ["He is new.", "It is new.", "She is new."], "giusta": 1, "spiega": "Per le cose si usa it."},
+      {"tipo": "scelta", "domanda": "Sono le otto di sera ed entri al bar. Come saluti?", "scelte": ["Good evening!", "Good morning!", "Goodbye!"], "giusta": 0, "spiega": "Di sera, quando arrivi, si dice «Good evening»."},
+      {"tipo": "completa", "frase": "You ___ a friend.", "risposte": ["are"], "it": "Sei un amico.", "spiega": "Con you si usa are."},
+      {"tipo": "completa", "frase": "Marco and Luca ___ at the factory.", "risposte": ["are"], "it": "Marco e Luca sono in fabbrica.", "spiega": "Due persone sono they, e con they si usa are."},
+      {"tipo": "completa", "frase": "She ___ happy today.", "risposte": ["is"], "it": "Oggi lei è contenta.", "spiega": "Con she si usa is."},
+      {"tipo": "riordina", "parole": ["is", "friend", "Paolo", "a", "good"], "risposte": ["Paolo is a good friend."], "it": "Paolo è un buon amico."},
+      {"tipo": "riordina", "parole": ["new", "They", "are", "colleagues"], "risposte": ["They are new colleagues."], "it": "Sono colleghi nuovi."},
+      {"tipo": "traduci", "it": "Lui è il mio vicino di casa.", "risposte": ["He is my neighbour.", "He's my neighbour.", "He is my neighbor.", "He's my neighbor."]},
+      {"tipo": "traduci", "it": "Io sono stanco.", "risposte": ["I am tired.", "I'm tired."]},
+      {"tipo": "traduci", "it": "Voi siete amici.", "risposte": ["You are friends.", "You're friends."]}
+    ]
+  }
+}

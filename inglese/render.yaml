@@ -1,0 +1,18 @@
+# Servizio web per l'app inglese su Render, piano gratuito.
+# NON e' ancora creato: serve il si' di Andrea («sì, crea il servizio Render dell'app inglese»).
+# La chiave dell'insegnante (ANTHROPIC_API_KEY) si mette a mano nel pannello di Render,
+# mai in questo file.
+services:
+  - type: web
+    name: inglese-andrea
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: "echo niente da installare"
+    startCommand: python3 server/server.py --servizio
+    healthCheckPath: /ci-sei
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: INGLESE_TETTO_USD
+        value: "2"

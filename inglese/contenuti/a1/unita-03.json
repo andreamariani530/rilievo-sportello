@@ -1,0 +1,119 @@
+{
+  "id": "a1-03",
+  "livello": "A1",
+  "numero": 3,
+  "titolo": "La mia famiglia",
+  "tema": "La famiglia e l'età",
+  "obiettivo": "Alla fine sai presentare la tua famiglia, dire quanti anni hanno le persone e chiederlo agli altri.",
+  "grammatica": {
+    "titolo": "My, your, his, her e il genitivo 's",
+    "spiegazione": [
+      "Per dire di chi è una cosa si usano queste parole: my (mio), your (tuo), his (suo, di lui), her (suo, di lei), its (suo, di una cosa), our (nostro), their (loro).",
+      "In italiano diciamo «il mio», «la mia», «i miei». In inglese è una parola sola, sempre uguale: my brother, my sister, my parents.",
+      "E davanti non si mette l'articolo: «my wife», non «the my wife».",
+      "His e her dipendono da chi possiede, non dalla cosa. La moglie di Marco è «his wife». Il marito di Anna è «her husband».",
+      "Per dire «il fratello di Anna» l'inglese mette prima la persona, poi 's, poi la cosa: «Anna's brother». Allo stesso modo: «Marco's car», «my sister's son».",
+      "Per l'età si usa to be, non to have: «I'm forty» oppure «I'm forty years old». Per chiedere: «How old are you?»."
+    ],
+    "tabella": [
+      ["I → my", "io → mio, mia, miei, mie"],
+      ["you → your", "tu → tuo / voi → vostro"],
+      ["he → his", "lui → suo (di lui)"],
+      ["she → her", "lei → suo (di lei)"],
+      ["it → its", "esso → suo (di una cosa)"],
+      ["we → our", "noi → nostro"],
+      ["they → their", "loro → loro"],
+      ["Anna's brother", "il fratello di Anna"],
+      ["How old are you? I'm forty.", "Quanti anni hai? Ho quarant'anni."]
+    ],
+    "esempi": [
+      {"en": "This is my wife. Her name is Laura.", "it": "Questa è mia moglie. Si chiama Laura."},
+      {"en": "Marco and his son are at the bar.", "it": "Marco e suo figlio sono al bar."},
+      {"en": "Anna's husband is English.", "it": "Il marito di Anna è inglese."},
+      {"en": "How old is your daughter? She's twelve.", "it": "Quanti anni ha tua figlia? Ha dodici anni."}
+    ],
+    "attenzione": "Gli italiani dicono «I have 30 years», ma è sbagliato. Per l'età si usa to be: «I'm 30» oppure «I'm 30 years old»."
+  },
+  "parole": [
+    {"en": "family", "it": "famiglia", "esempio": {"en": "My family is from Naples.", "it": "La mia famiglia è di Napoli."}},
+    {"en": "mother", "it": "madre, mamma", "esempio": {"en": "My mother is sixty.", "it": "Mia madre ha sessant'anni."}},
+    {"en": "father", "it": "padre, papà", "esempio": {"en": "Her father is Romanian.", "it": "Suo padre è rumeno."}},
+    {"en": "parents", "it": "genitori", "esempio": {"en": "Our parents are in Italy.", "it": "I nostri genitori sono in Italia."}},
+    {"en": "brother", "it": "fratello", "esempio": {"en": "My brother is thirty.", "it": "Mio fratello ha trent'anni."}},
+    {"en": "sister", "it": "sorella", "esempio": {"en": "Anna's sister is married.", "it": "La sorella di Anna è sposata."}},
+    {"en": "son", "it": "figlio", "esempio": {"en": "Their son is twelve.", "it": "Il loro figlio ha dodici anni."}},
+    {"en": "daughter", "it": "figlia", "esempio": {"en": "Your daughter is very nice.", "it": "Tua figlia è molto simpatica."}},
+    {"en": "child / children", "it": "bambino, figlio / bambini, figli", "esempio": {"en": "Their children are seven and ten.", "it": "I loro figli hanno sette e dieci anni."}},
+    {"en": "husband", "it": "marito", "esempio": {"en": "Her husband is English.", "it": "Suo marito è inglese."}},
+    {"en": "wife", "it": "moglie", "esempio": {"en": "His wife is from Spain.", "it": "Sua moglie è spagnola."}},
+    {"en": "grandmother", "it": "nonna", "esempio": {"en": "My grandmother is from Sicily.", "it": "Mia nonna è siciliana."}},
+    {"en": "grandfather", "it": "nonno", "esempio": {"en": "Our grandfather is seventy.", "it": "Nostro nonno ha settant'anni."}},
+    {"en": "cousin", "it": "cugino, cugina", "esempio": {"en": "Luca is my cousin.", "it": "Luca è mio cugino."}},
+    {"en": "uncle", "it": "zio", "esempio": {"en": "My uncle is at the factory too.", "it": "Anche mio zio è in fabbrica."}},
+    {"en": "aunt", "it": "zia", "esempio": {"en": "Their aunt is in England.", "it": "La loro zia è in Inghilterra."}},
+    {"en": "married", "it": "sposato", "esempio": {"en": "Are you married? Yes, I am.", "it": "Sei sposato? Sì."}},
+    {"en": "How old...?", "it": "Quanti anni...?", "esempio": {"en": "How old is your son?", "it": "Quanti anni ha tuo figlio?"}},
+    {"en": "years old", "it": "anni (di età)", "esempio": {"en": "I'm forty years old.", "it": "Ho quarant'anni."}},
+    {"en": "thirty, forty, fifty, sixty, seventy", "it": "30, 40, 50, 60, 70", "esempio": {"en": "My father is seventy, not seventeen!", "it": "Mio padre ha settant'anni, non diciassette!"}}
+  ],
+  "dialogo": {
+    "titolo": "Le foto sul telefono",
+    "situazione": "Pausa pranzo in fabbrica. Andrea fa vedere a Giulia, una collega, le foto della sua famiglia.",
+    "battute": [
+      {"nome": "Giulia", "voce": "donna", "en": "Is this your family?", "it": "Questa è la tua famiglia?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, it is. This is my wife, Laura.", "it": "Sì. Questa è mia moglie, Laura."},
+      {"nome": "Giulia", "voce": "donna", "en": "She's beautiful! And is this your son?", "it": "È bellissima! E questo è tuo figlio?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "No, he isn't my son. He's my sister's son, Luca.", "it": "No, non è mio figlio. È il figlio di mia sorella, Luca."},
+      {"nome": "Giulia", "voce": "donna", "en": "Oh! How old is he?", "it": "Ah! Quanti anni ha?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "He's fourteen. And this is his sister, Marta. She's eight.", "it": "Ha quattordici anni. E questa è sua sorella, Marta. Ha otto anni."},
+      {"nome": "Giulia", "voce": "donna", "en": "They're very cute. Are your parents in the photo too?", "it": "Sono molto carini. Ci sono anche i tuoi genitori nella foto?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes. This is my father. He's seventy. And this is my mother.", "it": "Sì. Questo è mio padre. Ha settant'anni. E questa è mia madre."},
+      {"nome": "Giulia", "voce": "donna", "en": "Our family is small: my husband, our daughter and me.", "it": "La nostra famiglia è piccola: mio marito, nostra figlia e io."},
+      {"nome": "Andrea", "voce": "uomo", "en": "How old is your daughter?", "it": "Quanti anni ha tua figlia?"},
+      {"nome": "Giulia", "voce": "donna", "en": "She's twenty. She's at university in Milan.", "it": "Ha vent'anni. Fa l'università a Milano."}
+    ],
+    "domande": [
+      {"domanda": "Come si chiama la moglie di Andrea?", "scelte": ["Giulia", "Marta", "Laura"], "giusta": 2},
+      {"domanda": "Chi è Luca?", "scelte": ["Il figlio di Andrea", "Il figlio della sorella di Andrea", "Il fratello di Andrea"], "giusta": 1},
+      {"domanda": "Quanti anni ha la figlia di Giulia?", "scelte": ["20", "14", "8"], "giusta": 0}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come si dice «Ho 40 anni»?", "scelte": ["I have 40 years.", "I am 40 years.", "I'm 40."], "giusta": 2, "spiega": "Per l'età si usa to be: I'm 40, oppure I'm 40 years old."},
+    {"tipo": "scelta", "domanda": "Come si dice «Marco e sua moglie»?", "scelte": ["Marco and her wife", "Marco and his wife", "Marco and its wife"], "giusta": 1, "spiega": "La moglie è di Marco, un uomo: si usa his."},
+    {"tipo": "scelta", "domanda": "Come si dice «il fratello di Paolo»?", "scelte": ["Paolo's brother", "the brother Paolo", "Paolo brother"], "giusta": 0, "spiega": "Prima la persona, poi 's, poi la cosa: Paolo's brother."},
+    {"tipo": "completa", "frase": "Anna and ___ husband are from Spain.", "risposte": ["her"], "it": "Anna e suo marito sono spagnoli.", "spiega": "Il marito è di Anna, una donna: si usa her."},
+    {"tipo": "completa", "frase": "We are brothers. ___ father is Italian.", "risposte": ["Our"], "it": "Siamo fratelli. Nostro padre è italiano.", "spiega": "Noi → our."},
+    {"tipo": "completa", "frase": "How ___ is your son?", "risposte": ["old"], "it": "Quanti anni ha tuo figlio?", "spiega": "Per chiedere l'età si dice How old...?"},
+    {"tipo": "riordina", "parole": ["is", "My", "sister", "twelve"], "risposte": ["My sister is twelve."], "it": "Mia sorella ha dodici anni."},
+    {"tipo": "riordina", "parole": ["Luca's", "is", "She", "mother"], "risposte": ["She is Luca's mother."], "it": "Lei è la madre di Luca."},
+    {"tipo": "riordina", "parole": ["old", "How", "your", "are", "parents"], "risposte": ["How old are your parents?"], "it": "Quanti anni hanno i tuoi genitori?"},
+    {"tipo": "traduci", "it": "Mia figlia ha sedici anni.", "risposte": ["My daughter is sixteen.", "My daughter is sixteen years old.", "My daughter is 16.", "My daughter is 16 years old."]},
+    {"tipo": "traduci", "it": "Il marito di Sara è inglese.", "risposte": ["Sara's husband is English."]},
+    {"tipo": "traduci", "it": "Loro sono i nostri genitori.", "risposte": ["They are our parents.", "They're our parents."]},
+    {"tipo": "voce", "en": "This is my brother. He's thirty.", "it": "Questo è mio fratello. Ha trent'anni."},
+    {"tipo": "voce", "en": "How old are you?", "it": "Quanti anni hai?"}
+  ],
+  "parlato": [
+    {"domanda": "How old are you?", "it": "Quanti anni hai?", "modello": "I'm forty."},
+    {"domanda": "Tell me about your family.", "it": "Parlami della tua famiglia.", "modello": "My mother is sixty. My brother is thirty. He's married."},
+    {"domanda": "What's your mother's name?", "it": "Come si chiama tua madre?", "modello": "Her name is Maria."},
+    {"domanda": "Are your parents Italian?", "it": "I tuoi genitori sono italiani?", "modello": "Yes, they are. They're from Italy."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice «Quanti anni ha tuo padre?»", "scelte": ["How many years has your father?", "How old is your father?", "How old has your father?"], "giusta": 1, "spiega": "Per l'età: How old + to be."},
+      {"tipo": "scelta", "domanda": "Come si dice «Luca e sua sorella»?", "scelte": ["Luca and his sister", "Luca and her sister", "Luca and their sister"], "giusta": 0, "spiega": "La sorella è di Luca, un uomo: si usa his."},
+      {"tipo": "scelta", "domanda": "Quale numero è «fifty»?", "scelte": ["15", "5", "50"], "giusta": 2, "spiega": "Fifty è 50. Fifteen è 15."},
+      {"tipo": "completa", "frase": "They are my cousins. ___ mother is my aunt.", "risposte": ["Their"], "it": "Sono i miei cugini. La loro madre è mia zia.", "spiega": "Loro → their."},
+      {"tipo": "completa", "frase": "I'm Andrea, and this is ___ wife.", "risposte": ["my"], "it": "Sono Andrea, e questa è mia moglie.", "spiega": "Io → my."},
+      {"tipo": "completa", "frase": "My father's mother is my ___.", "risposte": ["grandmother", "grandma"], "it": "La madre di mio padre è mia nonna.", "spiega": "Nonna si dice grandmother."},
+      {"tipo": "riordina", "parole": ["is", "name", "His", "Paolo"], "risposte": ["His name is Paolo."], "it": "Si chiama Paolo."},
+      {"tipo": "riordina", "parole": ["brother's", "My", "is", "wife", "Romanian"], "risposte": ["My brother's wife is Romanian."], "it": "La moglie di mio fratello è rumena."},
+      {"tipo": "traduci", "it": "Ho cinquant'anni.", "risposte": ["I'm fifty.", "I am fifty.", "I'm fifty years old.", "I am fifty years old.", "I'm 50.", "I am 50.", "I'm 50 years old.", "I am 50 years old."]},
+      {"tipo": "traduci", "it": "Il figlio di Anna ha dieci anni.", "risposte": ["Anna's son is ten.", "Anna's son is ten years old.", "Anna's son is 10.", "Anna's son is 10 years old."]},
+      {"tipo": "traduci", "it": "La loro figlia è sposata.", "risposte": ["Their daughter is married."]}
+    ]
+  }
+}

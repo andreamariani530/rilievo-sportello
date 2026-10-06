@@ -1,0 +1,122 @@
+{
+  "id": "a1-09",
+  "livello": "A1",
+  "numero": 9,
+  "titolo": "In giro per la città",
+  "tema": "Luoghi della città, chiedere e dare indicazioni",
+  "obiettivo": "Alla fine sai chiedere dov'è un posto, capire la risposta e spiegare a qualcuno la strada.",
+  "grammatica": {
+    "titolo": "Dove si trova: in, on, at, next to... e le indicazioni: turn left, go straight on",
+    "spiegazione": [
+      "Per dire dove si trova un posto usi delle parole piccole: in, on, at, next to, opposite, between, near.",
+      "In vuol dire dentro: in the park, in the square. On si usa con il nome della via: on Garibaldi Street. At si usa per un punto preciso: at the station, at the traffic lights.",
+      "Next to vuol dire accanto a. Opposite vuol dire di fronte a. Between vuol dire tra due cose. Near vuol dire vicino a.",
+      "Per dare un'indicazione usi il verbo così com'è, all'inizio della frase: Turn left. Go straight on. È come dire «gira», «vai».",
+      "Per dire a qualcuno di non fare una cosa metti don't davanti: Don't turn right. Don't go left."
+    ],
+    "tabella": [
+      ["in the park", "nel parco"],
+      ["on Roma Street", "in via Roma"],
+      ["at the station", "alla stazione"],
+      ["next to the bank", "accanto alla banca"],
+      ["opposite the church", "di fronte alla chiesa"],
+      ["between the bar and the bank", "tra il bar e la banca"],
+      ["near the park", "vicino al parco"],
+      ["Turn left.", "Gira a sinistra."],
+      ["Go straight on.", "Vai dritto."],
+      ["Don't turn right.", "Non girare a destra."]
+    ],
+    "esempi": [
+      {"en": "The bank is next to the supermarket.", "it": "La banca è accanto al supermercato."},
+      {"en": "The pharmacy is opposite the church.", "it": "La farmacia è di fronte alla chiesa."},
+      {"en": "Go straight on and turn right at the traffic lights.", "it": "Vai dritto e al semaforo gira a destra."},
+      {"en": "Don't turn here, the street is closed.", "it": "Non girare qui, la strada è chiusa."}
+    ],
+    "attenzione": "«Di fronte a» si dice opposite, senza of: opposite the church, non opposite of the church. E per dare un'indicazione non serve you: basta Turn left."
+  },
+  "parole": [
+    {"en": "bank", "it": "banca", "esempio": {"en": "The bank is next to the supermarket.", "it": "La banca è accanto al supermercato."}},
+    {"en": "post office", "it": "ufficio postale", "esempio": {"en": "Is there a post office near here?", "it": "C'è un ufficio postale qui vicino?"}},
+    {"en": "station", "it": "stazione", "esempio": {"en": "The station is on Garibaldi Street.", "it": "La stazione è in via Garibaldi."}},
+    {"en": "pharmacy", "it": "farmacia", "esempio": {"en": "The pharmacy is opposite the church.", "it": "La farmacia è di fronte alla chiesa."}},
+    {"en": "hospital", "it": "ospedale", "esempio": {"en": "The hospital is far from my house.", "it": "L'ospedale è lontano da casa mia."}},
+    {"en": "church", "it": "chiesa", "esempio": {"en": "There is a big church in the square.", "it": "C'è una chiesa grande nella piazza."}},
+    {"en": "park", "it": "parco", "esempio": {"en": "The kids play in the park on Sunday.", "it": "I bambini giocano al parco la domenica."}},
+    {"en": "square", "it": "piazza", "esempio": {"en": "Let's meet in the main square.", "it": "Ci vediamo nella piazza principale."}},
+    {"en": "street", "it": "via, strada", "esempio": {"en": "My house is on a quiet street.", "it": "Casa mia è in una strada tranquilla."}},
+    {"en": "corner", "it": "angolo", "esempio": {"en": "The bar is on the corner.", "it": "Il bar è all'angolo."}},
+    {"en": "traffic lights", "it": "semaforo", "esempio": {"en": "Turn right at the traffic lights.", "it": "Al semaforo gira a destra."}},
+    {"en": "bus stop", "it": "fermata dell'autobus", "esempio": {"en": "The bus stop is next to the park.", "it": "La fermata dell'autobus è accanto al parco."}},
+    {"en": "left", "it": "sinistra", "esempio": {"en": "Turn left after the bank.", "it": "Gira a sinistra dopo la banca."}},
+    {"en": "right", "it": "destra", "esempio": {"en": "The station is on the right.", "it": "La stazione è sulla destra."}},
+    {"en": "straight on", "it": "dritto", "esempio": {"en": "Go straight on for two hundred metres.", "it": "Vai dritto per duecento metri."}},
+    {"en": "turn", "it": "girare", "esempio": {"en": "Don't turn here.", "it": "Non girare qui."}},
+    {"en": "next to", "it": "accanto a", "esempio": {"en": "I sit next to Marco at lunch.", "it": "A pranzo mi siedo accanto a Marco."}},
+    {"en": "opposite", "it": "di fronte a", "esempio": {"en": "My factory is opposite the station.", "it": "La mia fabbrica è di fronte alla stazione."}},
+    {"en": "between", "it": "tra, fra", "esempio": {"en": "The bank is between the bar and the pharmacy.", "it": "La banca è tra il bar e la farmacia."}},
+    {"en": "near", "it": "vicino a", "esempio": {"en": "Is the hospital near here?", "it": "L'ospedale è qui vicino?"}}
+  ],
+  "dialogo": {
+    "titolo": "Dov'è la posta?",
+    "situazione": "Andrea è in una città nuova e deve spedire un pacco. Chiede la strada a una signora.",
+    "battute": [
+      {"nome": "Andrea", "voce": "uomo", "en": "Excuse me, is there a post office near here?", "it": "Mi scusi, c'è un ufficio postale qui vicino?"},
+      {"nome": "Mary", "voce": "donna", "en": "Yes, there is. It's on Verdi Street.", "it": "Sì, c'è. È in via Verdi."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Is it far?", "it": "È lontano?"},
+      {"nome": "Mary", "voce": "donna", "en": "No, it isn't. It's about five minutes from here.", "it": "No. È a circa cinque minuti da qui."},
+      {"nome": "Andrea", "voce": "uomo", "en": "How do I get there?", "it": "Come ci arrivo?"},
+      {"nome": "Mary", "voce": "donna", "en": "Go straight on and turn left at the traffic lights.", "it": "Vada dritto e al semaforo giri a sinistra."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Left at the traffic lights. OK.", "it": "A sinistra al semaforo. Va bene."},
+      {"nome": "Mary", "voce": "donna", "en": "Then it's on the right, between the bank and a small bar.", "it": "Poi è sulla destra, tra la banca e un piccolo bar."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Opposite the church?", "it": "Di fronte alla chiesa?"},
+      {"nome": "Mary", "voce": "donna", "en": "Yes, that's it. But don't go on Saturday afternoon. It's closed.", "it": "Sì, esatto. Ma non ci vada il sabato pomeriggio. È chiuso."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Thank you very much!", "it": "Grazie mille!"},
+      {"nome": "Mary", "voce": "donna", "en": "You're welcome.", "it": "Prego."}
+    ],
+    "domande": [
+      {"domanda": "In che via è l'ufficio postale?", "scelte": ["Via Roma", "Via Verdi", "Via Garibaldi"], "giusta": 1},
+      {"domanda": "Dove deve girare Andrea?", "scelte": ["A destra dopo la banca", "A sinistra dopo la chiesa", "A sinistra al semaforo"], "giusta": 2},
+      {"domanda": "Quando è chiuso l'ufficio postale?", "scelte": ["Il sabato pomeriggio", "Il lunedì mattina", "Tutta la domenica"], "giusta": 0}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come si dice «La farmacia è di fronte alla chiesa»?", "scelte": ["The pharmacy is opposite of the church.", "The pharmacy is opposite the church.", "The pharmacy is in opposite the church."], "giusta": 1, "spiega": "Opposite si usa da solo, senza of."},
+    {"tipo": "scelta", "domanda": "Quale frase va bene per dare un'indicazione?", "scelte": ["Turn left at the bank.", "To turn left at the bank.", "Turning left at the bank."], "giusta": 0, "spiega": "Per le indicazioni usi il verbo così com'è: Turn left."},
+    {"tipo": "scelta", "domanda": "«Non girare qui» si dice:", "scelte": ["No turn here.", "Not turn here.", "Don't turn here."], "giusta": 2, "spiega": "Per dire di non fare una cosa metti don't davanti al verbo."},
+    {"tipo": "completa", "frase": "The bar is ___ the corner.", "risposte": ["on", "at"], "it": "Il bar è all'angolo.", "spiega": "Si dice on the corner oppure at the corner."},
+    {"tipo": "completa", "frase": "The church is ___ the park and the school.", "risposte": ["between"], "it": "La chiesa è tra il parco e la scuola.", "spiega": "Tra due cose si dice between."},
+    {"tipo": "completa", "frase": "___ straight on for one hundred metres.", "risposte": ["Go", "Walk", "Keep"], "it": "Vai dritto per cento metri.", "spiega": "L'indicazione parte dal verbo: Go straight on."},
+    {"tipo": "riordina", "parole": ["left", "Turn", "the", "at", "traffic lights"], "risposte": ["Turn left at the traffic lights.", "At the traffic lights turn left.", "At the traffic lights, turn left."], "it": "Al semaforo gira a sinistra."},
+    {"tipo": "riordina", "parole": ["is", "the", "next to", "station", "park", "The"], "risposte": ["The park is next to the station.", "The station is next to the park."], "it": "Il parco è accanto alla stazione."},
+    {"tipo": "riordina", "parole": ["there", "Is", "a", "near", "bank", "here"], "risposte": ["Is there a bank near here?"], "it": "C'è una banca qui vicino?"},
+    {"tipo": "traduci", "it": "Gira a destra dopo la chiesa.", "risposte": ["Turn right after the church.", "Turn right past the church.", "Go right after the church.", "Take a right after the church.", "After the church turn right.", "After the church, turn right."]},
+    {"tipo": "traduci", "it": "L'ospedale è vicino alla stazione.", "risposte": ["The hospital is near the station.", "The hospital's near the station.", "The hospital is close to the station.", "The hospital is near to the station."]},
+    {"tipo": "traduci", "it": "Non andare a sinistra, vai dritto.", "risposte": ["Don't go left, go straight on.", "Do not go left, go straight on.", "Don't turn left, go straight on.", "Don't go left, go straight ahead.", "Don't turn left, go straight ahead.", "Don't go left, go straight.", "Don't turn left, go straight."]},
+    {"tipo": "voce", "en": "Excuse me, where is the station?", "it": "Mi scusi, dov'è la stazione?"},
+    {"tipo": "voce", "en": "Go straight on and turn right at the corner.", "it": "Vai dritto e all'angolo gira a destra."},
+    {"tipo": "voce", "en": "The post office is opposite the park.", "it": "L'ufficio postale è di fronte al parco."}
+  ],
+  "parlato": [
+    {"domanda": "Is there a supermarket near your house?", "it": "C'è un supermercato vicino a casa tua?", "modello": "Yes, there is. It's next to the station."},
+    {"domanda": "What is opposite your house?", "it": "Cosa c'è di fronte a casa tua?", "modello": "There is a small park opposite my house."},
+    {"domanda": "How do I get to the station from here?", "it": "Come arrivo alla stazione da qui?", "modello": "Go straight on and turn left at the traffic lights."},
+    {"domanda": "Where is your factory?", "it": "Dov'è la tua fabbrica?", "modello": "It's near the station, between a bar and a big supermarket."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "«Ci vediamo alla stazione» si dice:", "scelte": ["Let's meet on the station.", "Let's meet to the station.", "Let's meet at the station."], "giusta": 2, "spiega": "Per un punto preciso si usa at: at the station."},
+      {"tipo": "scelta", "domanda": "«Vai dritto» si dice:", "scelte": ["Going straight on.", "Go straight on.", "To go straight on."], "giusta": 1, "spiega": "Per le indicazioni usi il verbo così com'è."},
+      {"tipo": "scelta", "domanda": "«Il supermercato è tra la banca e il parco» si dice:", "scelte": ["The supermarket is between the bank and the park.", "The supermarket is between of the bank and the park.", "The supermarket is from the bank and the park."], "giusta": 0, "spiega": "Between si usa senza of."},
+      {"tipo": "completa", "frase": "My house is ___ Garibaldi Street.", "risposte": ["on", "in"], "it": "Casa mia è in via Garibaldi.", "spiega": "Con il nome della via si usa on (gli inglesi dicono anche in)."},
+      {"tipo": "completa", "frase": "___ go left. The street is closed.", "risposte": ["Don't", "Do not"], "it": "Non andare a sinistra. La strada è chiusa.", "spiega": "Per dire di non fare una cosa: Don't + verbo."},
+      {"tipo": "completa", "frase": "The bus stop is ___ the hospital.", "risposte": ["opposite", "across from"], "it": "La fermata dell'autobus è di fronte all'ospedale.", "spiega": "Di fronte a si dice opposite."},
+      {"tipo": "riordina", "parole": ["right", "the", "post office", "Turn", "after"], "risposte": ["Turn right after the post office.", "After the post office turn right.", "After the post office, turn right."], "it": "Dopo l'ufficio postale gira a destra."},
+      {"tipo": "riordina", "parole": ["the", "is", "square", "church", "The", "in"], "risposte": ["The church is in the square."], "it": "La chiesa è nella piazza."},
+      {"tipo": "riordina", "parole": ["Excuse me", "is", "where", "the", "bus stop"], "risposte": ["Excuse me, where is the bus stop?", "Excuse me, where's the bus stop?"], "it": "Mi scusi, dov'è la fermata dell'autobus?"},
+      {"tipo": "traduci", "it": "Il bar è accanto all'ufficio postale.", "risposte": ["The bar is next to the post office.", "The bar's next to the post office.", "The café is next to the post office.", "The cafe is next to the post office.", "The coffee bar is next to the post office."]},
+      {"tipo": "traduci", "it": "Gira a sinistra all'angolo.", "risposte": ["Turn left at the corner.", "Turn left on the corner.", "Go left at the corner.", "Take a left at the corner.", "At the corner turn left.", "At the corner, turn left."]},
+      {"tipo": "traduci", "it": "C'è una farmacia qui vicino?", "risposte": ["Is there a pharmacy near here?", "Is there a pharmacy nearby?", "Is there a pharmacy around here?", "Is there a pharmacy close by?", "Is there a chemist's near here?", "Is there a chemist near here?", "Is there a chemist's nearby?", "Is there a chemist nearby?"]}
+    ]
+  }
+}

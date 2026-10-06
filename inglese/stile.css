@@ -1,0 +1,98 @@
+/* App inglese: lo stesso linguaggio di Rilievo.
+   Carta calda, serif per titoli e testo, un solo accento (verde salvia),
+   filetti sottili, niente riquadri colorati, molto spazio bianco. Telefono prima di tutto. */
+:root{
+  --carta:#F7F1E5; --inchiostro:#2A2620; --grigio:#7A7164; --filetto:#DCD2C0;
+  --salvia:#4F6B54; --salvia-chiaro:#E6EAE0; --errore:#8A3B2E;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--carta);color:var(--inchiostro)}
+body{font-family:var(--serif);font-size:19px;line-height:1.5;-webkit-text-size-adjust:100%;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto;padding:28px 22px 40px}
+h1,h2,h3{font-weight:400;line-height:1.15;margin:0 0 .4em}
+h1{font-size:2.1rem;letter-spacing:-.01em}
+h2{font-size:1.45rem;margin-top:1.6em}
+h3{font-size:1.1rem;margin-top:1.2em}
+p{margin:.5em 0}
+.occhiello{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--grigio);margin:0 0 .6em}
+.piccolo{font-size:.86rem;color:var(--grigio)}
+.filetto{border:0;border-top:1px solid var(--filetto);margin:26px 0}
+.accento{color:var(--salvia)}
+.errore{color:var(--errore)}
+a{color:var(--salvia)}
+
+/* bottoni: pieno salvia per l'azione principale, filetto per il resto */
+button,.bottone{font:inherit;font-size:1rem;border-radius:999px;padding:.72em 1.4em;cursor:pointer;
+  border:1px solid var(--salvia);background:var(--salvia);color:var(--carta);min-height:48px}
+button.vuoto{background:transparent;color:var(--salvia)}
+button.testo{background:none;border:0;color:var(--salvia);padding:.4em 0;min-height:0;text-decoration:underline;text-underline-offset:3px}
+button:disabled{opacity:.45}
+button.largo{display:block;width:100%;margin:.6em 0}
+.fila{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+input,textarea{font:inherit;width:100%;padding:.65em .2em;border:0;border-bottom:1px solid var(--grigio);
+  background:transparent;color:var(--inchiostro);border-radius:0}
+input:focus,textarea:focus{outline:none;border-bottom:2px solid var(--salvia)}
+textarea{min-height:110px;resize:vertical}
+label{display:block;margin-top:1em;font-size:.9rem;color:var(--grigio)}
+
+/* elenchi a filetti */
+.elenco{list-style:none;margin:0;padding:0;border-top:1px solid var(--filetto)}
+.elenco li{border-bottom:1px solid var(--filetto);padding:14px 0}
+.riga{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.stato{font-size:.85rem;color:var(--grigio);white-space:nowrap}
+.stato.fatto{color:var(--salvia)}
+.chiusa{color:var(--grigio)}
+
+/* le tre parti di Oggi */
+.passo-oggi{display:grid;grid-template-columns:2.2em 1fr;gap:4px 10px;padding:18px 0;border-bottom:1px solid var(--filetto)}
+.passo-oggi .n{font-size:1.6rem;color:var(--salvia);line-height:1}
+
+/* parole */
+.parola-en{font-size:1.35rem}
+.parola-it{color:var(--grigio)}
+.esempio{font-style:italic;margin-top:4px}
+
+/* esercizi */
+.consegna{font-size:1.3rem;margin:.6em 0 1em}
+.scelte button{display:block;width:100%;text-align:left;background:transparent;color:var(--inchiostro);
+  border:1px solid var(--filetto);border-radius:14px;margin:8px 0;padding:.8em 1em}
+.scelte button.giusta{border-color:var(--salvia);color:var(--salvia)}
+.scelte button.sbagliata{border-color:var(--errore);color:var(--errore)}
+.pezzi{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.pezzi button{background:transparent;color:var(--inchiostro);border:1px solid var(--filetto);border-radius:10px;padding:.45em .8em;min-height:44px}
+.costruita{min-height:52px;border-bottom:1px solid var(--grigio);padding:8px 0;font-size:1.2rem}
+.esito{margin:1em 0;padding-left:14px;border-left:2px solid var(--salvia)}
+.esito.no{border-left-color:var(--errore)}
+.barra{height:2px;background:var(--filetto);margin:0 0 22px}
+.barra i{display:block;height:2px;background:var(--salvia)}
+
+/* tabella della grammatica */
+table{border-collapse:collapse;width:100%;margin:12px 0}
+td{border-bottom:1px solid var(--filetto);padding:8px 4px;vertical-align:top}
+td:first-child{font-style:italic}
+
+/* dialogo */
+.battuta{margin:10px 0}
+.battuta b{font-weight:400;color:var(--salvia)}
+
+/* modalita' macchina: tutto grande, si legge da lontano */
+.macchina{text-align:center;padding-top:6vh}
+.macchina .grande{width:72vw;max-width:300px;height:72vw;max-height:300px;border-radius:50%;font-size:1.6rem;margin:30px auto;display:block}
+.macchina .ora{font-size:1.7rem;min-height:3em}
+
+/* chat dell'insegnante */
+.messaggio{margin:14px 0;white-space:pre-wrap}
+.messaggio.io{text-align:right;color:var(--grigio)}
+
+/* menu in basso */
+nav.menu{position:fixed;left:0;right:0;bottom:0;background:var(--carta);border-top:1px solid var(--filetto);
+  display:flex;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:5}
+nav.menu a{flex:1;text-align:center;text-decoration:none;color:var(--grigio);font-size:.78rem;padding:8px 2px}
+nav.menu a.qui{color:var(--salvia)}
+nav.menu a span{display:block;font-size:1.15rem;line-height:1.1}
+
+.aggiorna{position:fixed;left:12px;right:12px;bottom:calc(80px + env(safe-area-inset-bottom));background:var(--carta);
+  border:1px solid var(--salvia);border-radius:14px;padding:12px 16px;z-index:9}

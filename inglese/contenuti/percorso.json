@@ -1,0 +1,62 @@
+{"livelli": [
+  {"livello": "A1", "titolo": "Primi passi", "alla_fine": "Sai presentarti, parlare di te, della tua famiglia e della tua giornata, e cavartela al bar e nei negozi.", "unita": [
+    {"numero": 1, "titolo": "Piacere, sono Andrea", "tema": "Salutare e presentarsi", "grammatica": "To be affermativo", "obiettivo": "Alla fine sai salutare, dire chi sei e chiedere il nome."},
+    {"numero": 2, "titolo": "Da dove vieni?", "tema": "Paesi, nazionalità, numeri da 0 a 20", "grammatica": "To be: domande e negazioni", "obiettivo": "Alla fine sai dire da dove vieni, chiederlo agli altri e usare i numeri fino a 20."},
+    {"numero": 3, "titolo": "La mia famiglia", "tema": "Famiglia ed età", "grammatica": "Aggettivi possessivi e 's", "obiettivo": "Alla fine sai presentare la tua famiglia e dire quanti anni hanno."},
+    {"numero": 4, "titolo": "Casa mia", "tema": "Casa, stanze, mobili", "grammatica": "There is, there are, a/an, plurali", "obiettivo": "Alla fine sai descrivere casa tua e dire cosa c'è in ogni stanza."},
+    {"numero": 5, "titolo": "La mia giornata", "tema": "Routine, l'ora, i giorni", "grammatica": "Present simple affermativo e avverbi di frequenza", "obiettivo": "Alla fine sai raccontare la tua giornata e dire l'ora."},
+    {"numero": 6, "titolo": "Al lavoro", "tema": "Lavori, turni, colleghi", "grammatica": "Present simple: domande e negazioni", "obiettivo": "Alla fine sai dire che lavoro fai, parlare dei turni e fare domande ai colleghi."},
+    {"numero": 7, "titolo": "Al bar e al ristorante", "tema": "Cibo, bevande, ordinare", "grammatica": "Some, any, I'd like", "obiettivo": "Alla fine sai ordinare da mangiare e da bere e chiedere il conto."},
+    {"numero": 8, "titolo": "Fare la spesa", "tema": "Negozi, prezzi, vestiti", "grammatica": "How much, how many, this, that", "obiettivo": "Alla fine sai chiedere quanto costa una cosa e comprare quello che ti serve."},
+    {"numero": 9, "titolo": "In giro per la città", "tema": "Luoghi e indicazioni", "grammatica": "Preposizioni di luogo e imperativo", "obiettivo": "Alla fine sai chiedere la strada e spiegare a qualcuno come arrivare."},
+    {"numero": 10, "titolo": "Cosa sai fare?", "tema": "Sport, hobby, musica", "grammatica": "Can e can't", "obiettivo": "Alla fine sai dire cosa sai fare, cosa no, e parlare dei tuoi passatempi."},
+    {"numero": 11, "titolo": "Cosa stai facendo?", "tema": "Telefono, meteo, vestiti", "grammatica": "Present continuous", "obiettivo": "Alla fine sai dire al telefono cosa stai facendo e che tempo fa."},
+    {"numero": 12, "titolo": "Il weekend scorso", "tema": "Raccontare il fine settimana", "grammatica": "Was e were", "obiettivo": "Alla fine sai dire dov'eri e com'era il tuo fine settimana."}
+  ]},
+  {"livello": "A2", "titolo": "Racconti e progetti", "alla_fine": "Sai raccontare cosa hai fatto, fare paragoni, parlare dei tuoi progetti e cavartela in viaggio e dal medico.", "unita": [
+    {"numero": 1, "titolo": "Com'è andata ieri?", "tema": "La giornata di ieri, al lavoro e a casa", "grammatica": "Past simple dei verbi regolari", "obiettivo": "Alla fine sai raccontare cosa hai fatto ieri con i verbi regolari."},
+    {"numero": 2, "titolo": "Una vacanza da ricordare", "tema": "Viaggi e vacanze passate", "grammatica": "Past simple dei verbi irregolari, domande e negazioni", "obiettivo": "Alla fine sai raccontare un viaggio e fare domande sul passato."},
+    {"numero": 3, "titolo": "Mentre guardavo la serie", "tema": "Serie TV e piccoli racconti", "grammatica": "Past continuous e past simple", "obiettivo": "Alla fine sai raccontare cosa stava succedendo quando è capitata una cosa."},
+    {"numero": 4, "titolo": "Meglio o peggio?", "tema": "Città, case e auto a confronto", "grammatica": "Comparativi", "obiettivo": "Alla fine sai fare paragoni tra due cose o due persone."},
+    {"numero": 5, "titolo": "Il migliore di tutti", "tema": "Canzoni, classifiche e record", "grammatica": "Superlativi", "obiettivo": "Alla fine sai dire qual è la canzone, il film o il posto che preferisci in assoluto."},
+    {"numero": 6, "titolo": "Progetti per l'estate", "tema": "Programmi, ferie e viaggi", "grammatica": "Going to e present continuous per il futuro", "obiettivo": "Alla fine sai parlare dei tuoi programmi e di cosa hai già organizzato."},
+    {"numero": 7, "titolo": "Ci sei mai stato?", "tema": "Esperienze di vita e posti visitati", "grammatica": "Present perfect con ever e never", "obiettivo": "Alla fine sai raccontare le tue esperienze e chiederle agli altri."},
+    {"numero": 8, "titolo": "Dal medico", "tema": "Salute, corpo, sintomi", "grammatica": "Should e shouldn't per i consigli", "obiettivo": "Alla fine sai dire cosa ti fa male e dare o chiedere un consiglio."},
+    {"numero": 9, "titolo": "Le regole del reparto", "tema": "Sicurezza, regole e turni al lavoro", "grammatica": "Have to, don't have to, must, mustn't", "obiettivo": "Alla fine sai spiegare cosa si deve fare e cosa è vietato."},
+    {"numero": 10, "titolo": "Domani pioverà?", "tema": "Meteo, previsioni e decisioni al volo", "grammatica": "Will per previsioni, promesse e decisioni", "obiettivo": "Alla fine sai fare previsioni, promettere qualcosa e decidere sul momento."},
+    {"numero": 11, "titolo": "Come mi sento", "tema": "Emozioni e stati d'animo", "grammatica": "Aggettivi in -ed e -ing, too e enough", "obiettivo": "Alla fine sai dire come ti senti e perché."},
+    {"numero": 12, "titolo": "Ascoltiamo una canzone", "tema": "Musica, cantanti e gusti", "grammatica": "Verbi seguiti da -ing o da to (like, enjoy, want, decide)", "obiettivo": "Alla fine sai parlare dei tuoi gusti musicali e di cosa ti piace fare."}
+  ]},
+  {"livello": "B1", "titolo": "Me la cavo", "alla_fine": "Sai parlare di esperienze, ipotesi e opinioni, riportare cosa ha detto qualcuno e seguire una puntata con i sottotitoli.", "unita": [
+    {"numero": 1, "titolo": "Da quanto tempo?", "tema": "Lavoro, casa e vita di tutti i giorni", "grammatica": "Present perfect con for e since", "obiettivo": "Alla fine sai dire da quanto tempo fai una cosa."},
+    {"numero": 2, "titolo": "Già fatto o fatto ieri?", "tema": "Novità e notizie recenti", "grammatica": "Present perfect o past simple, con just, already e yet", "obiettivo": "Alla fine sai scegliere tra present perfect e past simple senza pensarci troppo."},
+    {"numero": 3, "titolo": "Quando ero ragazzo", "tema": "Infanzia e ricordi", "grammatica": "Used to", "obiettivo": "Alla fine sai raccontare le abitudini che avevi una volta."},
+    {"numero": 4, "titolo": "La trama della serie", "tema": "Raccontare trame di film e serie", "grammatica": "Past perfect", "obiettivo": "Alla fine sai raccontare una storia mettendo i fatti nell'ordine giusto."},
+    {"numero": 5, "titolo": "Se piove, resto a casa", "tema": "Piani e imprevisti", "grammatica": "Primo condizionale, when e unless", "obiettivo": "Alla fine sai dire cosa farai se succede una cosa."},
+    {"numero": 6, "titolo": "Se vincessi alla lotteria", "tema": "Sogni e desideri", "grammatica": "Secondo condizionale", "obiettivo": "Alla fine sai parlare di situazioni immaginarie e dare consigli con «if I were you»."},
+    {"numero": 7, "titolo": "Fatto in fabbrica", "tema": "Prodotti, lavorazioni, come si fanno le cose", "grammatica": "Passivo presente e passato", "obiettivo": "Alla fine sai spiegare come viene fatto un prodotto e chi l'ha fatto."},
+    {"numero": 8, "titolo": "Ha detto che...", "tema": "Messaggi e chiacchiere al lavoro", "grammatica": "Discorso indiretto con say e tell", "obiettivo": "Alla fine sai riportare quello che ti ha detto qualcuno."},
+    {"numero": 9, "titolo": "Mi ha chiesto se...", "tema": "Colloquio di lavoro", "grammatica": "Domande indirette e domande riportate", "obiettivo": "Alla fine sai fare domande gentili e raccontare cosa ti hanno chiesto."},
+    {"numero": 10, "titolo": "Alzati e vai", "tema": "Vita di tutti i giorni e faccende di casa", "grammatica": "Phrasal verbs comuni (get up, look for, turn off, give up)", "obiettivo": "Alla fine sai usare i phrasal verbs che senti ogni giorno."},
+    {"numero": 11, "titolo": "Il personaggio che...", "tema": "Descrivere persone, attori e personaggi", "grammatica": "Frasi relative con who, which, that, where", "obiettivo": "Alla fine sai descrivere una persona o una cosa senza conoscerne il nome."},
+    {"numero": 12, "titolo": "Chi sarà stato?", "tema": "Gialli, misteri e ipotesi", "grammatica": "May, might, must e can't per le ipotesi", "obiettivo": "Alla fine sai dire quanto sei sicuro di una cosa."},
+    {"numero": 13, "titolo": "È da un po' che...", "tema": "Sport, attività e cose ancora in corso", "grammatica": "Present perfect continuous", "obiettivo": "Alla fine sai dire da quanto stai facendo una cosa che non è ancora finita."},
+    {"numero": 14, "titolo": "Che ne pensi?", "tema": "Opinioni, notizie, discussioni", "grammatica": "Connettivi: although, however, so, because of", "obiettivo": "Alla fine sai dire la tua opinione, essere d'accordo o no e spiegare perché."}
+  ]},
+  {"livello": "B2", "titolo": "Parlo sciolto", "alla_fine": "Sai discutere quasi di tutto con naturalezza, capire serie e canzoni senza sottotitoli e usare i modi di dire più comuni.", "unita": [
+    {"numero": 1, "titolo": "Se solo avessi saputo", "tema": "Scelte di vita e occasioni perse", "grammatica": "Terzo condizionale", "obiettivo": "Alla fine sai parlare di come sarebbero potute andare le cose."},
+    {"numero": 2, "titolo": "Vorrei che...", "tema": "Desideri e rimpianti", "grammatica": "Wish e if only", "obiettivo": "Alla fine sai dire cosa vorresti cambiare del presente e del passato."},
+    {"numero": 3, "titolo": "Ci ho fatto l'abitudine", "tema": "Cambiare vita, trasferirsi, nuovi turni", "grammatica": "Used to, be used to e get used to", "obiettivo": "Alla fine sai distinguere un'abitudine passata da una cosa a cui ti sei abituato."},
+    {"numero": 4, "titolo": "Porte scorrevoli", "tema": "Storie alternative e bivi della vita", "grammatica": "Condizionali misti", "obiettivo": "Alla fine sai collegare una scelta del passato alla tua vita di oggi."},
+    {"numero": 5, "titolo": "Tra cinque anni", "tema": "Carriera e progetti a lungo termine", "grammatica": "Future continuous e future perfect", "obiettivo": "Alla fine sai dire cosa starai facendo e cosa avrai già fatto in futuro."},
+    {"numero": 6, "titolo": "Dev'essere stato lui", "tema": "Serie crime e indagini", "grammatica": "Must have, can't have, might have", "obiettivo": "Alla fine sai fare ipotesi su quello che è successo."},
+    {"numero": 7, "titolo": "Me lo faccio sistemare", "tema": "Riparazioni, casa, servizi", "grammatica": "Have e get something done", "obiettivo": "Alla fine sai dire cosa ti fai fare da altri."},
+    {"numero": 8, "titolo": "Si dice che", "tema": "Notizie, giornali, voci di corridoio", "grammatica": "Passivo avanzato: it is said that, he is believed to", "obiettivo": "Alla fine sai riportare una notizia senza dire chi l'ha detta."},
+    {"numero": 9, "titolo": "Il punto è questo", "tema": "Discutere e convincere", "grammatica": "Frasi per dare enfasi: what I need is, it was... that", "obiettivo": "Alla fine sai mettere in evidenza la cosa che conta in una discussione."},
+    {"numero": 10, "titolo": "Tirare avanti", "tema": "Lavoro, soldi e problemi di ogni giorno", "grammatica": "Phrasal verbs avanzati (put up with, come up with, run out of)", "obiettivo": "Alla fine sai usare i phrasal verbs che fanno sembrare il tuo inglese naturale."},
+    {"numero": 11, "titolo": "Detto tra noi", "tema": "Modi di dire nelle serie e nelle canzoni", "grammatica": "Modi di dire ed espressioni fisse", "obiettivo": "Alla fine sai capire e usare i modi di dire più comuni."},
+    {"numero": 12, "titolo": "Avrei dovuto", "tema": "Critiche, rimproveri e scuse", "grammatica": "Should have, could have, needn't have", "obiettivo": "Alla fine sai criticare con garbo e ammettere un errore."},
+    {"numero": 13, "titolo": "Nonostante tutto", "tema": "Argomentare e scrivere una mail formale", "grammatica": "Connettivi: despite, in spite of, whereas, even though", "obiettivo": "Alla fine sai mettere a confronto due idee e scrivere una mail seria."},
+    {"numero": 14, "titolo": "La mia storia", "tema": "Raccontare la propria vita, colloqui importanti", "grammatica": "Tutti i tempi del racconto insieme", "obiettivo": "Alla fine sai raccontare la tua vita e il tuo lavoro passando da un tempo all'altro senza fatica."}
+  ]}
+]}

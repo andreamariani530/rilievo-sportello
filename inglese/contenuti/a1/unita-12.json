@@ -1,0 +1,120 @@
+{
+  "id": "a1-12",
+  "livello": "A1",
+  "numero": 12,
+  "titolo": "Il weekend scorso",
+  "tema": "Raccontare il fine settimana, dire dove eri",
+  "obiettivo": "Alla fine sai raccontare dove eri ieri o nel fine settimana, com'era, e fare domande sul passato.",
+  "grammatica": {
+    "titolo": "Was e were: il passato di to be",
+    "spiegazione": [
+      "Was e were sono il passato di to be. Vogliono dire «ero, eri, era, eravamo» ma anche «sono stato, è stato».",
+      "Con I, he, she, it usi was. Con you, we, they usi were.",
+      "Per dire di no aggiungi not: wasn't, weren't.",
+      "Per fare una domanda metti was o were all'inizio: Were you at home? Was it good? Rispondi corto: Yes, I was. oppure No, I wasn't.",
+      "Per dire quando: yesterday (ieri), last night (ieri sera), last weekend (lo scorso fine settimana). Con ago metti prima il tempo, come in italiano: two days ago, due giorni fa.",
+      "«Sono nato» si dice I was born, sempre con was."
+    ],
+    "tabella": [
+      ["I was", "ero, sono stato"],
+      ["you were", "eri, sei stato"],
+      ["he / she / it was", "era, è stato"],
+      ["we were", "eravamo, siamo stati"],
+      ["they were", "erano, sono stati"],
+      ["I wasn't", "non ero"],
+      ["we weren't", "non eravamo"],
+      ["Were you...?", "Eri...?"],
+      ["Was it...?", "Era...?"],
+      ["Yes, I was. / No, I wasn't.", "Sì. / No."]
+    ],
+    "esempi": [
+      {"en": "I was at home yesterday.", "it": "Ieri ero a casa."},
+      {"en": "We weren't at the party last night.", "it": "Ieri sera non eravamo alla festa."},
+      {"en": "Was the film good? No, it wasn't.", "it": "Il film era bello? No."},
+      {"en": "My daughter was born three years ago.", "it": "Mia figlia è nata tre anni fa."}
+    ],
+    "attenzione": "Gli italiani dicono «I were» o «they was»: con I, he, she, it c'è was, con you, we, they c'è were. E «lo scorso fine settimana» è last weekend, senza the."
+  },
+  "parole": [
+    {"en": "yesterday", "it": "ieri", "esempio": {"en": "I was at work yesterday.", "it": "Ieri ero al lavoro."}},
+    {"en": "last night", "it": "ieri sera, stanotte", "esempio": {"en": "Where were you last night?", "it": "Dov'eri ieri sera?"}},
+    {"en": "last weekend", "it": "lo scorso fine settimana", "esempio": {"en": "Last weekend we were in the mountains.", "it": "Lo scorso fine settimana eravamo in montagna."}},
+    {"en": "ago", "it": "fa", "esempio": {"en": "I was in London two years ago.", "it": "Ero a Londra due anni fa."}},
+    {"en": "the day before yesterday", "it": "l'altro ieri", "esempio": {"en": "The day before yesterday was Sunday.", "it": "L'altro ieri era domenica."}},
+    {"en": "born", "it": "nato", "esempio": {"en": "My daughter was born in April.", "it": "Mia figlia è nata ad aprile."}},
+    {"en": "tired", "it": "stanco", "esempio": {"en": "I was very tired after work.", "it": "Dopo il lavoro ero molto stanco."}},
+    {"en": "busy", "it": "impegnato, occupato", "esempio": {"en": "Sorry, I was busy yesterday.", "it": "Scusa, ieri ero impegnato."}},
+    {"en": "boring", "it": "noioso", "esempio": {"en": "The film was boring.", "it": "Il film era noioso."}},
+    {"en": "great", "it": "fantastico, bellissimo", "esempio": {"en": "The concert was great!", "it": "Il concerto è stato fantastico!"}},
+    {"en": "crowded", "it": "affollato, pieno di gente", "esempio": {"en": "The beach was very crowded.", "it": "La spiaggia era piena di gente."}},
+    {"en": "party", "it": "festa", "esempio": {"en": "Were you at Sara's party?", "it": "Eri alla festa di Sara?"}},
+    {"en": "concert", "it": "concerto", "esempio": {"en": "There were a lot of people at the concert.", "it": "Al concerto c'era tantissima gente."}},
+    {"en": "cinema", "it": "cinema", "esempio": {"en": "We were at the cinema on Saturday night.", "it": "Sabato sera eravamo al cinema."}},
+    {"en": "beach", "it": "spiaggia, mare", "esempio": {"en": "The kids were happy at the beach.", "it": "I bambini erano felici al mare."}},
+    {"en": "mountains", "it": "montagna", "esempio": {"en": "It was cold in the mountains.", "it": "In montagna faceva freddo."}},
+    {"en": "restaurant", "it": "ristorante", "esempio": {"en": "The restaurant wasn't expensive.", "it": "Il ristorante non era caro."}},
+    {"en": "at home", "it": "a casa", "esempio": {"en": "I was at home all weekend.", "it": "Sono stato a casa tutto il fine settimana."}}
+  ],
+  "dialogo": {
+    "titolo": "Lunedì mattina",
+    "situazione": "Lunedì, all'ingresso della fabbrica. Kate, una collega, chiede ad Andrea del suo fine settimana.",
+    "battute": [
+      {"nome": "Kate", "voce": "donna", "en": "Morning, Andrea! How was your weekend?", "it": "Buongiorno Andrea! Com'è andato il fine settimana?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "It was great, thanks. I was at the beach with some friends.", "it": "Benissimo, grazie. Ero al mare con degli amici."},
+      {"nome": "Kate", "voce": "donna", "en": "At the beach? Was the weather good?", "it": "Al mare? C'era bel tempo?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, it was sunny on Saturday, but it was windy on Sunday.", "it": "Sì, sabato c'era il sole, ma domenica c'era vento."},
+      {"nome": "Kate", "voce": "donna", "en": "Was it crowded?", "it": "C'era tanta gente?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "No, it wasn't. There weren't many people. And you? Were you at home?", "it": "No. Non c'era molta gente. E tu? Sei stata a casa?"},
+      {"nome": "Kate", "voce": "donna", "en": "No, I wasn't. I was at a concert in Milan on Saturday night.", "it": "No. Sabato sera ero a un concerto a Milano."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Really? Was it good?", "it": "Davvero? Era bello?"},
+      {"nome": "Kate", "voce": "donna", "en": "The band was fantastic, but I was very tired on Sunday!", "it": "Il gruppo era fantastico, ma domenica ero stanchissima!"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Me too! It was a long weekend.", "it": "Anch'io! È stato un fine settimana lungo."}
+    ],
+    "domande": [
+      {"domanda": "Dov'era Andrea nel fine settimana?", "scelte": ["In montagna", "Al mare", "A casa"], "giusta": 1},
+      {"domanda": "Che tempo faceva domenica?", "scelte": ["C'era vento", "Pioveva", "C'era il sole"], "giusta": 0},
+      {"domanda": "Dov'era Kate sabato sera?", "scelte": ["Al cinema", "A una festa", "A un concerto a Milano"], "giusta": 2}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "«Ieri ero stanco» si dice:", "scelte": ["I were tired yesterday.", "I was tired yesterday.", "I am tired yesterday."], "giusta": 1, "spiega": "Con I il passato di to be è was."},
+    {"tipo": "scelta", "domanda": "Quale frase è giusta?", "scelte": ["They was at the party.", "They wasn't at the party.", "They were at the party."], "giusta": 2, "spiega": "Con they si usa were."},
+    {"tipo": "scelta", "domanda": "«Lo scorso fine settimana» si dice:", "scelte": ["last weekend", "the last weekend", "weekend last"], "giusta": 0, "spiega": "Si dice last weekend, senza the."},
+    {"tipo": "completa", "frase": "We ___ at the cinema last night.", "risposte": ["were"], "it": "Ieri sera eravamo al cinema.", "spiega": "Con we si usa were."},
+    {"tipo": "completa", "frase": "The film ___ boring, it was great!", "risposte": ["wasn't", "was not"], "it": "Il film non era noioso, era fantastico!", "spiega": "Il no di was è wasn't."},
+    {"tipo": "completa", "frase": "___ you at work yesterday?", "risposte": ["Were"], "it": "Ieri eri al lavoro?", "spiega": "Con you la domanda comincia con Were."},
+    {"tipo": "completa", "frase": "I was in Rome three years ___.", "risposte": ["ago"], "it": "Ero a Roma tre anni fa.", "spiega": "«Fa» si dice ago e va dopo il tempo."},
+    {"tipo": "riordina", "parole": ["was", "Where", "last night", "she"], "risposte": ["Where was she last night?"], "it": "Dov'era lei ieri sera?"},
+    {"tipo": "riordina", "parole": ["crowded", "restaurant", "The", "very", "was"], "risposte": ["The restaurant was very crowded."], "it": "Il ristorante era pienissimo."},
+    {"tipo": "riordina", "parole": ["weren't", "My", "at home", "parents"], "risposte": ["My parents weren't at home.", "My parents were not at home."], "it": "I miei genitori non erano a casa."},
+    {"tipo": "traduci", "it": "Com'è stato il concerto?", "risposte": ["How was the concert?", "What was the concert like?"]},
+    {"tipo": "traduci", "it": "Sono nato in Italia.", "risposte": ["I was born in Italy."]},
+    {"tipo": "traduci", "it": "Non eravamo alla festa.", "risposte": ["We weren't at the party.", "We were not at the party."]},
+    {"tipo": "voce", "en": "How was your weekend?", "it": "Com'è andato il fine settimana?"},
+    {"tipo": "voce", "en": "I was at home all day yesterday.", "it": "Ieri sono stato a casa tutto il giorno."},
+    {"tipo": "voce", "en": "Were you busy last night?", "it": "Eri impegnato ieri sera?"}
+  ],
+  "parlato": [
+    {"domanda": "How was your weekend?", "it": "Com'è andato il tuo fine settimana?", "modello": "It was great. I was at the beach with my friends."},
+    {"domanda": "Where were you last night?", "it": "Dov'eri ieri sera?", "modello": "I was at home. I was very tired after work."},
+    {"domanda": "Where were you born?", "it": "Dove sei nato?", "modello": "I was born in Italy, in a small town near Milan."},
+    {"domanda": "Were you at work yesterday?", "it": "Ieri eri al lavoro?", "modello": "Yes, I was. It was a long day."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "«Eri a casa?» si dice:", "scelte": ["Were you at home?", "Was you at home?", "Did you be at home?"], "giusta": 0, "spiega": "Con you si usa were, all'inizio della domanda."},
+      {"tipo": "scelta", "domanda": "«Was the weather good?» Rispondi di sì:", "scelte": ["Yes, it were.", "Yes, it is.", "Yes, it was."], "giusta": 2, "spiega": "Con it si usa was, anche nella risposta corta."},
+      {"tipo": "scelta", "domanda": "«Due settimane fa» si dice:", "scelte": ["ago two weeks", "two weeks ago", "two weeks before"], "giusta": 1, "spiega": "Prima il tempo, poi ago."},
+      {"tipo": "completa", "frase": "My brother ___ born in 1995.", "risposte": ["was"], "it": "Mio fratello è nato nel 1995.", "spiega": "Nato: was born."},
+      {"tipo": "completa", "frase": "The kids ___ tired after the party.", "risposte": ["were"], "it": "I bambini erano stanchi dopo la festa.", "spiega": "The kids = they, quindi were."},
+      {"tipo": "completa", "frase": "I wasn't at the gym ___ weekend.", "risposte": ["last"], "it": "Lo scorso fine settimana non sono stato in palestra.", "spiega": "Lo scorso: last, senza the."},
+      {"tipo": "riordina", "parole": ["was", "weather", "How", "the", "the mountains", "in"], "risposte": ["How was the weather in the mountains?"], "it": "Com'era il tempo in montagna?"},
+      {"tipo": "riordina", "parole": ["busy", "yesterday", "wasn't", "I"], "risposte": ["I wasn't busy yesterday.", "I was not busy yesterday.", "Yesterday I wasn't busy.", "Yesterday I was not busy."], "it": "Ieri non ero impegnato."},
+      {"tipo": "riordina", "parole": ["they", "Were", "the beach", "at"], "risposte": ["Were they at the beach?"], "it": "Erano al mare?"},
+      {"tipo": "traduci", "it": "Ieri sera ero al ristorante con un amico.", "risposte": ["Last night I was at the restaurant with a friend.", "Last night I was at a restaurant with a friend.", "I was at the restaurant with a friend last night.", "I was at a restaurant with a friend last night.", "Yesterday evening I was at the restaurant with a friend.", "Yesterday evening I was at a restaurant with a friend.", "I was at a restaurant with a friend yesterday evening.", "I was at the restaurant with a friend yesterday evening."]},
+      {"tipo": "traduci", "it": "Il tempo era brutto.", "risposte": ["The weather was bad.", "The weather was terrible.", "The weather was awful.", "The weather wasn't good.", "The weather was not good.", "The weather wasn't nice."]},
+      {"tipo": "traduci", "it": "Dove eravate due giorni fa?", "risposte": ["Where were you two days ago?", "Where were you guys two days ago?"]}
+    ]
+  }
+}

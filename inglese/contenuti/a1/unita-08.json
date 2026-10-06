@@ -1,0 +1,120 @@
+{
+  "id": "a1-08",
+  "livello": "A1",
+  "numero": 8,
+  "titolo": "Fare la spesa",
+  "tema": "Negozi, prezzi, numeri fino a mille e vestiti",
+  "obiettivo": "Alla fine sai chiedere quanto costa una cosa, capire il prezzo, indicare quello che vuoi e pagare.",
+  "grammatica": {
+    "titolo": "How much, how many e this, that, these, those",
+    "spiegazione": [
+      "Per chiedere il prezzo: How much is it? (quanto costa?) per una cosa sola. How much are they? (quanto costano?) per più cose.",
+      "How many vuol dire «quanti». Si usa con le cose che puoi contare: How many bags? (quanti sacchetti?)",
+      "How much vuol dire «quanto». Si usa con le cose che non conti una per una, come i soldi o l'acqua: How much money? (quanti soldi?)",
+      "This e these sono per le cose vicine, quelle che tocchi: this (questo, una cosa), these (questi, più cose).",
+      "That e those sono per le cose lontane, quelle che indichi: that (quello, una cosa), those (quelli, più cose).",
+      "I numeri grandi: twenty, thirty, forty, fifty, sixty, seventy, eighty, ninety. Poi a hundred (cento) e a thousand (mille). Dopo hundred ci va and: 250 si dice two hundred and fifty."
+    ],
+    "tabella": [
+      ["this shirt", "questa camicia (qui)"],
+      ["that shirt", "quella camicia (là)"],
+      ["these shoes", "queste scarpe (qui)"],
+      ["those shoes", "quelle scarpe (là)"],
+      ["How much is this?", "quanto costa questo?"],
+      ["How much are these?", "quanto costano questi?"],
+      ["How many bags?", "quanti sacchetti?"],
+      ["How much water?", "quanta acqua?"]
+    ],
+    "esempi": [
+      {"en": "How much is this jacket?", "it": "Quanto costa questa giacca?"},
+      {"en": "Those shoes are very nice.", "it": "Quelle scarpe sono molto belle."},
+      {"en": "How many T-shirts do you want?", "it": "Quante magliette vuoi?"},
+      {"en": "It's three hundred and twenty euros.", "it": "Costa trecentoventi euro."}
+    ],
+    "attenzione": "Gli italiani dicono «How much costs?», ed è sbagliato. Si dice «How much is it?» oppure «How much does it cost?». E jeans e shoes sono sempre plurali: «these jeans are», non «this jeans is»."
+  },
+  "parole": [
+    {"en": "shop", "it": "negozio", "esempio": {"en": "The shop opens at nine.", "it": "Il negozio apre alle nove."}},
+    {"en": "supermarket", "it": "supermercato", "esempio": {"en": "I go to the supermarket on Saturday.", "it": "Vado al supermercato il sabato."}},
+    {"en": "price", "it": "prezzo", "esempio": {"en": "What's the price of this jacket?", "it": "Qual è il prezzo di questa giacca?"}},
+    {"en": "cheap", "it": "economico, che costa poco", "esempio": {"en": "This shop is very cheap.", "it": "In questo negozio si spende poco."}},
+    {"en": "expensive", "it": "caro", "esempio": {"en": "Those shoes are very expensive.", "it": "Quelle scarpe sono molto care."}},
+    {"en": "shirt", "it": "camicia", "esempio": {"en": "I need a white shirt for work.", "it": "Mi serve una camicia bianca per il lavoro."}},
+    {"en": "T-shirt", "it": "maglietta", "esempio": {"en": "I always wear a T-shirt at home.", "it": "A casa porto sempre una maglietta."}},
+    {"en": "jeans", "it": "jeans", "esempio": {"en": "These jeans are too big.", "it": "Questi jeans sono troppo grandi."}},
+    {"en": "shoes", "it": "scarpe", "esempio": {"en": "I'd like some new shoes.", "it": "Vorrei delle scarpe nuove."}},
+    {"en": "jacket", "it": "giacca", "esempio": {"en": "That jacket is very nice.", "it": "Quella giacca è molto bella."}},
+    {"en": "size", "it": "taglia, misura", "esempio": {"en": "What size is this jacket?", "it": "Che taglia è questa giacca?"}},
+    {"en": "try on", "it": "provare (un vestito)", "esempio": {"en": "Can I try on these shoes?", "it": "Posso provare queste scarpe?"}},
+    {"en": "pay", "it": "pagare", "esempio": {"en": "Where do I pay?", "it": "Dove pago?"}},
+    {"en": "cash", "it": "contanti", "esempio": {"en": "I don't have any cash.", "it": "Non ho contanti."}},
+    {"en": "card", "it": "carta (di credito, bancomat)", "esempio": {"en": "My card doesn't work.", "it": "La mia carta non funziona."}},
+    {"en": "bag", "it": "borsa, sacchetto", "esempio": {"en": "Do you need a bag?", "it": "Le serve un sacchetto?"}},
+    {"en": "thirty", "it": "trenta", "esempio": {"en": "It's thirty euros.", "it": "Costa trenta euro."}},
+    {"en": "fifty", "it": "cinquanta", "esempio": {"en": "Fifty euros, please.", "it": "Cinquanta euro, per favore."}},
+    {"en": "a hundred", "it": "cento", "esempio": {"en": "This jacket is a hundred and twenty euros.", "it": "Questa giacca costa centoventi euro."}},
+    {"en": "a thousand", "it": "mille", "esempio": {"en": "A thousand euros is a lot of money.", "it": "Mille euro sono tanti soldi."}}
+  ],
+  "dialogo": {
+    "titolo": "Un paio di jeans a Dublino",
+    "situazione": "Andrea è a Dublino, in Irlanda, dove si paga in euro. Entra in un negozio di vestiti.",
+    "battute": [
+      {"nome": "Lucy", "voce": "donna", "en": "Hello! Can I help you?", "it": "Buongiorno! Posso aiutarla?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, please. How much are those jeans?", "it": "Sì, grazie. Quanto costano quei jeans?"},
+      {"nome": "Lucy", "voce": "donna", "en": "These? They're forty-five euros.", "it": "Questi? Costano quarantacinque euro."},
+      {"nome": "Andrea", "voce": "uomo", "en": "That's expensive! And how much is this T-shirt?", "it": "È caro! E quanto costa questa maglietta?"},
+      {"nome": "Lucy", "voce": "donna", "en": "That one is only twelve euros. It's very cheap.", "it": "Quella costa solo dodici euro. È molto economica."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Great. Can I try on the jeans too?", "it": "Benissimo. Posso provare anche i jeans?"},
+      {"nome": "Lucy", "voce": "donna", "en": "Of course. What size are you?", "it": "Certo. Che taglia porta?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Medium, I think.", "it": "La media, credo."},
+      {"nome": "Lucy", "voce": "donna", "en": "So, the jeans and the T-shirt. That's fifty-seven euros.", "it": "Allora, i jeans e la maglietta. Sono cinquantasette euro."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Can I pay by card?", "it": "Posso pagare con la carta?"},
+      {"nome": "Lucy", "voce": "donna", "en": "Yes, of course. Do you need a bag?", "it": "Sì, certo. Le serve un sacchetto?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "No, thanks.", "it": "No, grazie."}
+    ],
+    "domande": [
+      {"domanda": "Quanto costano i jeans?", "scelte": ["Dodici euro", "Quarantacinque euro", "Cinquantasette euro"], "giusta": 1},
+      {"domanda": "Come paga Andrea?", "scelte": ["Con la carta", "In contanti", "Non paga"], "giusta": 0},
+      {"domanda": "Andrea prende il sacchetto?", "scelte": ["Sì, uno", "Sì, due", "No"], "giusta": 2}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come chiedi il prezzo di una giacca?", "scelte": ["How much costs the jacket?", "How much is the jacket?", "How many is the jacket?"], "giusta": 1, "spiega": "Si dice How much is...? per una cosa sola."},
+    {"tipo": "completa", "frase": "How ___ T-shirts do you want?", "risposte": ["many"], "it": "Quante magliette vuoi?", "spiega": "Le magliette si contano: how many."},
+    {"tipo": "completa", "frase": "___ shoes are very cheap.", "risposte": ["These"], "it": "Queste scarpe sono molto economiche.", "spiega": "Queste, più cose vicine: these."},
+    {"tipo": "riordina", "parole": ["is", "How", "much", "shirt", "this"], "risposte": ["How much is this shirt?"], "it": "Quanto costa questa camicia?"},
+    {"tipo": "traduci", "it": "Quanto costano quelle scarpe?", "risposte": ["How much are those shoes?", "How much do those shoes cost?"]},
+    {"tipo": "scelta", "domanda": "Come si scrive 350 in lettere?", "scelte": ["three hundreds and fifty", "thirteen hundred fifty", "three hundred and fifty"], "giusta": 2, "spiega": "Hundred non prende la -s, e dopo ci va and: three hundred and fifty."},
+    {"tipo": "completa", "frase": "I'd like ___ jacket over there, the black one.", "risposte": ["that"], "it": "Vorrei quella giacca là, quella nera.", "spiega": "Una cosa lontana: that."},
+    {"tipo": "riordina", "parole": ["much", "How", "money", "you", "have", "do"], "risposte": ["How much money do you have?"], "it": "Quanti soldi hai?"},
+    {"tipo": "traduci", "it": "Questa maglietta è cara.", "risposte": ["This T-shirt is expensive.", "This t-shirt is expensive.", "This tshirt is expensive.", "This T shirt is expensive."]},
+    {"tipo": "scelta", "domanda": "Indichi delle scarpe in vetrina, lontane da te. Che cosa dici?", "scelte": ["I like those shoes.", "I like that shoes.", "I like these shoes."], "giusta": 0, "spiega": "Più cose lontane: those."},
+    {"tipo": "riordina", "parole": ["by", "Can", "pay", "I", "card"], "risposte": ["Can I pay by card?"], "it": "Posso pagare con la carta?"},
+    {"tipo": "traduci", "it": "Quanti sacchetti vuole?", "risposte": ["How many bags do you want?", "How many bags would you like?"]},
+    {"tipo": "voce", "en": "These jeans are forty euros.", "it": "Questi jeans costano quaranta euro."},
+    {"tipo": "voce", "en": "That jacket is two hundred and ninety-nine euros.", "it": "Quella giacca costa duecentonovantanove euro."}
+  ],
+  "parlato": [
+    {"domanda": "How much is a coffee in your town?", "it": "Quanto costa un caffè nella tua città?", "modello": "In my town a coffee is about one euro twenty."},
+    {"domanda": "How many pairs of shoes do you have?", "it": "Quante paia di scarpe hai?", "modello": "I have five pairs of shoes."},
+    {"domanda": "Do you like shopping?", "it": "Ti piace fare shopping?", "modello": "No, I don't. Shops are very expensive!"},
+    {"domanda": "What clothes do you wear at work?", "it": "Che vestiti metti al lavoro?", "modello": "I wear jeans, a T-shirt and work shoes."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice 1000 in inglese?", "scelte": ["one hundred", "a thousand", "ten hundred"], "giusta": 1, "spiega": "1000 = a thousand (oppure one thousand)."},
+      {"tipo": "scelta", "domanda": "Completa: «How ___ milk do we need?»", "scelte": ["much", "many", "any"], "giusta": 0, "spiega": "Il latte non si conta: how much."},
+      {"tipo": "scelta", "domanda": "Hai in mano due magliette. Che cosa dici?", "scelte": ["Those T-shirts are nice.", "This T-shirts are nice.", "These T-shirts are nice."], "giusta": 2, "spiega": "Più cose vicine, in mano: these."},
+      {"tipo": "completa", "frase": "How much ___ these shoes?", "risposte": ["are"], "it": "Quanto costano queste scarpe?", "spiega": "Shoes sono più cose: are."},
+      {"tipo": "completa", "frase": "How ___ people are there in the shop?", "risposte": ["many"], "it": "Quante persone ci sono nel negozio?", "spiega": "Le persone si contano: how many."},
+      {"tipo": "completa", "frase": "___ shirt over there is very nice.", "risposte": ["That"], "it": "Quella camicia là è molto bella.", "spiega": "Una cosa lontana: that."},
+      {"tipo": "riordina", "parole": ["are", "those", "How", "jeans", "much"], "risposte": ["How much are those jeans?"], "it": "Quanto costano quei jeans?"},
+      {"tipo": "riordina", "parole": ["hundred", "It's", "euros", "two"], "risposte": ["It's two hundred euros.", "It is two hundred euros."], "it": "Costa duecento euro."},
+      {"tipo": "riordina", "parole": ["try", "Can", "on", "jacket", "I", "this"], "risposte": ["Can I try on this jacket?", "Can I try this jacket on?"], "it": "Posso provare questa giacca?"},
+      {"tipo": "traduci", "it": "Questi jeans sono economici.", "risposte": ["These jeans are cheap."]},
+      {"tipo": "traduci", "it": "Quanto costa quella borsa?", "risposte": ["How much is that bag?", "How much does that bag cost?"]},
+      {"tipo": "traduci", "it": "Pago in contanti.", "risposte": ["I pay in cash.", "I'll pay in cash.", "I will pay in cash.", "I'm paying in cash.", "I pay cash.", "I'll pay cash."]}
+    ]
+  }
+}

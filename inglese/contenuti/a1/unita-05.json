@@ -1,0 +1,118 @@
+{
+  "id": "a1-05",
+  "livello": "A1",
+  "numero": 5,
+  "titolo": "La mia giornata",
+  "tema": "La routine di tutti i giorni, l'ora e i giorni della settimana",
+  "obiettivo": "Alla fine sai raccontare la tua giornata, dire a che ora fai le cose e quanto spesso le fai.",
+  "grammatica": {
+    "titolo": "Il present simple: I work, he works",
+    "spiegazione": [
+      "Il present simple serve per le cose che fai spesso: ogni giorno, ogni settimana. Sono le tue abitudini.",
+      "È facile: prendi il verbo così com'è. I work, you work, we work, they work.",
+      "C'è una sola regola da ricordare. Con he, she e it (lui, lei, esso) aggiungi una -s: he works, she works.",
+      "Se il verbo finisce in -sh, -ch, -s oppure -o, aggiungi -es: watch diventa watches, go diventa goes. Have invece diventa has.",
+      "Per dire quanto spesso fai una cosa: always (sempre), usually (di solito), sometimes (a volte), never (mai). Vanno prima del verbo: I always get up at six. Con am, is, are invece vanno dopo: I'm always tired.",
+      "Per l'ora usi at: at seven o'clock (alle sette), at half past seven (alle sette e mezza). Per i giorni usi on: on Monday (il lunedì).",
+      "I giorni sono Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday. In inglese si scrivono sempre con la lettera maiuscola."
+    ],
+    "tabella": [
+      ["I work", "io lavoro"],
+      ["you work", "tu lavori"],
+      ["he works", "lui lavora"],
+      ["she works", "lei lavora"],
+      ["we work", "noi lavoriamo"],
+      ["they work", "loro lavorano"],
+      ["he watches", "lui guarda"],
+      ["she goes", "lei va"],
+      ["he has", "lui ha"]
+    ],
+    "esempi": [
+      {"en": "I get up at six o'clock.", "it": "Mi alzo alle sei."},
+      {"en": "She works in a shop.", "it": "Lei lavora in un negozio."},
+      {"en": "He never watches TV.", "it": "Lui non guarda mai la TV."},
+      {"en": "We usually have dinner at eight.", "it": "Di solito ceniamo alle otto."}
+    ],
+    "attenzione": "L'errore più comune è dimenticare la -s: si dice «he works», non «he work». E la parola che dice quanto spesso va prima del verbo: «I always get up», non «I get up always»."
+  },
+  "parole": [
+    {"en": "get up", "it": "alzarsi", "esempio": {"en": "I get up at six o'clock.", "it": "Mi alzo alle sei."}},
+    {"en": "have breakfast", "it": "fare colazione", "esempio": {"en": "She has breakfast at home.", "it": "Lei fa colazione a casa."}},
+    {"en": "go to work", "it": "andare al lavoro", "esempio": {"en": "I go to work by car.", "it": "Vado al lavoro in macchina."}},
+    {"en": "finish", "it": "finire", "esempio": {"en": "I finish work at two.", "it": "Finisco di lavorare alle due."}},
+    {"en": "come home", "it": "tornare a casa", "esempio": {"en": "He comes home at five.", "it": "Lui torna a casa alle cinque."}},
+    {"en": "have dinner", "it": "cenare", "esempio": {"en": "We have dinner at eight.", "it": "Ceniamo alle otto."}},
+    {"en": "watch TV", "it": "guardare la TV", "esempio": {"en": "My dad watches TV in the evening.", "it": "Mio padre guarda la TV la sera."}},
+    {"en": "go to bed", "it": "andare a letto", "esempio": {"en": "She goes to bed at eleven.", "it": "Lei va a letto alle undici."}},
+    {"en": "always", "it": "sempre", "esempio": {"en": "I always drink coffee in the morning.", "it": "La mattina bevo sempre il caffè."}},
+    {"en": "usually", "it": "di solito", "esempio": {"en": "We usually eat at home.", "it": "Di solito mangiamo a casa."}},
+    {"en": "sometimes", "it": "a volte", "esempio": {"en": "He sometimes works on Saturday.", "it": "A volte lui lavora il sabato."}},
+    {"en": "never", "it": "mai", "esempio": {"en": "She never drinks coffee.", "it": "Lei non beve mai il caffè."}},
+    {"en": "o'clock", "it": "in punto (per le ore)", "esempio": {"en": "It's seven o'clock.", "it": "Sono le sette."}},
+    {"en": "half past", "it": "e mezza", "esempio": {"en": "The film starts at half past nine.", "it": "Il film comincia alle nove e mezza."}},
+    {"en": "in the morning", "it": "la mattina", "esempio": {"en": "I'm always tired in the morning.", "it": "La mattina sono sempre stanco."}},
+    {"en": "in the evening", "it": "la sera", "esempio": {"en": "In the evening I listen to music.", "it": "La sera ascolto musica."}},
+    {"en": "every day", "it": "ogni giorno", "esempio": {"en": "I take the bus every day.", "it": "Prendo l'autobus ogni giorno."}},
+    {"en": "Monday", "it": "lunedì", "esempio": {"en": "On Monday I start work at six.", "it": "Il lunedì comincio a lavorare alle sei."}},
+    {"en": "Friday", "it": "venerdì", "esempio": {"en": "On Friday evening I watch a film.", "it": "Il venerdì sera guardo un film."}},
+    {"en": "Sunday", "it": "domenica", "esempio": {"en": "On Sunday my family has lunch together.", "it": "La domenica la mia famiglia pranza insieme."}}
+  ],
+  "dialogo": {
+    "titolo": "Una giornata lunga",
+    "situazione": "In pausa, Laura vede che Andrea è stanco e gli chiede della sua giornata.",
+    "battute": [
+      {"nome": "Laura", "voce": "donna", "en": "You look tired, Andrea!", "it": "Sembri stanco, Andrea!"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, I get up at five o'clock every day.", "it": "Sì, mi alzo alle cinque tutti i giorni."},
+      {"nome": "Laura", "voce": "donna", "en": "Five o'clock? That's early!", "it": "Alle cinque? È presto!"},
+      {"nome": "Andrea", "voce": "uomo", "en": "I know. I go to work at half past five.", "it": "Lo so. Vado al lavoro alle cinque e mezza."},
+      {"nome": "Laura", "voce": "donna", "en": "And in the afternoon?", "it": "E il pomeriggio?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "I come home at three and I usually sleep a little.", "it": "Torno a casa alle tre e di solito dormo un po'."},
+      {"nome": "Laura", "voce": "donna", "en": "I never sleep in the afternoon. I always watch a TV series.", "it": "Io il pomeriggio non dormo mai. Guardo sempre una serie TV."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Me too! On Friday evening I watch three episodes.", "it": "Anche io! Il venerdì sera guardo tre episodi."},
+      {"nome": "Laura", "voce": "donna", "en": "Three episodes! That's a lot.", "it": "Tre episodi! Sono tanti."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, but on Saturday I get up at ten!", "it": "Sì, ma il sabato mi alzo alle dieci!"}
+    ],
+    "domande": [
+      {"domanda": "A che ora si alza Andrea durante la settimana?", "scelte": ["Alle cinque", "Alle sei", "Alle dieci"], "giusta": 0},
+      {"domanda": "Che cosa fa sempre Laura il pomeriggio?", "scelte": ["Dorme", "Guarda una serie TV", "Va al lavoro"], "giusta": 1},
+      {"domanda": "Quando si alza alle dieci Andrea?", "scelte": ["Il venerdì", "Il lunedì", "Il sabato"], "giusta": 2}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come si dice «lui lavora»?", "scelte": ["He work.", "He works.", "He working."], "giusta": 1, "spiega": "Con he, she e it il verbo prende la -s: works."},
+    {"tipo": "completa", "frase": "She ___ TV in the evening.", "risposte": ["watches"], "it": "Lei guarda la TV la sera.", "spiega": "Watch finisce in -ch, quindi con she diventa watches."},
+    {"tipo": "riordina", "parole": ["get", "at", "I", "six", "always", "up"], "risposte": ["I always get up at six."], "it": "Mi alzo sempre alle sei."},
+    {"tipo": "traduci", "it": "Mio fratello va al lavoro alle sette.", "risposte": ["My brother goes to work at seven.", "My brother goes to work at seven o'clock.", "My brother goes to work at 7.", "My brother goes to work at 7 o'clock."]},
+    {"tipo": "voce", "en": "I usually have breakfast at home.", "it": "Di solito faccio colazione a casa."},
+    {"tipo": "scelta", "domanda": "Qual è la frase giusta?", "scelte": ["I never watch TV.", "I watch never TV.", "Never I watch TV."], "giusta": 0, "spiega": "Never va prima del verbo: I never watch."},
+    {"tipo": "completa", "frase": "My sister ___ to bed at eleven.", "risposte": ["goes"], "it": "Mia sorella va a letto alle undici.", "spiega": "Go con she diventa goes."},
+    {"tipo": "riordina", "parole": ["has", "He", "at", "dinner", "eight"], "risposte": ["He has dinner at eight.", "At eight he has dinner."], "it": "Lui cena alle otto."},
+    {"tipo": "traduci", "it": "La sera guardo sempre la TV.", "risposte": ["I always watch TV in the evening.", "In the evening I always watch TV.", "I always watch TV in the evenings.", "In the evenings I always watch TV.", "I always watch the TV in the evening."]},
+    {"tipo": "scelta", "domanda": "Sono le sei e mezza. Come si dice?", "scelte": ["It's six and half.", "It's half six past.", "It's half past six."], "giusta": 2, "spiega": "Si dice half past più l'ora: half past six."},
+    {"tipo": "completa", "frase": "We ___ dinner at eight o'clock.", "risposte": ["have", "eat"], "it": "Ceniamo alle otto.", "spiega": "Con we il verbo resta com'è, senza -s: have."},
+    {"tipo": "riordina", "parole": ["sometimes", "Sunday", "on", "She", "works"], "risposte": ["She sometimes works on Sunday.", "Sometimes she works on Sunday.", "On Sunday she sometimes works.", "She works on Sunday sometimes."], "it": "A volte lei lavora la domenica."},
+    {"tipo": "traduci", "it": "Lui non guarda mai la TV.", "risposte": ["He never watches TV.", "He never watches the TV."]},
+    {"tipo": "voce", "en": "My friend comes home at half past five.", "it": "Il mio amico torna a casa alle cinque e mezza."}
+  ],
+  "parlato": [
+    {"domanda": "What time do you get up?", "it": "A che ora ti alzi?", "modello": "I get up at six o'clock."},
+    {"domanda": "What do you usually do in the evening?", "it": "Che cosa fai di solito la sera?", "modello": "In the evening I usually watch TV."},
+    {"domanda": "Tell me about your Sunday.", "it": "Raccontami la tua domenica.", "modello": "On Sunday I get up at nine and I have lunch with my family."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice «lei finisce alle quattro»?", "scelte": ["She finish at four.", "She finishs at four.", "She finishes at four."], "giusta": 2, "spiega": "Finish finisce in -sh, quindi con she diventa finishes."},
+      {"tipo": "scelta", "domanda": "Qual è la frase giusta?", "scelte": ["I go usually to work by bus.", "I usually go to work by bus.", "Usually I goes to work by bus."], "giusta": 1, "spiega": "Usually va prima del verbo, e con I il verbo non prende la -s."},
+      {"tipo": "completa", "frase": "Tom ___ breakfast at seven.", "risposte": ["has", "eats"], "it": "Tom fa colazione alle sette.", "spiega": "Have con he (Tom) diventa has."},
+      {"tipo": "completa", "frase": "My friends ___ TV on Sunday.", "risposte": ["watch"], "it": "I miei amici guardano la TV la domenica.", "spiega": "My friends sono loro (they): niente -s."},
+      {"tipo": "completa", "frase": "It's nine ___.", "risposte": ["o'clock"], "it": "Sono le nove in punto.", "spiega": "Per l'ora esatta si dice o'clock."},
+      {"tipo": "riordina", "parole": ["never", "He", "on", "works", "Sunday"], "risposte": ["He never works on Sunday.", "On Sunday he never works."], "it": "Lui non lavora mai la domenica."},
+      {"tipo": "riordina", "parole": ["half", "at", "up", "gets", "She", "seven", "past"], "risposte": ["She gets up at half past seven.", "At half past seven she gets up."], "it": "Lei si alza alle sette e mezza."},
+      {"tipo": "riordina", "parole": ["usually", "We", "home", "at", "come", "six"], "risposte": ["We usually come home at six.", "Usually we come home at six."], "it": "Di solito torniamo a casa alle sei."},
+      {"tipo": "traduci", "it": "Mia madre si alza alle sei ogni giorno.", "risposte": ["My mother gets up at six every day.", "My mother gets up at six o'clock every day.", "My mum gets up at six every day.", "My mom gets up at six every day.", "Every day my mother gets up at six.", "My mother gets up every day at six.", "My mother gets up at 6 every day.", "My mum gets up at six o'clock every day.", "My mom gets up at six o'clock every day.", "Every day my mother gets up at six o'clock.", "Every day my mum gets up at six.", "Every day my mom gets up at six."]},
+      {"tipo": "traduci", "it": "Il venerdì sera guardo una serie TV.", "risposte": ["On Friday evening I watch a TV series.", "On Friday evenings I watch a TV series.", "I watch a TV series on Friday evening.", "I watch a TV series on Friday evenings.", "On Friday night I watch a TV series.", "I watch a TV series on Friday night."]},
+      {"tipo": "traduci", "it": "Lui a volte cena alle dieci.", "risposte": ["He sometimes has dinner at ten.", "Sometimes he has dinner at ten.", "He sometimes has dinner at ten o'clock.", "Sometimes he has dinner at ten o'clock.", "He has dinner at ten sometimes.", "He sometimes eats dinner at ten."]}
+    ]
+  }
+}

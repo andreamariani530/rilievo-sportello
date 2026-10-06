@@ -1,0 +1,122 @@
+{
+  "id": "a1-04",
+  "livello": "A1",
+  "numero": 4,
+  "titolo": "Casa mia",
+  "tema": "La casa, le stanze e i mobili",
+  "obiettivo": "Alla fine sai descrivere casa tua, dire cosa c'è in ogni stanza e chiedere cosa c'è in una casa.",
+  "grammatica": {
+    "titolo": "There is, there are, a/an e i plurali",
+    "spiegazione": [
+      "Per dire «c'è» si usa there is (in breve: there's). Per dire «ci sono» si usa there are.",
+      "There is va con una cosa sola: «There's a table». There are va con due o più cose: «There are two chairs».",
+      "Per la domanda si scambiano le due parole: «Is there a garden?», «Are there two bathrooms?». Per dire di no si aggiunge not: «There isn't a garden».",
+      "A e an vogliono dire «un, uno, una». Si usa a davanti a un suono di consonante: a chair, a bed. Si usa an davanti a un suono di vocale: an armchair, an old house.",
+      "Il plurale di solito si fa con una s: room → rooms, chair → chairs.",
+      "Dopo s, x, ch, sh si aggiunge es: box → boxes, bus → buses. Se la parola finisce con consonante più y, la y diventa ies: city → cities.",
+      "Alcune parole fanno il plurale a modo loro e si imparano a memoria: man → men, woman → women, child → children, person → people."
+    ],
+    "tabella": [
+      ["there is / there's", "c'è"],
+      ["there are", "ci sono"],
+      ["Is there...?", "c'è...?"],
+      ["Are there...?", "ci sono...?"],
+      ["there isn't", "non c'è"],
+      ["there aren't", "non ci sono"],
+      ["a chair / an armchair", "una sedia / una poltrona"],
+      ["room → rooms", "stanza → stanze"],
+      ["box → boxes", "scatola → scatole"],
+      ["city → cities", "città → città"],
+      ["man → men / woman → women", "uomo → uomini / donna → donne"],
+      ["child → children / person → people", "bambino → bambini / persona → persone"]
+    ],
+    "esempi": [
+      {"en": "There's a sofa in the living room.", "it": "In soggiorno c'è un divano."},
+      {"en": "There are three bedrooms.", "it": "Ci sono tre camere da letto."},
+      {"en": "Is there a balcony? No, there isn't.", "it": "C'è un balcone? No, non c'è."},
+      {"en": "There are two people in the kitchen.", "it": "Ci sono due persone in cucina."}
+    ],
+    "attenzione": "Pensando a «c'è», gli italiani dicono «There is two rooms»: con più cose ci vuole there are, «There are two rooms». E people è già plurale: «two people», mai «two peoples»."
+  },
+  "parole": [
+    {"en": "house", "it": "casa", "esempio": {"en": "Our house is small but nice.", "it": "La nostra casa è piccola ma bella."}},
+    {"en": "flat", "it": "appartamento (in americano: apartment)", "esempio": {"en": "There are two bedrooms in my flat.", "it": "Nel mio appartamento ci sono due camere da letto."}},
+    {"en": "room", "it": "stanza", "esempio": {"en": "There are five rooms in the house.", "it": "In casa ci sono cinque stanze."}},
+    {"en": "kitchen", "it": "cucina", "esempio": {"en": "The kitchen is big.", "it": "La cucina è grande."}},
+    {"en": "bathroom", "it": "bagno", "esempio": {"en": "Is there a bathroom here?", "it": "C'è un bagno qui?"}},
+    {"en": "bedroom", "it": "camera da letto", "esempio": {"en": "My bedroom is small.", "it": "La mia camera da letto è piccola."}},
+    {"en": "living room", "it": "soggiorno, salotto", "esempio": {"en": "We're in the living room.", "it": "Siamo in soggiorno."}},
+    {"en": "garden", "it": "giardino", "esempio": {"en": "Their garden is beautiful.", "it": "Il loro giardino è bellissimo."}},
+    {"en": "balcony", "it": "balcone", "esempio": {"en": "There's a chair on the balcony.", "it": "Sul balcone c'è una sedia."}},
+    {"en": "door", "it": "porta", "esempio": {"en": "The door is open.", "it": "La porta è aperta."}},
+    {"en": "window", "it": "finestra", "esempio": {"en": "There are two windows in the kitchen.", "it": "In cucina ci sono due finestre."}},
+    {"en": "table", "it": "tavolo", "esempio": {"en": "The table is in the kitchen.", "it": "Il tavolo è in cucina."}},
+    {"en": "chair", "it": "sedia", "esempio": {"en": "There are six chairs.", "it": "Ci sono sei sedie."}},
+    {"en": "bed", "it": "letto", "esempio": {"en": "The bed is new.", "it": "Il letto è nuovo."}},
+    {"en": "sofa", "it": "divano", "esempio": {"en": "The sofa is very comfortable.", "it": "Il divano è molto comodo."}},
+    {"en": "armchair", "it": "poltrona", "esempio": {"en": "There's an armchair in the living room.", "it": "In soggiorno c'è una poltrona."}},
+    {"en": "TV", "it": "televisione", "esempio": {"en": "Is there a TV in the bedroom?", "it": "C'è una televisione in camera?"}},
+    {"en": "fridge", "it": "frigorifero, frigo", "esempio": {"en": "The fridge is empty.", "it": "Il frigo è vuoto."}},
+    {"en": "wardrobe", "it": "armadio", "esempio": {"en": "The wardrobe is in the bedroom.", "it": "L'armadio è in camera da letto."}},
+    {"en": "lamp", "it": "lampada", "esempio": {"en": "There's a lamp on the table.", "it": "Sul tavolo c'è una lampada."}}
+  ],
+  "dialogo": {
+    "titolo": "Benvenuta a casa mia",
+    "situazione": "Sabato pomeriggio. Elena, la collega, passa da Andrea per un caffè. Lui le fa vedere l'appartamento.",
+    "battute": [
+      {"nome": "Andrea", "voce": "uomo", "en": "Come in, Elena! This is my flat.", "it": "Entra, Elena! Questo è il mio appartamento."},
+      {"nome": "Elena", "voce": "donna", "en": "Thanks! It's very nice. Is there a balcony?", "it": "Grazie! È molto bello. C'è un balcone?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, there is. It's in the living room.", "it": "Sì, c'è. È in soggiorno."},
+      {"nome": "Elena", "voce": "donna", "en": "How many rooms are there?", "it": "Quante stanze ci sono?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "There are five: a kitchen, a living room, two bedrooms and a bathroom.", "it": "Ce ne sono cinque: una cucina, un soggiorno, due camere da letto e un bagno."},
+      {"nome": "Elena", "voce": "donna", "en": "Two bedrooms! And is there a garden?", "it": "Due camere! E c'è un giardino?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "No, there isn't. But there are a lot of plants on the balcony.", "it": "No, non c'è. Ma sul balcone ci sono tante piante."},
+      {"nome": "Elena", "voce": "donna", "en": "The kitchen is lovely. There's a big table and six chairs.", "it": "La cucina è bellissima. C'è un tavolo grande e ci sono sei sedie."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, our family is big! A coffee?", "it": "Sì, la nostra famiglia è grande! Un caffè?"},
+      {"nome": "Elena", "voce": "donna", "en": "Yes, please!", "it": "Sì, grazie!"}
+    ],
+    "domande": [
+      {"domanda": "Quante camere da letto ci sono?", "scelte": ["Una", "Due", "Tre"], "giusta": 1},
+      {"domanda": "C'è un giardino?", "scelte": ["No, ma ci sono tante piante sul balcone", "Sì, grande", "Sì, piccolo"], "giusta": 0},
+      {"domanda": "Cosa c'è in cucina?", "scelte": ["Un divano e una televisione", "Un letto", "Un tavolo grande e sei sedie"], "giusta": 2}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come si dice «C'è un divano»?", "scelte": ["There are a sofa.", "It is a sofa.", "There is a sofa."], "giusta": 2, "spiega": "Con una cosa sola si usa there is."},
+    {"tipo": "scelta", "domanda": "Quale è giusto?", "scelte": ["a armchair", "an armchair", "an chair"], "giusta": 1, "spiega": "Armchair comincia con un suono di vocale, quindi an."},
+    {"tipo": "scelta", "domanda": "Il plurale di «child» è...", "scelte": ["children", "childs", "childrens"], "giusta": 0, "spiega": "Child fa il plurale a modo suo: children."},
+    {"tipo": "completa", "frase": "There ___ two bathrooms in the flat.", "risposte": ["are"], "it": "Nell'appartamento ci sono due bagni.", "spiega": "Con due o più cose si usa there are."},
+    {"tipo": "completa", "frase": "There is ___ old chair in the kitchen.", "risposte": ["an"], "it": "In cucina c'è una sedia vecchia.", "spiega": "Old comincia con un suono di vocale, quindi an."},
+    {"tipo": "completa", "frase": "There are three ___ in the bedroom.", "risposte": ["windows"], "it": "In camera ci sono tre finestre.", "spiega": "Il plurale di window è windows: si aggiunge una s."},
+    {"tipo": "riordina", "parole": ["a", "There's", "in", "bed", "the", "room"], "risposte": ["There's a bed in the room.", "In the room there's a bed."], "it": "Nella stanza c'è un letto."},
+    {"tipo": "riordina", "parole": ["there", "Is", "garden", "a"], "risposte": ["Is there a garden?"], "it": "C'è un giardino?"},
+    {"tipo": "riordina", "parole": ["people", "There", "two", "are", "here"], "risposte": ["There are two people here."], "it": "Qui ci sono due persone."},
+    {"tipo": "traduci", "it": "C'è un frigo in cucina.", "risposte": ["There is a fridge in the kitchen.", "There's a fridge in the kitchen.", "In the kitchen there is a fridge.", "In the kitchen there's a fridge.", "There is a refrigerator in the kitchen.", "There's a refrigerator in the kitchen."]},
+    {"tipo": "traduci", "it": "Ci sono due camere da letto.", "risposte": ["There are two bedrooms."]},
+    {"tipo": "traduci", "it": "Non c'è una televisione in camera da letto.", "risposte": ["There isn't a TV in the bedroom.", "There is not a TV in the bedroom.", "There's no TV in the bedroom.", "There is no TV in the bedroom.", "There isn't a television in the bedroom.", "There is not a television in the bedroom.", "There's no television in the bedroom.", "There is no television in the bedroom."]},
+    {"tipo": "voce", "en": "There's a big sofa in the living room.", "it": "In soggiorno c'è un divano grande."},
+    {"tipo": "voce", "en": "Is there a balcony?", "it": "C'è un balcone?"}
+  ],
+  "parlato": [
+    {"domanda": "Is there a garden at your house?", "it": "C'è un giardino a casa tua?", "modello": "No, there isn't. There's a balcony."},
+    {"domanda": "How many rooms are there in your house?", "it": "Quante stanze ci sono a casa tua?", "modello": "There are four rooms."},
+    {"domanda": "What's in your kitchen?", "it": "Cosa c'è nella tua cucina?", "modello": "There's a table, four chairs and a fridge."},
+    {"domanda": "Is your flat big?", "it": "Il tuo appartamento è grande?", "modello": "No, it isn't. It's small, but it's nice."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice «Ci sono tre persone»?", "scelte": ["There are three people.", "There is three people.", "There are three peoples."], "giusta": 0, "spiega": "Più persone: there are. E people è già plurale."},
+      {"tipo": "scelta", "domanda": "Il plurale di «woman» è...", "scelte": ["womans", "women", "womens"], "giusta": 1, "spiega": "Woman fa il plurale a modo suo: women."},
+      {"tipo": "scelta", "domanda": "Quale è giusto?", "scelte": ["an lamp", "a old table", "an old table"], "giusta": 2, "spiega": "Old comincia con un suono di vocale, quindi an. Lamp comincia con una consonante, quindi a."},
+      {"tipo": "completa", "frase": "___ there a TV in the kitchen?", "risposte": ["Is"], "it": "C'è una televisione in cucina?", "spiega": "Una cosa sola: la domanda è Is there...?"},
+      {"tipo": "completa", "frase": "There are two ___ on the table.", "risposte": ["boxes"], "it": "Sul tavolo ci sono due scatole.", "spiega": "Box finisce in x, quindi il plurale è boxes."},
+      {"tipo": "completa", "frase": "There ___ a wardrobe in the bedroom.", "risposte": ["is"], "it": "In camera da letto c'è un armadio.", "spiega": "Una cosa sola: there is."},
+      {"tipo": "riordina", "parole": ["are", "There", "bedrooms", "three"], "risposte": ["There are three bedrooms."], "it": "Ci sono tre camere da letto."},
+      {"tipo": "riordina", "parole": ["isn't", "There", "balcony", "a"], "risposte": ["There isn't a balcony."], "it": "Non c'è un balcone."},
+      {"tipo": "traduci", "it": "C'è un bagno?", "risposte": ["Is there a bathroom?"]},
+      {"tipo": "traduci", "it": "Ci sono quattro sedie in cucina.", "risposte": ["There are four chairs in the kitchen.", "In the kitchen there are four chairs."]},
+      {"tipo": "traduci", "it": "In soggiorno c'è un divano.", "risposte": ["There is a sofa in the living room.", "There's a sofa in the living room.", "In the living room there is a sofa.", "In the living room there's a sofa.", "There is a couch in the living room.", "There's a couch in the living room.", "In the living room there is a couch.", "In the living room there's a couch."]}
+    ]
+  }
+}

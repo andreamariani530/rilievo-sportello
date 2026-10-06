@@ -1,0 +1,116 @@
+{
+  "id": "a1-07",
+  "livello": "A1",
+  "numero": 7,
+  "titolo": "Al bar e al ristorante",
+  "tema": "Cibo, bevande e come ordinare",
+  "obiettivo": "Alla fine sai ordinare da bere e da mangiare con gentilezza, chiedere se c'è una cosa e chiedere il conto.",
+  "grammatica": {
+    "titolo": "Some e any, I'd like e Can I have...?",
+    "spiegazione": [
+      "Some e any vogliono dire «un po' di», «del», «dei». In italiano spesso non si traducono neanche.",
+      "Some si usa nelle frasi positive: There's some bread. (C'è del pane.)",
+      "Any si usa nelle frasi con il no e nelle domande: There isn't any milk. (Non c'è latte.) Is there any sugar? (C'è dello zucchero?)",
+      "Quando offri qualcosa o chiedi un favore, però, si usa some anche nella domanda: Would you like some coffee? Can I have some water?",
+      "Per ordinare bastano due frasi. I'd like... vuol dire «vorrei». Can I have...? vuol dire «posso avere...?», cioè «mi dà...?».",
+      "I'd like è la forma corta di I would like. E please (per favore) alla fine fa sempre bella figura."
+    ],
+    "tabella": [
+      ["There's some bread.", "c'è del pane"],
+      ["There isn't any milk.", "non c'è latte"],
+      ["Is there any sugar?", "c'è dello zucchero?"],
+      ["Would you like some tea?", "vuoi del tè?"],
+      ["I'd like a coffee.", "vorrei un caffè"],
+      ["Can I have the bill?", "mi porta il conto?"]
+    ],
+    "esempi": [
+      {"en": "I'd like a beer, please.", "it": "Vorrei una birra, per favore."},
+      {"en": "Can I have some bread, please?", "it": "Mi dà del pane, per favore?"},
+      {"en": "Sorry, we don't have any fish today.", "it": "Mi dispiace, oggi non abbiamo pesce."},
+      {"en": "Are there any tables for two?", "it": "Ci sono tavoli per due?"}
+    ],
+    "attenzione": "Al bar non si dice «I want a coffee»: in inglese suona scortese. Si dice «I'd like a coffee, please» oppure «Can I have a coffee, please?». E ricorda: «I'd like» vuol dire «vorrei», non «mi piace»."
+  },
+  "parole": [
+    {"en": "coffee", "it": "caffè", "esempio": {"en": "I'd like a coffee, please.", "it": "Vorrei un caffè, per favore."}},
+    {"en": "tea", "it": "tè", "esempio": {"en": "Can I have a tea with milk?", "it": "Posso avere un tè col latte?"}},
+    {"en": "water", "it": "acqua", "esempio": {"en": "Can I have some water, please?", "it": "Posso avere dell'acqua, per favore?"}},
+    {"en": "milk", "it": "latte", "esempio": {"en": "There isn't any milk in the fridge.", "it": "Non c'è latte nel frigo."}},
+    {"en": "orange juice", "it": "succo d'arancia", "esempio": {"en": "The children drink orange juice.", "it": "I bambini bevono succo d'arancia."}},
+    {"en": "beer", "it": "birra", "esempio": {"en": "A beer, please.", "it": "Una birra, per favore."}},
+    {"en": "wine", "it": "vino", "esempio": {"en": "Would you like some red wine?", "it": "Vuoi un po' di vino rosso?"}},
+    {"en": "glass", "it": "bicchiere", "esempio": {"en": "A glass of wine, please.", "it": "Un bicchiere di vino, per favore."}},
+    {"en": "sandwich", "it": "panino, tramezzino", "esempio": {"en": "I'd like a cheese sandwich.", "it": "Vorrei un panino al formaggio."}},
+    {"en": "chicken", "it": "pollo", "esempio": {"en": "The chicken is very good here.", "it": "Qui il pollo è molto buono."}},
+    {"en": "fish", "it": "pesce", "esempio": {"en": "I don't eat fish.", "it": "Non mangio pesce."}},
+    {"en": "chips", "it": "patatine fritte", "esempio": {"en": "Would you like some chips?", "it": "Vuoi delle patatine fritte?"}},
+    {"en": "salad", "it": "insalata", "esempio": {"en": "Can I have a green salad?", "it": "Posso avere un'insalata verde?"}},
+    {"en": "bread", "it": "pane", "esempio": {"en": "Is there any bread?", "it": "C'è del pane?"}},
+    {"en": "sugar", "it": "zucchero", "esempio": {"en": "I never have sugar in my coffee.", "it": "Non metto mai lo zucchero nel caffè."}},
+    {"en": "menu", "it": "menù", "esempio": {"en": "Can I see the menu, please?", "it": "Posso vedere il menù, per favore?"}},
+    {"en": "the bill", "it": "il conto", "esempio": {"en": "Can we have the bill, please?", "it": "Ci porta il conto, per favore?"}},
+    {"en": "waiter", "it": "cameriere", "esempio": {"en": "The waiter is very nice.", "it": "Il cameriere è molto gentile."}},
+    {"en": "table", "it": "tavolo", "esempio": {"en": "Is this table free?", "it": "È libero questo tavolo?"}},
+    {"en": "hungry", "it": "affamato (avere fame)", "esempio": {"en": "I'm hungry. Let's eat!", "it": "Ho fame. Mangiamo!"}}
+  ],
+  "dialogo": {
+    "titolo": "Pranzo a Londra",
+    "situazione": "Andrea è in vacanza a Londra ed entra in un piccolo bar per pranzo.",
+    "battute": [
+      {"nome": "Emma", "voce": "donna", "en": "Hi there! A table for one?", "it": "Salve! Un tavolo per uno?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, please. Can I see the menu?", "it": "Sì, grazie. Posso vedere il menù?"},
+      {"nome": "Emma", "voce": "donna", "en": "Here you are. Would you like something to drink?", "it": "Ecco a lei. Vuole qualcosa da bere?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "I'd like an orange juice, please.", "it": "Vorrei un succo d'arancia, per favore."},
+      {"nome": "Emma", "voce": "donna", "en": "Sorry, we don't have any orange juice today. We have apple juice.", "it": "Mi dispiace, oggi non abbiamo succo d'arancia. Abbiamo succo di mela."},
+      {"nome": "Andrea", "voce": "uomo", "en": "OK, an apple juice, then. And can I have a chicken sandwich?", "it": "Va bene, allora un succo di mela. E posso avere un panino al pollo?"},
+      {"nome": "Emma", "voce": "donna", "en": "Of course. Would you like some chips with it?", "it": "Certo. Vuole delle patatine fritte con il panino?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Yes, please. I'm very hungry!", "it": "Sì, grazie. Ho molta fame!"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Excuse me, can I have the bill, please?", "it": "Mi scusi, mi porta il conto, per favore?"},
+      {"nome": "Emma", "voce": "donna", "en": "Sure. That's twelve pounds.", "it": "Certo. Sono dodici sterline."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Here you are. Thank you!", "it": "Ecco a lei. Grazie!"}
+    ],
+    "domande": [
+      {"domanda": "Perché Andrea non prende il succo d'arancia?", "scelte": ["Non gli piace", "Oggi non c'è", "Costa troppo"], "giusta": 1},
+      {"domanda": "Che cosa mangia Andrea?", "scelte": ["Un'insalata", "Pesce e patatine", "Un panino al pollo con patatine"], "giusta": 2},
+      {"domanda": "Quanto paga Andrea?", "scelte": ["Dodici sterline", "Venti sterline", "Dieci sterline"], "giusta": 0}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Sei al bar. Qual è il modo gentile di ordinare?", "scelte": ["I want a coffee.", "I'd like a coffee, please.", "Give me a coffee."], "giusta": 1, "spiega": "I'd like... please è gentile. I want suona scortese."},
+    {"tipo": "completa", "frase": "There isn't ___ milk in the fridge.", "risposte": ["any"], "it": "Non c'è latte nel frigo.", "spiega": "Nella frase c'è il no (isn't), quindi any."},
+    {"tipo": "completa", "frase": "There's ___ bread on the table.", "risposte": ["some"], "it": "C'è del pane sul tavolo.", "spiega": "Frase positiva: some."},
+    {"tipo": "riordina", "parole": ["have", "Can", "bill", "the", "I", "please"], "risposte": ["Can I have the bill, please?", "Please can I have the bill?", "Please, can I have the bill?"], "it": "Mi porta il conto, per favore?"},
+    {"tipo": "traduci", "it": "Vorrei un tè, per favore.", "risposte": ["I'd like a tea, please.", "I would like a tea, please.", "I'd like a cup of tea, please.", "I would like a cup of tea, please.", "I'd like some tea, please.", "I would like some tea, please.", "Can I have a tea, please?", "Can I have a cup of tea, please?"]},
+    {"tipo": "scelta", "domanda": "Completa: «We don't have ___ chicken today.»", "scelte": ["any", "some", "a"], "giusta": 0, "spiega": "Frase con il no (don't): any."},
+    {"tipo": "completa", "frase": "Can I ___ a glass of water, please?", "risposte": ["have", "get"], "it": "Posso avere un bicchiere d'acqua, per favore?", "spiega": "Per chiedere qualcosa: Can I have...? (in America anche Can I get...?)."},
+    {"tipo": "riordina", "parole": ["like", "I'd", "chicken", "the", "salad"], "risposte": ["I'd like the chicken salad.", "I would like the chicken salad."], "it": "Vorrei l'insalata di pollo."},
+    {"tipo": "traduci", "it": "Non abbiamo pane.", "risposte": ["We don't have any bread.", "We do not have any bread.", "We don't have bread.", "We do not have bread.", "We have no bread.", "We haven't got any bread.", "We have not got any bread."]},
+    {"tipo": "scelta", "domanda": "«I'd like» vuol dire:", "scelte": ["vorrei", "mi piace", "ho"], "giusta": 0, "spiega": "I'd like = I would like = vorrei. Mi piace è I like."},
+    {"tipo": "riordina", "parole": ["for", "A", "two", "table", "please"], "risposte": ["A table for two, please."], "it": "Un tavolo per due, per favore."},
+    {"tipo": "traduci", "it": "C'è del latte?", "risposte": ["Is there any milk?", "Is there some milk?"]},
+    {"tipo": "voce", "en": "Can I have the menu, please?", "it": "Mi porta il menù, per favore?"},
+    {"tipo": "voce", "en": "I'd like fish and chips and a beer, please.", "it": "Vorrei pesce e patatine e una birra, per favore."}
+  ],
+  "parlato": [
+    {"domanda": "Hi! What would you like?", "it": "Salve! Che cosa desidera?", "modello": "I'd like a coffee and a sandwich, please."},
+    {"domanda": "Would you like something to drink?", "it": "Vuole qualcosa da bere?", "modello": "Yes, can I have some water, please?"},
+    {"domanda": "What do you usually have for breakfast?", "it": "Che cosa mangi di solito a colazione?", "modello": "I usually have a coffee and some bread."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice «vorrei un'insalata»?", "scelte": ["I like a salad.", "I'd like a salad.", "I'd like salad a."], "giusta": 1, "spiega": "Vorrei = I'd like. I like vuol dire «mi piace»."},
+      {"tipo": "scelta", "domanda": "Completa: «Sorry, there aren't ___ free tables.»", "scelte": ["some", "a", "any"], "giusta": 2, "spiega": "Frase con il no (aren't): any."},
+      {"tipo": "scelta", "domanda": "Il cameriere dice «Would you like something to eat?». Che cosa vuol dire?", "scelte": ["Le piace mangiare?", "Vuole qualcosa da mangiare?", "Che cosa ha mangiato?"], "giusta": 1, "spiega": "Would you like...? è un'offerta: «vuole...?»."},
+      {"tipo": "completa", "frase": "There are ___ sandwiches on the table.", "risposte": ["some"], "it": "Ci sono dei panini sul tavolo.", "spiega": "Frase positiva: some."},
+      {"tipo": "completa", "frase": "Is there ___ bread?", "risposte": ["any"], "it": "C'è del pane?", "spiega": "Nelle domande normali si usa any."},
+      {"tipo": "completa", "frase": "I'd ___ a glass of red wine, please.", "risposte": ["like"], "it": "Vorrei un bicchiere di vino rosso, per favore.", "spiega": "I'd like = vorrei."},
+      {"tipo": "riordina", "parole": ["any", "don't", "We", "fish", "have"], "risposte": ["We don't have any fish.", "We do not have any fish."], "it": "Non abbiamo pesce."},
+      {"tipo": "riordina", "parole": ["hungry", "I'm", "very"], "risposte": ["I'm very hungry.", "I am very hungry."], "it": "Ho molta fame."},
+      {"tipo": "riordina", "parole": ["a", "I", "have", "Can", "beer"], "risposte": ["Can I have a beer?"], "it": "Posso avere una birra?"},
+      {"tipo": "traduci", "it": "Vorrei un panino al pollo, per favore.", "risposte": ["I'd like a chicken sandwich, please.", "I would like a chicken sandwich, please.", "Can I have a chicken sandwich, please?", "Could I have a chicken sandwich, please?"]},
+      {"tipo": "traduci", "it": "Non c'è zucchero.", "risposte": ["There isn't any sugar.", "There is not any sugar.", "There's no sugar.", "There is no sugar."]},
+      {"tipo": "traduci", "it": "Il conto, per favore.", "risposte": ["The bill, please.", "Can I have the bill, please?", "Can we have the bill, please?", "Could I have the bill, please?", "Could we have the bill, please?", "The check, please."]}
+    ]
+  }
+}

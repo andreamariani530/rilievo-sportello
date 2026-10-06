@@ -1,0 +1,122 @@
+{
+  "id": "a1-11",
+  "livello": "A1",
+  "numero": 11,
+  "titolo": "Cosa stai facendo?",
+  "tema": "Telefono e messaggi, il tempo che fa, i vestiti",
+  "obiettivo": "Alla fine sai dire cosa stai facendo adesso, che tempo fa e cosa hai addosso, al telefono o in un messaggio.",
+  "grammatica": {
+    "titolo": "Il present continuous: I'm working, Are you watching...?",
+    "spiegazione": [
+      "Per dire cosa stai facendo adesso, in questo momento, usi to be più il verbo con -ing.",
+      "I'm working vuol dire «sto lavorando». She's watching TV vuol dire «sta guardando la TV».",
+      "Per fare una domanda metti am, is o are all'inizio: Are you watching the match? Is it raining?",
+      "Per dire di no aggiungi not: I'm not sleeping. He isn't working today.",
+      "Attenzione a come si scrive: write diventa writing (la e sparisce), run diventa running (la n si raddoppia).",
+      "Il present simple invece parla delle abitudini, delle cose di sempre: I work in a factory. Il present continuous parla di adesso: I'm working now.",
+      "Il tempo che fa si dice con it: It's raining (piove adesso), It's cold (fa freddo)."
+    ],
+    "tabella": [
+      ["I'm working.", "Sto lavorando."],
+      ["You're watching TV.", "Stai guardando la TV."],
+      ["He's sleeping.", "Lui sta dormendo."],
+      ["It's raining.", "Sta piovendo."],
+      ["We're eating.", "Stiamo mangiando."],
+      ["They're playing.", "Stanno giocando."],
+      ["I'm not working.", "Non sto lavorando."],
+      ["Are you driving?", "Stai guidando?"],
+      ["I work every day.", "Lavoro tutti i giorni (abitudine)."],
+      ["I'm working now.", "Sto lavorando adesso (in questo momento)."]
+    ],
+    "esempi": [
+      {"en": "I'm waiting for the bus.", "it": "Sto aspettando l'autobus."},
+      {"en": "Is it raining in Milan?", "it": "Sta piovendo a Milano?"},
+      {"en": "I usually wear a T-shirt at work, but today I'm wearing a jacket.", "it": "Di solito al lavoro porto una maglietta, ma oggi ho addosso una giacca."}
+    ],
+    "attenzione": "Gli italiani dimenticano am, is, are e dicono «I working» o «she watching TV»: servono sempre, quindi I'm working, she's watching TV. E per le abitudini non si usa: I work every day, non I'm working every day."
+  },
+  "parole": [
+    {"en": "phone", "it": "telefono", "esempio": {"en": "My phone is in my bag.", "it": "Il mio telefono è nella borsa."}},
+    {"en": "message", "it": "messaggio", "esempio": {"en": "I'm writing a message to my brother.", "it": "Sto scrivendo un messaggio a mio fratello."}},
+    {"en": "call", "it": "chiamare, telefonare", "esempio": {"en": "Can you call me later?", "it": "Puoi chiamarmi più tardi?"}},
+    {"en": "text", "it": "mandare un messaggio", "esempio": {"en": "Text me when you are at the station.", "it": "Scrivimi quando sei alla stazione."}},
+    {"en": "weather", "it": "tempo (meteo)", "esempio": {"en": "What's the weather like today?", "it": "Che tempo fa oggi?"}},
+    {"en": "rain", "it": "piovere", "esempio": {"en": "It's raining, take an umbrella.", "it": "Sta piovendo, prendi un ombrello."}},
+    {"en": "snow", "it": "nevicare", "esempio": {"en": "It's snowing in the mountains.", "it": "Sta nevicando in montagna."}},
+    {"en": "sunny", "it": "soleggiato, c'è il sole", "esempio": {"en": "It's sunny today.", "it": "Oggi c'è il sole."}},
+    {"en": "cold", "it": "freddo", "esempio": {"en": "It's very cold this morning.", "it": "Fa molto freddo stamattina."}},
+    {"en": "hot", "it": "caldo", "esempio": {"en": "It's hot in the factory in summer.", "it": "D'estate fa caldo in fabbrica."}},
+    {"en": "windy", "it": "ventoso, c'è vento", "esempio": {"en": "It's windy, so wear a coat.", "it": "C'è vento, quindi metti un cappotto."}},
+    {"en": "wear", "it": "indossare, portare", "esempio": {"en": "I'm wearing my old jeans.", "it": "Ho addosso i miei jeans vecchi."}},
+    {"en": "jacket", "it": "giacca", "esempio": {"en": "Where is my jacket?", "it": "Dov'è la mia giacca?"}},
+    {"en": "coat", "it": "cappotto", "esempio": {"en": "She's wearing a red coat.", "it": "Ha addosso un cappotto rosso."}},
+    {"en": "umbrella", "it": "ombrello", "esempio": {"en": "Is this your umbrella?", "it": "È tuo questo ombrello?"}},
+    {"en": "shoes", "it": "scarpe", "esempio": {"en": "These shoes are new.", "it": "Queste scarpe sono nuove."}},
+    {"en": "T-shirt", "it": "maglietta", "esempio": {"en": "He usually wears a T-shirt at work.", "it": "Al lavoro di solito porta una maglietta."}},
+    {"en": "jeans", "it": "jeans", "esempio": {"en": "I wear jeans on Saturday.", "it": "Il sabato porto i jeans."}},
+    {"en": "now", "it": "adesso, ora", "esempio": {"en": "I'm busy now, I'm driving.", "it": "Adesso sono occupato, sto guidando."}}
+  ],
+  "dialogo": {
+    "titolo": "Una telefonata sotto la pioggia",
+    "situazione": "Dopo il lavoro Andrea è alla stazione e chiama la sua amica Emma.",
+    "battute": [
+      {"nome": "Andrea", "voce": "uomo", "en": "Hi Emma, it's Andrea. Are you busy?", "it": "Ciao Emma, sono Andrea. Sei impegnata?"},
+      {"nome": "Emma", "voce": "donna", "en": "Hi! No, I'm not. I'm watching a TV series on the sofa.", "it": "Ciao! No. Sto guardando una serie TV sul divano."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Which series are you watching?", "it": "Che serie stai guardando?"},
+      {"nome": "Emma", "voce": "donna", "en": "A British series, and I'm watching it in English! Where are you?", "it": "Una serie inglese, e la sto guardando in inglese! Tu dove sei?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "I'm waiting for the bus at the station. It's raining a lot!", "it": "Sto aspettando l'autobus alla stazione. Sta piovendo tantissimo!"},
+      {"nome": "Emma", "voce": "donna", "en": "Oh no! Are you wearing your coat?", "it": "Oh no! Hai addosso il cappotto?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "No, I'm only wearing a jacket. And it's very cold.", "it": "No, ho solo una giacca. E fa molto freddo."},
+      {"nome": "Emma", "voce": "donna", "en": "I can come to the station with my car. Ten minutes?", "it": "Posso venire alla stazione con la macchina. Dieci minuti?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "Really? Thank you! The bus is always late on Mondays.", "it": "Davvero? Grazie! Il lunedì l'autobus è sempre in ritardo."},
+      {"nome": "Emma", "voce": "donna", "en": "No problem. I'm leaving now. Text me if the bus comes!", "it": "Figurati. Esco adesso. Scrivimi se arriva l'autobus!"},
+      {"nome": "Andrea", "voce": "uomo", "en": "OK. See you soon!", "it": "Va bene. A tra poco!"}
+    ],
+    "domande": [
+      {"domanda": "Cosa sta facendo Emma quando Andrea la chiama?", "scelte": ["Sta cucinando", "Sta guardando una serie TV", "Sta aspettando l'autobus"], "giusta": 1},
+      {"domanda": "Che tempo fa?", "scelte": ["C'è il sole", "Nevica", "Piove e fa freddo"], "giusta": 2},
+      {"domanda": "Cosa ha addosso Andrea?", "scelte": ["Solo una giacca", "Il cappotto", "Una maglietta"], "giusta": 0}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "«Sta piovendo» si dice:", "scelte": ["It's raining.", "It raining.", "It rains now."], "giusta": 0, "spiega": "Per adesso: it + is + raining."},
+    {"tipo": "scelta", "domanda": "Quale frase parla di un'abitudine ed è giusta?", "scelte": ["I'm usually taking the bus.", "I usually take the bus.", "I usually taking the bus."], "giusta": 1, "spiega": "Per le abitudini si usa il present simple: I usually take."},
+    {"tipo": "scelta", "domanda": "Un amico ti scrive «What are you doing?». Quale risposta va bene?", "scelte": ["I cook dinner.", "I cooking dinner.", "I'm cooking dinner."], "giusta": 2, "spiega": "Ti chiede cosa fai adesso: I'm cooking."},
+    {"tipo": "completa", "frase": "Look outside! ___ snowing.", "risposte": ["It's", "It is"], "it": "Guarda fuori! Sta nevicando.", "spiega": "Il tempo si dice con it: It's snowing."},
+    {"tipo": "completa", "frase": "She ___ a red coat today.", "risposte": ["is wearing"], "it": "Oggi ha addosso un cappotto rosso.", "spiega": "Oggi, adesso: is + wearing."},
+    {"tipo": "completa", "frase": "___ you watching the match?", "risposte": ["Are"], "it": "Stai guardando la partita?", "spiega": "La domanda comincia con are."},
+    {"tipo": "completa", "frase": "I ___ working today, it's Sunday.", "risposte": ["am not"], "it": "Oggi non lavoro, è domenica.", "spiega": "Per il no: am not."},
+    {"tipo": "riordina", "parole": ["a", "message", "writing", "I'm", "to", "Emma"], "risposte": ["I'm writing a message to Emma.", "I am writing a message to Emma."], "it": "Sto scrivendo un messaggio a Emma."},
+    {"tipo": "riordina", "parole": ["you", "Are", "jeans", "wearing"], "risposte": ["Are you wearing jeans?"], "it": "Hai addosso i jeans?"},
+    {"tipo": "riordina", "parole": ["isn't", "He", "today", "working"], "risposte": ["He isn't working today.", "He is not working today.", "Today he isn't working.", "Today he is not working."], "it": "Oggi lui non lavora."},
+    {"tipo": "traduci", "it": "Cosa stai facendo adesso?", "risposte": ["What are you doing now?", "What are you doing right now?", "What're you doing now?"]},
+    {"tipo": "traduci", "it": "Fa freddo e c'è vento.", "risposte": ["It's cold and windy.", "It is cold and windy.", "It's cold and it's windy.", "It is cold and it is windy."]},
+    {"tipo": "traduci", "it": "Mia moglie sta parlando al telefono.", "risposte": ["My wife is talking on the phone.", "My wife's talking on the phone.", "My wife is speaking on the phone.", "My wife is on the phone."]},
+    {"tipo": "voce", "en": "I'm waiting for the bus and it's raining.", "it": "Sto aspettando l'autobus e sta piovendo."},
+    {"tipo": "voce", "en": "Are you watching a TV series?", "it": "Stai guardando una serie TV?"},
+    {"tipo": "voce", "en": "Call me later, I'm driving.", "it": "Chiamami più tardi, sto guidando."}
+  ],
+  "parlato": [
+    {"domanda": "What are you doing now?", "it": "Cosa stai facendo adesso?", "modello": "I'm studying English on my phone."},
+    {"domanda": "What's the weather like today?", "it": "Che tempo fa oggi?", "modello": "It's cold and it's raining."},
+    {"domanda": "What are you wearing today?", "it": "Cosa hai addosso oggi?", "modello": "I'm wearing jeans, a T-shirt and a jacket."},
+    {"domanda": "What do you usually wear at work?", "it": "Cosa porti di solito al lavoro?", "modello": "I usually wear old jeans and work shoes."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "«Adesso non sto lavorando» si dice:", "scelte": ["I don't working now.", "I'm not working now.", "I not working now."], "giusta": 1, "spiega": "Per il no: I'm not + -ing."},
+      {"tipo": "scelta", "domanda": "Quale domanda è giusta?", "scelte": ["Is it snowing in Milan?", "Does it snowing in Milan?", "Is snowing in Milan?"], "giusta": 0, "spiega": "Is + it + snowing."},
+      {"tipo": "scelta", "domanda": "«Di solito Tom beve il tè, ma adesso beve un caffè» si dice:", "scelte": ["Tom is usually drinking tea, but now he drinks a coffee.", "Tom usually drinking tea, but now he drink a coffee.", "Tom usually drinks tea, but now he's drinking a coffee."], "giusta": 2, "spiega": "Abitudine: drinks. Adesso: he's drinking."},
+      {"tipo": "completa", "frase": "They ___ football in the park right now.", "risposte": ["are playing"], "it": "Stanno giocando a calcio al parco proprio adesso.", "spiega": "Adesso: are + playing."},
+      {"tipo": "completa", "frase": "What ___ you wearing?", "risposte": ["are"], "it": "Cosa hai addosso?", "spiega": "Con you si usa are."},
+      {"tipo": "completa", "frase": "It ___ a lot here in November.", "risposte": ["rains"], "it": "Qui a novembre piove molto.", "spiega": "È una cosa di sempre, quindi present simple: it rains."},
+      {"tipo": "riordina", "parole": ["is", "sunny", "it", "today"], "risposte": ["It is sunny today.", "It's sunny today.", "Today it is sunny.", "Today it's sunny."], "it": "Oggi c'è il sole."},
+      {"tipo": "riordina", "parole": ["calling", "Who", "you", "are"], "risposte": ["Who are you calling?"], "it": "Chi stai chiamando?"},
+      {"tipo": "riordina", "parole": ["shoes", "new", "wearing", "She's", "her"], "risposte": ["She's wearing her new shoes.", "She is wearing her new shoes."], "it": "Ha addosso le sue scarpe nuove."},
+      {"tipo": "traduci", "it": "Sta nevicando, metti il cappotto.", "risposte": ["It's snowing, wear your coat.", "It is snowing, wear your coat.", "It's snowing, put on your coat.", "It is snowing, put on your coat.", "It's snowing, put your coat on.", "It is snowing, put your coat on.", "It's snowing, wear a coat.", "It is snowing, wear a coat.", "It's snowing, put on a coat.", "It's snowing, put a coat on."]},
+      {"tipo": "traduci", "it": "Ti sto scrivendo dal treno.", "risposte": ["I'm writing to you from the train.", "I am writing to you from the train.", "I'm texting you from the train.", "I am texting you from the train.", "I'm writing you from the train.", "I'm messaging you from the train."]},
+      {"tipo": "traduci", "it": "Lui non guarda mai la TV.", "risposte": ["He never watches TV.", "He never watches television.", "He never watches the TV."]}
+    ]
+  }
+}

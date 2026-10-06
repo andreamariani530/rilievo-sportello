@@ -1,0 +1,116 @@
+{
+  "id": "a1-06",
+  "livello": "A1",
+  "numero": 6,
+  "titolo": "Al lavoro",
+  "tema": "Lavori, turni, la fabbrica e i colleghi",
+  "obiettivo": "Alla fine sai dire che lavoro fai, parlare dei turni e fare domande a un collega sul suo lavoro.",
+  "grammatica": {
+    "titolo": "Le domande e il no: do, does, don't, doesn't",
+    "spiegazione": [
+      "Per fare una domanda nel present simple serve un aiutante: do. Lo metti all'inizio. Do you work? vuol dire «lavori?».",
+      "Con he, she e it l'aiutante diventa does. La -s va su does e il verbo torna semplice: Does he work?, non Does he works?",
+      "Per dire di no metti don't prima del verbo: I don't work on Sunday. Con he, she e it usi doesn't: She doesn't drive.",
+      "Don't è la forma corta di do not. Doesn't è la forma corta di does not. Parlando si usa quasi sempre la forma corta.",
+      "Alle domande con do e does si risponde corto: Yes, I do. No, I don't. Yes, she does. No, she doesn't.",
+      "Con le parole delle domande (where, what, what time) do va subito dopo: Where do you work? What time does he start? E What do you do? vuol dire «che lavoro fai?»."
+    ],
+    "tabella": [
+      ["Do you work?", "lavori?"],
+      ["Does she work?", "lei lavora?"],
+      ["I don't work", "io non lavoro"],
+      ["he doesn't work", "lui non lavora"],
+      ["we don't work", "noi non lavoriamo"],
+      ["Yes, I do. / No, I don't.", "sì. / no."],
+      ["Yes, he does. / No, he doesn't.", "sì. / no. (parlando di lui)"],
+      ["Where do you work?", "dove lavori?"]
+    ],
+    "esempi": [
+      {"en": "Do you work in a factory?", "it": "Lavori in una fabbrica?"},
+      {"en": "Does your wife work?", "it": "Tua moglie lavora?"},
+      {"en": "I don't work on Saturday.", "it": "Il sabato non lavoro."},
+      {"en": "My boss doesn't speak English.", "it": "Il mio capo non parla inglese."}
+    ],
+    "attenzione": "Gli italiani dicono «I not work» e «Does he works?». Sono sbagliate tutte e due: si dice «I don't work» e «Does he work?». Se nella frase c'è does o doesn't, la -s ce l'ha già lui e il verbo resta senza."
+  },
+  "parole": [
+    {"en": "job", "it": "lavoro, impiego", "esempio": {"en": "I like my job.", "it": "Mi piace il mio lavoro."}},
+    {"en": "factory", "it": "fabbrica", "esempio": {"en": "I work in a factory.", "it": "Lavoro in una fabbrica."}},
+    {"en": "shift", "it": "turno", "esempio": {"en": "My shift starts at six.", "it": "Il mio turno comincia alle sei."}},
+    {"en": "night shift", "it": "turno di notte", "esempio": {"en": "He doesn't like the night shift.", "it": "A lui non piace il turno di notte."}},
+    {"en": "colleague", "it": "collega", "esempio": {"en": "My colleague is from Romania.", "it": "Il mio collega viene dalla Romania."}},
+    {"en": "boss", "it": "capo", "esempio": {"en": "Does your boss speak English?", "it": "Il tuo capo parla inglese?"}},
+    {"en": "office", "it": "ufficio", "esempio": {"en": "The boss works in the office.", "it": "Il capo lavora in ufficio."}},
+    {"en": "worker", "it": "operaio, lavoratore", "esempio": {"en": "There are twenty workers in my team.", "it": "Nella mia squadra ci sono venti operai."}},
+    {"en": "break", "it": "pausa", "esempio": {"en": "We have a break at ten.", "it": "Facciamo la pausa alle dieci."}},
+    {"en": "start", "it": "cominciare, iniziare", "esempio": {"en": "What time do you start?", "it": "A che ora cominci?"}},
+    {"en": "machine", "it": "macchina, macchinario", "esempio": {"en": "The machine doesn't work.", "it": "La macchina non funziona."}},
+    {"en": "like", "it": "piacere", "esempio": {"en": "Do you like your colleagues?", "it": "Ti piacciono i tuoi colleghi?"}},
+    {"en": "drive", "it": "guidare", "esempio": {"en": "She doesn't drive. She goes to work by bus.", "it": "Lei non guida. Va al lavoro in autobus."}},
+    {"en": "nurse", "it": "infermiere, infermiera", "esempio": {"en": "My sister is a nurse. She sometimes works at night.", "it": "Mia sorella è infermiera. A volte lavora di notte."}},
+    {"en": "driver", "it": "autista", "esempio": {"en": "He's a bus driver.", "it": "Fa l'autista di autobus."}},
+    {"en": "shop assistant", "it": "commesso, commessa", "esempio": {"en": "Laura is a shop assistant.", "it": "Laura fa la commessa."}},
+    {"en": "overtime", "it": "straordinari", "esempio": {"en": "I don't do overtime on Saturday.", "it": "Il sabato non faccio gli straordinari."}},
+    {"en": "day off", "it": "giorno libero", "esempio": {"en": "Sunday is my day off.", "it": "La domenica è il mio giorno libero."}}
+  ],
+  "dialogo": {
+    "titolo": "La collega nuova",
+    "situazione": "In fabbrica arriva Kate, una collega irlandese. Andrea le spiega come funziona.",
+    "battute": [
+      {"nome": "Kate", "voce": "donna", "en": "Hi, I'm Kate. I'm new here.", "it": "Ciao, sono Kate. Sono nuova qui."},
+      {"nome": "Andrea", "voce": "uomo", "en": "Hi Kate, I'm Andrea. Do you work on this machine?", "it": "Ciao Kate, sono Andrea. Lavori su questa macchina?"},
+      {"nome": "Kate", "voce": "donna", "en": "Yes, I do. But I don't know it very well.", "it": "Sì. Ma non la conosco molto bene."},
+      {"nome": "Andrea", "voce": "uomo", "en": "No problem. It's easy.", "it": "Nessun problema. È facile."},
+      {"nome": "Kate", "voce": "donna", "en": "Thanks! Do you work the night shift?", "it": "Grazie! Tu fai il turno di notte?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "No, I don't. I work in the morning, from six to two.", "it": "No. Lavoro la mattina, dalle sei alle due."},
+      {"nome": "Kate", "voce": "donna", "en": "Does the boss work in the morning too?", "it": "Anche il capo lavora la mattina?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "No, he doesn't. He starts at nine, in the office.", "it": "No. Lui comincia alle nove, in ufficio."},
+      {"nome": "Kate", "voce": "donna", "en": "And when do we have a break?", "it": "E quando facciamo la pausa?"},
+      {"nome": "Andrea", "voce": "uomo", "en": "At ten. We usually have a coffee together.", "it": "Alle dieci. Di solito prendiamo un caffè insieme."},
+      {"nome": "Kate", "voce": "donna", "en": "Great! I don't drink coffee, but I like tea.", "it": "Benissimo! Io non bevo caffè, però il tè mi piace."}
+    ],
+    "domande": [
+      {"domanda": "Andrea fa il turno di notte?", "scelte": ["Sì, sempre", "No, lavora la mattina", "A volte"], "giusta": 1},
+      {"domanda": "A che ora comincia il capo?", "scelte": ["Alle sei", "Alle due", "Alle nove"], "giusta": 2},
+      {"domanda": "Che cosa beve Kate?", "scelte": ["Il tè", "Il caffè", "L'acqua"], "giusta": 0}
+    ]
+  },
+  "esercizi": [
+    {"tipo": "scelta", "domanda": "Come si dice «lui non lavora il sabato»?", "scelte": ["He doesn't work on Saturday.", "He don't work on Saturday.", "He doesn't works on Saturday."], "giusta": 0, "spiega": "Con he si usa doesn't, e il verbo resta senza -s."},
+    {"tipo": "completa", "frase": "I ___ work on Sunday.", "risposte": ["don't", "do not"], "it": "La domenica non lavoro.", "spiega": "Con I il no si fa con don't."},
+    {"tipo": "completa", "frase": "___ your sister work in a shop?", "risposte": ["Does"], "it": "Tua sorella lavora in un negozio?", "spiega": "Your sister è lei (she): la domanda comincia con Does."},
+    {"tipo": "riordina", "parole": ["you", "Do", "night", "the", "shift", "work"], "risposte": ["Do you work the night shift?"], "it": "Fai il turno di notte?"},
+    {"tipo": "traduci", "it": "Non mi piace il turno di notte.", "risposte": ["I don't like the night shift.", "I do not like the night shift.", "I don't like night shift.", "I don't like the night shifts.", "I don't like night shifts."]},
+    {"tipo": "scelta", "domanda": "«Do you like your job?» Qual è la risposta giusta?", "scelte": ["Yes, I like.", "Yes, I do.", "Yes, I am."], "giusta": 1, "spiega": "A una domanda con do si risponde con do: Yes, I do."},
+    {"tipo": "completa", "frase": "My colleague ___ English very well.", "risposte": ["doesn't speak", "does not speak"], "it": "Il mio collega non parla l'inglese molto bene.", "spiega": "My colleague è lui (he): doesn't speak, senza -s su speak."},
+    {"tipo": "riordina", "parole": ["does", "Where", "work", "she"], "risposte": ["Where does she work?"], "it": "Dove lavora lei?"},
+    {"tipo": "traduci", "it": "Tuo fratello lavora in fabbrica?", "risposte": ["Does your brother work in a factory?", "Does your brother work in the factory?", "Does your brother work at a factory?", "Does your brother work at the factory?"]},
+    {"tipo": "scelta", "domanda": "Qual è la domanda giusta?", "scelte": ["Does he works in an office?", "Do he work in an office?", "Does he work in an office?"], "giusta": 2, "spiega": "Con he si usa does, e work resta senza -s."},
+    {"tipo": "riordina", "parole": ["break", "have", "We", "don't", "long", "a"], "risposte": ["We don't have a long break.", "We do not have a long break."], "it": "Non facciamo una pausa lunga."},
+    {"tipo": "traduci", "it": "Lei non guida.", "risposte": ["She doesn't drive.", "She does not drive."]},
+    {"tipo": "voce", "en": "What time does your shift start?", "it": "A che ora comincia il tuo turno?"},
+    {"tipo": "voce", "en": "I don't work on Sunday. It's my day off.", "it": "La domenica non lavoro. È il mio giorno libero."}
+  ],
+  "parlato": [
+    {"domanda": "What do you do?", "it": "Che lavoro fai?", "modello": "I'm a worker. I work in a factory."},
+    {"domanda": "Do you work the night shift?", "it": "Fai il turno di notte?", "modello": "No, I don't. I work in the morning."},
+    {"domanda": "Do you like your job?", "it": "Ti piace il tuo lavoro?", "modello": "Yes, I do. My colleagues are very nice."},
+    {"domanda": "What time does your shift start?", "it": "A che ora comincia il tuo turno?", "modello": "My shift starts at six o'clock."}
+  ],
+  "esame": {
+    "soglia": 0.7,
+    "domande": [
+      {"tipo": "scelta", "domanda": "Come si dice «loro non lavorano in ufficio»?", "scelte": ["They doesn't work in an office.", "They don't work in an office.", "They not work in an office."], "giusta": 1, "spiega": "Con they si usa don't."},
+      {"tipo": "scelta", "domanda": "«Does she like her job?» Qual è la risposta giusta?", "scelte": ["No, she doesn't.", "No, she don't.", "No, she isn't."], "giusta": 0, "spiega": "La domanda usa does, quindi la risposta è No, she doesn't."},
+      {"tipo": "scelta", "domanda": "Qual è la domanda giusta?", "scelte": ["Does your colleagues work on Saturday?", "Do your colleagues works on Saturday?", "Do your colleagues work on Saturday?"], "giusta": 2, "spiega": "Your colleagues sono loro (they): Do, e il verbo senza -s."},
+      {"tipo": "completa", "frase": "___ you have a break at ten?", "risposte": ["Do"], "it": "Fate la pausa alle dieci?", "spiega": "Con you la domanda comincia con Do."},
+      {"tipo": "completa", "frase": "Paolo ___ a car. He goes to work by bus.", "risposte": ["doesn't have", "does not have", "hasn't got", "has not got"], "it": "Paolo non ha la macchina. Va al lavoro in autobus.", "spiega": "Paolo è lui: doesn't have, non doesn't has."},
+      {"tipo": "completa", "frase": "What time ___ your wife finish work?", "risposte": ["does"], "it": "A che ora finisce di lavorare tua moglie?", "spiega": "Your wife è lei (she): does."},
+      {"tipo": "riordina", "parole": ["drive", "you", "Do", "work", "to"], "risposte": ["Do you drive to work?"], "it": "Vai al lavoro in macchina?"},
+      {"tipo": "riordina", "parole": ["the", "doesn't", "He", "machine", "like", "new"], "risposte": ["He doesn't like the new machine.", "He does not like the new machine."], "it": "A lui non piace la macchina nuova."},
+      {"tipo": "riordina", "parole": ["do", "What", "you", "do"], "risposte": ["What do you do?"], "it": "Che lavoro fai?"},
+      {"tipo": "traduci", "it": "Mia sorella non lavora il lunedì.", "risposte": ["My sister doesn't work on Monday.", "My sister does not work on Monday.", "My sister doesn't work on Mondays.", "My sister does not work on Mondays.", "On Monday my sister doesn't work.", "On Mondays my sister doesn't work."]},
+      {"tipo": "traduci", "it": "Il tuo capo lavora il sabato?", "risposte": ["Does your boss work on Saturday?", "Does your boss work on Saturdays?"]}
+    ]
+  }
+}
