@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rilievo sul telefono, come un'app</title>
+<meta name="description" content="Due minuti per mettere Rilievo fra le icone del telefono, su iPhone e su Android.">
+<link rel="icon" href="/icona-192.png">
+<style>
+  :root{ --carta:#f6f1e7; --inchiostro:#24221d; --soft:#6d675c; --filo:#d9d0bf; --salvia:#5f7a5b; }
+  *{ box-sizing:border-box }
+  body{ margin:0; background:var(--carta); color:var(--inchiostro);
+        font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; line-height:1.5 }
+  main{ max-width:560px; margin:0 auto; padding:40px 24px 64px }
+  .marchio{ display:flex; align-items:center; gap:12px; margin-bottom:36px }
+  .marchio img{ width:40px; height:40px; border-radius:10px }
+  .marchio span{ font-variant:small-caps; letter-spacing:.18em; font-size:15px; color:var(--soft) }
+  h1{ font-weight:400; font-size:34px; line-height:1.15; margin:0 0 12px }
+  .sotto{ color:var(--soft); font-size:18px; margin:0 0 32px }
+  .perche{ border-top:1px solid var(--filo); border-bottom:1px solid var(--filo); padding:18px 0; margin-bottom:36px;
+           display:grid; grid-template-columns:repeat(3,1fr); gap:12px; text-align:center }
+  .perche b{ display:block; font-weight:400; font-size:22px; color:var(--salvia) }
+  .perche small{ color:var(--soft); font-size:14px }
+  .scelta{ display:flex; gap:8px; margin-bottom:24px }
+  .scelta button{ flex:1; font:inherit; font-size:16px; padding:12px; border:1px solid var(--filo); background:transparent;
+                  color:var(--inchiostro); border-radius:999px; cursor:pointer; font-variant:small-caps; letter-spacing:.08em }
+  .scelta button.su{ border-color:var(--salvia); color:var(--salvia) }
+  .guida{ margin-bottom:40px }
+  h2{ font-weight:400; font-variant:small-caps; letter-spacing:.16em; font-size:17px; color:var(--salvia); margin:0 0 4px; border-bottom:1px solid var(--inchiostro); padding-bottom:8px }
+  ol{ list-style:none; padding:0; margin:0; counter-reset:passo }
+  li{ counter-increment:passo; display:grid; grid-template-columns:44px 1fr; gap:16px; padding:20px 0; border-bottom:1px solid var(--filo) }
+  li::before{ content:counter(passo); font-size:30px; color:var(--salvia); line-height:1 }
+  li p{ margin:0; font-size:18px }
+  li small{ display:block; color:var(--soft); font-size:15px; margin-top:6px }
+  .icona{ display:inline-flex; vertical-align:-6px; width:28px; height:28px; border:1px solid var(--filo); border-radius:7px;
+          align-items:center; justify-content:center; margin:0 2px; background:#fffdf8 }
+  .icona svg{ width:16px; height:16px; stroke:var(--inchiostro); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round }
+  .fine{ margin-top:36px; text-align:center }
+  .fine a{ display:inline-block; background:var(--salvia); color:#fff; text-decoration:none; padding:14px 30px; border-radius:999px; font-size:18px }
+  .fine p{ color:var(--soft); font-size:15px; margin-top:18px }
+</style>
+</head>
+<body>
+<main>
+  <div class="marchio"><img src="/icona-192.png" alt=""><span>Rilievo</span></div>
+  <h1>Rilievo fra le icone del telefono</h1>
+  <p class="sotto">Due minuti, una volta sola. Poi lo apri come WhatsApp, con un tocco.</p>
+
+  <div class="perche">
+    <div><b>1 tocco</b><small>per aprirlo</small></div>
+    <div><b>senza</b><small>passare dal negozio</small></div>
+    <div><b>anche</b><small>dove non prende</small></div>
+  </div>
+
+  <section class="guida" id="iphone">
+    <h2>Su iPhone</h2>
+    <ol>
+      <li><p>Apri <b>rilievo-sportello.onrender.com</b> con <b>Safari</b>, la bussola blu.
+        <small>Se il link ti si è aperto dentro la mail o WhatsApp, copia l'indirizzo e incollalo in Safari.</small></p></li>
+      <li><p>Tocca <b>Condividi</b>
+        <span class="icona"><svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11v9h12v-9"/></svg></span>
+        in basso.
+        <small>Non lo vedi? Tocca prima i tre puntini <span class="icona"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>, poi Condividi.</small></p></li>
+      <li><p>Scorri e tocca <b>«Aggiungi alla schermata Home»</b>
+        <span class="icona"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg></span>
+        <small>Se non c'è, tocca «Modifica azioni» in fondo all'elenco e aggiungila.</small></p></li>
+      <li><p>Tocca <b>Aggiungi</b> in alto a destra.
+        <small>Sulla schermata compare l'icona con la R di Rilievo.</small></p></li>
+    </ol>
+  </section>
+
+  <section class="guida" id="android">
+    <h2>Su Android</h2>
+    <ol>
+      <li><p>Apri <b>rilievo-sportello.onrender.com</b> con <b>Chrome</b>.
+        <small>Se il link ti si è aperto dentro la mail o WhatsApp, tocca «Apri in Chrome».</small></p></li>
+      <li><p>Tocca i tre puntini
+        <span class="icona"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></span>
+        in alto a destra.</p></li>
+      <li><p>Tocca <b>«Installa app»</b> oppure <b>«Aggiungi a schermata Home»</b>.
+        <small>Il nome cambia da telefono a telefono: fanno la stessa cosa.</small></p></li>
+      <li><p>Conferma con <b>Installa</b>.
+        <small>L'icona con la R di Rilievo compare fra le altre app.</small></p></li>
+    </ol>
+  </section>
+
+  <div class="fine">
+    <a href="/">Apri Rilievo</a>
+    <p>Bloccato da qualche parte? Rispondi alla mail di Andrea: ti scrive la sera.</p>
+  </div>
+</main>
+</body>
+</html>

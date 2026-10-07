@@ -37,6 +37,7 @@ import posta               # la mail per scegliere una password nuova
 import promemoria          # i promemoria automatici ai clienti, se la ditta li accende
 import preventivo_col_link # il preventivo che il cliente apre e accetta da un link
 import richieste_dal_link  # il link della ditta: i clienti nuovi scrivono da li' (4/10/2026)
+import avvisi             # chi si iscrive e chi rientra: avviso ad Andrea
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 import fattureincloud      # il collegamento col Fatture in Cloud dell'artigiano (4/10/2026)
 import assistente          # l'assistente in chat, col manuale dell'app dentro
@@ -2926,6 +2927,7 @@ def servizio(porta=8787, pubblico=False):
                     self._manda(codice, {"errore": motivo})
                     return
                 self._manda(200, {"gettone": g, "mail": accessi.mail_pulita(mail)})
+                avvisi.chi_entra(accessi.mail_pulita(mail), nuovo=bool(fa))
                 return
             if percorso == "/accesso/stato":
                 m = accessi.chi_e(mail, dentro.get("gettone"))
@@ -3323,6 +3325,11 @@ def servizio(porta=8787, pubblico=False):
                 self.send_header("Location", "/#privacy")
                 self.send_header("Content-Length", "0")
                 self.end_headers()
+                return
+            # la guida per mettere Rilievo fra le icone del telefono (Andrea, 7/10/2026):
+            # un indirizzo corto da mettere nelle mail ai giardinieri
+            if u.path in ("/telefono", "/telefono/"):
+                self._pagina_cliente(200, (APP / "telefono.html").read_text(encoding="utf-8"))
                 return
             # il link della ditta: la pagina dove un cliente nuovo chiede un preventivo
             m = re.fullmatch(r"/chiedi/([a-z2-9]{10})/?", u.path)

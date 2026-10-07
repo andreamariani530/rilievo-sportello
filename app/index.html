@@ -9303,7 +9303,7 @@ function confermaFattura(id){
         ${pronto ? '' : 'disabled'} onclick="chiudiScheda();inviaFattura('${p.id}')">
         <span class="nome-via">Mandala con Rilievo</span>
         <span>${!pronto ? 'Adesso non c\'è rete: riprova appena c\'è campo, oppure scarica il file.'
-          : prova ? 'Fattura di prova n. ' + esc(numero) + ': arriva al cliente come una vera, ma non va allo Stato.'
+          : prova ? 'Fattura di prova n. ' + esc(numero) + ': serve a vedere come viene. Non arriva al cliente e non va allo Stato.'
           : 'Fattura n. ' + esc(numero) + '. Arriva al cliente in qualche minuto, ed è compresa nell\'abbonamento.'}</span>
         ${pronto && prova ? '<span class="di-prova">Di prova · non mandata allo Stato</span>' : ''}
       </button>`;
@@ -9466,7 +9466,7 @@ function riquadroFic(){
         ? 'Il collegamento con Fatture in Cloud è scaduto. Ricollegalo: ci vuole un minuto.'
         : 'Usi già Fatture in Cloud? Collegalo una volta: le fatture fatte qui partono dal tuo account, con la tua numerazione.'}</p>
       <div class="azioni" style="margin-top:14px"><button class="bottone" id="btn-fic-collega" onclick="collegaFic()">${ficStato.scaduto ? 'Ricollega Fatture in Cloud' : 'Collega Fatture in Cloud'}</button></div>
-      <p class="fattura-nota">Si apre il loro sito: entri con i tuoi dati e premi «Autorizza». La password resta loro.</p>`;
+      <p class="fattura-nota">Si apre il loro sito: entri con i tuoi dati e premi «Autorizza». La password resta loro. Per ora il collegamento è aperto a pochi: se il loro sito ti dice di no, scrivi ad Andrea e ti aggiunge.</p>`;
   }
   return `<div class="riquadro" id="riquadro-fic">
       <div class="lbl" style="margin-bottom:12px">Il tuo programma delle fatture</div>${corpo}</div>`;
