@@ -122,7 +122,8 @@ Il cuore del lavoro: cammini nel giardino e parli.
 - L'elenco ha le linguette: Tutti, Bozze, Senza risposta, Accettati, Pagati, Da incassare,
   Non andati, Messi via. Si vedono solo quelle che hanno qualcosa dentro.
   «+ Nuovo preventivo» per farne uno senza sopralluogo.
-- Dentro un preventivo cambi quantità, spegni una voce col suo interruttore (esce dal
+- Dentro un preventivo cambi quantità con − e + (il − non scende a zero: per togliere una
+  voce si spegne il suo interruttore), spegni una voce col suo interruttore (esce dal
   totale e si riaccende), aggiungi una voce del listino con «Aggiungi questa» o una nuova
   con «+ Voce nuova», metti lo sconto: il totale si rifà subito davanti al cliente.
   Se cambi il prezzo di una voce presa dal listino, l'avviso offre un tasto «Tieni» col
