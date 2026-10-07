@@ -12,9 +12,9 @@
  * VERSIONE la scrive costruisci.py: cambia quando cambia l'app, e il telefono si
  * accorge da solo che c'e' una copia nuova da tenere.
  */
-const VERSIONE = '96f0b4752a4b';
+const VERSIONE = '45c534d0ba0a';
 /* quando e' stata costruita l'app: la pagina la confronta con la sua (cercaVersioneNuova) */
-const COSTRUITA = '2026-10-07 07:00';
+const COSTRUITA = '2026-10-07 20:51';
 const CASSETTO = 'rilievo-app';
 const FILE = ['./', 'manifest.webmanifest', 'icona-192.png', 'icona-512.png', 'icona-180.png'];
 
@@ -42,7 +42,11 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
-  const pagina = e.request.mode === 'navigate' || u.pathname === '/' || u.pathname === '/index.html';
+  /* solo la pagina dell'app si serve dalla copia. Il 7/10/2026 ogni pagina aperta nel
+     browser (la guida /telefono, il preventivo /p/..., la richiesta /chiedi/...) veniva
+     servita E salvata al posto dell'app: chi apriva la guida, la volta dopo trovava la
+     guida invece di Rilievo. Le altre pagine vanno sempre in rete, e non si salvano. */
+  const pagina = u.pathname === '/' || u.pathname === '/index.html';
   if (!pagina && !FILE.some(f => new URL(f, location.href).pathname === u.pathname)) return;
   const chiave = pagina ? './' : e.request;
 
