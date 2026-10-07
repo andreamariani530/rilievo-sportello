@@ -1217,13 +1217,25 @@ def casa_piu_vicina(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0):
 
 
 def _mappa_catastale(y0, x0, y1, x1, strati, lati, trasparente="TRUE"):
-    dati = prendi(CATASTO, {
-        "SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap",
-        "LAYERS": strati, "STYLES": "", "CRS": "EPSG:6706",
-        "BBOX": "%f,%f,%f,%f" % (y0, x0, y1, x1),
-        "WIDTH": lati, "HEIGHT": lati, "FORMAT": "image/png",
-        "TRANSPARENT": trasparente,
-    })
+    try:
+        dati = prendi(CATASTO, {
+            "SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap",
+            "LAYERS": strati, "STYLES": "", "CRS": "EPSG:6706",
+            "BBOX": "%f,%f,%f,%f" % (y0, x0, y1, x1),
+            "WIDTH": lati, "HEIGHT": lati, "FORMAT": "image/png",
+            "TRANSPARENT": trasparente,
+        })
+    except TempoScaduto:
+        raise
+    except RuntimeError as e:
+        # Il 7 ottobre 2026 il certificato del server delle mappe dell'Agenzia era
+        # scaduto: ogni rilievo tornava 502 e l'artigiano restava senza niente.
+        # Un catasto irraggiungibile e' lo stesso "no" di un catasto occupato: si
+        # passa alla foto da segnare col dito.
+        print("mappa del catasto irraggiungibile: %s" % e, flush=True)
+        raise CatastoOccupato(
+            "Il catasto in questo momento non manda le mappe. Segna il giardino "
+            "sulla foto: i metri quadri li conto io.") from e
     try:
         return Image.open(io.BytesIO(dati)).convert("RGB")
     except Exception:                               # noqa: BLE001
@@ -3147,7 +3159,7 @@ def servizio(porta=8787, pubblico=False):
                     return
                 if percorso == "/fic/manda":
                     r = fattureincloud.manda(conto, dentro.get("fattura"))
-                    print("  fattura da Fatture in Cloud n. %s%s" % (r.get("numero"), " (prova)" if prova else ""))
+                    print("  fattura da Fatture in Cloud n. %s%s" % (r.get("numero"), " (prova)" if prova else ""), flush=True)
                     self._manda(200, r)
                     return
                 if percorso == "/fic/controlla":
@@ -3155,7 +3167,7 @@ def servizio(porta=8787, pubblico=False):
                         self._manda(403, {"errore": "Questo controllo non è acceso per il tuo account.", "prova": prova})
                         return
                     r = fattureincloud.controlla(conto, dentro.get("fattura"))
-                    print("  controllo Fatture in Cloud passato, bozza n. %s" % r.get("numero"))
+                    print("  controllo Fatture in Cloud passato, bozza n. %s" % r.get("numero"), flush=True)
                     self._manda(200, r)
                     return
                 if percorso == "/fic/come-sta":

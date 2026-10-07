@@ -1204,7 +1204,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-06 02:27';
+const COSTRUITA = '2026-10-07 02:04';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -8299,7 +8299,11 @@ function stanzeDette(testo){
   stanze.forEach((s, n) => {
     const fino = n + 1 < stanze.length ? stanze[n + 1].i : tok.length;
     const dette = new Set(), tolte = new Set();
-    for(let j = s.i + 1; j < fino; j++){
+    /* anche quello detto prima del nome: "rivestimento in ceramica bagno tre per due alto
+       due metri" e' il rivestimento del bagno (7 ottobre 2026: usciva il pavimento) */
+    const da = n > 0 ? s.i + 1 : 0;
+    for(let j = da; j < fino; j++){
+      if(j === s.i) continue;
       Object.keys(PARTI_STANZA).forEach(p => {
         if(!PARTI_STANZA[p].includes(tok[j].w)) return;
         const prima = [tok[j - 1], tok[j - 2]].filter(Boolean).map(x => x.w);
@@ -8387,8 +8391,51 @@ function mettiLeStanze(trovate, stanze, listino){
     if(q > 0) trovate.push({voce: v.id, q, stanza: nota});
   });
 }
-function capisci(testo, listino, mestiere){
+/* ===== UN POSTO ALLA VOLTA (7 ottobre 2026) =====
+   "camera quattro per tre e mezzo alta due e settanta pareti e soffitto poi il corridoio
+   venti metri quadri di pareti con lo stucco": le misure della camera finivano sullo stucco
+   del corridoio (40,5 mq) e le pareti tenevano solo i 20 del corridoio. Quando si passa da
+   un posto all'altro ("poi il corridoio", ", il bagno") ogni posto si legge per conto suo,
+   con le sue stanze, e alla fine le righe uguali si sommano. Solo se c'e' almeno una stanza
+   misurata: senza, il testo si legge tutto insieme come sempre. */
+function trattiDeiPosti(pronto){
+  if(!stanzeDette(pronto).stanze.length) return [pronto];
+  const nomi = new Set(STANZE), tagli = [0];
+  pronto.replace(/(?<!\d)[.;!?\n]+|[.;!?\n]+(?!\d)|(?<!\d),|,(?!\d)|\s(?:e\s+poi|poi)\s/g, (m, a) => { tagli.push(a); return m; });
+  tagli.push(pronto.length);
+  const tratti = []; let corrente = '', conPosto = false;
+  for(let k = 0; k + 1 < tagli.length; k++){
+    const pezzo = pronto.slice(tagli[k], tagli[k + 1]);
+    const posto = (pezzo.match(/[a-z]+/g) || []).some(w => nomi.has(w));
+    if(posto && conPosto && corrente.trim()){ tratti.push(corrente); corrente = ''; conPosto = false; }
+    corrente += pezzo; if(posto) conPosto = true;
+  }
+  if(corrente.trim()) tratti.push(corrente);
+  return tratti.length ? tratti : [pronto];
+}
+function unisciTratti(liste){
+  const tutte = [];
+  liste.forEach(l => l.forEach(t => {
+    if(t.nuova){ if(!tutte.some(x => x.nuova && x.nome === t.nome)) tutte.push(t); return; }
+    const g = tutte.find(x => !x.nuova && x.voce === t.voce);
+    if(!g){ tutte.push(Object.assign({}, t)); return; }
+    if(t.dubbio) return;
+    if(g.dubbio || (g.senzaNumero && !t.senzaNumero)){
+      const detto = g.detto; Object.keys(g).forEach(k => delete g[k]); Object.assign(g, t);
+      if(!g.detto && detto) g.detto = detto; return;
+    }
+    if(t.senzaNumero) return;
+    g.q = Math.round((g.q + t.q) * 100) / 100;
+    if(t.stanza) g.stanza = g.stanza ? g.stanza + ' + ' + t.stanza : t.stanza;
+  }));
+  return tutte;
+}
+function capisci(testo, listino, mestiere, dentroUnPosto){
   usaMestiere(mestiere);
+  if(!dentroUnPosto && listino.some(v => partiDellaVoce(v).length)){
+    const tratti = trattiDeiPosti(preparaTesto(testo));
+    if(tratti.length > 1) return unisciTratti(tratti.map(t => capisci(t, listino, mestiere, true)));
+  }
   const voci = listino.map(v => ({v, parole: paroleDellaVoce(v),
                                   frasi: frasiDellaVoce(v).concat(frasiDeiConcetti(v)), tipo: tipoUnita(v.u)}));
   const haMisura = g => numeriDetti(g.tok).some(n => misuraDellaVoce(n, g.voce.tipo.k));
@@ -8442,6 +8489,26 @@ function capisci(testo, listino, mestiere){
         ultimo.voce = (!ultimo.voce && scegliVoce(insieme, voci)) || p.voce; ultimo.tok = insieme;
       } else gruppi.push({voce:p.voce, tok:p.tok.slice()});
     });
+    /* "pavimento IN gres", "pareti IN idropittura lavabile": il gres e' il pavimento, non
+       un secondo lavoro. Uscivano due righe, la posa in ceramica e quella in gres, e il
+       pavimento si pagava due volte (7 ottobre 2026). Quando il primo pezzo finisce col
+       nome della parte (pavimento, pareti, rivestimento) e il secondo comincia con "in"
+       e fa la stessa parte, resta una riga sola: quella piu' precisa, la seconda. */
+    for(let k = gruppi.length - 1; k > 0; k--){
+      const a = gruppi[k - 1], b = gruppi[k];
+      if(!a.voce || !b.voce || a.voce === b.voce) continue;
+      const parte = w => Object.values(PARTI_STANZA).some(l => l.includes(w));
+      /* "pareti | in gres", "pareti in | gres", "pareti in idropittura | lavabile" */
+      const n = a.tok.length, i = a.tok.lastIndexOf('in');
+      const legati = b.tok[0] === 'in' ? parte(a.tok[n - 1]) : (i >= 1 && i >= n - 2 && parte(a.tok[i - 1]));
+      if(!legati) continue;
+      const pa = partiDellaVoce(a.voce.v), pb = partiDellaVoce(b.voce.v);
+      /* "rivestimento in ceramica": la ceramica e' il materiale del rivestimento, non la posa
+         di un pavimento. Quando la seconda voce fa un'altra parte della stanza, resta la prima */
+      const stessa = pb.some(p => pa.includes(p)), altra = pa.length && pb.length && !stessa;
+      if(!stessa && !altra) continue;
+      a.tok = a.tok.concat(b.tok); if(stessa) a.voce = b.voce; gruppi.splice(k, 1);
+    }
     /* Quello che ha detto e che a listino non c'e'. Prima spariva senza lasciare
        traccia: l'artigiano lo diceva, non lo vedeva comparire, e pensava che l'app
        non avesse capito. Adesso resta li', e gli si chiede il prezzo una volta sola:
@@ -8494,6 +8561,14 @@ function capisci(testo, listino, mestiere){
         if(quanti != null) grezza = quanti * ultimoForo.uno;
         else if(grezza == null) grezza = unaSola(g) ? ultimoForo.uno : ultimoForo.v;
       }
+      /* "venti metri quadri di pareti CON lo stucco": lo stucco va su quelle stesse pareti.
+         Solo se le due voci fanno la stessa parte della stanza (pareti con pareti), se no
+         la misura non e' sua e resta «metti la misura» (7 ottobre 2026) */
+      const prima = iG > 0 ? conVoce[iG - 1] : null;
+      if(grezza == null && g.tok[0] === 'con' && g.voce.tipo.k === 'mq' && prima && prima.grezza != null &&
+         prima.voce.tipo.k === 'mq' && partiDellaVoce(g.voce.v).some(p => partiDellaVoce(prima.voce.v).includes(p)))
+        grezza = prima.grezza;
+      g.grezza = grezza;
       const dubbio = grezza == null;
       /* "potatura degli alberi", senza dire quanti: vale 1, ma si segna, cosi'
          se sulla foto gli alberi sono stati contati il preventivo prende quelli */
