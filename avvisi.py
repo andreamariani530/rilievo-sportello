@@ -57,3 +57,40 @@ def chi_entra(mail, nuovo):
         testo = "%s è rientrato con mail e password il %s (telefono nuovo, o era uscito)." % (mail, ora)
     print("  avviso ad Andrea:", titolo, flush=True)
     threading.Thread(target=_manda, args=(titolo, testo), daemon=True).start()
+
+
+# ------------------------------------------------- le mail di Andrea, coi link puliti
+# Il 7/10/2026 il connettore Gmail dello spazio riscriveva ogni link delle mail in
+# uscita in https://www.google.com/url?q=... : chi lo apre vede l'«Avviso di
+# reindirizzamento» di Google, che sembra una truffa. La posta del server (SMTP con la
+# password per le app) non tocca i link. Questa porta la usa solo chi ha la chiave
+# RILIEVO_CHIAVE_POSTA (sta su Render e nel deposito di Andrea), con un tetto al giorno.
+import hashlib, hmac, re
+
+_TETTO_GIORNO = 20
+_inviate = {}
+
+
+def manda_per_andrea(chiave, a, oggetto, testo):
+    """Torna (codice, risposta)."""
+    giusta = (os.environ.get("RILIEVO_CHIAVE_POSTA") or "").strip()
+    if not giusta or not hmac.compare_digest(hashlib.sha256(str(chiave or "").encode()).digest(),
+                                             hashlib.sha256(giusta.encode()).digest()):
+        return 403, {"errore": "Chiave sbagliata."}
+    a = str(a or "").strip()
+    if not re.fullmatch(r"[^@\s,;<>]+@[^@\s,;<>]+\.[a-z]{2,}", a, re.I):
+        return 400, {"errore": "Destinatario non valido."}
+    if not oggetto or not testo or len(testo) > 8000:
+        return 400, {"errore": "Manca l'oggetto o il testo."}
+    oggi = datetime.date.today().isoformat()
+    if _inviate.get(oggi, 0) >= _TETTO_GIORNO:
+        return 429, {"errore": "Tetto di oggi raggiunto."}
+    if not posta.accesa():
+        return 503, {"errore": "La posta del server e' spenta."}
+    utente = (os.environ.get("RILIEVO_POSTA_UTENTE") or "").strip()
+    ok = posta.manda(a, str(oggetto)[:200], str(testo), nome="Andrea Mariani", rispondi_a=utente)
+    if not ok:
+        return 502, {"errore": "Gmail non ha preso la mail."}
+    _inviate[oggi] = _inviate.get(oggi, 0) + 1
+    print("  mail di Andrea partita a", a, flush=True)
+    return 200, {"partita": True, "a": a}

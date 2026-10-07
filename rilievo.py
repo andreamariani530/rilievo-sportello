@@ -2840,6 +2840,13 @@ def servizio(porta=8787, pubblico=False):
             if u.path == "/fattura/invia":
                 self._fattura_invia(codice)
                 return
+            if u.path == "/posta/andrea":
+                dentro = self._corpo(32 * 1024)
+                dentro = dentro if isinstance(dentro, dict) else {}
+                codice, r = avvisi.manda_per_andrea(self.headers.get("X-Chiave"), dentro.get("a"),
+                                                    dentro.get("oggetto"), dentro.get("testo"))
+                self._manda(codice, r)
+                return
             if u.path.startswith("/accesso/"):
                 self._accesso(u.path)
                 return
