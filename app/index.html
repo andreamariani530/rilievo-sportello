@@ -1207,7 +1207,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-07 20:51';
+const COSTRUITA = '2026-10-08 02:08';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1441,6 +1441,9 @@ function chiediDitta(){
       : d.password && !mailBuona(d.mail) ? 'Per la password serve anche la mail, scritta per intero.'
       : controllaSedeDitta(d),
     testoSalva: 'Parti con i miei dati',
+    /* la prima domanda e' il mestiere, sopra le caselle: il cursore sul nome faceva
+       uscire la tastiera e scorrere la scheda, col titolo tagliato a meta' */
+    senzaFuoco: true,
     salva: d => {
       /* la password non finisce mai nei dati della ditta: va solo al server */
       const pw = d.password; delete d.password;
@@ -2919,7 +2922,7 @@ function scheda(o){
   /* aperta per riempire una casella precisa (per la fattura): si parte da quella */
   const casella = o.fuoco ? velo.querySelector('#c-' + o.fuoco) : null;
   if(casella && casella.closest('label')) casella.closest('label').classList.add('da-riempire');
-  const primo = casella || velo.querySelector('.campo'); if(primo) primo.focus();
+  const primo = casella || (o.senzaFuoco ? null : velo.querySelector('.campo')); if(primo) primo.focus();
 }
 
 /* la domanda prima di cancellare */
