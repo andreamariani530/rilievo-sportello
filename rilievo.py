@@ -38,6 +38,7 @@ import promemoria          # i promemoria automatici ai clienti, se la ditta li 
 import preventivo_col_link # il preventivo che il cliente apre e accetta da un link
 import richieste_dal_link  # il link della ditta: i clienti nuovi scrivono da li' (4/10/2026)
 import avvisi             # chi si iscrive e chi rientra: avviso ad Andrea
+import visite             # chi apre il link: un link per ogni ditta (8/10/2026)
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 import fattureincloud      # il collegamento col Fatture in Cloud dell'artigiano (4/10/2026)
 import assistente          # l'assistente in chat, col manuale dell'app dentro
@@ -2846,6 +2847,13 @@ def fic_pagina_scelta(gettone, ditte):
 
 def servizio(porta=8787, pubblico=False):
     import http.server, socketserver
+    # Su Render l'uscita non e' un terminale: senza questa riga i print() restano
+    # nel tampone e si perdono a ogni riavvio (8/10/2026). Ora ogni riga esce subito.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:                       # noqa: BLE001
+        pass
 
     class Sportello(http.server.BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -3369,6 +3377,25 @@ def servizio(porta=8787, pubblico=False):
         def do_GET(self):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
+            # chi apre il link della sua ditta (?da=flora) e chi chiede un rilievo:
+            # una riga sul disco, mai l'IP. Andrea, 8/10/2026: «riesci a capire se
+            # qualcuno ha cliccato il link?»
+            da = (q.get("da") or [""])[0]
+            if da:
+                if u.path in ("/", "/index.html", "/telefono", "/telefono/"):
+                    visite.segna(da, u.path.rstrip("/") or "/", "apertura", self.headers.get("User-Agent"))
+                # un rilievo vero: con l'indirizzo o i punti. Spostare la foto mentre
+                # si disegna (/foto?punto=) non e' un rilievo nuovo.
+                elif (u.path == "/rilievo" and q.get("indirizzo")) or (u.path == "/particelle" and q.get("punti")) \
+                        or (u.path == "/foto" and q.get("indirizzo") and not q.get("punto")):
+                    visite.segna(da, u.path, "rilievo", self.headers.get("User-Agent"))
+            if u.path == "/visite":
+                # per Andrea (chi-ha-aperto.py): con la stessa chiave di /posta/andrea
+                if not visite.chiave_giusta(self.headers.get("X-Chiave")):
+                    self._manda(401, {"errore": "Serve la chiave."})
+                    return
+                self._manda(200, visite.riassunto())
+                return
             if u.path == "/fattura/stato":
                 self._fattura_stato(q)
                 return
@@ -3386,7 +3413,12 @@ def servizio(porta=8787, pubblico=False):
             # la guida per mettere Rilievo fra le icone del telefono (Andrea, 7/10/2026):
             # un indirizzo corto da mettere nelle mail ai giardinieri
             if u.path in ("/telefono", "/telefono/"):
-                self._pagina_cliente(200, (APP / "telefono.html").read_text(encoding="utf-8"))
+                guida = (APP / "telefono.html").read_text(encoding="utf-8")
+                # chi arriva col link della sua ditta, da qui apre Rilievo col suo codice
+                c = visite.codice_pulito(da)
+                if c:
+                    guida = guida.replace('href="/"', 'href="/?da=%s"' % c)
+                self._pagina_cliente(200, guida)
                 return
             # il link della ditta: la pagina dove un cliente nuovo chiede un preventivo
             m = re.fullmatch(r"/chiedi/([a-z2-9]{10})/?", u.path)

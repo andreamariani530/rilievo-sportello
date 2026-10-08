@@ -1,0 +1,89 @@
+{
+ "nota": "Fatto da contatti/costruisci-registro.py: non modificarlo a mano.",
+ "codici": {
+  "atmosfera": {
+   "ditta": "Atmosfera Verde",
+   "n": "01"
+  },
+  "fiordigiardino": {
+   "ditta": "Fiordigiardino",
+   "n": "02"
+  },
+  "simone": {
+   "ditta": "I Giardini di Simone",
+   "n": "03"
+  },
+  "bmi": {
+   "ditta": "BMI Giardini s.a.s.",
+   "n": "04"
+  },
+  "vanoschi": {
+   "ditta": "Vanoschi Manutenzione del Verde",
+   "n": "05"
+  },
+  "verde-ornamentale": {
+   "ditta": "Verde Ornamentale",
+   "n": "06"
+  },
+  "greenline": {
+   "ditta": "Green Line Giardini",
+   "n": "07"
+  },
+  "flora": {
+   "ditta": "Flora Giardini",
+   "n": "08"
+  },
+  "sosgarden": {
+   "ditta": "SOS Garden",
+   "n": "09"
+  },
+  "barreno": {
+   "ditta": "Giardini Barreno",
+   "n": "10"
+  },
+  "bianchi": {
+   "ditta": "Andrea Bianchi Giardiniere",
+   "n": "11"
+  },
+  "cura-alberi": {
+   "ditta": "Cura degli alberi",
+   "n": "12"
+  },
+  "barbaverde": {
+   "ditta": "Barbaverde di Barbuto Francesco",
+   "n": "13"
+  },
+  "veral": {
+   "ditta": "VerAl di Verdini Alessandro",
+   "n": "14"
+  },
+  "zanotti": {
+   "ditta": "Zanotti Pierfranco Srl",
+   "n": "15"
+  },
+  "galbiati": {
+   "ditta": "Galbiati Giardini di Galbiati Alessandro",
+   "n": "16"
+  },
+  "giardini-giada": {
+   "ditta": "I Giardini di Giada di Mattia Buscaglia",
+   "n": "17"
+  },
+  "greenheart": {
+   "ditta": "Green Heart srls",
+   "n": "18"
+  },
+  "piuverde": {
+   "ditta": "Più Verde di Taverna Riccardo",
+   "n": "19"
+  },
+  "drogo": {
+   "ditta": "DROGO SRL",
+   "n": "20"
+  },
+  "prova-andrea": {
+   "ditta": "Il link di prova di Andrea",
+   "prova": true
+  }
+ }
+}

@@ -1209,7 +1209,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-08 10:34';
+const COSTRUITA = '2026-10-08 22:55';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -4943,8 +4943,27 @@ function ioSono(){
   const d = miaDitta();
   return (d && d.persona) || '';
 }
+/* ===== DA CHE LINK E' ARRIVATO =====
+   Andrea, 8/10/2026: «riesci a capire se qualcuno ha cliccato il link?». Ogni ditta
+   ha il suo link (/?da=flora). Il server segna l'apertura; l'app si tiene il codice
+   e lo rimanda con le domande di rilievo, cosi' il server sa anche se ha fatto un
+   rilievo. Solo il codice corto, mai altro. Chiave nuova: le altre non si toccano. */
+const CHIAVE_DA = 'rilievo-da-2026-10';
+(function(){
+  try{
+    const d = new URLSearchParams(location.search).get('da');
+    if(d && /^[a-z0-9-]{2,30}$/.test(d)) localStorage.setItem(CHIAVE_DA, d);
+  }catch(e){}
+})();
+function daMio(){
+  try{ const d = localStorage.getItem(CHIAVE_DA) || ''; return /^[a-z0-9-]{2,30}$/.test(d) ? d : ''; }
+  catch(e){ return ''; }
+}
 /* il pezzetto di indirizzo che porta il codice al server, vuoto se non ce l'ha */
-function col(){ const c = codiceMio(); return c ? 'codice=' + encodeURIComponent(c) + '&' : ''; }
+function col(){
+  const c = codiceMio(), d = daMio();
+  return (c ? 'codice=' + encodeURIComponent(c) + '&' : '') + (d ? 'da=' + d + '&' : '');
+}
 function permesso(){
   try{ const p = JSON.parse(localStorage.getItem(CHIAVE_PERMESSO) || 'null');
        return (p && typeof p === 'object') ? p : null; }catch(e){ return null; }

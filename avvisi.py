@@ -46,6 +46,13 @@ def _manda(titolo, testo):
     _mail(titolo, testo)
 
 
+def avvisa(titolo, testo):
+    """Un avviso qualsiasi ad Andrea, nel suo filo: chi lo chiama non aspetta.
+    Lo usa visite.py: «Flora Giardini ha aperto Rilievo» (8/10/2026)."""
+    print("  avviso ad Andrea:", titolo, flush=True)
+    threading.Thread(target=_manda, args=(titolo, testo), daemon=True).start()
+
+
 def chi_entra(mail, nuovo):
     """nuovo=True: si e' appena iscritto. nuovo=False: e' rientrato con mail e password."""
     ora = datetime.datetime.now(ZoneInfo("Europe/Rome")).strftime("%d/%m alle %H:%M")  # Render gira in UTC
