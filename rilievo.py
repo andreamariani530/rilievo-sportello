@@ -2494,12 +2494,43 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None, foto_da=""):
     che sono del cliente: il giardino accanto alla casa, il pezzo di prato dietro.
     Ogni punto diventa la sua particella, e si misurano tutte insieme."""
     trovate, semi, riquadri, avvisi, toccati = [], [], [], [], []
+    incerto = False
     for la, lo in punti[:MAX_PUNTI]:
         part, presa_lat, presa_lon = cerca_la_particella(la, lo, passo_m=3.0, giri=3)
         if not part:
             avvisi.append("In quel punto il catasto non trova terreno da misurare. "
                           "Segna il giardino a mano sulla foto.")
             continue
+        if not toccati and e_una_strada(part.get("confine")):
+            # Il primo punto e' quello dell'indirizzo scelto fra i suggerimenti, e cade
+            # sull'asfalto come in /rilievo. Qui il controllo mancava: Andrea, 8 ottobre
+            # 2026, Via Guido Rossa 12 a Tavazzano scelta dall'elenco, «comunque ancora
+            # la strada». Si fa la stessa cosa: si va sulla casa piu' vicina.
+            area, piu_lungo, _forma = forma_del_confine(part["confine"])
+            casa = None
+            try:
+                casa = casa_piu_vicina(presa_lat, presa_lon)
+            except CatastoOccupato:
+                raise
+            except Exception:                           # noqa: BLE001
+                casa = None
+            nuova = None
+            if casa:
+                nuova, lat2, lon2 = cerca_la_particella(casa["lat"], casa["lon"])
+            if not (nuova and not e_una_strada(nuova.get("confine"))):
+                # niente casa vicina: meglio la foto da segnare a dito che la strada
+                raise RuntimeError(
+                    "Sotto questo civico il catasto non ha la casa: ha la strada, %s metri "
+                    "quadri lunghi %d metri. Segna il giardino sulla foto."
+                    % (_col_punto(area), int(round(piu_lungo))))
+            part, la, lo, presa_lat, presa_lon = nuova, lat2, lon2, lat2, lon2
+            incerto = True
+            avvisi.append(
+                "Il civico cade sulla strada, non sulla casa: lì il catasto ha la "
+                "carreggiata (%s metri quadri). Sono partito dalla casa più vicina, "
+                "a %d metri, ma quella particella non è il giardino del cliente: "
+                "segna tu sulla foto quello che si lavora."
+                % (_col_punto(area), int(round(casa["distanza_m"]))))
         if abs(presa_lat - la) > 1e-9 or abs(presa_lon - lo) > 1e-9:
             avvisi.append("Il punto era sul bordo: ho preso la particella più vicina.")
         toccati.append((la, lo))
@@ -2553,7 +2584,11 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None, foto_da=""):
         "contorni_verde": m.get("contorni_verde") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
         "avvisi": avvisi,
-        "foto": in_base64(m["immagine"]),
+        # come in /rilievo: partiti dalla casa accanto, il contorno non e' il lotto
+        # del cliente, e si consegna la foto pulita
+        "catasto_incerto": incerto,
+        "foto": in_base64(firma_fonte(m["foto_pulita"], m.get("fonte_foto", ""))
+                          if (incerto and m.get("foto_pulita")) else m["immagine"]),
     }
 
 
