@@ -553,7 +553,11 @@ def _posti(posto, sigla="", cap=""):
     for c in cand:
         a = c.get("attributes", {})
         comune = a.get("City") or ""
-        if a.get("Addr_type") not in ("Locality", "PostalLoc") or not comune:
+        # col CAP scritto Esri risponde «Postal» anche quando il nome del comune e'
+        # giusto: e' proprio il formato dei suggerimenti che l'app fa scegliere
+        # ("Via Guido Rossa 12, 26838, Tavazzano con Villavesco, Lodi"), e scartarlo
+        # faceva dire «Non riconosco il comune» (Andrea, 8 ottobre 2026)
+        if a.get("Addr_type") not in ("Locality", "PostalLoc", "Postal") or not comune:
             continue
         primo = _pulito((a.get("Match_addr") or "").split(",")[0])
         if solo_cap:
@@ -1154,7 +1158,15 @@ def e_una_strada(confine):
     una strada disegnata come un rettangolo pulito di 349 x 46 metri vale 0,32, ed e'
     una strada uguale."""
     area, piu_lungo, compattezza = forma_del_confine(confine)
-    return area >= 5000.0 and piu_lungo >= 150.0 and compattezza < 0.35
+    if area >= 5000.0 and piu_lungo >= 150.0 and compattezza < 0.35:
+        return True
+    # Una via di quartiere e' piu' piccola ma ancora piu' sottile. A Via Guido Rossa 12
+    # di Tavazzano il civico cade sulla particella 183: 3.537 mq, 256 metri piegati a
+    # gomito, larghi una quindicina, compattezza 0,14. L'app la disegnava come il
+    # giardino del cliente (Andrea, 8 ottobre 2026: «di nuovo il catasto ci porta sulla
+    # strada»). Una striscia cosi' non e' il lotto di una casa: la striscia piccola di
+    # Casalmaiocco (1.577 mq, 77 x 20 metri) vale 0,52 e resta fuori.
+    return area >= 1500.0 and piu_lungo >= 120.0 and compattezza < 0.2
 
 
 def case_vicine(lat, lon, raggio_m=60.0, lati=420, minimo_mq=12.0, quante=6):
@@ -2350,12 +2362,15 @@ def _rilievo(indirizzo, lato_m, cap, foto_da, visto):
     avvisi = [p["avviso_comune"]] if p.get("avviso_comune") else []
     if not p["preciso"]:
         civico = p.get("civico_scritto")
-        if civico and p.get("civico_trovato"):
+        if civico and p.get("civico_trovato") and \
+                _pulito(civico) != _pulito(civico_scritto(", " + p["civico_trovato"]) or p["civico_trovato"]):
             avvisi.append("Hai scritto il civico %s, ma è stato trovato il %s: "
                           "controlla che la particella accesa sia quella giusta."
                           % (civico_da_leggere(civico),
                              civico_da_leggere(civico_scritto(", " + p["civico_trovato"])
                                                or p["civico_trovato"])))
+        elif civico and p.get("civico_trovato"):
+            pass        # civico giusto: il dubbio e' sul comune, e lo dice gia' il suo avviso
         elif not civico:
             avvisi.append("Nell'indirizzo non c'è il numero civico: "
                           "controlla che la particella accesa sia quella giusta.")

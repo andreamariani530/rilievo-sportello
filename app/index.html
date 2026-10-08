@@ -1124,7 +1124,9 @@ async function avvia(){
     }
   }
   S = leggiStato();
+  await riprendiFoto();    /* le foto dei rilievi stanno in IndexedDB: tornano dentro prima di disegnare */
   normalizza();
+  mandaFotoFuori();        /* chi aveva ancora le foto nella memoria piccola la libera adesso */
   intestaUtente();
   const linkPassword = leggiLinkPassword();   /* arrivati dalla mail «scegli una password nuova» */
   addEventListener('hashchange', vai);
@@ -1207,7 +1209,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-08 02:08';
+const COSTRUITA = '2026-10-08 04:33';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1342,11 +1344,138 @@ function ancoraLaDimostrazione(d){
 function salva(){
   try{ if(S && Array.isArray(S.sopralluoghi) && Array.isArray(S.preventivi))
          S.sopralluoghi.forEach(s => { s.stato = statoSopralluogo(s); }); }catch(e){}
-  try{ localStorage.setItem(CHIAVE, JSON.stringify(S)); copiaFraPoco(); return true; }catch(e){ return false; }
+  mandaFotoFuori();
+  /* la copia al sicuro parte comunque: se il telefono e' pieno, e' l'unica che resta */
+  copiaFraPoco();
+  if(scriviStato()){ memoriaPienaDetta = false; return true; }
+  if(!fotoInViaggio) memoriaPiena();
+  return false;
+}
+function scriviStato(){
+  try{ localStorage.setItem(CHIAVE, JSON.stringify(statoDaScrivere())); return true; }catch(e){ return false; }
+}
+/* Un salvataggio che non riesce si dice, una volta, ad alta voce. Prima tornava
+   false e basta: il lavoro restava solo nell'app aperta, e chi la richiudeva lo
+   perdeva senza aver mai visto un avviso (Andrea, 8 ottobre 2026). */
+let memoriaPienaDetta = false;
+function memoriaPiena(){
+  if(memoriaPienaDetta || typeof avvisa !== 'function') return;
+  memoriaPienaDetta = true;
+  avvisa('Attenzione: su questo telefono Rilievo non ha più posto e l\'ultimo cambiamento non è salvato. ' +
+         'Non chiudere l\'app: cancella un sopralluogo vecchio che non ti serve e il lavoro di adesso si salva.');
+}
+
+/* ===== LE FOTO DEI RILIEVI STANNO NELLA MEMORIA GRANDE =====
+   La memoria piccola del browser (localStorage) tiene circa 5 MB, e un rilievo con la
+   foto dall'alto e la sua copia pulita ne pesa piu' di uno. Dopo tre o quattro rilievi
+   era piena: salva() falliva in silenzio, il lavoro restava solo nell'app aperta, e
+   alla riapertura il sopralluogo tornava con i soli dati del cliente, senza giardino
+   ne' preventivo. Il PDF intanto era gia' partito su WhatsApp (Andrea, 8 ottobre 2026,
+   sopralluogo Monachella a Tavazzano: «un artigiano che deve riprendere quel
+   preventivo come fa?»).
+   Ora le foto vanno in IndexedDB, che sul telefono tiene centinaia di MB. Nella memoria
+   piccola resta tutto il resto, e ogni rilievo si segna in `_fuori` quali foto deve
+   riprendere. Una foto si toglie dalla memoria piccola solo DOPO che IndexedDB ha
+   detto di averla: senza IndexedDB (finestra privata, collaudo) resta tutto come prima. */
+const FOTO_PESANTE = 20000;
+const fotoGiaFuori = new Map();     /* 'ril|campo' -> la stringa che IndexedDB ha gia' */
+let fotoDB = null, fotoInViaggio = false, fotoDiNuovo = false;
+function apriFotoDB(){
+  if(!fotoDB){
+    fotoDB = new Promise((si, no) => {
+      if(typeof indexedDB === 'undefined' || !indexedDB){ no(new Error('niente IndexedDB')); return; }
+      const r = indexedDB.open('rilievo-foto', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('foto', {keyPath: 'id'});
+      r.onsuccess = () => si(r.result);
+      r.onerror = () => no(r.error);
+    });
+    fotoDB.catch(() => { fotoDB = null; });
+  }
+  return fotoDB;
+}
+function fotoFai(modo, fare){
+  return apriFotoDB().then(db => new Promise((si, no) => {
+    const t = db.transaction('foto', modo), r = fare(t.objectStore('foto'));
+    t.oncomplete = () => si(r && r.result);
+    t.onerror = t.onabort = () => no(t.error || new Error('foto'));
+  }));
+}
+const fotoPesante = v => typeof v === 'string' && v.length > FOTO_PESANTE && v.slice(0, 11) === 'data:image/';
+/* lo stato da scrivere nella memoria piccola: S, senza le foto che IndexedDB ha gia' */
+function statoDaScrivere(){
+  if(!S || !S.rilievi || typeof S.rilievi !== 'object') return S;
+  let tolte = false;
+  const ril = {};
+  Object.keys(S.rilievi).forEach(id => {
+    const r = S.rilievi[id];
+    if(!r || typeof r !== 'object' || (!fotoGiaFuori.size && !r._fuori)){ ril[id] = r; return; }
+    /* quelle non ancora riprese all'avvio restano segnate, se no si perderebbero */
+    const fuori = (Array.isArray(r._fuori) ? r._fuori : []).filter(k => r[k] === undefined);
+    const leggero = Object.assign({}, r);
+    Object.keys(r).forEach(k => {
+      if(k !== '_fuori' && fotoPesante(r[k]) && fotoGiaFuori.get(id + '|' + k) === r[k]){
+        delete leggero[k]; fuori.push(k);
+      }
+    });
+    if(fuori.length){ leggero._fuori = fuori; tolte = true; } else delete leggero._fuori;
+    ril[id] = leggero;
+  });
+  return tolte ? Object.assign({}, S, {rilievi: ril}) : S;
+}
+/* le foto nuove o cambiate vanno in IndexedDB; quando ci sono, si riscrive lo stato leggero */
+function mandaFotoFuori(){
+  if(!S || !S.rilievi || typeof S.rilievi !== 'object') return;
+  if(fotoInViaggio){ fotoDiNuovo = true; return; }
+  const daMettere = [];
+  Object.keys(S.rilievi).forEach(id => {
+    const r = S.rilievi[id]; if(!r || typeof r !== 'object') return;
+    Object.keys(r).forEach(k => {
+      if(fotoPesante(r[k]) && fotoGiaFuori.get(id + '|' + k) !== r[k])
+        daMettere.push({id: id + '|' + k, ril: id, campo: k, dato: r[k]});
+    });
+  });
+  if(!daMettere.length) return;
+  fotoInViaggio = true;
+  fotoFai('readwrite', st => { daMettere.forEach(x => st.put(x)); })
+    .then(() => {
+      daMettere.forEach(x => fotoGiaFuori.set(x.id, x.dato));
+      fotoInViaggio = false;
+      if(scriviStato()) memoriaPienaDetta = false; else if(!fotoDiNuovo) memoriaPiena();
+      if(fotoDiNuovo){ fotoDiNuovo = false; mandaFotoFuori(); }
+    })
+    .catch(() => {
+      fotoInViaggio = false; fotoDiNuovo = false;
+      if(!scriviStato()) memoriaPiena();
+    });
+}
+/* all'avvio: le foto tornano dentro i loro rilievi, prima di disegnare la prima pagina */
+async function riprendiFoto(){
+  if(!S || !S.rilievi || typeof S.rilievi !== 'object') return;
+  let tutte;
+  try{
+    tutte = await Promise.race([fotoFai('readonly', st => st.getAll()),
+                                new Promise((_, no) => setTimeout(() => no(new Error('lenta')), 5000))]);
+  }catch(e){ return; }
+  (tutte || []).forEach(x => {
+    const r = x && S.rilievi[x.ril];
+    if(!r || !Array.isArray(r._fuori) || r._fuori.indexOf(x.campo) < 0 || r[x.campo] !== undefined) return;
+    r[x.campo] = x.dato;
+    fotoGiaFuori.set(x.id, x.dato);
+    r._fuori = r._fuori.filter(c => c !== x.campo);
+    if(!r._fuori.length) delete r._fuori;
+  });
+  /* le foto di rilievi che non ci sono piu' si buttano */
+  const via = (tutte || []).filter(x => x && !S.rilievi[x.ril]).map(x => x.id);
+  if(via.length) fotoFai('readwrite', st => { via.forEach(k => st.delete(k)); }).catch(() => {});
+}
+function svuotaFoto(){
+  fotoGiaFuori.clear();
+  return fotoFai('readwrite', st => { st.clear(); }).catch(() => {});
 }
 function ricomincia(){
   try{ localStorage.removeItem(CHIAVE); }catch(e){}
   svuotaArchivio();
+  svuotaFoto();
   S = attualizza(copia(DATI)); normalizza();
   intestaUtente();
   location.hash = '#oggi'; vai();
