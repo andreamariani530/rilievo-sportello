@@ -1209,7 +1209,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-08 22:55';
+const COSTRUITA = '2026-10-09 06:54';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2503,7 +2503,8 @@ function passoCorrente(){
     return {n:'Passo 1 di 4', t: r.prova
       ? 'C\'è una richiesta di prova che aspetta. Aprila e fissa il sopralluogo: da lì parte tutto il giro.'
       : 'Il condominio Le Querce ha chiamato ieri. Aprigli la richiesta e fissa il sopralluogo: l\'indirizzo l\'ha già detto lui.',
-      b:'Vai alle richieste', h:'#richieste'};
+      b:'Vai alle richieste', h:'#richieste',
+      qui:{b:'Fissa il sopralluogo', azione:`fissaSopralluogo('${r.id}')`}};
   if(s && s.stato === 'fissato' && !s.preventivo)
     return {n:'Passo 2 di 4', t:'Sei sul posto. Apri il sopralluogo, guarda il rilievo che si è preparato da solo dall\'indirizzo, poi premi il tasto e detta il lavoro.', b:'Apri il sopralluogo', h:'#sopralluogo/s-querce'};
   if(s && s.preventivo && prev(s.preventivo) && prev(s.preventivo).stato === 'bozza')
@@ -2518,10 +2519,16 @@ function guidaHtml(nome, arg){
   /* dentro un preventivo o un sopralluogo che non e' quello del giro, la guida
      parlava del condominio mentre guardavi un'altra cosa: li' non si mostra */
   if(arg && (nome === 'preventivo' || nome === 'sopralluogo') && p.h !== '#' + nome + '/' + arg) return '';
+  /* GIA' SULLA PAGINA DEL PASSO (9 ottobre 2026): in Richieste la guida diceva «Vai alle
+     richieste», e il tasto non portava da nessuna parte perche' eri gia' li'. Ora fa il
+     passo vero, «Fissa il sopralluogo»; se il passo non ha un'azione sua, niente tasto. */
+  const qui = location.hash === p.h;
+  const tasto = !qui ? `<a class="bottone piccolo" href="${p.h}">${p.b}</a>`
+    : p.qui ? `<button class="bottone piccolo" id="guida-fai-qui" onclick="${p.qui.azione}">${p.qui.b}</button>` : '';
   return `<div class="guida">
     <div class="passo">${p.n}</div>
     <div class="testo">${p.t}</div>
-    <a class="bottone piccolo" href="${p.h}">${p.b}</a>
+    ${tasto}
   </div>`;
 }
 
@@ -4420,7 +4427,10 @@ PAGINE.oggi = {
       .sort((a,b) => b.giorni - a.giorni);
 
     const dalLink = S.richieste.filter(r => r.dal_link && r.stato === 'da_richiamare' && giorniDa(r.arrivata) <= 7);
-    const programma = inGiornata.length || inRitardo.length || daFissare.length
+    /* «IN PROGRAMMA» E' SOLO QUELLO CHE HA UN GIORNO (9 ottobre 2026). Prima i sopralluoghi
+       senza data stavano qui sotto, con «Il sopralluogo non ha ancora un giorno»: in
+       programma c'era scritto, e un giorno non c'era. Ora hanno la loro riga, «Da fissare». */
+    const programma = inGiornata.length || inRitardo.length
       ? `<div class="elenco">
           ${inRitardo.map(s => `
             <div class="r cliccabile" onclick="location.hash='#sopralluogo/${s.id}'">
@@ -4434,13 +4444,17 @@ PAGINE.oggi = {
                    <div class="sub">${sotto(oraBuona(s.ora) ? 'Alle ' + oraBella(s.ora) : '', s.luogo)}</div></div>
               <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${!s.preventivo ? tastoArrivo('sopralluogo', s) : ''}${tagSopralluogo(s)}</div>
             </div>`).join('')}
-          ${daFissare.map(s => `
-            <div class="r"><div><div class="tit">${esc(s.nome)}</div>
-              <div class="sub">Il sopralluogo non ha ancora un giorno</div></div>
-              <button class="bottone vuoto piccolo" style="white-space:nowrap" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Fissa il giorno</button>
-            </div>`).join('')}
          </div>`
       : '<div class="niente">Oggi non hai sopralluoghi. Le richieste che arrivano finiscono in Richieste.</div>';
+    const daFissareHtml = daFissare.length ? `
+        <div class="lbl" style="margin:24px 0 12px">Sopralluoghi da fissare</div>
+        <div class="elenco" id="sopralluoghi-da-fissare">
+          ${daFissare.map(s => `
+            <div class="r"><div><div class="tit">${esc(s.nome)}</div>
+              <div class="sub">${sotto(s.luogo || '', 'manca il giorno')}</div></div>
+              <button class="bottone vuoto piccolo" style="white-space:nowrap" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Fissa il giorno</button>
+            </div>`).join('')}
+        </div>` : '';
 
     return `
     ${daChiudere.length ? `<div style="margin-bottom:28px">
@@ -4470,6 +4484,7 @@ PAGINE.oggi = {
             </div>`).join('')}</div>` : ''}
         <div class="lbl" style="margin-bottom:12px">In programma</div>
         ${programma}
+        ${daFissareHtml}
         <!-- compito 1 di Cafagna, «sei arrivato da un cliente nuovo» (4 ottobre 2026): da Oggi
              l'unico tasto portava alla richiesta di prova, e per un cliente vero servivano
              menu, Sopralluogo e «+ Nuovo sopralluogo». Adesso si parte da qui, un tocco. -->
@@ -11304,8 +11319,11 @@ PAGINE.cliente = {
       <div class="numero"><div class="val"><small>€</small> ${cifra(accettato, 0)}</div><div class="lbl">Lavori presi</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Già incassato</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${c.dal ? dataCorta(c.dal) : '—'}</div><div class="lbl">Cliente dal</div></div>
-      <div class="numero"><div class="val" style="font-size:23px">${esc(c.tel || '—')}</div><div class="lbl">Telefono</div></div>
+      <div class="numero"><div class="val" style="font-size:23px">${c.tel && String(c.tel).replace(/[^+\d]/g, '')
+          ? `<a class="tel-cliente" href="tel:${esc(String(c.tel).replace(/[^+\d]/g, ''))}" style="color:inherit">${esc(c.tel)}</a>`
+          : esc(c.tel || '—')}</div><div class="lbl">Telefono</div></div>
     </div>
+    ${contattiCliente(c)}
     <div class="griglia2">
       <div>
         <div class="lbl" style="margin-bottom:12px">I suoi documenti</div>
@@ -11799,6 +11817,19 @@ function quandoScade(p){
 }
 /* il numero per WhatsApp: solo cifre, col prefisso dell'Italia se manca.
    Un fisso (0371...) WhatsApp non ce l'ha: meglio lasciar scegliere il contatto. */
+/* CHIAMARLO O SCRIVERGLI DALLA SCHEDA CLIENTE (9 ottobre 2026). Il numero c'era ma si
+   leggeva soltanto: per chiamare bisognava ricopiarlo. Ora un tocco chiama, uno apre
+   WhatsApp, uno la mail. Solo i tasti che servono: senza numero o senza mail non escono. */
+function contattiCliente(c){
+  const tel = String(c.tel || '').replace(/[^+\d]/g, '');
+  const wa = numeroWhatsApp(c.tel);
+  const posta = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(c.mail || '') ? c.mail : '';
+  const t = [];
+  if(tel) t.push(`<a class="bottone vuoto piccolo" id="cliente-chiama" href="tel:${esc(tel)}">Chiamalo</a>`);
+  if(wa) t.push(`<a class="bottone vuoto piccolo" id="cliente-wa" href="${esc('https://wa.me/' + wa)}" target="_blank" rel="noopener">WhatsApp</a>`);
+  if(posta) t.push(`<a class="bottone vuoto piccolo" id="cliente-mail" href="mailto:${esc(posta)}">Mandagli una mail</a>`);
+  return t.length ? `<div class="azioni contatti-cliente" style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 22px">${t.join('')}</div>` : '';
+}
 function numeroWhatsApp(tel){
   let n = String(tel || '').replace(/[^\d+]/g, '');
   if(n.startsWith('+')) n = n.slice(1);
