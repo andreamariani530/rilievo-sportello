@@ -81,6 +81,74 @@
    "ditta": "DROGO SRL",
    "n": "20"
   },
+  "brija": {
+   "ditta": "Brija Group S.r.l.",
+   "n": "21"
+  },
+  "gianluca": {
+   "ditta": "Gian&luca giardini",
+   "n": "22"
+  },
+  "giardino-sogni": {
+   "ditta": "Il Giardino dei Sogni",
+   "n": "23"
+  },
+  "greencare": {
+   "ditta": "Green Care snc",
+   "n": "24"
+  },
+  "lilla": {
+   "ditta": "MLC Lilla Garden",
+   "n": "25"
+  },
+  "greenplanet": {
+   "ditta": "Green Planet sas",
+   "n": "26"
+  },
+  "verde2000": {
+   "ditta": "Verde 2000 Srl",
+   "n": "27"
+  },
+  "greengarden": {
+   "ditta": "Green Garden House",
+   "n": "28"
+  },
+  "repetti": {
+   "ditta": "Repetti Verde",
+   "n": "29"
+  },
+  "filosofo": {
+   "ditta": "Il Giardiniere Filosofo",
+   "n": "30"
+  },
+  "oroverde": {
+   "ditta": "Oro Verde di Gianluca Baggi",
+   "n": "31"
+  },
+  "prisma": {
+   "ditta": "Prisma Giardini",
+   "n": "32"
+  },
+  "gardenia": {
+   "ditta": "Gardenia (Essenza Srls)",
+   "n": "33"
+  },
+  "afgreen": {
+   "ditta": "AF Green di Accattini Francesco",
+   "n": "34"
+  },
+  "plantmi": {
+   "ditta": "PlantMI",
+   "n": "35"
+  },
+  "milanogarden": {
+   "ditta": "Milano Garden",
+   "n": "36"
+  },
+  "greenid": {
+   "ditta": "Green ID srl",
+   "n": "37"
+  },
   "prova-andrea": {
    "ditta": "Il link di prova di Andrea",
    "prova": true
