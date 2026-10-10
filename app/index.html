@@ -1209,7 +1209,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-09 06:54';
+const COSTRUITA = '2026-10-10 02:03';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1822,18 +1822,40 @@ function oreDellaVoce(v){
 }
 function tempoDelLavoro(p){
   let ore = 0, contate = 0, ripete = false;
-  const senza = [];
+  const senza = [], senzaVoci = [];
   (p.righe || []).forEach(r => {
     if(!r.on || r.facoltativa) return;
     const v = r.v ? voce(r.v) : null;
     const h = v ? oreDellaVoce(v) : (allOra(r.u) ? 1 : null);
-    if(h == null){ if(senza.indexOf(r.nome) < 0) senza.push(r.nome); return; }
+    if(h == null){
+      if(senza.indexOf(r.nome) < 0) senza.push(r.nome);
+      if(v && senzaVoci.indexOf(v) < 0) senzaVoci.push(v);
+      return;
+    }
     ore += h * (Number(r.q) || 0); contate++;
     if(volteRiga(r) > 1) ripete = true;
   });
   const persone = Number.isInteger(p.persone) && p.persone > 1 ? p.persone : 1;
   ore = Math.round(ore * 10) / 10;
-  return {ore, contate, senza, persone, ripete, giorni: ore / 8 / persone};
+  return {ore, contate, senza, senzaVoci, persone, ripete, giorni: ore / 8 / persone};
+}
+/* Le ore che mancano si mettono da qui, senza lasciare il preventivo.
+   Prima c'era «Mettile nel listino», che portava al listino intero: si perdeva il
+   preventivo, si cercava la voce fra tutte e il campo delle ore stava in fondo alla
+   sua scheda (limatura del 10 ottobre 2026). Ora si chiede solo quel numero, lo si
+   scrive nella voce del listino e il tempo di lavoro si rifa' subito. */
+function oreDalPreventivo(idVoce){
+  const v = voce(idVoce); if(!v) return;
+  scheda({
+    titolo: 'Quante ore ci metti?',
+    sotto: v.nome + ', ' + v.u + '. Lo scrivo nel listino: da adesso conta in tutti i preventivi.',
+    valori: {h: ''},
+    campi: [{k:'h', l:'Ore di lavoro ' + v.u, t:'numero', p:'per esempio 1,5'}],
+    controlla: d => !(d.h > 0 && d.h <= 100) ? 'Scrivi le ore in cifre, per esempio 1,5 oppure 0,5.' : null,
+    salva: d => { v.h = d.h; },
+    testoSalva: 'Mettila nel listino',
+    messaggio: 'Ore messe nel listino. Il tempo di lavoro è rifatto.'
+  });
 }
 /* i giorni come si dicono: mezza giornata, un giorno e mezzo, tre giorni (si arrotonda
    alla mezza giornata in su: meglio finire prima di quanto detto che dopo) */
@@ -1852,7 +1874,10 @@ function tempoHtml(p){
     <div class="riga-tot"><span>Scrivi la durata sul preventivo</span>
       <div class="interr ${p.durata ? 'on' : ''}" id="durata-sul-foglio" role="switch" aria-checked="${p.durata ? 'true' : 'false'}"
         aria-label="Scrivi la durata sul preventivo" onclick="durataSulFoglio('${p.id}')"></div></div>
-    ${t.senza.length ? `<p class="aiuto-voci" style="margin-top:4px">Non contate, perché nel listino non hanno le ore: ${esc(t.senza.join(', '))}. <a href="#listino" style="color:var(--accento)">Mettile nel listino</a>.</p>` : ''}`;
+    ${t.senza.length ? `<p class="aiuto-voci" style="margin-top:4px">Non contate, perché nel listino non hanno le ore: ${esc(t.senza.join(', '))}.${
+      t.senzaVoci.length < t.senza.length ? ` <a href="#listino" style="color:var(--accento)">Mettile nel listino</a>.` : ''}</p>
+      ${t.senzaVoci.length ? `<div class="azioni" id="ore-mancanti" style="margin-top:6px">${t.senzaVoci.map(v =>
+        `<button class="bottone vuoto piccolo" onclick="oreDalPreventivo('${v.id}')">Ore per ${esc(v.nome)}</button>`).join('')}</div>` : ''}` : ''}`;
 }
 function personeAlLavoro(id, d){
   const p = prev(id); if(!p) return;
@@ -4781,6 +4806,11 @@ function intestazioneSopralluogo(s, r){
     <div class="lbl" style="margin-bottom:6px">${s.quando === S.oggi ? 'In programma oggi'
       : (s.quando ? dataLunga(s.quando) : 'Data da fissare')}${s.quando && oraBuona(s.ora) ? ' alle ' + oraBella(s.ora) : ''}</div>
     <div style="font-family:'Cormorant',serif;font-size:26px">${esc(s.luogo)}</div>
+    ${/* «Data da fissare» era solo una scritta: per mettere il giorno bisognava capire
+         che stava dentro «Modifica». Ora il giorno si fissa da qui, come in Oggi
+         (limatura del 10 ottobre 2026). Col preventivo gia' fatto non serve piu'. */
+      !s.quando && !s.preventivo ? `<div class="azioni" style="margin-top:8px"><button class="bottone piccolo" id="fissa-giorno-sopralluogo"
+        onclick="fissaSopralluogo('${s.richiesta && richiesta(s.richiesta) ? s.richiesta : s.id}')">Fissa il giorno</button></div>` : ''}
     ${tastoNaviga(s.luogo, 'Portami là') || !s.testo ? `<div class="azioni" style="margin-top:8px">${tastoNaviga(s.luogo, 'Portami là')}${
       /* Sul telefono il microfono sta sotto la foto e le misure, a quasi tre schermate
          dal titolo: chi arriva dal cliente per raccontare il lavoro non lo trovava.
@@ -11504,8 +11534,12 @@ function cassetto(){
   }));
   const altri = S.documenti.map(d => {
     const cl = d.cliente ? cliente(d.cliente) : null;
+    /* il nome del cliente sotto il titolo solo se il titolo non lo dice gia':
+       «Rapportino · Villa Ranieri» e sotto di nuovo «Villa Ranieri» si leggeva
+       due volte (limatura del 10 ottobre 2026) */
+    const nomeGiaDetto = cl && String(d.titolo || '').toLowerCase().indexOf(String(cl.nome || '').toLowerCase()) >= 0;
     return Object.assign({apribile:false}, d, {nota: [d.tipo === 'Preventivo precedente' ? 'Preventivo di prima' : '',
-      cl ? cl.nome : '', typeof d.importo === 'number' ? euro(d.importo) : '', d.nota].filter(Boolean).join(' · ')});
+      cl && !nomeGiaDetto ? cl.nome : '', typeof d.importo === 'number' ? euro(d.importo) : '', d.nota].filter(Boolean).join(' · ')});
   });
   return daiPreventivi.concat(altri).sort((a,b) => (a.data < b.data ? 1 : -1));
 }
