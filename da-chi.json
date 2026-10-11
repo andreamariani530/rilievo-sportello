@@ -155,7 +155,10 @@
   },
   "bouqa": {
    "ditta": "Elettricista amico di Andrea",
-   "n": "39"
+   "n": "39",
+   "finte": [
+    "2026-10-11 02:16:30"
+   ]
   },
   "prova-andrea": {
    "ditta": "Il link di prova di Andrea",

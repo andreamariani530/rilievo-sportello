@@ -52,16 +52,29 @@ def da_chi():
         return {}
 
 
+def _finte():
+    """Le aperture fatte da noi per prova su un link vero, da non contare.
+    In da-chi.json, per codice: "finte": ["2026-10-11 02:16:30"] (l'ora esatta della riga).
+    L'11 ottobre 2026 un controllo notturno ha aperto il link dell'elettricista: Andrea ha
+    ricevuto «ha aperto Rilievo» senza che lui l'avesse aperto, e la sua vera prima apertura
+    non avrebbe piu' fatto partire l'avviso. Una riga finta non conta ne' per l'avviso ne'
+    per /visite. Il file sul disco non si tocca."""
+    return {(c, t) for c, x in da_chi().items() if isinstance(x, dict) for t in (x.get("finte") or [])}
+
+
 def _righe():
     f = _file()
     if not f.is_file():
         return []
+    finte = _finte()
     fuori = []
     for r in f.read_text(encoding="utf-8").splitlines():
         try:
-            fuori.append(json.loads(r))
+            x = json.loads(r)
         except ValueError:
-            pass
+            continue
+        if (x.get("codice"), x.get("ora")) not in finte:
+            fuori.append(x)
     return fuori
 
 
