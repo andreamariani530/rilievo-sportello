@@ -1209,7 +1209,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-10 02:03';
+const COSTRUITA = '2026-10-11 02:03';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1498,6 +1498,11 @@ function chiudiPorta(){
   document.body.classList.remove('porta-aperta');
 }
 function apriPorta(){
+  /* il link mandato a un artigiano di un altro mestiere (/?da=codice&m=elettricista) apre la
+     porta col suo mestiere gia' scelto: senza, chi non lo toccava partiva da giardiniere e
+     la dimostrazione era quella di un giardiniere (10 ottobre 2026, primo elettricista) */
+  try{ const m = new URLSearchParams(location.search).get('m');
+       if(!mestiereInArrivo && m && MESTIERI.some(x => x.id === m)) mestiereInArrivo = m; }catch(e){}
   chiudiPorta();
   const velo = document.createElement('div');
   velo.className = 'velo-porta';
@@ -1516,7 +1521,8 @@ function apriPorta(){
           <h3>Guarda com&rsquo;&egrave; fatta</h3>
           <p>Entri nella giornata gi&agrave; piena di un giardiniere: un condominio che ha chiamato,
              il rilievo fatto dal solo indirizzo, il preventivo che esce da s&eacute;. Ditta di esempio,
-             numeri di esempio.</p>
+             numeri di esempio.${mestiereInArrivo && mestiereInArrivo !== 'giardiniere'
+               ? ' Con la tua ditta invece parte gi&agrave; da ' + mestiereDi(mestiereInArrivo).nome.toLowerCase() + ', col tuo listino.' : ''}</p>
           <span class="porta-via">Vedi la dimostrazione &rarr;</span>
         </button>
         <button class="strada consigliata" id="strada-mia">
@@ -1661,8 +1667,9 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "el-deviato", "nome": "Punto luce deviato", "u": "a punto", "p": 64.54, "h": 0.9}, 
     {"id": "el-presa", "nome": "Punto presa 10/16A", "u": "a punto", "p": 46.33, "h": 0.5}, 
     {"id": "el-tv", "nome": "Punto TV e antenna", "u": "a punto", "p": 148.57, "h": 2.8}, 
-    {"id": "el-dati", "nome": "Punto rete dati", "u": "a pezzo", "p": 23.77}, 
-    {"id": "el-quadro", "nome": "Quadro elettrico 12 moduli", "u": "a pezzo", "p": 46.57, "h": 1}, 
+    {"id": "el-dati", "nome": "Punto rete dati", "u": "a punto", "p": 65, "h": 0.6}, 
+    {"id": "el-quadro", "nome": "Quadro elettrico 12 moduli cablato", "u": "a pezzo", "p": 250, "h": 3}, 
+    {"id": "el-magneto", "nome": "Magnetotermico", "u": "a pezzo", "p": 38, "h": 0.2}, 
     {"id": "el-diff", "nome": "Differenziale salvavita", "u": "a pezzo", "p": 59.98, "h": 0.2}, 
     {"id": "el-linea", "nome": "Linea dorsale in tubo", "u": "al metro", "p": 9.5}, 
     {"id": "el-canalina", "nome": "Canalina in PVC", "u": "al metro", "p": 10.6}, 
@@ -1671,7 +1678,14 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "el-emergenza", "nome": "Emergenza antiblackout LED", "u": "a pezzo", "p": 152.67}, 
     {"id": "el-terra", "nome": "Messa a terra con picchetto", "u": "a pezzo", "p": 39.99}, 
     {"id": "el-conformita", "nome": "Dichiarazione di conformità", "u": "a corpo", "p": 150}, 
-    {"id": "el-guasto", "nome": "Ricerca guasto", "u": "all'ora", "p": 40.55, "h": 1}]}, "idraulico": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da idraulico e impianti termici)", "voci": [
+    {"id": "el-guasto", "nome": "Ricerca guasto", "u": "all'ora", "p": 40.55, "h": 1}, 
+    {"id": "el-frutto", "nome": "Sostituzione frutto e placca", "u": "a pezzo", "p": 18, "h": 0.25}, 
+    {"id": "el-lampadario", "nome": "Montaggio lampadario o plafoniera", "u": "a pezzo", "p": 35, "h": 0.5}, 
+    {"id": "el-clima", "nome": "Punto climatizzatore", "u": "a punto", "p": 95, "h": 1.5}, 
+    {"id": "el-dedicata", "nome": "Linea dedicata forno o piano a induzione", "u": "a pezzo", "p": 120, "h": 1.5}, 
+    {"id": "el-colonnina", "nome": "Installazione colonnina di ricarica auto", "u": "a pezzo", "p": 450, "h": 4}, 
+    {"id": "el-uscita", "nome": "Uscita e diritto di chiamata", "u": "a corpo", "p": 40}, 
+    {"id": "el-impianto", "nome": "Rifacimento impianto elettrico completo", "u": "al metro quadro", "p": 95, "h": 0.6}]}, "idraulico": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da idraulico e impianti termici)", "voci": [
     {"id": "id-sanitario", "nome": "Sostituzione sanitario o boiler", "u": "a pezzo", "p": 111.26, "h": 2.5}, 
     {"id": "id-lavabo", "nome": "Attacco lavabo", "u": "ad attacco", "p": 638.8, "h": 2.5}, 
     {"id": "id-bidet", "nome": "Attacco bidet", "u": "ad attacco", "p": 638.8, "h": 2.5}, 
@@ -2547,7 +2561,10 @@ function guidaHtml(nome, arg){
   /* GIA' SULLA PAGINA DEL PASSO (9 ottobre 2026): in Richieste la guida diceva «Vai alle
      richieste», e il tasto non portava da nessuna parte perche' eri gia' li'. Ora fa il
      passo vero, «Fissa il sopralluogo»; se il passo non ha un'azione sua, niente tasto. */
-  const qui = location.hash === p.h;
+  /* ANCHE IN OGGI IL PASSO SI FA DA LI' (11 ottobre 2026). In Oggi la guida diceva «Vai alle
+     richieste»: un tocco per cambiare pagina e un altro per fissare, mentre il giorno si
+     chiede uguale da qualunque pagina. Ora in Oggi il tasto fa il passo, come in Richieste. */
+  const qui = location.hash === p.h || (nome === 'oggi' && !!p.qui);
   const tasto = !qui ? `<a class="bottone piccolo" href="${p.h}">${p.b}</a>`
     : p.qui ? `<button class="bottone piccolo" id="guida-fai-qui" onclick="${p.qui.azione}">${p.qui.b}</button>` : '';
   return `<div class="guida">
@@ -4470,13 +4487,30 @@ PAGINE.oggi = {
               <div class="azioni" onclick="event.stopPropagation()">${tastoNaviga(s.luogo, 'Naviga')}${!s.preventivo ? tastoArrivo('sopralluogo', s) : ''}${tagSopralluogo(s)}</div>
             </div>`).join('')}
          </div>`
-      : '<div class="niente">Oggi non hai sopralluoghi. Le richieste che arrivano finiscono in Richieste.</div>';
+      /* UNA RIGA VUOTA SOLA (11 ottobre 2026): con niente oggi e niente nei sette giorni la
+         pagina diceva due volte «non hai niente», in due riquadri uno sotto l'altro. */
+      : appuntamenti.length
+        ? '<div class="niente">Oggi non hai sopralluoghi. Le richieste che arrivano finiscono in Richieste.</div>'
+        : '<div class="niente" id="niente-in-programma">Niente fissato, né oggi né nei prossimi sette giorni. Le richieste che arrivano finiscono in Richieste.</div>';
+    const prossimiHtml = !appuntamenti.length ? '' : `
+        <div class="lbl" style="margin:28px 0 12px">Prossimi appuntamenti</div>
+        <div class="elenco" id="prossimi-appuntamenti">
+          ${appuntamenti.map(a => `
+            <div class="r cliccabile" onclick="location.hash='#${a.tipo === 'lavoro' ? 'preventivo' : 'sopralluogo'}/${a.x.id}'">
+              <div><div class="tit">${esc(a.x.nome)}</div>
+                <div class="sub">${sotto(a.tipo === 'lavoro' ? 'Lavoro' : 'Sopralluogo',
+                  quandoDetto(a.giorno) + (oraBuona(a.ora) ? ' alle ' + oraBella(a.ora) : ''), a.x.luogo)}</div></div>
+              <div class="azioni" onclick="event.stopPropagation()">
+                ${a.giorno === S.oggi ? tastoNaviga(a.x.luogo, 'Naviga') + tastoArrivo(a.tipo, a.x) : tastoRicorda(a.tipo, a.x, 'Ricordaglielo')}</div>
+            </div>`).join('')}
+          </div>
+          <p style="font-size:15px;color:var(--tenue);margin-top:12px">«Ricordaglielo» apre WhatsApp col messaggio già scritto: giorno, ora e posto. Un cliente avvisato il giorno prima ti fa trovare il cancello aperto.</p>`;
     const daFissareHtml = daFissare.length ? `
         <div class="lbl" style="margin:24px 0 12px">Sopralluoghi da fissare</div>
         <div class="elenco" id="sopralluoghi-da-fissare">
           ${daFissare.map(s => `
             <div class="r"><div><div class="tit">${esc(s.nome)}</div>
-              <div class="sub">${sotto(s.luogo || '', 'manca il giorno')}</div></div>
+              ${s.luogo ? `<div class="sub">${sotto(s.luogo)}</div>` : ''}</div>
               <button class="bottone vuoto piccolo" style="white-space:nowrap" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Fissa il giorno</button>
             </div>`).join('')}
         </div>` : '';
@@ -4514,19 +4548,7 @@ PAGINE.oggi = {
              l'unico tasto portava alla richiesta di prova, e per un cliente vero servivano
              menu, Sopralluogo e «+ Nuovo sopralluogo». Adesso si parte da qui, un tocco. -->
         <div class="riga-azione" style="margin-top:12px"><button class="bottone vuoto piccolo" id="nuovo-sopralluogo-oggi" onclick="schedaSopralluogo(null)">+ Nuovo sopralluogo</button></div>
-        <div class="lbl" style="margin:28px 0 12px">Prossimi appuntamenti</div>
-        ${appuntamenti.length ? `<div class="elenco" id="prossimi-appuntamenti">
-          ${appuntamenti.map(a => `
-            <div class="r cliccabile" onclick="location.hash='#${a.tipo === 'lavoro' ? 'preventivo' : 'sopralluogo'}/${a.x.id}'">
-              <div><div class="tit">${esc(a.x.nome)}</div>
-                <div class="sub">${sotto(a.tipo === 'lavoro' ? 'Lavoro' : 'Sopralluogo',
-                  quandoDetto(a.giorno) + (oraBuona(a.ora) ? ' alle ' + oraBella(a.ora) : ''), a.x.luogo)}</div></div>
-              <div class="azioni" onclick="event.stopPropagation()">
-                ${a.giorno === S.oggi ? tastoNaviga(a.x.luogo, 'Naviga') + tastoArrivo(a.tipo, a.x) : tastoRicorda(a.tipo, a.x, 'Ricordaglielo')}</div>
-            </div>`).join('')}
-          </div>
-          <p style="font-size:15px;color:var(--tenue);margin-top:12px">«Ricordaglielo» apre WhatsApp col messaggio già scritto: giorno, ora e posto. Un cliente avvisato il giorno prima ti fa trovare il cancello aperto.</p>`
-        : '<div class="niente" style="padding:20px 0">Nei prossimi sette giorni non hai lavori o sopralluoghi fissati.</div>'}
+        ${prossimiHtml}
       </div>
       <div class="scheda">
         ${hannoDettoSi.length ? `<div class="lbl" style="margin-bottom:10px">Hanno detto sì: dai un giorno al lavoro</div>
@@ -7399,6 +7421,11 @@ const FRAZIONI = Object.assign(Object.create(null), {mezzo:0.5, mezza:0.5});
 const RIEMPITIVI = new Set(['di','del','dello','della','dei','degli','delle','circa','ci','sono']);
 /* "a quindici EURO l'una": il numero che sta davanti a "euro" e' un prezzo, non una misura */
 const SOLDI = new Set(['euro','euri','eur']);
+/* "un magnetotermico da SEDICI AMPERE", "il quadro da DODICI MODULI", "cavo da sei MILLIMETRI":
+   sono la taglia della cosa, non quante ne servono. Uscivano sedici salvavita (10 ottobre 2026,
+   controllo del mestiere elettricista prima di mandarlo al primo elettricista vero) */
+const TECNICI = new Set(['ampere','amper','amp','volt','watt','kw','kilowatt','chilowatt','kwh',
+  'moduli','modulo','poli','polo','mmq','mm','millimetri','millimetro','quadrati']);
 /* "sfalcio ogni quindici GIORNI": e' ogni quanto si torna, non quanto e' grande il prato.
    Quel quindici si sommava ai metri quadri e il prato usciva da 615 invece che da 600. */
 const TEMPO = new Set(['giorno','giorni','settimana','settimane','mese','mesi','anno','anni',
@@ -7489,7 +7516,7 @@ const CONCETTI_MESTIERI = {
   elettricista: [
     { chiavi: ['luce','lampada','lampadario','illuminazione'],
       dette: ['luce','luci','lampada','lampade','lampadario','lampadari','faretto','faretti',
-              'plafoniera','plafoniere','applique','illuminazione','lampadina','lampadine','led'] },
+              'applique','illuminazione','lampadina','lampadine','led'] },
     { chiavi: ['presa','prese'],
       dette: ['presa','prese','schuko','spina','spine','multipresa','bipasso'] },
     { chiavi: ['interruttore','deviatore','invertitore','deviato'],
@@ -7497,8 +7524,28 @@ const CONCETTI_MESTIERI = {
               'invertitore','invertitori','pulsante','pulsanti','comando','comandi','tapparelle'] },
     { chiavi: ['quadro','centralino'],
       dette: ['quadro','quadri','quadretto','centralino','centralini','contatore'] },
-    { chiavi: ['differenziale','salvavita','magnetotermico'],
-      dette: ['differenziale','differenziali','salvavita','magnetotermico','magnetotermici'] },
+    { chiavi: ['differenziale','salvavita'],
+      dette: ['differenziale','differenziali','salvavita'] },
+    /* le voci nuove del 10 ottobre 2026, prima del primo elettricista vero */
+    { chiavi: ['magnetotermico'],
+      dette: ['magnetotermico','magnetotermici','automatico','automatici'],
+      frasi: [['interruttore','generale']] },
+    { chiavi: ['frutto','placca'],
+      dette: ['frutto','frutti','placca','placche','placchetta','placchette','mostrina','mostrine'] },
+    /* la plafoniera fra le chiavi: "montaggio" da solo e' un verbo buono per tutto, e il
+       concetto della luce si prendeva la voce e i lampadari diventavano punti luce nuovi */
+    { chiavi: ['montaggio','plafoniera'],
+      dette: ['montare','montiamo','montaggio','monta','appendere','attaccare','plafoniera','plafoniere'] },
+    { chiavi: ['dedicata'],
+      dette: ['dedicata','dedicate','induzione'],
+      frasi: [['linea','forno'],['linea','induzione'],['linea','piano','cottura']] },
+    { chiavi: ['colonnina','wallbox'],
+      dette: ['colonnina','colonnine','wallbox','ricarica'] },
+    { chiavi: ['uscita','chiamata'],
+      dette: ['uscita','urgente','urgenza','chiamata','reperibilita'] },
+    { chiavi: ['rifacimento'],
+      dette: ['rifacimento','rifare','rifacciamo'],
+      frasi: [['rifare','impianto'],['impianto','completo'],['tutto','impianto'],['impianto','nuovo']] },
     /* "la presa della tv" e' il punto TV, non una presa in piu': prima uscivano due righe,
        o solo la presa e il punto TV spariva (trovato il 6 ottobre 2026 dettando) */
     { chiavi: ['tv','antenna','televisione'],
@@ -7516,7 +7563,7 @@ const CONCETTI_MESTIERI = {
     { chiavi: ['canalina'],
       dette: ['canalina','canaline','canala','canaletta','canalette'] },
     { chiavi: ['traccia','tracce'],
-      dette: ['traccia','tracce','sottotraccia','scanalatura','incassare','incasso','incassata','incassato'] },
+      dette: ['traccia','tracce','sottotraccia','scanalatura','incassare'] },
     { chiavi: ['certificazione','conformita','dichiarazione'],
       dette: ['certificazione','certificato','certificare','conformita','dichiarazione','dico',
               'collaudo','collaudare'] },
@@ -7913,6 +7960,8 @@ function numeriDetti(tok){
       v = FRAZIONI[w];
     } else v = numeroDetto(w);
     if(v == null) return;
+    /* "16A", "16 a": la a dopo una cifra e' l'ampere */
+    if(TECNICI.has(cosaDopo(i)) || (/^\d/.test(w) && /^(a|v|w)$/.test(tok[i + 1] || ''))) return;
     const m = misuraDopo(i);
     const n = {v: v * (m ? m.f : 1), u: m ? m.u : null, i, f: m ? m.f : 1};
     if(n.u === null && contaCose(i)) n.conteggio = true;
@@ -8213,8 +8262,14 @@ function quantitaPer(tipo, numeri){
    una misura, non lavori rifiutati, e non devono cancellare niente.                     */
 const NIENTE = new Set(['non','niente','nessun','nessuna','nessuno','nulla','senza','no']);
 const DUBBIO_NON = new Set(['so','saprei','sapre','ricordo','sono','sicuro','sicura','saprebbe','ho']);
+/* "il citofono NON FUNZIONA va cambiato", "il salvavita non regge": e' il guasto da
+   riparare, non un lavoro rifiutato. Prima il citofono spariva (10 ottobre 2026) */
+const GUASTO_NON = new Set(['funziona','funzionano','funzionava','funzionavano','funzionante','funzionanti',
+  'parte','partono','accende','accendono','regge','reggono','tiene','tengono','gira','girano',
+  'arriva','arrivano','carica','caricano','scalda','scaldano']);
 function rifiutata(tok){
-  return tok.some((w, i) => NIENTE.has(w) && !(w === 'non' && DUBBIO_NON.has(tok[i + 1] || '')));
+  return tok.some((w, i) => NIENTE.has(w) && !(w === 'non' && (DUBBIO_NON.has(tok[i + 1] || '') ||
+    GUASTO_NON.has(tok[i + 1] || '') || (tok[i + 1] === 'si' && GUASTO_NON.has(tok[i + 2] || '')))));
 }
 /* le parole che dicono "qui si sta parlando di un lavoro da fare": i verbi del
    mestiere e tutte le parole dei concetti. Servono a distinguere una lavorazione
@@ -8327,8 +8382,17 @@ function tagliaFlusso(tok, voci){
     /* "quattro per due E SETTANTA e demolire il tramezzo": il settanta e' la coda del 2,70,
        non la misura della demolizione. Usciva una demolizione da 70 mq (6 ottobre 2026). */
     const codaDelLato = tok[n - 2] === 'e' && numero(n - 3) && /^(per|x)$/.test(tok[n - 4] || '');
+    /* "due differenziali VENTI FRUTTI": nei mestieri al chiuso le cose si contano col numero
+       davanti, e un numero nudo attaccato al nome che arriva e' di quel nome. Il venti finiva
+       ai differenziali (10 ottobre 2026). Nel giardino no: "siepe venti alberi tre" si dice. */
+    const davantiAlNome = () => {
+      if(!MESTIERE_PARLATO || MESTIERE_PARLATO === 'giardiniere' || n !== i || UNITA_DOPO[tok[i]]) return false;
+      const x = scegliVoce(tok.slice(inizio, n - 1), voci), y = scegliVoce(tok.slice(i, fineDiQui()), voci);
+      return !!x && !!y && x.tipo.k === 'pezzi' && y.tipo.k === 'pezzi';
+    };
+    const fineDiQui = () => { for(let j = i + 1; j < tok.length; j++) if(segni[j] && ![...segni[j]].some(v => qui.has(v))) return j; return tok.length; };
     if(n - 1 > ultimoForte && numero(n - 1) && !/^(per|x)$/.test(tok[n - 2] || '') && !codaDelLato &&
-       (misuraGiaDetta(tok.slice(inizio, n - 1), voci) || nonSua())){
+       (misuraGiaDetta(tok.slice(inizio, n - 1), voci) || nonSua() || davantiAlNome())){
       n--;
       while(n - 1 > ultimoForte && RIEMPITIVI.has(tok[n - 1])) n--;
       c = n; spostata = true;
@@ -8409,7 +8473,9 @@ function spostaIlConto(pezzi, voci){
     const qui = scegliVoce(p.slice(0, j), voci);
     /* "un punto luce deviato E DUE prese": il deviato il suo numero ce l'ha gia'
        davanti, quindi il due e' delle prese (1 ottobre 2026) */
-    if(qui && qui.tipo.k === 'pezzi' && p[j - 1] !== 'e') continue;
+    /* "il quadro nuovo CON due differenziali": il due conta i differenziali, non i
+       quadri (10 ottobre 2026). Vale per "e", "con", "piu'" */
+    if(qui && qui.tipo.k === 'pezzi' && !['e','ed','con','piu'].includes(p[j - 1])) continue;
     pezzi[k + 1] = p.slice(j).concat(pezzi[k + 1]);
     pezzi[k] = p.slice(0, j);
   }
