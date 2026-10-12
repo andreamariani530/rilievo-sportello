@@ -859,20 +859,21 @@ button.via{font:inherit;text-align:left;width:100%}
    Sei colonne in 354 px non ci stanno: il simbolo dell'euro finiva sopra la casella,
    «22%» ci si appoggiava sopra e «2 volte» andava a capo. Sul telefono ogni voce
    diventa una scheda di due righe: il nome sopra, e sotto unita', IVA e uso a
-   sinistra, il prezzo da toccare a destra (4 ottobre 2026). */
+   sinistra, il prezzo da toccare a destra (4 ottobre 2026). Dal 12 ottobre l'uso e' scritto
+   «in 2 preventivi»: l'IVA resta su una riga, e l'uso va a capo lui se non ci sta. */
 @media (max-width:640px){
   .tab-listino thead{display:none}
   .tab-listino,.tab-listino tbody{display:block}
   .tab-listino tr{display:grid;grid-template-columns:auto auto 1fr auto;grid-template-areas:
-    "nome nome nome comandi" "unita iva usata prezzo";column-gap:12px;align-items:center;
+    "nome nome nome comandi" "unita iva usata prezzo";column-gap:10px;align-items:center;
     padding:14px 0;border-bottom:1px solid var(--filetto)}
   .tab-listino td{border:0;padding:0}
   .tab-listino td:nth-child(1){grid-area:nome;color:var(--inchiostro);padding-bottom:8px}
   .tab-listino td:nth-child(2){grid-area:unita;font-size:15px;white-space:nowrap}
   .tab-listino td:nth-child(3){grid-area:prezzo;white-space:nowrap}
-  .tab-listino td:nth-child(4){grid-area:iva;font-family:inherit;font-size:15px;color:var(--tenue);text-align:left}
+  .tab-listino td:nth-child(4){grid-area:iva;font-family:inherit;font-size:15px;color:var(--tenue);text-align:left;white-space:nowrap}
   .tab-listino td:nth-child(4)::before{content:'IVA '}
-  .tab-listino td:nth-child(5){grid-area:usata;font-family:inherit;font-size:15px;color:var(--tenue);text-align:left;white-space:nowrap}
+  .tab-listino td:nth-child(5){grid-area:usata;font-family:inherit;font-size:14px;color:var(--tenue);text-align:left;min-width:0;line-height:1.25}
   .tab-listino td:nth-child(6){grid-area:comandi;width:auto!important;align-self:start;justify-self:end}
 }
 /* Documenti sul telefono: stato, «Fai la fattura» e matita vanno sotto il titolo, insieme.
@@ -1209,7 +1210,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-11 02:03';
+const COSTRUITA = '2026-10-12 02:16';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1858,17 +1859,20 @@ function tempoDelLavoro(p){
    preventivo, si cercava la voce fra tutte e il campo delle ore stava in fondo alla
    sua scheda (limatura del 10 ottobre 2026). Ora si chiede solo quel numero, lo si
    scrive nella voce del listino e il tempo di lavoro si rifa' subito. */
-function oreDalPreventivo(idVoce){
+/* dal listino (12 ottobre 2026) la stessa domanda, ma il messaggio non parla di un
+   preventivo che non e' aperto */
+function oreDalPreventivo(idVoce, dalListino){
   const v = voce(idVoce); if(!v) return;
   scheda({
     titolo: 'Quante ore ci metti?',
-    sotto: v.nome + ', ' + v.u + '. Lo scrivo nel listino: da adesso conta in tutti i preventivi.',
+    sotto: v.nome + ', ' + v.u + (dalListino ? '. Da adesso il tempo di lavoro la conta in tutti i preventivi.' : '. Lo scrivo nel listino: da adesso conta in tutti i preventivi.'),
     valori: {h: ''},
     campi: [{k:'h', l:'Ore di lavoro ' + v.u, t:'numero', p:'per esempio 1,5'}],
     controlla: d => !(d.h > 0 && d.h <= 100) ? 'Scrivi le ore in cifre, per esempio 1,5 oppure 0,5.' : null,
     salva: d => { v.h = d.h; },
-    testoSalva: 'Mettila nel listino',
-    messaggio: 'Ore messe nel listino. Il tempo di lavoro è rifatto.'
+    testoSalva: dalListino ? 'Salva le ore' : 'Mettila nel listino',
+    messaggio: dalListino ? 'Ore messe. Da adesso il preventivo conta anche questa voce nel tempo di lavoro.'
+      : 'Ore messe nel listino. Il tempo di lavoro è rifatto.'
   });
 }
 /* i giorni come si dicono: mezza giornata, un giorno e mezzo, tre giorni (si arrotonda
@@ -2268,6 +2272,9 @@ const righeIvaHtml = (c, id) => c.aliquote.map((x, k) =>
 function usata(idVoce){
   return S.preventivi.filter(p => p.righe.some(r => r.v === idVoce && r.on)).length;
 }
+/* «2 volte» da solo non diceva volte di cosa: sul telefono l'intestazione «Usata» non si
+   vede (12 ottobre 2026) */
+const usataScritta = n => !n ? 'mai usata' : n === 1 ? 'in 1 preventivo' : 'in ' + n + ' preventivi';
 /* il numero dopo il piu' alto dell'anno: contare i preventivi non basta,
    perche' cancellandone uno il numero dopo tornava uguale a uno gia' dato */
 function nuovoNumero(){
@@ -11180,7 +11187,7 @@ function disegnaVoci(id){
     <div class="voce ${r.on?'':'spenta'}" id="v-${k}">
       <div class="sotto-voce">
         <div class="nome modificabile" onclick="schedaRiga('${id}',${k})" title="Cambia nome, prezzo, volte nell'anno, o rendila facoltativa">${esc(r.nome)}</div>
-        <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}${fotoVoceBuona(r.foto) ? ' · con foto' : ''}</div>
+        <div class="det">${euro(r.p)} ${esc(r.u)}${mqVeri(r) ? ` · <span id="mq-${k}">${mqVeri(r)}</span>` : ''} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}${fotoVoceBuona(r.foto) ? ' · con foto' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${aCorpo(r) ? '<div class="a-corpo">prezzo fisso</div>' : `<div class="qta">
@@ -11195,6 +11202,13 @@ function disegnaVoci(id){
       <div class="tot" id="t-${k}"></div>
     </div>`).join('');
   calcola(id);
+}
+/* «26» accanto a «ogni 100 mq» non dice quanto e' grande il prato: sotto il prezzo i
+   metri quadri veri, come sul PDF (12 ottobre 2026) */
+function mqVeri(r){
+  if(!r || aCorpo(r)) return '';
+  const t = tipoUnita(r.u);
+  return t.k === 'mq' && t.per > 1 ? cifra(Math.round(r.q * t.per), 0) + ' mq' : '';
 }
 function qta(id,k,d){
   /* 1,36 volte "ogni 100 mq" piu' uno fa 2,36: si arrotonda al centesimo, se no
@@ -11284,6 +11298,7 @@ function calcola(id){
   p.righe.forEach((r,k) => {
     const e = document.getElementById('t-'+k);
     if(e) e.textContent = !r.on ? '—' : (r.facoltativa ? '(' + euro(importoRiga(r)) + ')' : euro(importoRiga(r)));
+    const m = document.getElementById('mq-'+k); if(m) m.textContent = mqVeri(r);
   });
   const c = conti(p);
   const f = document.getElementById('riga-fac'); if(f) f.textContent = euro(c.facoltative) + ' + IVA';
@@ -11319,13 +11334,14 @@ PAGINE.listino = {
             ? `<div style="font-size:14px;color:var(--tenue);margin-top:3px">A voce: ${esc(v.detti)}</div>`
             : `<div style="margin-top:3px"><a href="#listino" onclick="schedaVoce('${v.id}');return false" style="font-size:14px;color:var(--accento)">Come la chiami a voce?</a></div>`}${
             oreDellaVoce(v) != null && !(allOra(v.u) && oreDellaVoce(v) === 1)
-            ? `<div class="ore-voce" style="font-size:14px;color:var(--tenue);margin-top:3px">Tempo: ${oreDellaVoce(v) === 1 ? 'un\'ora' : cifraOre(oreDellaVoce(v)) + ' ore'} ${esc(v.u)}</div>` : ''}</td>
+            ? `<div class="ore-voce" style="font-size:14px;color:var(--tenue);margin-top:3px">Tempo: ${oreDellaVoce(v) === 1 ? 'un\'ora' : cifraOre(oreDellaVoce(v)) + ' ore'} ${esc(v.u)}</div>`
+            : `<div style="margin-top:3px"><a href="#listino" class="ore-mancano" onclick="oreDalPreventivo('${v.id}',true);return false" style="font-size:14px;color:var(--accento)">Quanto tempo ci metti?</a></div>`}</td>
           <td>${esc(v.u)}</td>
           <td class="n"><span style="color:var(--tenue)">€</span>
               <input class="campo" style="width:96px;text-align:right;padding:6px 8px;display:inline-block"
               value="${v.p}" inputmode="decimal" onchange="cambiaPrezzo('${v.id}',this.value)"></td>
           <td class="n">${cifra(typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0))}%</td>
-          <td class="n">${usata(v.id)} ${usata(v.id) === 1 ? 'volta' : 'volte'}</td>
+          <td class="n">${usataScritta(usata(v.id))}</td>
           <td class="n" style="width:40px">${comandi([{t:'Modifica o cancella', i:MATITA, f:`schedaVoce('${v.id}')`}])}</td>
         </tr>`).join('')}
       </tbody>

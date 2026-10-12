@@ -152,6 +152,8 @@ Il cuore del lavoro: cammini nel giardino e parli.
 - **Tempo di lavoro:** sotto il totale l'app dice quanto ci metti ("circa 3 giorni") e le
   ore, sommando le ore per unità scritte nel listino. Con − e + dici quante persone
   lavorano. Le voci che nel listino non hanno le ore non contano, e l'app le elenca.
+- Le voci «ogni 100 mq» mostrano sotto il prezzo i metri quadri veri: 26 volte
+  «ogni 100 mq» è scritto "2.600 mq", e cambia mentre tocchi − e +.
   Sul foglio del cliente la durata va solo se accendi «Scrivi la durata sul preventivo»,
   e ci vanno solo i giorni, mai le ore.
 - «Fallo firmare sul posto»: il cliente firma col dito sul telefono.
@@ -168,6 +170,9 @@ Le tue lavorazioni con i tuoi prezzi.
 - «+ Nuova voce»: nome, unità (al metro quadro, al metro, a pezzo, a corpo…), prezzo,
   e le «Ore di lavoro per unità» (vuoto: la voce non conta nel tempo di lavoro). Le voci
   di partenza hanno già le ore dei prezzari regionali 2026, scritte sotto il nome.
+  Una voce senza ore ha sotto il nome «Quanto tempo ci metti?»: lo tocchi, scrivi le ore
+  e da lì in poi conta nel tempo di lavoro.
+- Accanto al prezzo c'è in quanti preventivi l'hai usata («in 2 preventivi», «mai usata»).
 - «Come la chiami a voce?»: scrivi le parole che usi tu per quella lavorazione, così la
   voce la riconosce.
 - «Prendilo da un preventivo vecchio»: carichi un tuo preventivo di prima (PDF, Word,
