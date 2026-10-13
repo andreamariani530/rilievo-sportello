@@ -1210,7 +1210,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-12 02:16';
+const COSTRUITA = '2026-10-13 02:05';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -11165,7 +11165,7 @@ PAGINE.preventivo = {
           ${rigaLink(p)}
           ${rigaPromemoria(p)}
           ${(p.solleciti || []).length ? `<div class="riga-tot"><span>Risentito</span><span>${p.solleciti.length === 1 ? 'una volta' : p.solleciti.length + ' volte'}, l'ultima ${quando(p.solleciti[p.solleciti.length - 1])}</span></div>` : ''}
-          ${p.cliente ? `<div class="riga-tot"><span>Cliente</span><a href="#cliente/${p.cliente}" style="color:var(--accento)">in rubrica</a></div>` : ''}
+          ${p.cliente ? `<div class="riga-tot"><span>Cliente</span><a class="al-cliente" href="#cliente/${p.cliente}" style="color:var(--accento)">${esc((cliente(p.cliente) || {}).nome || p.nome || 'la sua scheda')} ›</a></div>` : ''}
           ${misureGiardino(giardino && giardino.ril).length
             ? `<div class="riga-tot"><span>Il suo giardino</span><span>${esc(misureGiardinoScritte(giardino.ril))}</span></div>` : ''}
         </div>
@@ -11427,8 +11427,8 @@ PAGINE.cliente = {
     const giardino = giardinoDelCliente(id);
     return `
     <div class="riga-numeri">
-      <div class="numero"><div class="val">${l.length}</div><div class="lbl">Preventivi</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(accettato, 0)}</div><div class="lbl">Lavori presi</div></div>
+      <div class="numero"><div class="val">${l.length}</div><div class="lbl">${l.length === 1 ? 'Preventivo' : 'Preventivi'}</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(accettato, 0)}</div><div class="lbl">${l.filter(preso).length === 1 ? 'Lavoro preso' : 'Lavori presi'}</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Già incassato</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${c.dal ? dataCorta(c.dal) : '—'}</div><div class="lbl">Cliente dal</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${c.tel && String(c.tel).replace(/[^+\d]/g, '')
@@ -11527,6 +11527,10 @@ PAGINE.numeri = {
       incassato: pagati.filter(p => meseIso(quandoIncassato(p)) === m.chiave)
                        .reduce((t, p) => t + conti(p).totale, 0)
     }));
+    /* i mesi si contano dal primo con qualcosa dentro: chi ha cominciato a ottobre
+       vedeva undici righe di «0 0» prima della sua (limatura del 13 ottobre 2026) */
+    const primo = mesi.findIndex(m => m.fatto || m.incassato);
+    if(primo > 0) mesi.splice(0, primo);
     const alto = Math.max(1, ...mesi.map(m => Math.max(m.fatto, m.incassato)));
     const resa = resaDelListino(presi).slice(0, 6);
     const totResa = resa.reduce((t, x) => t + x.quanto, 0);
@@ -11547,7 +11551,7 @@ PAGINE.numeri = {
     </div>
     <div class="griglia2">
       <div class="riquadro">
-        <div class="lbl" style="margin-bottom:14px">Mese per mese, gli ultimi dodici</div>
+        <div class="lbl" style="margin-bottom:14px">${primo > 0 ? 'Mese per mese, da ' + (mesi.length === 1 ? 'questo mese' : 'quando hai cominciato') : 'Mese per mese, gli ultimi dodici'}</div>
         ${mesi.map(m => `
           <div class="mese">
             <div class="nome">${m.nome} ${String(m.anno).slice(2)}</div>
