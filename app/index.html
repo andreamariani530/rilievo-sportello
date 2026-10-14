@@ -1032,6 +1032,144 @@ body.in-casa .chiedi{display:none}
   .foglio + .foglio{margin-top:0;break-before:page;page-break-before:always}
   .foglio .foto-doc{break-inside:avoid;page-break-inside:avoid}
 }
+
+/* Tutta l'app col linguaggio della home di Matteo (15 ottobre 2026).
+   Stesse misure, colori e caratteri della home (.casa): verde salvia chiaro, filetti tenui,
+   angoli arrotondati, tasti e linguette in Jost senza maiuscole, riquadri bianchi senza ombra. */
+:root{
+  --accento:#6f8466; --accento-chiaro:#9fac96; --tenue:#7d776d;
+  --filetto:#e8e2d6; --filetto2:#d9d2c5; --carta:#fbf8f2; --bianco:#fffdf9; --carta2:#f3efe6;
+  --ombra:none; --lavato:#eef1e9; --caldo:#b8683a; --caldo2:#f7ece3;
+}
+body{background:var(--carta)}
+
+/* la barra in cima: carta, niente filetto, nome al centro; nella home sparisce (c'e' gia' la R.) */
+@media (max-width:900px){
+  .barra-mobile{background:var(--carta);border-bottom:0;padding:18px 18px 4px;justify-content:center;position:static}
+  .barra-mobile .nome{font-weight:700;font-size:23px}
+  .barra-mobile .nome::after{content:".";color:var(--accento)}
+  .hamb{display:none}
+  body.in-casa .barra-mobile{display:none}
+  .testata{padding:12px 18px 6px}
+  .contenuto{padding:0 18px 60px}
+}
+.testata h1{font-size:30.6px}
+
+/* tasti: arrotondati, parole normali, verde della home */
+.bottone{border-radius:12px;text-transform:none;letter-spacing:.01em;font-size:14.5px;padding:11px 16px;
+  background:var(--accento);border-color:var(--accento);color:#fff}
+.bottone.piccolo{padding:8px 13px;font-size:13px;letter-spacing:.01em;border-radius:10px}
+.bottone.vuoto{background:#fff;color:var(--inchiostro);border-color:var(--filetto2)}
+.bottone.tenue{background:transparent;color:var(--tenue);border-color:var(--filetto)}
+.pericolo,.torna,.ripristina{text-transform:none;letter-spacing:.01em;font-size:13px}
+.azioni{gap:8px}
+
+/* riquadri e schede: bianchi, angoli 14, filetto tenue, niente ombra */
+.riquadro,.scheda,.registratore,.trascrizione,.spiega,.via,.foto,.finestra,.foglio,.aggiorna{
+  border-radius:14px;border:1px solid var(--filetto);box-shadow:none;background:#fff}
+.riquadro{padding:16px 16px;margin-bottom:14px}
+.scheda{padding:16px}
+.spiega{background:var(--lavato);border-color:#dde3d6;border-left:1px solid #dde3d6;padding:14px 16px;margin:14px 0 18px}
+.spiega p,.spiega li{font-size:15.5px}
+.guida{border-radius:14px;border:1px solid #dde3d6;background:var(--lavato);padding:12px 14px;margin-bottom:16px}
+.guida .testo{font-size:15.5px}
+.finestra{border-radius:18px;box-shadow:0 24px 60px rgba(36,34,31,.18)}
+.foglio{border-radius:14px}
+.foto{border-radius:12px;overflow:hidden}
+.foto img{border-radius:7px}
+
+/* gli elenchi: una scheda bianca con le righe dentro */
+.elenco{background:#fff;border:1px solid var(--filetto);border-radius:14px;padding:2px 14px}
+.elenco .r{padding:12px 0}
+.elenco .r:last-child{border-bottom:0}
+.elenco .r .tit{font-size:20px}
+.elenco .r .sub{font-size:13.5px}
+
+/* etichette di stato: pillole lavate, non cornici */
+.tag{border-radius:999px;padding:4px 9px;font-size:8.5px;border-color:transparent;background:var(--carta2)}
+.tag.v{background:var(--lavato);color:var(--accento)}
+.tag.o{background:var(--caldo2);color:var(--caldo)}
+.chip{border-radius:999px;background:var(--lavato);border-color:transparent;font-size:12px;letter-spacing:0;padding:7px 12px}
+.chip.fuori-listino{background:var(--caldo2);border-color:transparent}
+
+/* linguette: pillole, come le domande della home */
+.filtri{border-bottom:0;gap:6px;margin-bottom:12px}
+.filtri button{border:1px solid var(--filetto);border-radius:999px;padding:7px 12px;font-size:12.5px;
+  letter-spacing:0;text-transform:none;color:var(--inchiostro);background:#fff;margin-bottom:4px}
+.filtri button.attivo{background:var(--accento);color:#fff;border-color:var(--accento)}
+
+/* caselle: come la casella della chat */
+.campo{border-radius:12px;border-color:var(--filetto2);padding:11px 14px;background:#fff}
+.campo:focus{border-color:var(--accento)}
+select.campo{border-radius:12px}
+.qta{border-radius:999px;border-color:var(--filetto2);background:#fff}
+.interr{background:var(--filetto2)}
+.interr.on{background:var(--accento)}
+
+/* i numeri: quattro riquadri come quelli della home, etichetta col pallino sopra */
+.riga-numeri{display:grid;grid-template-columns:1fr 1fr;gap:8.7px;border:0;margin-bottom:16px}
+.riga-numeri > .numero,.riga-numeri > .numero:first-child,.riga-numeri > .numero:nth-child(2n){
+  border:1px solid var(--filetto);border-radius:14px;background:#fff;padding:11px 12px 12px;
+  display:flex;flex-direction:column-reverse;justify-content:flex-end;min-height:96px}
+.riga-numeri .numero .val{font-size:34px;margin-top:8px}
+.riga-numeri .numero .lbl{margin:0;font-size:9.4px;letter-spacing:.18em;white-space:normal;line-height:1.4}
+.riga-numeri .numero .lbl::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--accento);margin-right:5.4px;vertical-align:.12em}
+.misure-giardino{border-top:0;gap:8.7px}
+.misure-giardino > div,.misure-giardino > div:nth-child(2n){border:1px solid var(--filetto);border-radius:14px;
+  padding:11px 12px;background:#fff;border-left:1px solid var(--filetto)}
+
+/* barre dei numeri */
+.mese .barra{border-radius:4px}
+.legenda i{border-radius:3px}
+.mese .nome{text-transform:none;letter-spacing:0;font-size:12px}
+
+/* il menu laterale: voci arrotondate, come il menu del «+» */
+aside{border-right:0;background:var(--bianco)}
+nav a.voce{margin:0 10px;border-radius:10px;border-left:0;padding:10px 14px;font-family:'Jost',sans-serif;font-size:14px}
+nav a.voce.attiva{background:var(--lavato);color:var(--accento)}
+nav a.voce .arrivo{border-radius:999px;border-color:transparent;background:var(--caldo2);color:var(--caldo)}
+nav .gruppo{text-transform:none;letter-spacing:.02em;font-size:12px;margin:14px 0 4px}
+.pallino{background:var(--accento)}
+
+/* il tasto «Chiedi» sta sopra la barra in basso */
+.chiedi{bottom:calc(76px + env(safe-area-inset-bottom));text-transform:none;letter-spacing:.02em;font-size:13.5px;
+  padding:11px 17px 11px 14px;box-shadow:0 10px 26px rgba(36,34,31,.18)}
+.chiedi:hover{background:#5d7156}
+.avviso{border-radius:12px}
+.chat{border-radius:18px 18px 0 0;border:0}
+.chat .msg.io{border-radius:14px 14px 4px 14px;background:var(--lavato)}
+.chat .esempi button{border-radius:10px;font-family:'Jost',sans-serif;font-size:13px;background:#fff}
+.chat .scrivi textarea{border-radius:14px;background:#fff}
+.tasto-avviso{border-radius:999px}
+.nastro{border-radius:10px 0 0 0}
+
+/* la barra in basso: Casa, Sopralluogo, Preventivi, Clienti, Altro */
+.barra-sotto{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:space-around;
+  background:rgba(255,253,249,.96);backdrop-filter:blur(8px);border-top:1px solid var(--filetto);
+  padding:7px 6px calc(7px + env(safe-area-inset-bottom))}
+.barra-sotto a{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:var(--tenue);
+  font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.03em;min-width:58px;padding:3px 0;border:0;background:none;cursor:pointer}
+.barra-sotto a svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.barra-sotto a.attiva{color:var(--accento)}
+.barra-sotto a.attiva i{display:block;width:4px;height:4px;border-radius:50%;background:var(--accento);margin-top:-1px}
+.barra-sotto a i{display:none}
+#schermo{padding-bottom:calc(126px + env(safe-area-inset-bottom))}
+@media (min-width:901px){.barra-sotto{display:none}}
+
+/* sul telefono il tasto della testata sta sotto il titolo, non schiacciato accanto */
+@media (max-width:900px){
+  .testata:not(.testata-casa){flex-direction:column;align-items:flex-start;gap:12px}
+  .testata:not(.testata-casa) h1{line-height:1.15}
+}
+
+/* mestieri, piani e il contatore della squadra: stessi angoli del resto */
+.mestiere{border-radius:12px;border-color:var(--filetto2);background:#fff}
+.mestiere.scelto{background:var(--accento);border-color:var(--accento)}
+.piano{border-radius:16px;border-color:var(--filetto);box-shadow:none}
+.piano.per-te{border-color:var(--accento);box-shadow:none}
+.piano .per-te-segno{border-radius:999px}
+.conto-squadra button{border-radius:12px;border-color:var(--filetto2)}
 </style>
 </head>
 <body>
@@ -1093,6 +1231,23 @@ var AVVIO_DAL = Date.now(), AVVIO_FERMA = 1600;
       <div class="nome">Rilievo</div>
     </div>
     <div id="schermo"></div>
+<nav class="barra-sotto" id="barra-sotto" aria-label="Le pagine principali">
+  <a href="#oggi" data-p="oggi"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>Casa<i></i></a>
+  <a href="#sopralluogo" data-p="sopralluogo"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>Sopralluogo<i></i></a>
+  <a href="#preventivi" data-p="preventivi"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/></svg>Preventivi<i></i></a>
+  <a href="#clienti" data-p="clienti"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.5a4.5 4.5 0 0 1 5.5 4.5"/></svg>Clienti<i></i></a>
+  <a href="#altro" data-p="altro" onclick="menu(true);return false;"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>Altro<i></i></a>
+</nav>
+<script>
+(function(){
+  var b = document.getElementById('barra-sotto');
+  function segna(){
+    var h = (location.hash || '#oggi').replace('#','').split('/')[0] || 'oggi';
+    b.querySelectorAll('a').forEach(function(a){ a.classList.toggle('attiva', a.dataset.p === h); });
+  }
+  window.addEventListener('hashchange', segna); segna();
+})();
+</script>
   </main>
 </div>
 
@@ -1292,7 +1447,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-14 13:20';
+const COSTRUITA = '2026-10-15 00:49';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
