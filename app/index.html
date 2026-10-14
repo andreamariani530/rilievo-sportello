@@ -937,6 +937,49 @@ button.via{font:inherit;text-align:left;width:100%}
 .chat .scrivi textarea{flex:1;resize:none;min-height:44px;max-height:120px;border:1px solid var(--filetto2);
   background:var(--carta);padding:10px 12px;font:inherit;font-size:16px;color:var(--inchiostro)}
 .chat .scrivi textarea:focus{outline:0;border-color:var(--accento-chiaro)}
+/* ---------- la home con la chat (idea di Matteo, 14 ottobre 2026) ----------
+   Si apre sulla casella: chiedi qualcosa del tuo lavoro. Sotto, le domande che
+   servono adesso (quella urgente si vede) e quattro riquadri con i numeri. */
+.casa{max-width:620px;margin:0 auto 34px}
+.casa-chiedi{display:flex;align-items:flex-end;gap:10px;border:1px solid var(--filetto2);background:var(--bianco);
+  padding:12px 12px 12px 16px;box-shadow:var(--ombra)}
+.casa-chiedi:focus-within{border-color:var(--accento-chiaro)}
+.casa-chiedi textarea{flex:1;border:0;background:none;resize:none;font:inherit;font-size:17px;line-height:1.45;
+  color:var(--inchiostro);min-height:52px;max-height:140px;padding:2px 0}
+.casa-chiedi textarea:focus{outline:0}
+.casa-chiedi textarea::placeholder{color:var(--tenue);font-style:italic}
+.casa-chiedi button{flex:none;width:44px;height:44px;border:0;background:var(--accento);color:var(--carta);cursor:pointer;
+  display:grid;place-items:center}
+.casa-chiedi button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.casa-nota{font-size:14px;color:var(--tenue);margin:8px 2px 0;font-style:italic}
+.casa-domande{display:grid;gap:8px;margin-top:16px}
+.casa-domande button{display:flex;align-items:center;gap:10px;text-align:left;background:none;border:1px solid var(--filetto2);
+  padding:11px 14px;font:inherit;font-size:16px;color:var(--soft);cursor:pointer}
+.casa-domande button:hover{border-color:var(--accento-chiaro);color:var(--inchiostro)}
+.casa-domande button .seg{flex:none;width:6px;height:6px;border-radius:50%;background:var(--accento-chiaro)}
+.casa-domande button.urgente{border-color:var(--oro);background:#FBF5EA;color:var(--inchiostro)}
+.casa-domande button.urgente .seg{background:var(--oro)}
+.casa-riquadri{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.riquadro{margin:0;border:1px solid var(--filetto);background:var(--bianco);padding:14px 16px 16px;text-align:left;font:inherit;
+  color:var(--inchiostro);cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:118px}
+.riquadro:hover{border-color:var(--filetto2)}
+.riquadro .lbl{font-size:9px;margin-bottom:6px}
+.riquadro .val{font-family:'Cormorant',Georgia,serif;font-size:38px;line-height:1}
+.riquadro .val small{font-size:20px;margin-right:2px}
+.riquadro .sub{font-size:14px;color:var(--tenue);line-height:1.35}
+.riquadro .sub b{font-weight:400;color:var(--soft)}
+.riquadro .barretta{height:4px;background:var(--carta2);margin:10px 0 6px;position:relative}
+.riquadro .barretta i{position:absolute;left:0;top:0;bottom:0;background:var(--accento-chiaro)}
+.riquadro .con-torta{display:flex;align-items:center;gap:12px}
+.riquadro .torta{width:52px;height:52px;flex:none}
+.riquadro.spento .val{font-size:22px;color:var(--tenue)}
+.casa-sotto{display:flex;margin-top:14px}
+.casa-sotto .bottone{width:100%;justify-content:center}
+body.in-casa .chiedi{display:none}
+@media (max-width:900px){
+  .casa{margin-bottom:28px}
+  .riquadro .val{font-size:34px}
+}
 @media (max-width:900px){
   .chiedi{right:14px;bottom:calc(18px + env(safe-area-inset-bottom));padding:12px 15px}
   .chat{max-width:none;height:100%;margin:0;border:0}
@@ -1210,7 +1253,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-14 02:17';
+const COSTRUITA = '2026-10-14 12:56';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2489,6 +2532,8 @@ function vai(){
 
   document.querySelectorAll('nav a.voce').forEach(a =>
     a.classList.toggle('attiva', a.getAttribute('href') === attiva));
+  /* nella home la chat c'e' gia' in cima: il tasto «Chiedi» che galleggia non serve */
+  document.body.classList.toggle('in-casa', P === PAGINE.oggi);
 
   let t, corpo;
   try{ t = P.testata(arg); corpo = P.corpo(arg); }
@@ -4417,10 +4462,189 @@ function importa(){
 const PAGINE = {};
 
 /* ===== OGGI ===== */
+/* ===== LA HOME CON LA CHAT =====================================================
+   Idea e scelte di Matteo, 14 ottobre 2026: Rilievo si apre sulla chat, come la home
+   di Knowlee. In cima il saluto e la casella; sotto le domande che servono adesso,
+   scelte dai dati (quella urgente si vede); poi quattro riquadri con i numeri. Il
+   resto della giornata segue sotto, com'era.
+   Passo 1: la chat LEGGE i dati e risponde, non cambia niente. I dati glieli manda
+   questo telefono (riassuntoPerChat), quindi ognuno vede solo i suoi. Una domanda
+   dai bottoni chiede soltanto: non manda e non cambia niente. */
+function saluto(){
+  const h = new Date().getHours();
+  return h < 13 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
+}
+const vivoPrev = p => p.stato !== 'messo_via' && p.stato !== 'rifiutato' && !soloFattura(p);
+function daFatturareCasa(){ return S.preventivi.filter(p => preventivoChiuso(p) && !fatturaFatta(p)); }
+/* i clienti che l'anno scorso, in queste settimane, hanno avuto un lavoro e da allora
+   non ne hanno avuto un altro: potature e trattamenti tornano ogni anno */
+function daRichiamareStagione(){
+  const fuori = [];
+  S.clienti.forEach(c => {
+    const l = lavoriDi(c.id).filter(preso);
+    const allora = l.filter(p => { const g = giorniDa(p.data); return g >= 330 && g <= 400; });
+    if(!allora.length) return;
+    const dopo = lavoriDi(c.id).some(p => giorniDa(p.data) < 330 && p.stato !== 'bozza');
+    if(!dopo) fuori.push(c);
+  });
+  return fuori;
+}
+function domandeCasa(){
+  const d = [];
+  const qualcosa = S.preventivi.length || S.sopralluoghi.length || S.clienti.length;
+  if(!qualcosa){
+    d.push({t:'Come preparo il primo preventivo?'});
+    d.push({t:'Come metto i miei prezzi nel listino?'});
+    return d;
+  }
+  const fermi = S.preventivi.filter(p => p.stato === 'inviato' && giorniDa(ultimoContatto(p)) > 7);
+  const inAttesa = S.preventivi.filter(p => p.stato === 'inviato');
+  if(fermi.length) d.push({t:'Chi non mi ha ancora risposto?', urgente:true});
+  d.push({t:'Che sopralluoghi ho questa settimana?'});
+  if(!fermi.length && inAttesa.length) d.push({t:'Chi non mi ha ancora risposto?'});
+  if(daFatturareCasa().length) d.push({t:'Cosa mi resta da fatturare?'});
+  if(daRichiamareStagione().length) d.push({t:'Chi devo richiamare questa stagione?'});
+  if(d.length < 3) d.push({t:'Quanto ho preventivato questo mese?'});
+  /* quella urgente in cima, al massimo quattro */
+  return d.sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0)).slice(0, 4);
+}
+/* ogni riquadro si calcola da solo: se uno non riesce scrive «non disponibile», mai zero */
+function riquadro(fai){
+  try{ return fai(); }
+  catch(e){ return `<div class="riquadro spento"><div class="lbl">${esc(fai.nome || '')}</div><div class="val">non disponibile</div></div>`; }
+}
+function tortaPreventivi(pezzi){
+  const tot = pezzi.reduce((t, x) => t + x.n, 0);
+  if(!tot) return '';
+  const C = 2 * Math.PI * 21; let giro = 0;
+  return `<svg class="torta" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="21" fill="none" stroke="var(--carta2)" stroke-width="7"/>` +
+    pezzi.filter(x => x.n).map(x => {
+      const l = C * x.n / tot, h = `<circle cx="26" cy="26" r="21" fill="none" stroke="${x.c}" stroke-width="7" stroke-dasharray="${l.toFixed(2)} ${(C - l).toFixed(2)}" stroke-dashoffset="${(-giro).toFixed(2)}" transform="rotate(-90 26 26)"/>`;
+      giro += l; return h;
+    }).join('') + `<text x="26" y="31" text-anchor="middle" font-family="Cormorant,Georgia,serif" font-size="17" fill="var(--inchiostro)">${tot}</text></svg>`;
+}
+function casaHtml(){
+  const domande = domandeCasa();
+  const oggiTile = () => {
+    const orario = s => oraBuona(s.ora) ? s.ora : '24';
+    const qui = S.sopralluoghi.filter(s => s.quando === S.oggi).sort((a, b) => orario(a).localeCompare(orario(b)));
+    const tardi = S.sopralluoghi.filter(s => s.quando && s.quando < S.oggi && !s.preventivo).length;
+    const primo = qui.find(s => oraBuona(s.ora));
+    return `<button type="button" class="riquadro" id="riquadro-oggi" onclick="document.getElementById('la-giornata').scrollIntoView({behavior:'smooth'})">
+      <div class="lbl">Oggi</div><div class="val">${qui.length}</div>
+      <div class="sub">${qui.length === 1 ? 'sopralluogo' : 'sopralluoghi'}${primo ? ', il primo alle <b>' + oraBella(primo.ora) + '</b>' : ''}</div>
+      ${tardi ? `<div class="sub">${tardi} in ritardo</div>` : ''}</button>`;
+  };
+  oggiTile.nome = 'Oggi';
+  const prevTile = () => {
+    const bozze = S.preventivi.filter(p => p.stato === 'bozza' && !soloFattura(p)).length;
+    const attesa = S.preventivi.filter(p => p.stato === 'inviato').length;
+    const presi = S.preventivi.filter(p => p.stato === 'accettato' && !soloFattura(p) && !lavoroFinito(p)).length;
+    return `<button type="button" class="riquadro" id="riquadro-preventivi" onclick="location.hash='#preventivi'">
+      <div class="lbl">Preventivi</div>
+      <div class="con-torta">${tortaPreventivi([{n:bozze, c:'var(--filetto2)'}, {n:attesa, c:'var(--oro)'}, {n:presi, c:'var(--accento-chiaro)'}]) || '<div class="val">0</div>'}
+        <div class="sub">${bozze} da mandare<br>${attesa} in attesa<br>${presi} ${presi === 1 ? 'accettato' : 'accettati'}</div></div></button>`;
+  };
+  prevTile.nome = 'Preventivi';
+  const meseTile = () => {
+    const mese = S.oggi.slice(0, 7);
+    const qui = S.preventivi.filter(p => vivoPrev(p) && p.stato !== 'bozza' && String(p.data).slice(0, 7) === mese);
+    const fatto = qui.reduce((t, p) => t + conti(p).netto, 0);
+    const presi = qui.filter(preso).reduce((t, p) => t + conti(p).netto, 0);
+    const pc = fatto ? Math.round(presi / fatto * 100) : 0;
+    return `<button type="button" class="riquadro" id="riquadro-mese" onclick="location.hash='#numeri'">
+      <div class="lbl">${MESI[gg(S.oggi).getMonth()]}</div><div class="val"><small>€</small>${cifra(fatto, 0)}</div>
+      <div class="barretta"><i style="width:${pc}%"></i></div>
+      <div class="sub">preventivati · <b>€ ${cifra(presi, 0)}</b> presi</div></button>`;
+  };
+  meseTile.nome = 'Questo mese';
+  const fattTile = () => {
+    const l = daFatturareCasa();
+    const tot = l.reduce((t, p) => t + conti(p).totale, 0);
+    return `<button type="button" class="riquadro" id="riquadro-fatturare" onclick="${l.length ? 'sceltaFattura()' : "location.hash='#documenti'"}">
+      <div class="lbl">Da fatturare</div><div class="val">${l.length}</div>
+      <div class="sub">${l.length ? (l.length === 1 ? 'lavoro chiuso' : 'lavori chiusi') + ' · <b>' + euro(tot) + '</b>' : 'niente in sospeso'}</div></button>`;
+  };
+  fattTile.nome = 'Da fatturare';
+  return `
+  <section class="casa" id="casa">
+    <form class="casa-chiedi" id="casa-chiedi" onsubmit="event.preventDefault();chiediDallaCasa()">
+      <textarea id="casa-domanda" rows="2" maxlength="1200" placeholder="Chiedi qualcosa sul tuo lavoro…" aria-label="Chiedi qualcosa sul tuo lavoro"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chiediDallaCasa()}"></textarea>
+      <button type="submit" aria-label="Chiedi"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </form>
+    <p class="casa-nota">Legge i tuoi sopralluoghi, preventivi e clienti. Risponde e basta: non manda e non cambia niente.</p>
+    <!-- il gesto di tutti i giorni resta a un tocco, in cima: davanti al cliente non si scrive alla chat -->
+    <div class="casa-sotto"><button class="bottone" id="nuovo-sopralluogo-oggi" onclick="schedaSopralluogo(null)">+ Nuovo sopralluogo</button></div>
+    <div class="casa-domande" id="casa-domande">
+      ${domande.map((x, i) => `<button type="button" class="${x.urgente ? 'urgente' : ''}" data-domanda="${i}" onclick="chiediDallaCasa(${esc(JSON.stringify(x.t))})"><span class="seg"></span>${esc(x.t)}</button>`).join('')}
+    </div>
+    <div class="casa-riquadri" id="casa-riquadri">
+      ${riquadro(oggiTile)}${riquadro(prevTile)}${riquadro(meseTile)}${riquadro(fattTile)}
+    </div>
+  </section>`;
+}
+function chiediDallaCasa(testo){
+  const a = document.getElementById('casa-domanda');
+  const d = String(testo || (a && a.value) || '').trim();
+  if(!d) { if(a) a.focus(); return; }
+  if(a) a.value = '';
+  apriChat();
+  chiediAllAssistente(d);
+}
+/* Il riassunto dei dati della ditta per la chat. Solo quello che serve a rispondere:
+   niente telefoni, niente mail, niente IBAN, niente foto. Una riga per cosa. */
+const STATI_CHAT = {bozza:'da mandare', inviato:'mandato, aspetta risposta', accettato:'accettato',
+  pagato:'pagato', rifiutato:'rifiutato', messo_via:'messo via'};
+function riassuntoPerChat(){
+  try{
+    const d = gg(S.oggi), r = [];
+    const nomeCliente = id => { const c = S.clienti.find(x => x.id === id); return c ? c.nome : ''; };
+    r.push('Oggi: ' + GIORNI[d.getDay()] + ' ' + dataLunga(S.oggi) + ' (' + S.oggi + ').');
+    r.push('Ditta: ' + ((S.azienda && S.azienda.nome) || '') + ', mestiere ' + mestiereDitta() + (suaDitta() ? '.' : '. ATTENZIONE: sono i dati della DIMOSTRAZIONE, non di una ditta vera.'));
+    r.push('Le cifre: «netto» e\' senza IVA, «totale» con IVA.');
+    r.push('');
+    r.push('PREVENTIVI (numero | nome | cliente | luogo | data | stato | netto | totale | lavoro | fattura | voci)');
+    S.preventivi.slice().sort((a, b) => String(b.data).localeCompare(String(a.data))).slice(0, 300).forEach(p => {
+      let c; try{ c = conti(p); }catch(e){ c = {netto:0, totale:0}; }
+      const lav = lavoroFinito(p) ? 'finito il ' + ((p.lavoro_fatto && p.lavoro_fatto.quando) || '?')
+        : lavoroBuono(p.lavoro) ? 'fissato dal ' + p.lavoro.quando + (p.lavoro.volte > 1 ? ' (' + p.lavoro.volte + ' passaggi, ' + OGNI[p.lavoro.ogni] + ')' : '')
+        : preso(p) ? 'senza giorno' : '';
+      const fatt = fatturaFatta(p) ? 'fatturato' : preventivoChiuso(p) ? 'DA FATTURARE' : '';
+      const voci = (p.righe || []).filter(x => x.on).map(x => x.nome || (voce(x.v) || {}).nome).filter(Boolean).slice(0, 5).join(', ');
+      const sol = (p.solleciti || []).length ? ' · risentito ' + p.solleciti.length + ' volte, l\'ultima il ' + p.solleciti.slice(-1)[0] : '';
+      const cambio = p.link && p.link.cambia && !p.link.cambia.visto ? ' · il cliente vorrebbe cambiare: ' + String(p.link.cambia.testo).slice(0, 120) : '';
+      r.push([p.numero || p.id, p.nome, nomeCliente(p.cliente), p.luogo || '', p.data || '',
+        (soloFattura(p) ? 'solo fattura, ' : '') + (STATI_CHAT[p.stato] || p.stato), cifra(c.netto), cifra(c.totale), lav, fatt, voci].join(' | ') + sol + cambio);
+    });
+    r.push('');
+    r.push('SOPRALLUOGHI (nome | luogo | giorno | ora | stato | preventivo fatto)');
+    S.sopralluoghi.slice(0, 200).forEach(s => r.push([s.nome, s.luogo || '', s.quando || 'da fissare', oraBuona(s.ora) ? s.ora : '',
+      s.stato || '', s.preventivo ? 'si' : 'no'].join(' | ')));
+    r.push('');
+    r.push('CLIENTI (nome | luogo | cliente dal | lavori | ultimo lavoro | stato)');
+    S.clienti.slice(0, 400).forEach(c => {
+      const l = lavoriDi(c.id), ultimo = l.map(p => p.data).sort().slice(-1)[0] || '';
+      const st = {nuovi:'nuovo', richiamare:'da risentire (nessun lavoro da sei mesi)', fissi:'fisso', attivi:'attivo'}[statoCliente(c)] || '';
+      r.push([c.nome, c.luogo || c.indirizzo || '', c.dal || '', l.length, ultimo, st].join(' | '));
+    });
+    const stag = daRichiamareStagione();
+    if(stag.length) r.push('Da richiamare questa stagione (lavoro l\'anno scorso in queste settimane, niente dopo): ' + stag.map(c => c.nome).join(', '));
+    r.push('');
+    r.push('RICHIESTE (nome | luogo | cosa | arrivata | stato)');
+    S.richieste.slice(0, 150).forEach(q => r.push([q.nome, q.luogo || '', String(q.cosa || '').slice(0, 140), q.arrivata || '', q.stato || ''].join(' | ')));
+    return r.join('\n').slice(0, 60000);
+  }catch(e){ return ''; }
+}
+
 PAGINE.oggi = {
+  /* la guida della dimostrazione sta sotto la chat, non sopra: la prima cosa che si vede
+     aprendo l'app e' la casella (14 ottobre 2026) */
+  guida:false,
   testata(){
     const d = gg(S.oggi);
-    return {occhiello: GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()], titolo:'Oggi'};
+    return {occhiello: GIORNI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI[d.getMonth()] + (S.azienda && S.azienda.nome ? ' · ' + esc(S.azienda.nome) : ''),
+            titolo: saluto()};
   },
   spiega:{
     testo:'La prima cosa che vedi la mattina. Cosa hai in programma, quali clienti non ti hanno ancora risposto e quanto hai fatto uscire questa settimana. Niente altro.',
@@ -4525,6 +4749,9 @@ PAGINE.oggi = {
         </div>` : '';
 
     return `
+    ${casaHtml()}
+    ${guidaHtml('oggi', null)}
+    <div class="lbl" style="margin-bottom:14px" id="la-giornata">La giornata</div>
     ${daChiudere.length ? `<div style="margin-bottom:28px">
       <div class="lbl" style="margin-bottom:12px">Il lavoro è stato fatto?</div>
       <div class="elenco">
@@ -4556,7 +4783,7 @@ PAGINE.oggi = {
         <!-- compito 1 di Cafagna, «sei arrivato da un cliente nuovo» (4 ottobre 2026): da Oggi
              l'unico tasto portava alla richiesta di prova, e per un cliente vero servivano
              menu, Sopralluogo e «+ Nuovo sopralluogo». Adesso si parte da qui, un tocco. -->
-        <div class="riga-azione" style="margin-top:12px"><button class="bottone vuoto piccolo" id="nuovo-sopralluogo-oggi" onclick="schedaSopralluogo(null)">+ Nuovo sopralluogo</button></div>
+        <!-- «+ Nuovo sopralluogo» stava qui; dal 14/10/2026 sta in cima, sotto la chat -->
         ${prossimiHtml}
       </div>
       <div class="scheda">
@@ -4626,16 +4853,8 @@ PAGINE.oggi = {
         </div>`
         : '<div class="niente" style="padding:20px 0">Nessuno da risentire: hai sentito tutti negli ultimi sei mesi.</div>'}
     </div>
-    <!-- I numeri stanno in fondo, come in Preventivi: la mattina, sul telefono, prima
-         viene quello che c'e' da fare. In cima ripetevano le liste qui sotto e
-         spingevano «In programma» fuori dallo schermo (4 ottobre 2026). -->
-    <div class="lbl" style="margin:34px 0 12px">Come sta andando</div>
-    <div class="riga-numeri">
-      <div class="numero"><div class="val"><small>€</small> ${cifra(fatti, 0)}</div><div class="lbl">Preventivato in sette giorni</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(chiusi, 0)}</div><div class="lbl">Accettato in sette giorni</div></div>
-      <div class="numero"><div class="val">${attesa.length}</div><div class="lbl">Preventivi senza risposta</div></div>
-      <div class="numero"><div class="val">${daRisentire.length}</div><div class="lbl">Clienti da risentire</div></div>
-    </div>`;
+    <!-- I numeri della settimana stavano qui in fondo. Dal 14 ottobre 2026 stanno nei
+         quattro riquadri in cima, sotto la chat (la home di Matteo). -->`;
   }
 };
 
@@ -13448,12 +13667,15 @@ function testoPrivacy(){
         il luogo e il totale del preventivo per mandargli un promemoria a nome tuo, dalla casella di Rilievo.
         Le risposte arrivano a te. Teniamo il giorno e l&rsquo;ora di ogni promemoria partito.</li>
       <li><b>WhatsApp e mail.</b> Quando mandi un preventivo, lo mandi tu dalla tua app: noi non lo vediamo.</li>
-      <li><b>L&rsquo;assistente.</b> Se tocchi &laquo;Chiedi&raquo;, la tua domanda, le ultime domande e risposte
-        di quella conversazione e il nome della pagina dove sei passano dal nostro server ad Anthropic
-        (Stati Uniti), che scrive la risposta con il suo programma Claude. Anthropic, con i clienti come noi,
-        non usa questi testi per addestrare i suoi programmi e li tiene solo per poco tempo. Noi le domande
-        non le salviamo: teniamo solo il conto di quante ne fai nel mese, per il limite. La conversazione resta
-        su questo telefono e sparisce quando chiudi l&rsquo;app. Non scriverci dati dei clienti: non servono.</li>
+      <li><b>L&rsquo;assistente.</b> Se fai una domanda nella chat (dalla casella in cima o da &laquo;Chiedi&raquo;),
+        la tua domanda, le ultime domande e risposte di quella conversazione, il nome della pagina dove sei e un
+        riassunto del tuo lavoro passano dal nostro server ad Anthropic (Stati Uniti), che scrive la risposta con
+        il suo programma Claude. Il riassunto serve a rispondere su di te (&laquo;chi non mi ha risposto?&raquo;):
+        nomi e luoghi di clienti, sopralluoghi, preventivi e richieste, con date, stati e cifre. Non ci sono
+        numeri di telefono, mail, IBAN n&eacute; foto. Anthropic, con i clienti come noi, non usa questi testi per
+        addestrare i suoi programmi e li tiene solo per poco tempo. Noi n&eacute; le domande n&eacute; il riassunto li
+        salviamo: teniamo solo il conto di quante domande fai nel mese, per il limite. La conversazione resta
+        su questo telefono e sparisce quando chiudi l&rsquo;app.</li>
     </ul>
 
     <h3>I dati dei tuoi clienti</h3>
@@ -13668,7 +13890,7 @@ function disegnaChat(){
     : '';
   let h = '';
   if(!chatStoria.length){
-    h += '<div class="msg lui">Ciao! Chiedimi come si fa una cosa in Rilievo e ti dico i passi, uno per uno.</div>' +
+    h += '<div class="msg lui">Ciao! Chiedimi del tuo lavoro (chi non ti ha risposto, cosa resta da fatturare) o come si fa una cosa in Rilievo.</div>' +
          invitoAccesso +
          '<div class="esempi">' + ESEMPI_CHAT.map((e, i) => `<button type="button" data-esempio="${i}">${esc(e)}</button>`).join('') + '</div>';
   }
@@ -13680,7 +13902,7 @@ function disegnaChat(){
       (t.dove ? `<div class="portami"><button class="bottone vuoto piccolo" data-portami="${esc(t.dove)}">Portami lì</button></div>` : '') +
       '</div>';
   });
-  if(chatInViaggio) h += '<div class="msg lui pensa">Sto guardando nel manuale…</div>';
+  if(chatInViaggio) h += '<div class="msg lui pensa">Sto guardando…</div>';
   if(chatStoria.length && chatConto && chatConto.restano === 0) h += invitoAccesso;
   fila.innerHTML = h;
   fila.querySelectorAll('[data-accesso]').forEach(b => b.onclick = () => {
@@ -13741,7 +13963,7 @@ async function chiediAllAssistente(domanda){
   let risposta;
   try{
     const r = typeof fetch === 'function'
-      ? await chiamaServer('/assistente', corpoChat({domanda, pagina: paginaAdesso(),
+      ? await chiamaServer('/assistente', corpoChat({domanda, pagina: paginaAdesso(), dati: riassuntoPerChat(),
           storia: prima.map(m => ({ruolo: m.ruolo === 'io' ? 'io' : 'assistente', testo: m.testo}))}))
       : {ok: false, d: {}};
     if(r.ok && r.d.risposta){

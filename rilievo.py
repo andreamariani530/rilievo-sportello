@@ -3033,7 +3033,7 @@ def servizio(porta=8787, pubblico=False):
         def _assistente(self):
             """Una domanda all'assistente. Con mail e gettone buoni conta l'account
             (300 al mese), senza conta il telefono (20 al mese)."""
-            dentro = self._corpo(64 * 1024)
+            dentro = self._corpo(256 * 1024)   # col riassunto dei dati della ditta
             if not isinstance(dentro, dict):
                 self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
                 return
@@ -3047,7 +3047,8 @@ def servizio(porta=8787, pubblico=False):
             codice, dati = assistente.rispondi(dentro.get("domanda"), dentro.get("storia"),
                                                dentro.get("pagina"),
                                                account=m and accessi.id_account(m),
-                                               telefono=dentro.get("telefono"), ip=self._ip())
+                                               telefono=dentro.get("telefono"), ip=self._ip(),
+                                               dati=dentro.get("dati"))
             self._manda(codice, dati)
 
         # ---- la copia al sicuro ------------------------------------------------
