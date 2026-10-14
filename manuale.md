@@ -90,6 +90,8 @@ Chi ti ha chiamato o scritto.
 
 Il cuore del lavoro: cammini nel giardino e parli.
 - «+ Nuovo sopralluogo» oppure parti da una richiesta.
+- L'elenco è diviso per gruppi (Da fissare, Oggi, Prossimi, In ritardo, Consegnati): il
+  titolo del gruppo dice lo stato. «Fissa» mette il giorno da qui.
 - In cima, finché non hai dettato niente, c'è «Detta il lavoro ↓»: porta giù al microfono
   in un tocco, senza scorrere foto e misure.
 - **Il rilievo dall'indirizzo:** «Prepara dall'indirizzo» cerca la casa, prende la foto
@@ -239,6 +241,9 @@ L'archivio: i lavori chiusi (fatti e pagati) e le carte caricate da fuori.
 
 Quanto hai preventivato, quanto è stato accettato, quanto incassato, e perché perdi i
 lavori (i motivi dei «no»). «Vai a risentirli» porta ai preventivi da sollecitare.
+Le cifre da incassare e incassate sono IVA compresa (quello che arriva in banca); il
+lavoro preso e i preventivi fermi sono senza IVA. Per questo la stessa commessa può
+valere 646 in Preventivi e 788 «ancora da incassare»: le etichette lo dicono.
 
 ## Lavori della squadra (`#squadra`)
 

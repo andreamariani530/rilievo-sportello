@@ -1210,7 +1210,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-13 02:05';
+const COSTRUITA = '2026-10-14 02:17';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2571,7 +2571,9 @@ function guidaHtml(nome, arg){
   /* ANCHE IN OGGI IL PASSO SI FA DA LI' (11 ottobre 2026). In Oggi la guida diceva «Vai alle
      richieste»: un tocco per cambiare pagina e un altro per fissare, mentre il giorno si
      chiede uguale da qualunque pagina. Ora in Oggi il tasto fa il passo, come in Richieste. */
-  const qui = location.hash === p.h || (nome === 'oggi' && !!p.qui);
+  /* E NELLA PAGINA SOPRALLUOGO (14 ottobre 2026): la guida diceva «Vai alle richieste» con
+     il condominio da fissare due righe sotto, col suo «Fissa». Ora fa il passo da li'. */
+  const qui = location.hash === p.h || ((nome === 'oggi' || (nome === 'sopralluogo' && !arg)) && !!p.qui);
   const tasto = !qui ? `<a class="bottone piccolo" href="${p.h}">${p.b}</a>`
     : p.qui ? `<button class="bottone piccolo" id="guida-fai-qui" onclick="${p.qui.azione}">${p.qui.b}</button>` : '';
   return `<div class="guida">
@@ -4793,9 +4795,13 @@ function elencoSopralluoghi(){
   const tardi  = daVisitare.filter(s => s.quando && s.quando < S.oggi);
   const inCorso      = conPrev.filter(s => statoSopralluogo(s) === 'preventivo_in_corso');
   const consegnati   = conPrev.filter(s => statoSopralluogo(s) === 'consegnato');
-  const riga = (s, sottoRiga, azione) => `<div class="r">
+  /* L'etichetta sulla riga solo dove dice qualcosa che il titolo del gruppo non dice gia':
+     sotto «Da fissare» ogni riga ripeteva «Da fissare», sotto «In ritardo» diceva perfino
+     «Fissato». Resta in «Col preventivo in corso», dove dice a che punto e' il preventivo
+     (limatura del 14 ottobre 2026). */
+  const riga = (s, sottoRiga, azione, conTag) => `<div class="r">
     <div><div class="tit">${esc(s.nome)}</div><div class="sub">${sottoRiga}</div>
-      <div class="azioni">${azione}</div></div>${tagSopralluogo(s)}</div>`;
+      <div class="azioni">${azione}</div></div>${conTag ? tagSopralluogo(s) : ''}</div>`;
   return `
   ${linguette([['tutti','Tutti',S.sopralluoghi.length],['oggi','Oggi',oggi.length + tardi.length],['fissare','Da fissare',fissa.length],['prossimi','Prossimi',prossimi.length],['consegnati','Consegnati',consegnati.length]],
       filtroSopralluoghi, 'setFiltroSopralluoghi')}
@@ -4816,7 +4822,7 @@ function elencoSopralluoghi(){
   ${filtroSopralluoghi === 'tutti' && inCorso.length ? `<div class="lbl" style="margin-bottom:12px">Col preventivo in corso</div><div class="elenco" style="margin-bottom:28px">
     ${inCorso.map(s => riga(s, sotto(s.luogo, s.quando ? dataLunga(s.quando) : ''),
         `<a class="bottone piccolo" href="#preventivo/${s.preventivo}">Apri il preventivo</a>` +
-        `<a class="bottone vuoto piccolo" href="#sopralluogo/${s.id}">Apri il sopralluogo</a>`)).join('')}
+        `<a class="bottone vuoto piccolo" href="#sopralluogo/${s.id}">Apri il sopralluogo</a>`, true)).join('')}
   </div>` : ''}
   ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'consegnati') && consegnati.length ? `<div class="lbl" style="margin-bottom:12px">Consegnati</div><div class="elenco">
     ${consegnati.map(s => riga(s, sotto(s.luogo, s.quando ? dataLunga(s.quando) : ''),
@@ -11019,6 +11025,11 @@ PAGINE.preventivi = {
     const presi = consegnati.filter(preso);
     const daIncassare = consegnati.filter(p => p.stato === 'accettato')
       .reduce((t,p) => t + conti(p).totale, 0);
+    /* «Lavoro preso € 646» e accanto «Ancora da incassare € 788» per la stessa commessa:
+       la prima e' senza IVA, la seconda e' quello che arriva in banca. Giuste tutte e due,
+       ma senza dirlo sembravano due conti diversi (limatura del 14 ottobre 2026).
+       Senza IVA sui preventivi (forfettario) le due cifre coincidono e non si dice niente. */
+    const conIva = consegnati.some(p => cent(conti(p).totale) !== cent(conti(p).netto));
     const persi = consegnati.filter(p => p.stato === 'rifiutato');
     const motivi = {};
     persi.forEach(p => { if(p.motivo) motivi[p.motivo] = (motivi[p.motivo] || 0) + 1; });
@@ -11048,9 +11059,9 @@ PAGINE.preventivi = {
     ${consegnati.length ? `<div class="lbl" style="margin:30px 0 12px">Come sta andando</div>` : ''}
     ${consegnati.length ? `<div class="riga-numeri">
       <div class="numero"><div class="val">${presi.length} <small>su ${consegnati.length}</small></div><div class="lbl">Accettati fra i consegnati</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(presi.reduce((t,p) => t + conti(p).netto, 0), 0)}</div><div class="lbl">Lavoro preso</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(presi.reduce((t,p) => t + conti(p).netto, 0), 0)}</div><div class="lbl">Lavoro preso${conIva ? ' (senza IVA)' : ''}</div></div>
       <div class="numero"><div class="val">${conta('inviato')}</div><div class="lbl">Senza risposta del cliente</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Ancora da incassare</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Ancora da incassare${conIva ? ' (IVA compresa)' : ''}</div></div>
       <div class="numero"><div class="val">${persi.length}</div><div class="lbl">${spesso ? 'Non andati · più spesso: ' + esc(nomeMotivo(spesso).toLowerCase()) : 'Non andati'}</div></div>
     </div>` : ''}`;
   }
@@ -11516,6 +11527,8 @@ PAGINE.numeri = {
     const daIncassare = consegnati.filter(p => p.stato === 'accettato')
                               .reduce((t, p) => t + conti(p).totale, 0);
     const inAttesa    = attesa.reduce((t, p) => t + conti(p).netto, 0);
+    /* da incassare con l'IVA, fermo senza: nella stessa riga va detto (14 ottobre 2026) */
+    const conIva = consegnati.some(p => cent(conti(p).totale) !== cent(conti(p).netto));
     const quota  = consegnati.length ? Math.round(presi.length * 100 / consegnati.length) : 0;
     const medio  = presi.length ? presi.reduce((t, p) => t + conti(p).netto, 0) / presi.length : 0;
 
@@ -11545,8 +11558,8 @@ PAGINE.numeri = {
     return `
     <div class="riga-numeri">
       <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Incassato nel ${anno}</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Lavoro preso, ancora da incassare</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(inAttesa, 0)}</div><div class="lbl">Fermo: il cliente non ha risposto</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Lavoro preso, ancora da incassare${conIva ? ' (IVA compresa)' : ''}</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(inAttesa, 0)}</div><div class="lbl">Fermo: il cliente non ha risposto${conIva ? ' (senza IVA)' : ''}</div></div>
       <div class="numero"><div class="val">${quota}<small>%</small></div><div class="lbl">Ne prendi ${presi.length} su ${consegnati.length}</div></div>
     </div>
     <div class="griglia2">
