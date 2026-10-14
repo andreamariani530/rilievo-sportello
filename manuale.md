@@ -39,12 +39,14 @@ in Documenti.
 
 ## Oggi (`#oggi`)
 
-La prima schermata, quella che si apre con l'app. In cima il saluto e la casella
-«Chiedi qualcosa sul tuo lavoro»: è questa chat. Sotto, tre o quattro domande pronte da toccare
-(quella che conviene guardare subito è colorata), poi quattro riquadri: «Oggi» (i
-sopralluoghi del giorno), «Preventivi» (da mandare, in attesa, accettati), il mese
-(preventivato e preso) e «Da fatturare». Toccando un riquadro si apre il suo elenco.
-Sotto ancora «+ Nuovo sopralluogo» e «La giornata», con le cose da fare:
+La prima schermata, quella che si apre con l'app. In cima il saluto col nome della ditta
+e la casella «Chiedi qualcosa o affida un lavoro»: è questa chat. Nella casella il
+microfono detta la domanda (solo se il telefono sente la voce), la freccia la manda.
+Il «+» in basso a sinistra apre «Nuovo sopralluogo», «Nuovo preventivo» e «Nuovo cliente».
+Sotto, tre o quattro domande pronte da toccare (quella che conviene guardare subito è
+rosata), poi quattro riquadri: «Oggi» (i sopralluoghi del giorno), «Preventivi» (da
+mandare, in attesa, accettati), «Questo mese» (preventivato e preso) e «Da fatturare».
+Toccando un riquadro si apre il suo elenco. Sotto ancora «La giornata», con le cose da fare:
 - «Il lavoro è stato fatto?»: i lavori con la data passata. «Sì, è finito» li chiude,
   «Sposta la data» li rimanda.
 - «In programma»: i sopralluoghi di oggi, con «Naviga» per la strada e «Sto arrivando»:
