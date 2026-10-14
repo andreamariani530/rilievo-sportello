@@ -1447,7 +1447,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-15 00:49';
+const COSTRUITA = '2026-10-15 01:24';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -5408,7 +5408,7 @@ function rilievoHtml(ril, s, r){
     <div class="tavola">
       ${img ? `<div class="foto-zone${lato ? ' si-tocca' : ''}"${lato ? ` onclick="apriDisegno('${s.id}')" title="Disegna le parti del giardino"` : ''}>
         <img src="${img}" alt="Foto dall'alto, confini catastali e planimetria calcolata">
-        ${zone.length || haConfine(ril) ? `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">${svgConfine(ril, 2.4)}${svgZone(ril, null, 2.4)}</svg>` : ''}
+        ${zone.length || (haConfine(ril) && ril.confine) ? `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">${ril.confine ? svgConfine(ril, 2.4) : ''}${svgZone(ril, null, 2.4)}</svg>` : ''}
       </div>` : ''}
       <div class="didascalia">${esc(ril.fonte || 'Misure prese a mano')}</div>
     </div>
@@ -5423,7 +5423,7 @@ function rilievoHtml(ril, s, r){
       ${verde ? `<div><div class="val">${mq(ril.verde_mq)} <small style="font-size:15px">mq</small></div><div class="lbl">${ril.a_mano ? 'Prato e verde misurati' : 'Verde visto dall\'alto'}</div></div>` : ''}
       <div><div class="val">${mq(ril.coperto_mq)} <small style="font-size:15px">mq</small></div><div class="lbl">Coperto da fabbricato</div></div>
       <div><div class="val" style="font-size:23px">${esc(ril.ingombro || '—')}</div><div class="lbl">Ingombro</div></div>
-      ${haConfine(ril) ? `<div><div class="val">${mq(misuraConfine(ril).mq)} <small style="font-size:15px">mq</small></div><div class="lbl">Confine della proprietà${ril.confine ? ', corretto' : ''}</div></div>
+      ${haConfine(ril) ? `<div><div class="val">${mq(misuraConfine(ril).mq)} <small style="font-size:15px">mq</small></div><div class="lbl">Proprietà dal catasto${ril.confine ? ', corretta a mano' : ''}</div></div>
       <div><div class="val">${mq(misuraConfine(ril).m)} <small style="font-size:15px">m</small></div><div class="lbl">Perimetro della proprietà</div></div>` : ''}`}
     </div>
     </div>
@@ -5446,7 +5446,7 @@ function rilievoHtml(ril, s, r){
     </div>` : ''}
     ${lato ? zoneHtml(ril, s) : ''}
     ${haConfine(ril) ? `<p style="font-size:15px;color:var(--tenue);margin-top:14px;max-width:70ch">
-      La riga tratteggiata è il confine della proprietà preso dal catasto: casa compresa. Serve a orientarsi e non entra nel preventivo. Il prato da tagliare lo segni tu col dito.</p>` : ''}
+      Superficie e perimetro della proprietà vengono dal catasto, casa compresa, e non entrano nel preventivo. Sulla foto il catasto è spento: può cadere spostato di qualche metro, non è un errore. Lo accendi dal foglio da disegno e con un dito lo trascini sulla recinzione. Il prato da tagliare lo segni tu col dito.</p>` : ''}
     <p style="font-size:15px;color:var(--tenue);margin-top:14px;max-width:70ch">
       Lo scoperto è tutto il terreno non costruito: comprende cortili, vialetti e posti auto.
       ${verde && !ril.a_mano ? 'Il verde è stimato dai colori della foto e prende anche siepi e chiome degli alberi: il prato va misurato sul posto.'
@@ -5775,7 +5775,7 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
          catasto e' la proprieta' (casa compresa) e resta una riga di riferimento.
          La quantita' del preventivo la segna lui col dito (Andrea, 28 settembre 2026). */
       if(latoFoto(d) && !zoneDi(d).length){
-        avvisa(haConfine(d) ? 'Rilievo pronto: la riga tratteggiata è il confine della proprietà. Segna il prato col dito.'
+        avvisa(haConfine(d) ? 'Rilievo pronto: segna il prato col dito. Il confine del catasto è solo indicativo: lo accendi e lo spegni dall’interruttore.'
                             : 'Rilievo pronto: segna il prato col dito.');
         setTimeout(() => apriDisegno(idSopralluogo), 400);
         return;
@@ -6107,7 +6107,7 @@ function misureGiardino(ril){
   metti('Scoperto', ril.scoperto_mq, 'mq');
   if(haConfine(ril)){
     const c = misuraConfine(ril);
-    metti('Confine della proprietà', c.mq, 'mq');
+    metti('Proprietà dal catasto', c.mq, 'mq');
     metti('Perimetro della proprietà', c.m, 'm');
   }
   const tot = latoFoto(ril) ? totaliZone(ril) : null;
@@ -6621,7 +6621,7 @@ function fotoDaDisegnare(ril){
   return (pulita && D && D.confini === false) ? pulita : ril.foto;
 }
 function cambiaConfini(){
-  if(!D || !fotoPulita(D.ril)) return;
+  if(!D || !(fotoPulita(D.ril) || haConfine(D.ril))) return;
   D.confini = !D.confini;
   const img = document.getElementById('disegno-img');
   if(img) img.setAttribute('src', fotoDaDisegnare(D.ril));
@@ -6639,15 +6639,15 @@ function cambiaConfini(){
    dove prima non c'era proprio modo di toglierli. */
 function interruttoreConfini(id, azione){
   return `<button class="bottone vuoto piccolo interruttore" id="${id}" onclick="${azione}"
-    role="switch" aria-checked="true">I confini del catasto <span class="stato">accesi</span></button>`;
+    role="switch" aria-checked="true">Catasto <span class="stato">acceso</span></button>`;
 }
 function segnaInterruttore(el, acceso, nome){
   el.classList.toggle('acceso', !!acceso);
   el.setAttribute('aria-checked', acceso ? 'true' : 'false');
-  el.innerHTML = esc(nome) + ' <span class="stato">' + (acceso ? 'accesi' : 'spenti') + '</span>';
+  el.innerHTML = esc(nome) + ' <span class="stato">' + (acceso ? 'acceso' : 'spento') + '</span>';
   el.setAttribute('title', acceso
-    ? 'Le righe del catasto sono sopra la foto. Toccami per toglierle: non combaciano mai al pixel e coprono il tetto.'
-    : 'Le righe del catasto sono spente. Toccami per rimetterle.');
+    ? 'Il catasto è indicativo: sulla foto può cadere spostato di qualche metro. Trascina la riga sulla recinzione, o toccami per spegnerlo.'
+    : 'Il catasto è spento. Toccami per vedere il confine della proprietà sulla foto: è indicativo, può cadere spostato di qualche metro.');
 }
 /* la foto grande quanto deve essere adesso: la misura di base per lo zoom.
    Girata, la sua cassa cresce, se no gli angoli restano fuori dallo scorrimento. */
@@ -6730,7 +6730,7 @@ function svgConfine(ril, k){
   const x = (Math.min(0.85, Math.max(0.15, cima[0])) * 1000).toFixed(1);
   const y = (Math.max(0.04, cima[1] - 0.015) * 1000).toFixed(1);
   return `<polygon class="z-confine-sotto" points="${pts}"/><polygon class="z-confine" points="${pts}"/>` +
-    `<text class="z-confine-nome" x="${x}" y="${y}" font-size="${(10.5 * k).toFixed(1)}">Confine della proprietà</text>`;
+    `<text class="z-confine-nome" x="${x}" y="${y}" font-size="${(10.5 * k).toFixed(1)}">Catasto, indicativo</text>`;
 }
 /* dalla pagina del sopralluogo: si apre la foto gia' coi punti del confine in mano */
 function correggiIConfini(idSopralluogo){
@@ -6741,6 +6741,7 @@ function avviaCorreggiConfini(){
   if(!D || D.particelle || D.casa || !haConfine(D.ril)) return;
   if(D.punti.length && formaCompleta()) salvaForma();
   D.correggi = {tipo: D.tipo};
+  if(!D.confini){ D.confini = true; const img = document.getElementById('disegno-img'); if(img) img.setAttribute('src', fotoDaDisegnare(D.ril)); }
   D.tipo = 'prato';            /* solo per come si muovono i punti: il salvataggio va nel confine */
   D.punti = copia(confineProprieta(D.ril));
   D.salti = []; D.tagli = false; D.taglio = null; D.ultimo = null;
@@ -6755,7 +6756,7 @@ function finisciCorreggiConfini(zitto){
     D.ril.confine = copia(D.punti);
     if(!salva()) avvisa('Salvato solo per adesso: la memoria del telefono è piena.');
     else if(!zitto){ const c = misuraConfine(D.ril);
-      avvisa('Confine della proprietà corretto: ' + cifra(c.mq, 0) + ' mq, ' + cifra(c.m, 0) + ' m di perimetro. Non entra nel preventivo.'); }
+      avvisa('Proprietà corretta: ' + cifra(c.mq, 0) + ' mq, ' + cifra(c.m, 0) + ' m di perimetro. Non entra nel preventivo.'); }
   } else if(!zitto) avvisa('Per il confine servono almeno tre punti: è rimasto quello di prima.');
   D.correggi = null; D.tipo = prima; D.punti = []; D.salti = []; D.ultimo = null;
   ridisegna();
@@ -7015,6 +7016,51 @@ function ascoltaGestiFoto(velo){
   svg.addEventListener('pointerup', lasciaPunto);
   svg.addEventListener('pointercancel', lasciaPunto);
 }
+/* ===== IL CATASTO SI TRASCINA CON UN DITO =====
+   15 ottobre 2026, Andrea: «sul rilievo dall'alto il catasto fa sembrare un errore».
+   La riga del catasto cade un paio di metri fuori posto rispetto alla foto (e' lo
+   scarto fra le due fonti, non un conto sbagliato: vedi la nota sopra fotoPulita), e
+   chi la vede pensa che l'app abbia sbagliato. Correggerla punto per punto non toglie
+   l'impressione. Adesso:
+   - la riga parte spenta, come la foto pulita: si accende con l'interruttore
+     «Catasto», che la chiama indicativa. I metri quadri e il perimetro restano,
+     perche' vengono dal confine vero e non dalla foto;
+   - accesa, un dito sulla riga la trascina tutta intera fino alla recinzione. Nove
+     volte su dieci lo scarto e' uno spostamento, e basta un gesto. La forma non si
+     deforma: lo spostamento si ferma al bordo della foto. Va in ril.confine, come
+     «Correggi i confini», e il catasto (ril.contorno) resta com'era. */
+function presaSulCatasto(e){
+  const p = puntoDaEvento(e); if(!p) return null;
+  const punti = confineProprieta(D.ril); if(punti.length < 3) return null;
+  const svg = document.getElementById('disegno-svg');
+  const r = svg ? svg.getBoundingClientRect() : null;
+  const soglia = 22 / ((r && r.width) || 390);     /* un polpastrello, in frazioni della foto */
+  let vicino = Infinity;
+  for(let i = 0; i < punti.length; i++)
+    vicino = Math.min(vicino, distanzaDalSegmento(p, punti[i], punti[(i + 1) % punti.length]));
+  if(vicino > soglia) return null;
+  return {da: p, punti: copia(punti)};
+}
+function distanzaDalSegmento(p, a, b){
+  const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+  let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+function trascinaCatasto(e){
+  const t = D && D.trascinaCatasto; if(!t) return;
+  const p = puntoDaEvento(e); if(!p) return;
+  const xs = t.punti.map(q => q[0]), ys = t.punti.map(q => q[1]);
+  const dx = Math.max(-Math.min(...xs), Math.min(1 - Math.max(...xs), p[0] - t.da[0]));
+  const dy = Math.max(-Math.min(...ys), Math.min(1 - Math.max(...ys), p[1] - t.da[1]));
+  D.ril.confine = t.punti.map(q => [Math.round((q[0] + dx) * 10000) / 10000, Math.round((q[1] + dy) * 10000) / 10000]);
+  ridisegna();
+}
+function catastoSpostato(){
+  if(!D || !Array.isArray(D.ril.confine)) return;
+  if(!salva()) avvisa('Spostato solo per adesso: la memoria del telefono è piena.');
+  else avvisa('Catasto messo dove l’hai trascinato. I metri quadri non cambiano: vengono dal confine vero.');
+}
 function prendiPunto(e){
   if(!D || (e.button !== undefined && e.button !== 0)) return;
   if(D.gesto){ D.gesto.annullato = true; return; }
@@ -7025,6 +7071,8 @@ function prendiPunto(e){
   D.gesto = {id:e.pointerId, x:e.clientX, y:e.clientY, target:e.target,
     sx:foglio.scrollLeft, sy:foglio.scrollTop, mosso:false, annullato:false};
   D.trascina = t && !D.casa && !D.particelle ? Number(t.getAttribute('data-i')) : null;
+  D.trascinaCatasto = (D.trascina === null && !D.casa && !D.particelle && !D.correggi && !D.modifica
+    && !D.inquadra && !D.tagli && D.confini && haConfine(D.ril)) ? presaSulCatasto(e) : null;
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
 }
 function muoviPunto(e){
@@ -7035,6 +7083,8 @@ function muoviPunto(e){
   if(D.trascina !== null && D.trascina !== undefined){
     const p = puntoDaEvento(e);
     if(p) spostaPunto(D.trascina, p);
+  } else if(D.trascinaCatasto){
+    trascinaCatasto(e);
   } else {
     const foglio = document.getElementById('disegno-foglio');
     if(foglio){ foglio.scrollLeft = g.sx - dx; foglio.scrollTop = g.sy - dy; }
@@ -7045,8 +7095,10 @@ function lasciaPunto(e){
   if(!D || !D.gesto || D.gesto.id !== e.pointerId) return;
   const g = D.gesto;
   const tocco = e.type !== 'pointercancel' && !g.annullato && !g.mosso && !pinch;
-  D.gesto = null; D.trascina = null;
+  const catastoMosso = !!D.trascinaCatasto && g.mosso;
+  D.gesto = null; D.trascina = null; D.trascinaCatasto = null;
   if(!tocco) D.finito = Date.now();
+  if(catastoMosso) catastoSpostato();
   try { e.currentTarget.releasePointerCapture(e.pointerId); } catch(_){}
   // Use the original target: pointer capture retargets pointerup to the SVG.
   if(tocco) toccoDisegno({clientX:e.clientX, clientY:e.clientY, target:g.target});
@@ -7419,7 +7471,7 @@ function ridisegna(){
   const largo = largoSulloSchermo(svg);
   const k = largo ? 1000 / largo : 2.4;
   const lato = latoFoto(D.ril), f = TIPI_ZONA[D.tipo].forma;
-  svg.innerHTML = (D.correggi ? '' : svgConfine(D.ril, k)) + svgZone(D.ril, D.modifica, k) + svgLavoro(D.tipo, D.punti, lato, k);
+  svg.innerHTML = (D.correggi || !D.confini ? '' : svgConfine(D.ril, k)) + svgZone(D.ril, D.modifica, k) + svgLavoro(D.tipo, D.punti, lato, k);
   velo.querySelectorAll('.attrezzi button').forEach(b => b.classList.toggle('attivo', !D.correggi && b.getAttribute('data-tipo') === D.tipo));
   document.getElementById('disegno-istruzione').textContent = D.correggi && !D.inquadra && !D.rifacendo
     ? 'Trascina i punti dove finisce davvero la proprietà. È solo un riferimento: nel preventivo va il prato che segni tu.'
@@ -7433,8 +7485,8 @@ function ridisegna(){
     : D.modifica
     ? (f === 'punto' ? 'Tocca il posto giusto sulla foto per spostare l\'albero.'
                      : 'Trascina i punti per spostarli. Un tocco sulla foto aggiunge un punto dopo l\'ultimo.')
-    : (f === 'area' && !D.punti.length && haConfine(D.ril)
-       ? 'La riga tratteggiata è il confine della proprietà, casa compresa. ' : '') + SPIEGA_ATTREZZO[f];
+    : (f === 'area' && !D.punti.length && haConfine(D.ril) && D.confini
+       ? 'La riga tratteggiata è il catasto, casa compresa: è indicativa, può cadere spostata di qualche metro. Trascinala sulla recinzione. ' : '') + SPIEGA_ATTREZZO[f];
   const q = misuraPunti(D.tipo, D.punti, lato, D.salti);
   const mancano = (f === 'area' ? 3 : 2) - D.punti.length;
   document.getElementById('disegno-misura').textContent = D.correggi
@@ -7459,8 +7511,8 @@ function ridisegna(){
   if(dritta) dritta.style.display = D.giro ? '' : 'none';
   const conf = document.getElementById('d-confini');
   if(conf){
-    conf.style.display = fotoPulita(D.ril) ? '' : 'none';
-    segnaInterruttore(conf, D.confini, 'I confini del catasto');
+    conf.style.display = fotoPulita(D.ril) || haConfine(D.ril) ? '' : 'none';
+    segnaInterruttore(conf, D.confini, 'Catasto');
   }
   /* «Correggi i confini»: c'e' solo se c'e' un confine, e mai mentre si ridisegna una parte */
   const cor = document.getElementById('d-correggi');
@@ -7806,7 +7858,7 @@ function ridisegnaCasa(){
   document.getElementById('d-salva').textContent = n > 1 ? 'Misura casa e giardino' : 'Misura questa casa';
   const togli = document.getElementById('d-togli'); if(togli) togli.disabled = !n;
   const conf = document.getElementById('d-confini-casa');
-  if(conf) segnaInterruttore(conf, D.confini, 'I confini del catasto');
+  if(conf) segnaInterruttore(conf, D.confini, 'Catasto');
 }
 /* La foto non e' arrivata. Prima di dire che non c'e', si riprova chiedendola meno
    fine: Esri rifiuta le richieste troppo ravvicinate e risponde 500, e un quadrato

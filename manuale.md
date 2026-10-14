@@ -105,7 +105,8 @@ Il cuore del lavoro: cammini nel giardino e parli.
   dall'alto e i confini del catasto, e calcola i metri del lotto. Si può fare a casa,
   prima di partire. Se la casa trovata è quella sbagliata: «Sposta sulla casa giusta» e
   tocchi il tetto giusto sulla foto. Se il giardino è fatto di più pezzi di terreno:
-  «Scegli le particelle». Se i confini non tornano: «Correggi i confini».
+  «Scegli le particelle». Il catasto parte spento: è indicativo, può cadere spostato di qualche
+  metro. «Catasto» lo accende, un dito lo trascina sulla recinzione, «Correggi i confini» sposta i punti.
   Sopra la foto: «Correggi le misure» per scrivere a mano i metri giusti,
   «Rifallo dall'indirizzo» per rifare il rilievo da capo.
 - Senza catasto si può sempre: «Segna il giardino sulla foto» e lo disegni col dito,
