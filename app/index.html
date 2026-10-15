@@ -1012,6 +1012,21 @@ button.via{font:inherit;text-align:left;width:100%}
 .casa-riquadri .legenda-casa{font-size:10.9px;line-height:1.55;color:var(--casa-muto);white-space:nowrap;min-width:0}
 .casa-riquadri .legenda-casa i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4.3px;vertical-align:.05em}
 .casa-riquadri .riquadro.spento .val{font-size:22px;color:var(--casa-muto)}
+/* Desktop home: share the same width with the daily agenda. */
+@media (min-width:901px){
+  body.in-casa .contenuto{max-width:1440px;margin:0 auto}
+  .testata.testata-casa{max-width:1440px;margin:0 auto;padding-top:24px}
+  .casa{max-width:none;margin-bottom:24px}
+  .casa-chiedi{max-width:760px;margin:16px auto 0}
+  .casa-domande{max-width:760px;margin:12px auto 0;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .casa-riquadri{gap:14px;margin-top:22px}
+  .casa-riquadri .riquadro{padding:16px;min-height:146px}
+  .casa-riquadri .etichetta{font-size:10.5px}
+  .casa-riquadri .sub,.casa-riquadri .legenda-casa{font-size:13px}
+}
+@media (min-width:1200px){
+  .casa-riquadri{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
 body.in-casa .chiedi{display:none}
 /* la regola della chat, scritta nella chat stessa: non si perde quando la home cambia */
 .chat .testa .chat-regola{display:block;margin-top:5px;font-size:13.5px;font-style:italic;color:var(--tenue);line-height:1.35}
@@ -1447,7 +1462,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-15 03:06';
+const COSTRUITA = '2026-10-15 12:57';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -5385,7 +5400,7 @@ function rilievoHtml(ril, s, r){
   /* la foto vera del posto, scaricata dall'alto. Se quel rilievo non ce l'ha,
      resta la planimetria di esempio; ma se le misure sono state scritte a mano
      non si mette nessuna foto, perche' farebbe vedere un posto che non e' quello. */
-  const img = ril.a_mano ? '' : (fotoSicura(ril.foto) ? ril.foto : document.getElementById('planimetria').getAttribute('src'));
+  const img = ril.a_mano ? '' : (fotoSicura(ril.foto) ? fotoPerMostrare(ril) : document.getElementById('planimetria').getAttribute('src'));
   const avvisi = (ril.avvisi || []).filter(Boolean);
   const mq = v => (v === undefined || v === null || v === '') ? '—' : cifra(v, 0);
   const verde = typeof ril.verde_mq === 'number';
@@ -6617,6 +6632,14 @@ function fotoPulita(ril){
   if(!ril || ril.da_disegnare) return '';
   if(fotoSicura(ril.foto_pulita)) return ril.foto_pulita;
   return angoliBuoni(ril.angoli) ? fotoCasa(ril.angoli, latoFoto(ril)) : '';
+}
+/* La foto da far vedere a chi legge (pagina del sopralluogo e allegato del preventivo):
+   quella senza le righe del catasto, se il servizio l'ha mandata. Le righe cadono spostate
+   di qualche metro e, sul documento del cliente, sembrano un errore (Andrea, 15 ottobre
+   2026, 01:34: «vedi quanto è invadente la linea del catasto? rimane sui preventivi»).
+   I rilievi vecchi senza foto pulita restano come prima. */
+function fotoPerMostrare(ril){
+  return (ril && fotoSicura(ril.foto_pulita)) ? ril.foto_pulita : (ril ? ril.foto : '');
 }
 function fotoDaDisegnare(ril){
   const pulita = fotoPulita(ril);
@@ -12463,7 +12486,7 @@ function allegatoDoc(p, cl, ril, zone, foto){
         <div class="lbl">Il giardino misurato sulla foto dall'alto</div>
         <div class="pianta-totali">${Object.keys(TIPI_ZONA).filter(k => tot[k]).map(k =>
           `<div><div class="val">${misuraTotale(k, tot[k])}</div><div class="lbl">${TIPI_ZONA[k].piu}</div></div>`).join('')}</div>
-        <div class="foto-zone"><img src="${ril.foto}" alt="Il giardino visto dall'alto, con le parti misurate">
+        <div class="foto-zone"><img src="${fotoPerMostrare(ril)}" alt="Il giardino visto dall'alto, con le parti misurate">
           <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">${svgZone(ril, null, 1.7)}</svg></div>
         <div class="pianta-legenda">${zone.map((z, i) => `<div class="riga-legenda">
           <span class="n">${i + 1}</span><span>${esc(z.nome || TIPI_ZONA[z.tipo].nome)}</span>
