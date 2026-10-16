@@ -98,7 +98,7 @@ Chi ti ha chiamato o scritto.
 Il cuore del lavoro: cammini nel giardino e parli.
 - «+ Nuovo sopralluogo» oppure parti da una richiesta.
 - L'elenco è diviso per gruppi (Da fissare, Oggi, Prossimi, In ritardo, Consegnati): il
-  titolo del gruppo dice lo stato. «Fissa» mette il giorno da qui.
+  titolo del gruppo dice lo stato. «Fissa il giorno» mette il giorno da qui.
 - In cima, finché non hai dettato niente, c'è «Detta il lavoro ↓»: porta giù al microfono
   in un tocco, senza scorrere foto e misure.
 - **Il rilievo dall'indirizzo:** «Prepara dall'indirizzo» cerca la casa, prende la foto

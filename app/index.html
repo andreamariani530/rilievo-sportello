@@ -280,8 +280,11 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
 .mese{display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center;
   padding:7px 0;border-bottom:1px solid var(--filetto)}
 .mese:last-child{border-bottom:0}
-.mese.larga{grid-template-columns:minmax(0,1.1fr) 1fr auto}
-.mese.larga .nome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* «Da dove arrivano i soldi»: il nome della voce sta intero sopra la sua barra.
+   Accanto alla barra, sul telefono, «Potatura alberi ad alto fusto» diventava
+   «Potatura alberi ad alto fu...» (limatura del 16 ottobre 2026). */
+.mese.larga{grid-template-columns:minmax(0,1fr) auto;row-gap:5px}
+.mese.larga .nome{grid-column:1 / -1;overflow-wrap:anywhere}
 .mese .nome{font-family:'Jost',sans-serif;font-size:10px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--tenue)}
 .mese .barre{display:grid;gap:3px}
@@ -883,6 +886,19 @@ button.via{font:inherit;text-align:left;width:100%}
   .elenco .r.r-doc{flex-direction:column;align-items:stretch;gap:8px}
   .elenco .r.r-doc .riga-azione{justify-content:flex-start}
 }
+/* Preventivi, Richieste, Clienti sul telefono: l'etichetta e le matite stanno accanto
+   al nome, e numero, data, prezzo e descrizione prendono tutta la larghezza. Prima la
+   colonna di destra scendeva lungo tutta la riga e stringeva il testo a meta' schermo:
+   «· € 646» andava a capo da solo (limatura del 16 ottobre 2026). Un telefono che non
+   conosce :has() tiene la riga di prima. */
+@media (max-width:640px){
+  .elenco .r:not(.r-doc):has(> div:first-child > .tit):has(> .riga-azione){display:grid;
+    grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:0;align-items:start}
+  .elenco .r:not(.r-doc):has(> div:first-child > .tit):has(> .riga-azione) > div:first-child{display:contents}
+  .elenco .r:not(.r-doc):has(> div:first-child > .tit):has(> .riga-azione) > div:first-child > *{grid-column:1 / -1}
+  .elenco .r:not(.r-doc):has(> div:first-child > .tit):has(> .riga-azione) > div:first-child > .tit{grid-column:1;grid-row:1;align-self:center}
+  .elenco .r:not(.r-doc):has(> div:first-child > .tit):has(> .riga-azione) > .riga-azione{grid-column:2;grid-row:1;align-self:center}
+}
 /* in Documenti, quando ci sono preventivi di prima: il passo dopo, a portata di mano */
 .dai-vecchi{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;
   margin:14px 0 4px;padding:12px 0;border-top:1px solid var(--filetto);border-bottom:1px solid var(--filetto);
@@ -1462,7 +1478,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-16 02:05';
+const COSTRUITA = '2026-10-16 02:59';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -5337,7 +5353,7 @@ function elencoSopralluoghi(){
     ${oggi.map(s => riga(s, sotto(s.luogo), `<a class="bottone piccolo" href="#sopralluogo/${s.id}">Apri</a>`)).join('')}
   </div>` : ''}
   ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'fissare') && fissa.length ? `<div class="lbl" style="margin-bottom:12px">Da fissare</div><div class="elenco" style="margin-bottom:28px">
-    ${fissa.map(s => riga(s, sotto(s.luogo), `<button class="bottone vuoto piccolo" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Fissa</button>`)).join('')}
+    ${fissa.map(s => riga(s, sotto(s.luogo), `<button class="bottone vuoto piccolo" onclick="fissaSopralluogo('${s.richiesta || s.id}')">Fissa il giorno</button>`)).join('')}
   </div>` : ''}
   ${(filtroSopralluoghi === 'tutti' || filtroSopralluoghi === 'prossimi') && prossimi.length ? `<div class="lbl" style="margin-bottom:12px">Prossimi</div><div class="elenco" style="margin-bottom:28px">
     ${prossimi.sort((a,b) => a.quando.localeCompare(b.quando)).map(s => riga(s, sotto(s.luogo, dataLunga(s.quando)), `<a class="bottone piccolo" href="#sopralluogo/${s.id}">Apri</a>`)).join('')}
