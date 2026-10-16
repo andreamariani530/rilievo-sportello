@@ -18,6 +18,15 @@ dei contatti. Alla prima apertura di un codice dell'elenco, e al suo primo rilie
 parte un avviso ad Andrea (come per chi si iscrive). Un codice che non e' nell'elenco
 si segna lo stesso ma non fa partire avvisi: cosi' nessuno puo' riempire di notifiche
 il telefono di Andrea inventando codici.
+
+I PASSI (Andrea, 16/10/2026: «non voglio essere invasivo ma abbiamo bisogno di dati veri»).
+8 ditte avevano aperto il link e nessuna aveva cercato un indirizzo, ma non si sapeva dove
+si fermavano. Da qui, solo per chi arriva dal link con il codice della ditta, l'app manda
+un segno per ogni passo dell'elenco PASSI (porta vista, mestiere toccato, «Comincio»,
+«Salta», misura arrivata, preventivo fatto, consegnato...) e, quando esce, la pagina e i
+secondi passati. Il nome della pagina e' una parola dell'elenco, mai un testo libero:
+niente indirizzi, nomi, cifre. Alla seconda apertura, se la prima si era fermata prima del
+preventivo, l'app chiede «cosa non andava?» con quattro risposte fisse (PERCHE).
 """
 import datetime, hashlib, hmac, json, os, pathlib, re, threading
 from zoneinfo import ZoneInfo
@@ -81,7 +90,9 @@ def _righe():
 def _carica_visti():
     global _visti
     if _visti is None:
-        _visti = {(r.get("codice"), r.get("cosa")) for r in _righe()}
+        # i passi si ricordano uno per uno (per il tetto e per l'avviso «la prima volta»)
+        _visti = {(r.get("codice"), "passo:%s:%s" % (r.get("passo"), r.get("ora")) if r.get("cosa") == "passo"
+                   else r.get("cosa")) for r in _righe()}
     return _visti
 
 
@@ -122,6 +133,72 @@ def segna(codice, pagina, cosa, ua=""):
         return False
 
 
+# i passi, nell'ordine in cui li fa chi arriva: serve a dire «fin dove e' arrivato»
+PASSI = ["porta", "mestiere", "demo", "comincio", "salta", "dati", "dentro", "sopralluogo",
+         "misura", "misura_no", "preventivo", "consegna"]
+ALTRI = {"uscita", "perche"}
+PERCHE = {"tempo": "non aveva tempo", "capito": "non ha capito a cosa serve",
+          "fiducia": "non si fida", "fa_per_me": "non fa per lui"}
+PAROLA = re.compile(r"[a-z0-9_-]{1,24}")
+MASSIMO_PASSI = 400                 # per codice: oltre non si scrive piu'
+
+
+def segna_passo(codice, passo, dove="", secondi=None, ua=""):
+    """Un passo dell'app (vedi PASSI). Torna True se segnato. Non alza mai.
+    Solo per i codici dell'elenco: un codice inventato non scrive niente."""
+    try:
+        c = codice_pulito(codice)
+        passo = str(passo or "")
+        if not c or (passo not in PASSI and passo not in ALTRI):
+            return False
+        elenco = da_chi()
+        if c not in elenco:
+            return False
+        dove = str(dove or "")
+        dove = dove if PAROLA.fullmatch(dove) else ""
+        if passo == "perche" and dove not in PERCHE:
+            return False
+        try:
+            s = max(0, min(int(float(secondi)), 24 * 3600)) if secondi not in (None, "") else None
+        except (TypeError, ValueError):
+            s = None
+        ora = datetime.datetime.now(ZoneInfo("Europe/Rome"))
+        riga = {"codice": c, "ora": ora.strftime("%Y-%m-%d %H:%M:%S"), "cosa": "passo", "passo": passo,
+                "da": dispositivo(ua)}
+        if dove:
+            riga["dove"] = dove
+        if s is not None:
+            riga["s"] = s
+        with _lucchetto:
+            visti = _carica_visti()
+            gia = sum(1 for k, x in visti if k == c and str(x).startswith("passo:"))
+            f = _file()
+            f.parent.mkdir(parents=True, exist_ok=True)
+            if f.is_file() and f.stat().st_size > MASSIMO_FILE:
+                return False
+            chiave = "passo:%s:%s" % (passo, ora.strftime("%H%M%S%f"))
+            if gia >= MASSIMO_PASSI:
+                return False
+            prima_volta = not any(k == c and str(x).startswith("passo:%s:" % passo) for k, x in visti)
+            with f.open("a", encoding="utf-8") as w:
+                w.write(json.dumps(riga, ensure_ascii=False) + "\n")
+            visti.add((c, chiave))
+        print("  passo: %s %s %s" % (c, passo, dove), flush=True)
+        chi = elenco[c]
+        ditta = (chi.get("ditta") if isinstance(chi, dict) else str(chi)) or c
+        prova = "Prova: " if isinstance(chi, dict) and chi.get("prova") else ""
+        if passo == "perche":
+            avvisi.avvisa(prova + "%s: perche' si era fermato" % ditta,
+                          "%s ha risposto: %s." % (ditta, PERCHE[dove]))
+        elif passo in ("preventivo", "consegna") and prima_volta:
+            avvisi.avvisa(prova + ("%s ha fatto un preventivo" if passo == "preventivo" else "%s ha consegnato un preventivo") % ditta,
+                          "%s, %s, dal %s." % (ditta, ora.strftime("%d/%m alle %H:%M"), riga["da"]))
+        return True
+    except Exception as e:              # noqa: BLE001
+        print("     passo non segnato:", e, flush=True)
+        return False
+
+
 def _avvisa(c, chi, cosa, ora, da):
     ditta = (chi.get("ditta") if isinstance(chi, dict) else str(chi)) or c
     prova = isinstance(chi, dict) and chi.get("prova")
@@ -153,10 +230,23 @@ def riassunto():
             x["rilievi"] += 1
             x["primo_rilievo"] = x["primo_rilievo"] or r.get("ora", "")
             x["ultimo_rilievo"] = r.get("ora", "")
+        if r.get("cosa") == "passo":
+            x.setdefault("passi", []).append({k: r[k] for k in ("ora", "passo", "dove", "s") if k in r})
+            p = r.get("passo")
+            if p in PASSI and PASSI.index(p) > PASSI.index(x.get("piu_lontano") or "porta"):
+                x["piu_lontano"] = p
+            elif p in PASSI and not x.get("piu_lontano"):
+                x["piu_lontano"] = p
+            if p == "perche":
+                x.setdefault("perche", []).append(PERCHE.get(r.get("dove"), r.get("dove")))
+            if p == "uscita":
+                x["ultima_uscita"] = {k: r[k] for k in ("ora", "dove", "s") if k in r}
         if r.get("da") and r["da"] not in x["da"]:
             x["da"].append(r["da"])
     fuori = []
     for c, x in per.items():
+        if "passi" in x:
+            x["passi"] = x["passi"][-60:]
         chi = elenco.get(c)
         x["ditta"] = (chi.get("ditta") if isinstance(chi, dict) else chi) or ""
         x["prova"] = bool(isinstance(chi, dict) and chi.get("prova"))

@@ -2870,6 +2870,13 @@ def servizio(porta=8787, pubblico=False):
         def do_OPTIONS(self):
             self._apri(204, "text/plain")
 
+        def _passo(self, q):
+            """Un passo di chi e' arrivato col link della sua ditta (visite.segna_passo).
+            Risponde sempre 204: l'app non aspetta niente e non deve accorgersi di nulla."""
+            g = lambda k: (q.get(k) or [""])[0]
+            visite.segna_passo(g("da"), g("p"), g("dove"), g("s"), self.headers.get("User-Agent"))
+            self._apri(204, "text/plain")
+
         def _manda(self, codice, dati):
             self._apri(codice)
             self.wfile.write(json.dumps(dati, ensure_ascii=False).encode())
@@ -2895,6 +2902,10 @@ def servizio(porta=8787, pubblico=False):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
             codice = (q.get("codice") or [""])[0]
+            # i passi di chi arriva dal link (navigator.sendBeacon manda una POST vuota)
+            if u.path == "/passo":
+                self._passo(q)
+                return
             if u.path == "/fattura/invia":
                 self._fattura_invia(codice)
                 return
@@ -3390,6 +3401,9 @@ def servizio(porta=8787, pubblico=False):
                 elif (u.path == "/rilievo" and q.get("indirizzo")) or (u.path == "/particelle" and q.get("punti")) \
                         or (u.path == "/foto" and q.get("indirizzo") and not q.get("punto")):
                     visite.segna(da, u.path, "rilievo", self.headers.get("User-Agent"))
+            if u.path == "/passo":
+                self._passo(q)
+                return
             if u.path == "/visite":
                 # per Andrea (chi-ha-aperto.py): con la stessa chiave di /posta/andrea
                 if not visite.chiave_giusta(self.headers.get("X-Chiave")):

@@ -474,6 +474,16 @@ body.porta-aperta{overflow:hidden}
 .porta-piede{text-align:center;margin-top:28px;font-size:15px;color:var(--tenue);line-height:1.6}
 .porta-piede a{color:var(--accento)}
 /* ---------- informativa privacy (2 ottobre 2026) ---------- */
+.foglio-perche{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:95;
+  max-width:460px;margin:0 auto;background:var(--carta,#faf7f0);border:1px solid rgba(27,25,23,.14);border-radius:18px;
+  padding:18px 18px 12px;box-shadow:0 12px 40px rgba(27,25,23,.18)}
+.titolo-perche{font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;line-height:1.2;margin:0 0 4px}
+.sotto-perche{font-size:14.5px;color:var(--tenue,#6b665e);margin:0 0 12px}
+.risposte-perche{display:flex;flex-wrap:wrap;gap:8px}
+.risposta-perche{border:1px solid rgba(27,25,23,.18);background:#fff;border-radius:999px;padding:10px 14px;
+  font-size:15px;min-height:44px;cursor:pointer;font-family:inherit;color:inherit}
+.lascia-perche{display:block;margin:10px auto 0;background:none;border:0;color:var(--tenue,#6b665e);
+  font-size:14px;padding:8px 12px;min-height:40px;cursor:pointer;font-family:inherit}
 .velo-privacy{position:fixed;inset:0;z-index:80;background:rgba(27,25,23,.42);overflow-y:auto;
   padding:24px 14px}
 .velo-privacy .finestra{max-width:680px;margin:0 auto}
@@ -1403,6 +1413,7 @@ async function avvia(){
   ascoltaIlTiro();
   vai();
   if(primaVolta()) apriPorta();
+  preparaPassi();          /* solo chi arriva col link della ditta: un segno per passo */
   togliAvvio();            /* la R si ingrandisce e sfuma: l'app e' gia' sotto */
   privacyDalLink();
   vocedellaSquadra();      /* se la ditta c'e' gia', la voce del menu non dice «in arrivo» */
@@ -1478,7 +1489,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-16 02:59';
+const COSTRUITA = '2026-10-16 03:19';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1811,10 +1822,12 @@ function apriPorta(){
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('porta-aperta');
+  passo('porta');
   velo.querySelector('#strada-demo').onclick = partiDemo;
   velo.querySelector('#strada-mia').onclick  = chiediDitta;
 }
 function partiDemo(){
+  passo('demo');
   segnaScelta('demo');
   S = attualizza(copia(DATI)); normalizza();
   intestaUtente(); salva(); chiudiPorta();
@@ -1823,6 +1836,7 @@ function partiDemo(){
 /* la porta resta sotto: se uno chiude la scheda senza salvare, la ritrova */
 function chiediDitta(){
   logoInArrivo = undefined;
+  passo('comincio');
   /* il mestiere scelto sulla porta non si richiede: la scheda diventava piu' alta dello
      schermo e «Salta» finiva sotto */
   const giaScelto = !!mestiereInArrivo;
@@ -1840,12 +1854,13 @@ function chiediDitta(){
       {k:'tel',   l:'Telefono', p:'Es. 340 1234567'}
     ],
     testoSalva: 'Comincio',
-    salta: {testo: 'Salta', fai: () => partiMia({nome: '', tel: '', iva: 22})},
+    salta: {testo: 'Salta', fai: () => { passo('salta'); partiMia({nome: '', tel: '', iva: 22}); }},
     /* la prima domanda e' il mestiere, sopra le caselle: il cursore sul nome faceva
        uscire la tastiera e scorrere la scheda, col titolo tagliato a meta' */
     senzaFuoco: true,
     salva: d => {
       /* la password non finisce mai nei dati della ditta: va solo al server */
+      passo('dati');
       partiMia(d);
     },
     messaggio: 'Fatto. Il giro di prova ti aspetta in cima.'
@@ -1885,6 +1900,7 @@ function partiMia(d){
   });
   S._filo = idr;
   segnaScelta('mia');
+  passo('dentro');
   normalizza(); intestaUtente(); chiudiPorta();
   location.hash = '#oggi';
 }
@@ -2249,6 +2265,7 @@ function sceltaMestiere(scelto){
 }
 function tocchiMestiere(id){
   mestiereInArrivo = id;
+  passo('mestiere', id);
   document.querySelectorAll('#scelta-mestiere').forEach(b => { b.outerHTML = sceltaMestiere(id); });
   const s = document.getElementById('c-sotto');
   if(s) s.placeholder = 'Es. ' + mestiereDi(id).sotto;
@@ -3061,6 +3078,7 @@ function generaPreventivo(idSopralluogo){
     righe: d.righe, sopralluogo: s.id
   };
   S.preventivi.unshift(p);
+  passo('preventivo');
   s.preventivo = p.id; s.stato = statoSopralluogo(s);
   salva();
   avvisa('Preventivo pronto: ' + d.righe.length + ' voci prese dal parlato.' + raccontoRighe(d));
@@ -3096,6 +3114,7 @@ function rifaiPreventivo(idSopralluogo){
 }
 function inviaPreventivo(id, come){
   const p = prev(id);
+  passo('consegna');
   p.stato = 'inviato'; p.data = S.oggi;
   p.consegna = {come: come || 'a mano', quando: S.oggi};
   if(typeof p.iva !== 'number') p.iva = Number(S.azienda.iva) || 0;
@@ -3577,6 +3596,7 @@ function schedaPreventivo(id, idCliente){
          misure: se no il giardino non finisce nel PDF e il cliente non lo ritrova */
       if(cl){ const g = giardinoDelCliente(cl.id); if(g) nuovo.rilievo = g.id; }
       S.preventivi.unshift(nuovo);
+      passo('preventivo');
       location.hash = '#preventivo/' + nuovo.id;
     },
     elimina: p ? () => {
@@ -5583,6 +5603,74 @@ function col(){
   const c = codiceMio(), d = daMio();
   return (c ? 'codice=' + encodeURIComponent(c) + '&' : '') + (d ? 'da=' + d + '&' : '');
 }
+/* ===== I PASSI DI CHI ARRIVA DAL LINK =====
+   Andrea, 16/10/2026: «non voglio essere invasivo ma abbiamo bisogno di dati veri». 8 ditte
+   avevano aperto il link e nessuna aveva cercato un indirizzo, senza sapere dove si
+   fermavano. Solo per chi ha il codice del link (daMio) l'app manda un segno per passo:
+   una parola dell'elenco del server (visite.PASSI), mai un testo, un nome o una cifra.
+   Chi apre Rilievo senza codice non manda niente. */
+const CHIAVE_PASSI = 'rilievo-passi-2026-10';
+const passiDetti = new Set();
+const apertaAlle = Date.now();
+function memoriaPassi(){
+  try{ const m = JSON.parse(localStorage.getItem(CHIAVE_PASSI) || 'null'); if(m && typeof m === 'object') return m; }catch(e){}
+  return {visite: 0, preventivo: false, chiesto: false};
+}
+function ricordaPassi(m){ try{ localStorage.setItem(CHIAVE_PASSI, JSON.stringify(m)); }catch(e){} }
+function passo(p, dove){
+  try{
+    const d = daMio(); if(!d) return;
+    if(p !== 'uscita' && p !== 'perche'){ if(passiDetti.has(p)) return; passiDetti.add(p); }
+    if(p === 'preventivo' || p === 'consegna'){ const m = memoriaPassi(); m.preventivo = true; ricordaPassi(m); }
+    const u = SPORTELLO_RILIEVO + '/passo?da=' + d + '&p=' + p +
+      (dove ? '&dove=' + encodeURIComponent(String(dove).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24)) : '') +
+      (p === 'uscita' ? '&s=' + Math.round((Date.now() - apertaAlle) / 1000) : '');
+    if(navigator.sendBeacon && navigator.sendBeacon(u)) return;
+    fetch(u, {method: 'POST', keepalive: true, mode: 'no-cors'}).catch(() => {});
+  }catch(e){}
+}
+/* dove sta quando chiude: la porta, una scheda aperta, oppure la pagina (#oggi, #sopralluogo/..) */
+function doveSono(){
+  if(document.querySelector('.velo-porta')) return document.querySelector('.velo-scheda') ? 'porta-scheda' : 'porta';
+  const pagina = (location.hash.slice(1).split('/')[0] || 'oggi');
+  return (document.querySelector('.velo-scheda') ? 'scheda-' : '') + pagina;
+}
+let uscitaDetta = 0;
+function segnaUscita(){
+  if(Date.now() - uscitaDetta < 3000) return;
+  uscitaDetta = Date.now();
+  passo('uscita', doveSono());
+}
+/* alla seconda apertura, se la prima si era fermata prima del preventivo: una domanda,
+   quattro risposte da toccare, una volta sola. Niente da scrivere. */
+function preparaPassi(){
+  if(!daMio()) return;
+  const m = memoriaPassi();
+  const chiedi = m.visite >= 1 && !m.preventivo && !m.chiesto;
+  m.visite = (m.visite || 0) + 1; ricordaPassi(m);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') segnaUscita(); });
+  addEventListener('pagehide', segnaUscita);
+  if(chiedi) setTimeout(domandaPerche, 2500);
+}
+const RISPOSTE_PERCHE = [['tempo', 'Non avevo tempo'], ['capito', 'Non ho capito a cosa serve'],
+                         ['fiducia', 'Non mi fidavo'], ['fa_per_me', 'Non fa per me']];
+function domandaPerche(){
+  if(document.querySelector('.foglio-perche')) return;
+  const m = memoriaPassi(); m.chiesto = true; ricordaPassi(m);
+  const f = document.createElement('div');
+  f.className = 'foglio-perche';
+  f.setAttribute('role', 'dialog');
+  f.innerHTML = `<p class="titolo-perche">L&rsquo;altra volta ti sei fermato. Cosa non andava?</p>
+    <p class="sotto-perche">Un tocco: serve ad Andrea, che costruisce Rilievo, per sistemarla.</p>
+    <div class="risposte-perche">${RISPOSTE_PERCHE.map(r =>
+      `<button type="button" class="risposta-perche" data-r="${r[0]}">${r[1]}</button>`).join('')}</div>
+    <button type="button" class="lascia-perche">Lascia stare</button>`;
+  document.body.appendChild(f);
+  f.querySelectorAll('.risposta-perche').forEach(b => b.onclick = () => {
+    passo('perche', b.dataset.r); f.remove(); avvisa('Grazie. Ne terremo conto.');
+  });
+  f.querySelector('.lascia-perche').onclick = () => f.remove();
+}
 function permesso(){
   try{ const p = JSON.parse(localStorage.getItem(CHIAVE_PERMESSO) || 'null');
        return (p && typeof p === 'object') ? p : null; }catch(e){ return null; }
@@ -5760,6 +5848,7 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 150000);
   const capDetto = (cap || (sopr(idSopralluogo) || {}).cap || '').replace(/\D/g, '').slice(0, 5);
+  passo('sopralluogo');
   fetch(SPORTELLO_RILIEVO + (soloFoto ? '/foto?' : '/rilievo?') + col() + 'indirizzo=' + encodeURIComponent(indirizzo) +
         (lato > 0 ? '&lato=' + Math.round(lato) : '') + (capDetto ? '&cap=' + capDetto : ''), {signal: basta.signal})
     .then(x => x.json().then(d => ({ok:x.ok, d}), () => ({ok:false, d:{}})))
@@ -5767,9 +5856,11 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
       if(superata()) return;
       if(ingressoRifiutato(d)) return;     /* il codice non passa piu': lo dice la porta */
       if(!ok || !d || d.errore){
+        passo('misura_no');
         rilievoNonDisponibile(idSopralluogo, (d && d.errore) || '', (d && d.suggerimenti) || [], indirizzo);
         return;
       }
+      passo('misura');
       const problema = rilievoValido(d);
       if(problema){ avvisa('Non riuscito: il servizio ha mandato misure che non tornano (' + problema + '). Il rilievo di prima resta com\'era.'); return; }
       /* il comune trovato deve essere quello scritto: il 15 settembre 2026 "Via Dante 10,
@@ -5812,7 +5903,7 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
       }
       avvisa('Rilievo pronto: ' + cifra(d.lotto_mq, 0) + ' mq di lotto, ' + cifra(d.scoperto_mq, 0) + ' scoperti.');
     })
-    .catch(() => { if(!superata()) rilievoNonDisponibile(idSopralluogo, '', [], indirizzo); })
+    .catch(() => { if(!superata()){ passo('misura_no'); rilievoNonDisponibile(idSopralluogo, '', [], indirizzo); } })
     .finally(() => { clearTimeout(sveglia); clearTimeout(scade); });
 }
 /* Gli indirizzi possibili, da toccare. Sono la seconda risposta per un indirizzo
@@ -14021,7 +14112,8 @@ function testoPrivacy(){
       fartela ritrovare su un altro telefono: &egrave; protetta e noi non la guardiamo. Escono anche
       <b>l&rsquo;indirizzo del giardino</b>, quando chiedi il rilievo, e <b>il preventivo che mandi col link</b>,
       perch&eacute; il tuo cliente lo possa aprire.
-      Niente pubblicit&agrave;, niente statistiche su di te, nessun dato venduto.</p>
+      Niente pubblicit&agrave;, nessun dato venduto. Se arrivi dal link che ti abbiamo mandato, segniamo
+      <b>quali passi fai</b> nell&rsquo;app, per capire dove non &egrave; chiara.</p>
 
     <h3>Chi risponde dei dati</h3>
     <p>Rilievo &egrave; in prova gratuita e lo costruisce Andrea Mariani, come persona privata.
@@ -14087,6 +14179,14 @@ function testoPrivacy(){
         su questo telefono e sparisce quando chiudi l&rsquo;app.</li>
     </ul>
 
+    <h3>Se arrivi dal link che ti abbiamo mandato</h3>
+    <p>Il link che ti abbiamo scritto porta un codice corto della tua ditta. Con quel codice segniamo sul nostro
+      server quando apri Rilievo e quali passi fai: per esempio &laquo;ha scelto il mestiere&raquo;, &laquo;ha provato una
+      misura&raquo;, &laquo;ha fatto un preventivo&raquo;, la pagina dove eri quando hai chiuso e dopo quanti secondi.
+      Se una volta ti fermi a met&agrave;, la volta dopo ti chiediamo con un tocco cosa non andava, e puoi non rispondere.
+      Non segniamo indirizzi, nomi, cifre, quello che scrivi n&eacute; l&rsquo;indirizzo di rete. Serve solo a capire dove
+      l&rsquo;app non &egrave; chiara. Chi apre Rilievo senza quel link non manda niente. Per farlo cancellare basta una mail.</p>
+
     <h3>I dati dei tuoi clienti</h3>
     <p>I nomi, i numeri e gli indirizzi dei tuoi clienti sono tuoi: li metti tu, per fare il tuo lavoro.
       Noi ci limitiamo a usare l&rsquo;indirizzo per il rilievo che ci chiedi.</p>
@@ -14100,7 +14200,7 @@ function testoPrivacy(){
       all&rsquo;indirizzo sopra. Se pensi che i tuoi dati siano trattati male puoi rivolgerti al Garante
       per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
 
-    <p class="aggiornata">Aggiornata il 4 ottobre 2026.</p>
+    <p class="aggiornata">Aggiornata il 16 ottobre 2026.</p>
   </div>`;
 }
 /* in sovrimpressione: si apre anche dalla porta d'ingresso, che copre le pagine */
