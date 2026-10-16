@@ -28,6 +28,8 @@ Il menù sta a sinistra sul computer, e sotto il tasto con tre righe sul telefon
 - **Archivio:** «Clienti» (`#clienti`), «Documenti» (`#documenti`),
   «Lavori della squadra» (`#squadra`)
 - **La tua ditta:** «I tuoi numeri» (`#numeri`), «Impostazioni» (`#impostazioni`)
+
+Dall'esempio alla propria ditta: «Prova con la tua», in cima.
 - In fondo: «Piani e prezzi» (`#piani`) e «Privacy» (`#privacy`).
 
 Su ogni pagina, in basso a destra, c'è «Chiedi»: apre questa chat con l'assistente.

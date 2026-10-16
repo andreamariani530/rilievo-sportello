@@ -1095,6 +1095,18 @@ body{background:var(--carta)}
   .contenuto{padding:0 18px 60px}
 }
 .testata h1{font-size:30.6px}
+/* La ditta di esempio si dichiara (cliente scettico, 16 ottobre 2026): chi entrava nella
+   dimostrazione trovava «Giardini Conti, abbonamento attivo» senza scritto «esempio», e per
+   uscire doveva scendere in fondo alle Impostazioni e leggere «Butto via tutto». */
+.striscia-esempio{display:none;position:sticky;top:0;z-index:32;align-items:center;justify-content:space-between;
+  gap:12px;padding:10px 18px;background:var(--inchiostro);color:var(--carta);font-size:15px}
+body.in-esempio .striscia-esempio{display:flex}
+.striscia-esempio b{font-weight:600;letter-spacing:.02em}
+.striscia-esempio button{flex:0 0 auto;background:var(--carta);color:var(--inchiostro);border:0;border-radius:999px;
+  padding:9px 15px;font:inherit;font-weight:600;cursor:pointer;min-height:40px}
+.gratis-oggi{max-width:640px;margin:4px 0 22px}
+.gratis-oggi .grande{font-family:'Cormorant',serif;font-size:38px;line-height:1.05;color:var(--accento)}
+.gratis-oggi p{font-size:17px;margin-top:8px}
 
 /* tasti: arrotondati, parole normali, verde della home */
 .bottone{border-radius:12px;text-transform:none;letter-spacing:.01em;font-size:14.5px;padding:11px 16px;
@@ -1270,6 +1282,10 @@ var AVVIO_DAL = Date.now(), AVVIO_FERMA = 1600;
     <div class="barra-mobile">
       <button class="hamb" onclick="menu(true)" aria-label="Menu"><i></i><i></i><i></i></button>
       <div class="nome">Rilievo</div>
+    </div>
+    <div class="striscia-esempio" id="striscia-esempio" role="note">
+      <span><b>Ditta di esempio</b> · numeri finti</span>
+      <button type="button" onclick="esciDallEsempio()">Prova con la tua &rarr;</button>
     </div>
     <div id="schermo"></div>
 <nav class="barra-sotto" id="barra-sotto" aria-label="Le pagine principali">
@@ -1489,7 +1505,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-16 03:19';
+const COSTRUITA = '2026-10-16 12:50';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1585,7 +1601,8 @@ function intestaUtente(){
   let scelta = null;
   try{ scelta = localStorage.getItem(CHIAVE_SCELTA); }catch(e){}
   document.getElementById('utente-stato').textContent =
-    scelta === 'mia' ? 'Prova in corso' : 'Abbonamento attivo';
+    scelta === 'mia' ? 'Prova in corso' : scelta === 'demo' ? 'Ditta di esempio' : 'Abbonamento attivo';
+  document.body.classList.toggle('in-esempio', scelta === 'demo');
 }
 const iniziali = n => (String(n||'').trim().split(/\s+/).filter(Boolean)
   .map(x => x[0]).join('').slice(0,2).toUpperCase()) || 'IO';
@@ -2293,13 +2310,27 @@ function riquadroMestiere(){
     <div class="mestieri" style="justify-content:flex-start;margin:0 0 14px">
       ${MESTIERI.map(x => `<button type="button" class="mestiere${x.id === m.id ? ' scelto' : ''}" onclick="cambiaMestiere('${x.id}')">${x.nome}</button>`).join('')}
     </div>
-    <p style="font-size:16px;color:var(--soft)">Per ${m.id === 'altro' ? 'il tuo lavoro' : 'un ' + m.nome.toLowerCase()} va bene il piano <b>${p.nome}</b>, ${p.prezzo} euro al mese.
-      I pagamenti non sono ancora attivi: oggi tutto è aperto e non paghi niente.</p>
+    <p style="font-size:16px;color:var(--soft)"><b>Oggi è gratis:</b> tutto è aperto e non paghi niente.
+      Quando partono i pagamenti te lo dico prima, e decidi tu.</p>
     <div class="azioni" style="margin-top:14px"><a class="bottone" href="#piani">Vedi piani e prezzi</a></div>
   </div>`;
 }
 let personeInSquadra = 0;
 function contaSquadra(d){ personeInSquadra = Math.max(0, Math.min(30, personeInSquadra + d)); vaiRestandoQui(); }
+/* «Prova con la tua»: dall'esempio si esce con un tocco. Finche' e' ancora la ditta di
+   esempio non c'e' niente di suo da perdere, quindi nessun avviso; se ci ha messo il suo
+   nome sopra, si chiede prima (16 ottobre 2026). */
+function esciDallEsempio(){
+  const via = () => {
+    try{ localStorage.removeItem(CHIAVE_SCELTA); localStorage.removeItem(CHIAVE); }catch(e){}
+    svuotaArchivio(); svuotaFoto();
+    S = attualizza(copia(DATI)); normalizza(); intestaUtente();
+    location.hash = '#oggi'; vai();
+    apriPorta(); chiediDitta();
+  };
+  if(ancoraLaDimostrazione(S)) via();
+  else chiedi('Hai scritto qualcosa di tuo dentro l\'esempio: uscendo lo butto via. Se ti serve, prima salva tutto in un file.', via, 'Sì, esci');
+}
 function tornaAllaScelta(){
   try{ localStorage.removeItem(CHIAVE_SCELTA); }catch(e){}
   ricomincia();
@@ -2572,8 +2603,19 @@ const nuovoId = pre => pre + '-' + Date.now().toString(36) + (contatore++);
 
 function avvisa(testo){
   const a = document.getElementById('avviso');
-  a.textContent = testo; a.classList.add('on'); a.classList.remove('con-tasto');
+  a.textContent = testo; a.classList.add('on'); a.classList.remove('con-tasto'); a._fermo = false;
   clearTimeout(a._t); a._t = setTimeout(() => a.classList.remove('on'), 3200);
+}
+/* un avviso che resta finche' il lavoro non ha finito: «Sto preparando il rilievo» spariva
+   dopo tre secondi e per dieci lo schermo restava fermo, come rotto (16 ottobre 2026) */
+function avvisaFermo(testo){
+  const a = document.getElementById('avviso');
+  a.textContent = testo; a.classList.add('on'); a.classList.remove('con-tasto'); a._fermo = true;
+  clearTimeout(a._t);
+}
+function fineAttesa(){
+  const a = document.getElementById('avviso');
+  if(a && a._fermo){ a._fermo = false; a.classList.remove('on'); }
 }
 /* un avviso con un tasto dentro: resta un po' di piu', e se non lo tocchi non
    succede niente (nessuna finestra in piu' da chiudere) */
@@ -5841,10 +5883,10 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
   if(senzaRete()){ avvisa(SENZA_RETE); return; }
   const turno = turniRilievo[idSopralluogo] = (turniRilievo[idSopralluogo] || 0) + 1;
   const superata = () => turniRilievo[idSopralluogo] !== turno;
-  avvisa('Sto preparando il rilievo, ci vuole qualche secondo…');
+  avvisaFermo('Scarico la foto dall’alto e il catasto: circa 15 secondi. Resta qui.');
   /* sul piano gratuito il servizio dorme dopo 15 minuti senza richieste:
      al primo tocco puo' metterci un minuto a svegliarsi. Meglio dirlo. */
-  const sveglia = setTimeout(() => { if(!superata()) avvisa('Il servizio del rilievo si sta svegliando: la prima volta ci mette fino a un minuto. Resta qui.'); }, 8000);
+  const sveglia = setTimeout(() => { if(!superata()) avvisaFermo('Ci sto mettendo più del solito: ancora qualche secondo. Resta qui.'); }, 15000);
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 150000);
   const capDetto = (cap || (sopr(idSopralluogo) || {}).cap || '').replace(/\D/g, '').slice(0, 5);
@@ -5904,7 +5946,7 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
       avvisa('Rilievo pronto: ' + cifra(d.lotto_mq, 0) + ' mq di lotto, ' + cifra(d.scoperto_mq, 0) + ' scoperti.');
     })
     .catch(() => { if(!superata()){ passo('misura_no'); rilievoNonDisponibile(idSopralluogo, '', [], indirizzo); } })
-    .finally(() => { clearTimeout(sveglia); clearTimeout(scade); });
+    .finally(() => { clearTimeout(sveglia); clearTimeout(scade); if(!superata()) fineAttesa(); });
 }
 /* Gli indirizzi possibili, da toccare. Sono la seconda risposta per un indirizzo
    scritto in un modo che il servizio non riconosce, o che esiste in piu' paesi:
@@ -14055,7 +14097,7 @@ PAGINE.piani = {
     const m = mestiereDi(mestiereDitta()), base = PIANI[m.piano];
     const tessera = (k, extra) => { const p = PIANI[k], suo = k === m.piano;
       return `<div class="piano${suo ? ' per-te' : ''}" id="piano-${k}">
-        ${suo ? '<span class="per-te-segno">Per te</span>' : ''}
+        ${suo ? '<span class="per-te-segno">Il tuo mestiere</span>' : ''}
         <div class="lbl">${k === 'squadra' ? 'In più' : 'Piano'}</div>
         <h3>${p.nome}</h3>
         <div class="prezzo">${p.prezzo} € <small>${k === 'squadra' ? 'al mese per persona' : 'al mese'}</small></div>
@@ -14065,8 +14107,9 @@ PAGINE.piani = {
       </div>`; };
     const totale = base.prezzo + personeInSquadra * PIANI.squadra.prezzo;
     return `
-    <div class="spiega"><p>Tre piani, senza vincoli. Scegli in base al lavoro che fai.
-      <b>I pagamenti non sono ancora attivi:</b> oggi tutte le funzioni sono aperte e non paghi niente.</p>
+    <div class="gratis-oggi" id="gratis-oggi"><div class="grande">Oggi è gratis.</div>
+      <p>Tutto è aperto: niente carta, niente da pagare. Quando partono i pagamenti te lo dico prima, e decidi tu.</p></div>
+    <div class="spiega"><p>Questi saranno i piani: tre, senza vincoli, in base al lavoro che fai.</p>
       ${giorniProva() !== null ? `<p style="margin-top:8px">${giorniProva() > 0 ? 'La tua prova gratuita di 30 giorni: <b>' + (giorniProva() === 1 ? 'oggi è l’ultimo giorno' : 'mancano ' + giorniProva() + ' giorni') + '</b>.' : 'La tua prova gratuita è finita: per ora Rilievo resta aperto lo stesso.'}</p>` : ''}</div>
     <div class="piani">
       ${tessera('preventivi')}
@@ -14088,7 +14131,7 @@ PAGINE.piani = {
         <p>Scrivi a <a href="mailto:andreamariani530a@gmail.com" style="color:var(--accento)">andreamariani530a@gmail.com</a>: legge e risponde chi costruisce Rilievo.</p></div>
     </div>
     <div class="riquadro" style="margin-top:22px;max-width:640px" id="conto-piano">
-      <div class="lbl" style="margin-bottom:10px">Il tuo conto, da ${m.nome.toLowerCase()}</div>
+      <div class="lbl" style="margin-bottom:10px">Quando partono i pagamenti, da ${m.nome.toLowerCase()}</div>
       <div class="riga-tot"><span>${base.nome}</span><span>${base.prezzo} €</span></div>
       ${personeInSquadra ? `<div class="riga-tot"><span>Squadra, ${personeInSquadra} × ${PIANI.squadra.prezzo} €</span><span>${personeInSquadra * PIANI.squadra.prezzo} €</span></div>` : ''}
       <div class="riga-tot"><span><b>Al mese</b></span><span><b>${totale} €</b></span></div>
@@ -14106,6 +14149,11 @@ PAGINE.piani = {
    (server, servizi di cartografia, archivio della squadra), va cambiato anche qui. */
 function testoPrivacy(){
   return `<div class="privacy">
+    <h3>Chi c&rsquo;&egrave; dietro</h3>
+    <p>Rilievo lo costruisce <b>Andrea Mariani</b>, una persona sola, non una grande azienda. Oggi &egrave;
+      <b>gratis</b>. Se hai un dubbio scrivigli a <a href="mailto:andreamariani530a@gmail.com">andreamariani530a@gmail.com</a>:
+      legge e risponde lui.</p>
+
     <h3>In breve</h3>
     <p>Quello che scrivi in Rilievo resta <b>sul tuo telefono</b>: la ditta, i clienti, i preventivi,
       le foto, il listino. Se scegli una password, ne teniamo anche una <b>copia sul nostro server</b>, per
