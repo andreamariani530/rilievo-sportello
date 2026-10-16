@@ -1462,7 +1462,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-15 12:57';
+const COSTRUITA = '2026-10-16 02:05';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1549,7 +1549,7 @@ function installa(){
 }
 /* il nome e le iniziali in fondo alla colonna di sinistra */
 function intestaUtente(){
-  document.getElementById('utente-nome').textContent = S.azienda.nome;
+  document.getElementById('utente-nome').textContent = S.azienda.nome || 'La tua ditta';
   /* col logo caricato, al posto delle iniziali c'e' il suo marchio */
   const pal = document.getElementById('utente-iniziali');
   if(logoSicuro(S.azienda.logo)){ pal.innerHTML = `<img src="${S.azienda.logo}" alt="">`; pal.classList.add('con-logo'); }
@@ -1779,12 +1779,12 @@ function apriPorta(){
           <span class="porta-via">Vedi la dimostrazione &rarr;</span>
         </button>
         <button class="strada consigliata" id="strada-mia">
-          <div class="lbl">Un minuto di dati</div>
+          <div class="lbl">Subito</div>
           <h3>Provala con la tua ditta</h3>
-          <p>Scrivi il nome della tua ditta e la partita IVA, e carica il tuo logo. L&rsquo;app
-             parte pulita, con il listino del tuo mestiere, il tuo nome in cima ai preventivi e un
-             giro di prova gi&agrave; pronto, da cancellare quando vuoi.</p>
-          <span class="porta-via">Metto i miei dati &rarr;</span>
+          <p>L&rsquo;app parte pulita, col listino del tuo mestiere e un giro di prova gi&agrave;
+             pronto. Nome e logo della ditta li metti adesso o quando vuoi: niente partita IVA,
+             niente iscrizione.</p>
+          <span class="porta-via">Comincio &rarr;</span>
         </button>
       </div>
       <p class="porta-piede" style="margin-bottom:6px">Hai gi&agrave; Rilievo su un altro telefono?
@@ -1807,38 +1807,32 @@ function partiDemo(){
 /* la porta resta sotto: se uno chiude la scheda senza salvare, la ritrova */
 function chiediDitta(){
   logoInArrivo = undefined;
+  /* il mestiere scelto sulla porta non si richiede: la scheda diventava piu' alta dello
+     schermo e «Salta» finiva sotto */
+  const giaScelto = !!mestiereInArrivo;
   if(!mestiereInArrivo) mestiereInArrivo = 'giardiniere';
   scheda({
     titolo: 'La tua ditta',
-    sotto: 'Sono i dati che finiscono stampati in cima a ogni preventivo che consegni. Si cambiano quando vuoi da Impostazioni.',
-    extra: sceltaMestiere(mestiereInArrivo) + bloccoLogo(null, 'scheda'),
+    /* Andrea, 16/10/2026: prima erano 11 caselle con la partita IVA, e nessuno arrivava
+       al primo indirizzo. Qui solo quello che esce sul preventivo; partita IVA e sede le
+       chiede la fattura quando servono, e il nome lo chiede la consegna se manca. */
+    sotto: 'Vanno in cima ai preventivi. Puoi anche saltare: te li chiedo quando consegni il primo.',
+    extra: (giaScelto ? '' : sceltaMestiere(mestiereInArrivo)) + bloccoLogo(null, 'scheda'),
     valori: {iva: 22},
     campi:[
       {k:'nome',  l:'Nome della ditta', p:'Es. Mario Rossi e figli'},
-      {k:'sotto', l:'Cosa fai', p:'Es. ' + mestiereDi(mestiereInArrivo).sotto},
-      {k:'via',   l:'Via', m:true, p:'Es. Via Roma 14'},
-      ...CAMPI_SEDE_DITTA,
-      {k:'piva',  l:'Partita IVA', m:true, p:'Es. 01234567890'},
-      {k:'iva',   l:'Aliquota IVA', t:'numero', m:true, p:'22'},
-      {k:'tel',   l:'Telefono', m:true, p:'Es. 340 1234567'},
-      {k:'mail',  l:'Mail', m:true, p:'Es. info@rossimario.it'},
-      {k:'password', l:'Una password, per ritrovare tutto su un altro telefono', t:'password', p:'Almeno 8 caratteri', nuova: true}
+      {k:'tel',   l:'Telefono', p:'Es. 340 1234567'}
     ],
-    controlla: d => !d.nome ? 'Serve almeno il nome della ditta: è quello che esce stampato sul preventivo.'
-      : d.password && String(d.password).length < 8 ? 'La password deve avere almeno 8 caratteri. Se non la vuoi adesso, lasciala vuota.'
-      : d.password && !mailBuona(d.mail) ? 'Per la password serve anche la mail, scritta per intero.'
-      : controllaSedeDitta(d),
-    testoSalva: 'Parti con i miei dati',
+    testoSalva: 'Comincio',
+    salta: {testo: 'Salta', fai: () => partiMia({nome: '', tel: '', iva: 22})},
     /* la prima domanda e' il mestiere, sopra le caselle: il cursore sul nome faceva
        uscire la tastiera e scorrere la scheda, col titolo tagliato a meta' */
     senzaFuoco: true,
     salva: d => {
       /* la password non finisce mai nei dati della ditta: va solo al server */
-      const pw = d.password; delete d.password;
       partiMia(d);
-      if(pw) creaAccesso(d.mail, pw);
     },
-    messaggio: 'Fatto. Da qui in avanti i documenti escono col tuo nome.'
+    messaggio: 'Fatto. Il giro di prova ti aspetta in cima.'
   });
 }
 function partiMia(d){
@@ -2226,14 +2220,15 @@ function esempioDelMestiere(m, base){
 }
 /* il mestiere che si sta scegliendo sulla porta o nella scheda della ditta */
 let mestiereInArrivo = null;
+/* Andrea, 16/10/2026: il prezzo sulla porta («piano Pro, 40 euro al mese») arrivava prima
+   che uno avesse visto qualcosa, e 8 ditte su 8 si sono fermate li'. I piani restano dentro
+   l'app (Piani e prezzi), qui si dice solo cosa succede col mestiere scelto. */
 function sceltaMestiere(scelto){
-  const piano = scelto ? PIANI[mestiereDi(scelto).piano] : null;
   return `<div class="mestieri" id="scelta-mestiere">
     <div class="lbl">Che mestiere fai?</div>
     ${MESTIERI.map(m => `<button type="button" class="mestiere${m.id === scelto ? ' scelto' : ''}" data-mestiere="${m.id}"
       onclick="tocchiMestiere('${m.id}')">${m.nome}</button>`).join('')}
-    <div class="piano-detto">${piano ? 'Per te va bene il piano <b>' + piano.nome + '</b>, ' + piano.prezzo +
-      ' euro al mese. Oggi la prova non costa niente.' : 'Ti carico il listino del tuo mestiere, coi prezzi da correggere.'}</div>
+    <div class="piano-detto">Ti carico il listino del tuo mestiere, coi prezzi da correggere.</div>
   </div>`;
 }
 function tocchiMestiere(id){
@@ -3253,7 +3248,8 @@ function scheda(o){
         <p class="errore-scheda" id="scheda-errore" role="alert"></p>
         ${o.elimina ? `<button class="pericolo" id="btn-elimina">${esc(o.testoBottoneElimina || 'Cancella')}</button>` : ''}
         <div class="a-destra riga-azione">
-          ${o.soloSalva ? '' : '<button class="bottone vuoto piccolo" onclick="chiudiScheda()">Lascia stare</button>'}
+          ${o.salta ? `<button class="bottone vuoto piccolo" id="btn-salta">${esc(o.salta.testo)}</button>`
+            : o.soloSalva ? '' : '<button class="bottone vuoto piccolo" onclick="chiudiScheda()">Lascia stare</button>'}
           ${o.senzaSalva ? '' : `<button class="bottone piccolo" id="btn-salva">${esc(o.testoSalva || 'Salva')}</button>`}
         </div>
       </div>
@@ -3329,6 +3325,7 @@ function scheda(o){
     avvisa(testo);
     const r = velo.querySelector('#scheda-errore'); if(r) r.textContent = testo;
   };
+  if(o.salta) velo.querySelector('#btn-salta').onclick = () => { chiudiScheda(); o.salta.fai(); salva(); vai(); };
   if(!o.senzaSalva) velo.querySelector('#btn-salva').onclick = () => {
     const dati = {};
     let sbagliato = null;
@@ -12828,13 +12825,37 @@ function scaricaPdf(){
   setTimeout(() => URL.revokeObjectURL(a.href), 30000);
   avvisa('PDF scaricato: allegalo nel messaggio su WhatsApp o nella mail.');
 }
+/* chi ha saltato i dati all'inizio: prima che un preventivo esca, il nome della ditta
+   (e' l'intestazione). Il resto no: la partita IVA la chiede la fattura. */
+function primaIlNome(poi){
+  if(String(S.azienda.nome || '').trim()) return poi();
+  scheda({
+    titolo: 'Come si chiama la tua ditta?',
+    sotto: 'Esce in cima al preventivo che dai al cliente. Partita IVA e indirizzo servono solo per la fattura: te li chiedo lì.',
+    valori: {nome: '', tel: S.azienda.tel || ''},
+    campi: [
+      {k:'nome', l:'Nome della ditta', p:'Es. Mario Rossi e figli'},
+      {k:'tel',  l:'Telefono', p:'Es. 340 1234567'}
+    ],
+    controlla: d => d.nome ? null : 'Scrivi il nome: senza, il preventivo esce senza intestazione.',
+    testoSalva: 'Avanti',
+    salva: d => {
+      S.azienda.nome = d.nome; S.azienda.iniziali = iniziali(d.nome);
+      if(d.tel) S.azienda.tel = d.tel;
+      intestaUtente();
+    },
+    dopo: () => setTimeout(poi, 50)
+  });
+}
 function schedaPdf(id){
+  if(!String(S.azienda.nome || '').trim()) return primaIlNome(() => schedaPdf(id));
   scheda({titolo: 'Il preventivo in PDF',
           sotto: 'Il documento come lo vedi qui, con la tua intestazione, in un file da mandare.',
           extra: bloccoPdf(id), campi: [], testoSalva: 'Chiudi', salva: () => {}});
 }
 function consegnaPreventivo(id){
   const p = prev(id); if(!p) return;
+  if(!String(S.azienda.nome || '').trim()) return primaIlNome(() => consegnaPreventivo(id));
   const cl = p.cliente ? cliente(p.cliente) : null;
   scheda({
     titolo: 'Come glielo consegni?',
