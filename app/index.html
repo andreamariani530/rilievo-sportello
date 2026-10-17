@@ -655,6 +655,8 @@ body.disegno-aperto{overflow:hidden}
 .disegno-istruzione{font-size:15.5px;color:var(--soft);max-width:60ch}
 .disegno-misura{font-family:'Cormorant',serif;font-size:31px;line-height:1;text-align:right;white-space:nowrap}
 .disegno-piede .azioni{grid-column:1 / -1}
+.altro-disegno{display:none}
+.altro-disegno.aperto{display:contents}
 /* sul telefono ogni riga che togli intorno alla foto e' giardino che si vede:
    testata, attrezzi e piede si stringono, e il giardino si prende il resto */
 @media (max-width:560px){
@@ -1505,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-16 12:50';
+const COSTRUITA = '2026-10-17 02:08';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3041,9 +3043,12 @@ function righeDalSopralluogo(s){
   const ril = rilievoDelSopralluogo(s);
   const tot = ril ? totaliZone(ril) : null;
   const dalDisegno = [], daMisurare = [];
-  const righe = [];
+  const righe = [], parlate = new Set();
   (trovate || []).forEach(t => {
     const v = voce(t.voce); if(!v) return;
+    /* dal parlato: riconosciuta a voce (anche se poi corretta, che si porta dietro il detto),
+       e solo se un parlato c'e' davvero */
+    if(String(s.testo || '').trim() && (!t.aMano || t.detto)) parlate.add(v.id);
     let q = t.q, manca = false;
     const tipo = tipoUnita(v.u);
     const parte = tot && (t.dubbio || t.senzaNumero) && !t.aMano ? parteDellaVoce(v) : null;
@@ -3069,7 +3074,19 @@ function righeDalSopralluogo(s){
   });
   /* quello che ha detto e che a listino non c'e' non entra nel preventivo: se sparisse
      in silenzio, l'artigiano se ne accorgerebbe davanti al cliente */
-  return {righe, dalDisegno, daMisurare, ril, fuoriListino: (trovate || []).filter(t => t.nuova)};
+  return {righe, dalDisegno, daMisurare, ril, fuoriListino: (trovate || []).filter(t => t.nuova),
+          dalParlato: righe.filter(r => parlate.has(r.v)).length};
+}
+/* «Preventivo pronto: 1 voci prese dal parlato» a chi non aveva parlato: le voci le
+   aveva aggiunte lui a mano (giro del cliente scettico, 16 ottobre 2026). Si conta
+   giusto, al singolare quando e' una, e il parlato si nomina solo se c'e' stato. */
+function frasePronto(d){
+  const n = d.righe.length, parlate = d.dalParlato || 0, mano = n - parlate;
+  const voci = n === 1 ? '1 voce' : n + ' voci';
+  if(!parlate) return 'Preventivo pronto: ' + voci + '.';
+  if(!mano) return 'Preventivo pronto: ' + voci + (n === 1 ? ' presa' : ' prese') + ' dal parlato.';
+  return 'Preventivo pronto: ' + voci + ', ' + parlate + ' dal parlato e ' + mano
+    + (mano === 1 ? ' aggiunta' : ' aggiunte') + ' da te.';
 }
 /* Cosa e' cambiato davvero rifacendo il preventivo. Senza questa riga «Rifai il
    preventivo» rispondeva sempre la stessa frase, anche quando non si era mosso niente,
@@ -3123,7 +3140,7 @@ function generaPreventivo(idSopralluogo){
   passo('preventivo');
   s.preventivo = p.id; s.stato = statoSopralluogo(s);
   salva();
-  avvisa('Preventivo pronto: ' + d.righe.length + ' voci prese dal parlato.' + raccontoRighe(d));
+  avvisa(frasePronto(d) + raccontoRighe(d));
   location.hash = '#preventivo/' + p.id;
 }
 /* Rifare il preventivo dopo aver corretto il parlato. Le voci tornano da quello che
@@ -3686,9 +3703,13 @@ function contoDellaRiga(d, r){
   if(!aCorpoQui && !quanti) return '<span class="come">Metti la quantità e ti dico quanto fa.</span>';
   const importo = cent((aCorpoQui ? prezzo : prezzo * quanti) * volte);
   const unita = String(d.u || '').trim();
+  /* «3,20 ogni 100 mq × € 35» si legge come un prezzo: si scrive «320 mq × € 35 ogni
+     100 mq», i metri quadri veri e poi il prezzo con la sua unita' (16 ottobre 2026) */
+  const ogni = /^ogni\s+(\d+)\s*(mq|m)$/i.exec(unita);
   const come = aCorpoQui
     ? 'A corpo: ' + euro(prezzo) + ', la quantità non entra nel conto.'
-    : cifra(quanti) + (unita ? ' ' + unita.replace(/^ogni\s+/, 'ogni ') : '') + ' × ' + euro(prezzo);
+    : ogni ? cifra(Math.round(quanti * Number(ogni[1]) * 100) / 100) + ' ' + ogni[2] + ' × ' + euro(prezzo) + ' ogni ' + ogni[1] + ' ' + ogni[2]
+    : cifra(quanti) + (unita ? ' ' + unita : '') + ' × ' + euro(prezzo);
   const iva = (typeof d.iva === 'number' && d.iva >= 0) ? d.iva : null;
   return '<span class="come">' + esc(come) + (volte > 1 ? esc(' × ' + volte + ' volte nell\'anno') : '') +
          (iva !== null ? esc(' · più IVA ' + cifra(iva, 0) + '%') : '') +
@@ -4077,11 +4098,26 @@ function schedaLavorazione(idSopralluogo, indice){
        q: quantitaProposta(S.listino[0] ? voce(S.listino[0].id) : null, rilQui)}
     : s._trovate[indice];
   const primaVoce = t.voce, detto = indice === null ? '' : (t.detto || '');
+  /* «3.2» nel campo e «3,20 ogni 100 mq» sotto: il giardiniere pensa in metri quadri,
+     non in volte del prezzo (giro del cliente scettico, 16 ottobre 2026). Per le voci
+     "ogni 100 mq" il campo e' in mq veri, «320», e il conto dietro resta in volte.
+     Se la misura non si conosce il campo resta vuoto: un «100» sarebbe inventato. */
+  const perMq = v => { const u = tipoUnita(v && v.u); return u.k === 'mq' && u.per > 1 ? u.per : 1; };
+  const nelCampo = (v, q, nota) => perMq(v) === 1 ? q
+    : (nota || indice !== null ? String(Math.round(q * perMq(v) * 100) / 100).replace('.', ',') : '');
+  const inVolte = (v, n) => perMq(v) === 1 ? n : Math.round(n / perMq(v) * 100) / 100;
+  const etichettaQ = v => {
+    const c = document.getElementById('c-q'); if(!c) return;
+    const l = c.parentNode.querySelector('.lbl'), mq = perMq(v) > 1;
+    if(l) l.textContent = mq ? 'Quanti mq' : 'Quantità';
+    c.placeholder = mq ? 'I metri quadri, per esempio 320' : '';
+  };
+  const v0 = voce(t.voce);
   const o = {
     titolo: indice === null ? 'Aggiungi una lavorazione' : 'Modifica la lavorazione',
     sotto: indice === null ? 'Quello che il parlato non ha preso. Se scrivi come l\'hai chiamata, la prossima volta la riconosco da sola.'
                            : 'Quello che il parlato ha preso storto.',
-    valori: t,
+    valori: Object.assign({}, t, {q: nelCampo(v0, t.q, quantitaNota(v0, rilQui))}),
     campi:[
       {k:'voce', l:'Lavorazione', t:'scelta',
        opzioni: S.listino.map(v => [v.id, v.nome + ' — ' + euro(v.p) + ' ' + v.u])
@@ -4089,25 +4125,30 @@ function schedaLavorazione(idSopralluogo, indice){
       {k:'q', l:'Quantità', t:'numero'}
     ].concat(indice === null ? [{k:'detti', l:'Come l\'hai chiamata a voce? (facoltativo)', p:'taglio dell\'erba'}] : []),
     conto: d => {
-      const v = voce(d.voce); if(!v) return '';
-      const s = quantitaNota(v, rilQui);
+      const v = voce(d.voce); etichettaQ(v); if(!v) return '';
+      const s = quantitaNota(v, rilQui), q = inVolte(v, Number(d.q) || 0);
       /* la provenienza si scrive solo finche' il numero e' quello che diciamo noi:
          appena lui lo cambia, la riga sparisce e resta il conto */
-      const provenienza = s && Math.abs(Number(d.q) - s.q) < 0.005
+      const provenienza = s && Math.abs(q - s.q) < 0.005
         ? '<div style="color:var(--tenue);font-size:14.5px">' + esc(daDoveViene(s)) + '</div>' : '';
-      return contoDellaRiga({u:v.u, p:v.p, q:d.q}, null) + provenienza;
+      return contoDellaRiga({u:v.u, p:v.p, q}, null) + provenienza;
     },
-    ricalcola: (k, d) => k === 'voce' ? {q: quantitaProposta(voce(d.voce), rilQui)} : null,
+    ricalcola: (k, d) => {
+      if(k !== 'voce') return null;
+      const v = voce(d.voce), s = quantitaNota(v, rilQui);
+      return {q: nelCampo(v, quantitaProposta(v, rilQui), s)};
+    },
     controlla: d => (d.voce === '__nuova' || d.q > 0) ? null : 'Serve una quantità.',
     salva: d => {
       /* "non ce l'ho a listino": si passa alla scheda che la scrive per intero */
       if(d.voce === '__nuova'){ setTimeout(() => lavorazioneNuovaQui(idSopralluogo, indice), 0); return; }
+      const q = inVolte(voce(d.voce), d.q);
       if(indice === null){
-        s._trovate.push({voce:d.voce, q:d.q, aMano:true});
+        s._trovate.push({voce:d.voce, q, aMano:true});
         if(d.detti && ricordaFrase(d.voce, d.detti))
           o.messaggio = 'Lavorazione aggiunta, e ricordo come la chiami: la trovi nel listino sotto ' + voce(d.voce).nome + '.';
       } else {
-        Object.assign(t, {voce:d.voce, q:d.q, aMano:true}); delete t.dubbio;
+        Object.assign(t, {voce:d.voce, q, aMano:true}); delete t.dubbio;
         /* presa per un'altra lavorazione: si chiede se ricordare le parole dette */
         if(d.voce !== primaVoce && detto) setTimeout(() => chiediDiRicordare(d.voce, detto, primaVoce), 0);
       }
@@ -5938,7 +5979,7 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
          catasto e' la proprieta' (casa compresa) e resta una riga di riferimento.
          La quantita' del preventivo la segna lui col dito (Andrea, 28 settembre 2026). */
       if(latoFoto(d) && !zoneDi(d).length){
-        avvisa(haConfine(d) ? 'Rilievo pronto: segna il prato col dito. Il confine del catasto è solo indicativo: lo accendi e lo spegni dall’interruttore.'
+        avvisa(haConfine(d) ? 'Rilievo pronto: segna il prato col dito. Il confine del catasto è solo indicativo: lo accendi e lo spegni da «Altro», «Catasto».'
                             : 'Rilievo pronto: segna il prato col dito.');
         setTimeout(() => apriDisegno(idSopralluogo), 400);
         return;
@@ -6967,7 +7008,7 @@ function apriDisegno(idSopralluogo, idZona){
           anche quella senza righe si parte da quella, come prima; se invece la foto
           pulita va chiesta al satellite si parte con le righe, perche' in cortile
           senza campo una foto da scaricare e' un riquadro vuoto */
-       scorri:null, confini: !fotoSicura(ril.foto_pulita)};
+       scorri:null, confini: !fotoSicura(ril.foto_pulita), altro:false};
   const velo = document.createElement('div');
   velo.className = 'velo-disegno'; velo.id = 'disegno';
   velo.innerHTML = `
@@ -6999,22 +7040,26 @@ function apriDisegno(idSopralluogo, idZona){
           <button onclick="ingrandisci(-1)" aria-label="Foto più piccola" title="Foto più piccola">−</button>
           <button onclick="ingrandisci(1)" aria-label="Foto più grande" title="Foto più grande">+</button>
         </div>
-        <div class="zoom col-scritta" title="Quanto terreno entra dentro la foto">
-          <button id="d-meno-terreno" onclick="cambiaTerreno(-1)" aria-label="Meno terreno nella foto">− terreno</button>
-          <button id="d-piu-terreno" onclick="cambiaTerreno(1)" aria-label="Più terreno nella foto">+ terreno</button>
-        </div>
-        <div class="zoom">
-          <button onclick="gira(-15)" aria-label="Gira a sinistra" title="Gira la foto a sinistra">⟲</button>
-          <button onclick="gira(15)" aria-label="Gira a destra" title="Gira la foto a destra">⟳</button>
-        </div>
-        <button class="bottone vuoto piccolo" id="d-inquadra" onclick="inquadraAltrove()">Sposta la foto</button>
-        <button class="bottone vuoto piccolo" id="d-fonte" onclick="cambiaFonteFoto()">Cambia la foto</button>
         <button class="bottone vuoto piccolo" id="d-raddrizza" onclick="raddrizza()">Rimetti dritta</button>
-        ${fotoPulita(ril) ? interruttoreConfini('d-confini', 'cambiaConfini()') : ''}
-        <button class="bottone vuoto piccolo" id="d-correggi" onclick="tastoCorreggiConfini()">Correggi i confini</button>
         <button class="bottone vuoto piccolo" id="d-togli" onclick="togliPunto()">Togli l'ultimo punto</button>
         <button class="bottone vuoto piccolo" id="d-tagli" onclick="attivaTagli()">Interrompi la siepe</button>
         <button class="bottone piccolo" id="d-salva" onclick="salvaForma()">Salva la forma</button>
+        <button class="bottone vuoto piccolo" id="d-altro" onclick="apriAltroDisegno()" aria-expanded="false" aria-controls="d-altro-pannello">Altro</button>
+        <!-- sotto «Altro»: quello che serve una volta ogni tanto (giro del cliente scettico, 16/10) -->
+        <div class="altro-disegno" id="d-altro-pannello">
+          <div class="zoom col-scritta" title="Quanto terreno entra dentro la foto">
+            <button id="d-meno-terreno" onclick="cambiaTerreno(-1)" aria-label="Meno terreno nella foto">− terreno</button>
+            <button id="d-piu-terreno" onclick="cambiaTerreno(1)" aria-label="Più terreno nella foto">+ terreno</button>
+          </div>
+          <div class="zoom">
+            <button onclick="gira(-15)" aria-label="Gira a sinistra" title="Gira la foto a sinistra">⟲</button>
+            <button onclick="gira(15)" aria-label="Gira a destra" title="Gira la foto a destra">⟳</button>
+          </div>
+          <button class="bottone vuoto piccolo" id="d-inquadra" onclick="inquadraAltrove()">Sposta la foto</button>
+          <button class="bottone vuoto piccolo" id="d-fonte" onclick="cambiaFonteFoto()">Cambia la foto</button>
+          ${fotoPulita(ril) ? interruttoreConfini('d-confini', 'cambiaConfini()') : ''}
+          <button class="bottone vuoto piccolo" id="d-correggi" onclick="tastoCorreggiConfini()">Correggi i confini</button>
+        </div>
       </div>
     </div>`;
   document.body.appendChild(velo);
@@ -7038,6 +7083,10 @@ function chiudiDisegno(salvare, zitto){
   removeEventListener('keydown', tastoDisegno);
   const eraAperto = !!D; D = null; pinch = null;
   if(eraAperto && !zitto) vai();
+}
+function apriAltroDisegno(){
+  if(!D) return;
+  D.altro = !D.altro; ridisegna();
 }
 function tastoDisegno(e){
   if(!D) return;
@@ -7709,6 +7758,18 @@ function ridisegna(){
        come «questa e' la foto satellite», ed e' il contrario */
     if(altra) cam.textContent = altra.chiave === 'esri'
       ? 'Prova col satellite' : 'Prova la ' + nomeCortoFonte(altra.nome);
+  }
+  /* «Altro»: chiuso di partenza, cosi' sotto la foto restano i tasti per disegnare.
+     Resta aperto mentre si sta spostando la foto o correggendo i confini, perche' il
+     tasto per finire sta li' dentro. */
+  const pan = document.getElementById('d-altro-pannello'), alt = document.getElementById('d-altro');
+  if(pan && alt){
+    const obbligato = !!(D.inquadra || D.correggi);
+    const aperto = !!D.altro || obbligato;
+    pan.classList.toggle('aperto', aperto);
+    alt.textContent = aperto ? 'Nascondi' : 'Altro';
+    alt.setAttribute('aria-expanded', aperto ? 'true' : 'false');
+    alt.style.display = obbligato ? 'none' : '';
   }
   const passo = passoTerreno(lato || 150);
   const meno = document.getElementById('d-meno-terreno'), piu = document.getElementById('d-piu-terreno');
