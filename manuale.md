@@ -162,10 +162,10 @@ Il cuore del lavoro: cammini nel giardino e parli.
   - WhatsApp o mail, col messaggio già scritto con le voci e il totale.
   - Il PDF con la tua intestazione, da allegare.
 - **Tempo di lavoro:** sotto il totale l'app dice quanto ci metti ("circa 3 giorni") e le
-  ore, sommando le ore per unità scritte nel listino. Con − e + dici quante persone
-  lavorano. Le voci che nel listino non hanno le ore non contano, e l'app le elenca.
-- Le voci «ogni 100 mq» mostrano sotto il prezzo i metri quadri veri: 26 volte
-  «ogni 100 mq» è scritto "2.600 mq", e cambia mentre tocchi − e +.
+  ore, sommando le ore per unità scritte nel listino. Con − e + accanto a "da solo"
+  dici quante persone lavorano. Le voci senza ore nel listino non contano, e l'app le elenca.
+- Le voci «ogni 100 mq» si contano in metri quadri: fra − e + c'è "2.600 mq", e ogni
+  tocco vale 10 mq.
   Sul foglio del cliente la durata va solo se accendi «Scrivi la durata sul preventivo»,
   e ci vanno solo i giorni, mai le ore.
 - «Fallo firmare sul posto»: il cliente firma col dito sul telefono.

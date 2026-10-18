@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-17 02:08';
+const COSTRUITA = '2026-10-18 02:35';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2126,6 +2126,16 @@ const ORE_DI_PARTENZA = (() => {
 const allOra = u => /\bor[ae]\b/.test(senzaAccenti(String(u || '').toLowerCase()));
 /* le ore come si scrivono: 21,1 e 0,12, senza zeri in coda */
 const cifraOre = x => String(Math.round(x * 100) / 100).replace('.', ',');
+/* «Tempo: 0,06 ore al metro» un giardiniere non lo dice: sotto l'ora si scrive in
+   minuti, «4 minuti al metro», «20 minuti ogni 100 mq» (18 ottobre 2026) */
+function tempoScritto(h){
+  if(h === 1) return 'un\'ora';
+  if(h > 0 && h < 1){
+    const m = Math.max(1, Math.round(h * 60));
+    return m === 1 ? 'un minuto' : m === 30 ? 'mezz\'ora' : m + ' minuti';
+  }
+  return cifraOre(h) + ' ore';
+}
 function oreDellaVoce(v){
   if(!v) return null;
   if(typeof v.h === 'number' && isFinite(v.h) && v.h >= 0) return v.h;
@@ -2182,10 +2192,10 @@ function giorniScritti(g){
 function tempoHtml(p){
   const t = tempoDelLavoro(p);
   if(!t.contate) return '';
-  const oreDette = t.ore === 1 ? 'un\'ora' : cifraOre(t.ore) + ' ore';
+  const oreDette = tempoScritto(t.ore);
   return `<div class="riga-tot" style="color:var(--inchiostro)"><span>Tempo di lavoro${t.ripete ? ', a ogni passaggio' : ''}</span><span><b>circa ${giorniScritti(t.giorni)}</b></span></div>
-    <div class="riga-tot"><span>${oreDette} di lavoro, ${t.persone === 1 ? 'da solo' : 'in ' + t.persone}</span>
-      <span class="qta" style="transform:scale(.86);transform-origin:right center"><button onclick="personeAlLavoro('${p.id}',-1)" aria-label="Una persona in meno">−</button><span>${t.persone}</span><button onclick="personeAlLavoro('${p.id}',1)" aria-label="Una persona in più">+</button></span></div>
+    <div class="riga-tot"><span>${oreDette} di lavoro</span>
+      <span class="qta" id="persone-al-lavoro" style="transform:scale(.86);transform-origin:right center"><button onclick="personeAlLavoro('${p.id}',-1)" aria-label="Una persona in meno">−</button><span style="padding:0 4px;white-space:nowrap">${t.persone === 1 ? 'da solo' : 'in ' + t.persone}</span><button onclick="personeAlLavoro('${p.id}',1)" aria-label="Una persona in più">+</button></span></div>
     <div class="riga-tot"><span>Scrivi la durata sul preventivo</span>
       <div class="interr ${p.durata ? 'on' : ''}" id="durata-sul-foglio" role="switch" aria-checked="${p.durata ? 'true' : 'false'}"
         aria-label="Scrivi la durata sul preventivo" onclick="durataSulFoglio('${p.id}')"></div></div>
@@ -3741,30 +3751,37 @@ function fotoVoceDalTelefono(input){
 function schedaRiga(id, k){
   const p = prev(id), r = p.righe[k];
   fotoVoceInArrivo = undefined;
+  /* anche qui la quantita' di una voce "ogni 100 mq" si scrive in metri quadri:
+     «26» nel campo erano 2.600 mq (18 ottobre 2026) */
+  const campoMq = perMqDi(r.u) > 1;
+  const qVera = d => !(d.q > 0) || !campoMq ? d.q
+    : perMqDi(d.u) > 1 ? Math.round(d.q / perMqDi(d.u) * 100) / 100 : d.q;
   scheda({
     titolo: 'Modifica la voce',
     sotto: 'Vale solo su questo preventivo. Il listino non si tocca.',
     extra: '<input type="file" id="foto-voce" accept="image/*" style="display:none" onchange="fotoVoceDalTelefono(this)">',
     dopoCampi: `<div id="vista-foto-voce" class="vista-scontrino">${vistaFotoVoce(fotoVoceBuona(r.foto) ? r.foto : null)}</div>`,
-    valori: Object.assign({}, r, {iva:aliquotaRiga(p,r), facoltativa: r.facoltativa ? 'si' : 'no', volte: volteRiga(r) > 1 ? r.volte : ''}),
+    valori: Object.assign({}, r, {iva:aliquotaRiga(p,r), facoltativa: r.facoltativa ? 'si' : 'no', volte: volteRiga(r) > 1 ? r.volte : '',
+      q: campoMq ? Math.round(r.q * perMqDi(r.u)) : r.q}),
     campi:[
       {k:'nome', l:'Lavorazione'},
       {k:'u', l:'Unità', t:'scelta', m:true, opzioni: unitaConLaSua(r.u)},
       {k:'p', l:'Prezzo in euro', t:'numero', m:true},
       {k:'iva', l:'IVA %', t:'numero', m:true},
-      {k:'q', l:'Quantità', t:'numero', m:true, facoltativo:true, p:'A corpo non conta'},
+      campoMq ? {k:'q', l:'Quanti mq', t:'numero', m:true, facoltativo:true, p:'I metri quadri, per esempio 320'}
+              : {k:'q', l:'Quantità', t:'numero', m:true, facoltativo:true, p:'A corpo non conta'},
       {k:'volte', l:'Volte nell\'anno', t:'numero', m:true, facoltativo:true, p:'Vuoto se si fa una volta'},
       {k:'facoltativa', l:'Nel preventivo', t:'scelta',
        opzioni:[['no','Compresa nel totale'], ['si','Facoltativa: la proponi a parte, il cliente sceglie']]}
     ],
-    conto: d => contoDellaRiga(d, r),
+    conto: d => contoDellaRiga(Object.assign({}, d, {q: qVera(d)}), r),
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
       : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.'
       : (d.volte !== null && !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60)
          ? 'Le volte nell\'anno sono un numero intero, da 1 a 60.' : null),
     salva: d => {
       const primaP = r.p;
-      Object.assign(r, {nome:d.nome, u:d.u, p:d.p, iva:d.iva, q: (d.q > 0 ? d.q : 1)});
+      Object.assign(r, {nome:d.nome, u:d.u, p:d.p, iva:d.iva, q: (d.q > 0 ? qVera(d) : 1)});
       if(fotoVoceInArrivo === null) delete r.foto;
       else if(fotoVoceInArrivo && fotoVoceBuona(fotoVoceInArrivo)) r.foto = fotoVoceInArrivo;
       fotoVoceInArrivo = undefined;
@@ -11991,11 +12008,11 @@ function disegnaVoci(id){
     <div class="voce ${r.on?'':'spenta'}" id="v-${k}">
       <div class="sotto-voce">
         <div class="nome modificabile" onclick="schedaRiga('${id}',${k})" title="Cambia nome, prezzo, volte nell'anno, o rendila facoltativa">${esc(r.nome)}</div>
-        <div class="det">${euro(r.p)} ${esc(r.u)}${mqVeri(r) ? ` · <span id="mq-${k}">${mqVeri(r)}</span>` : ''} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}${fotoVoceBuona(r.foto) ? ' · con foto' : ''}</div>
+        <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}${fotoVoceBuona(r.foto) ? ' · con foto' : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${aCorpo(r) ? '<div class="a-corpo">prezzo fisso</div>' : `<div class="qta">
-          <button onclick="qta('${id}',${k},-1)" aria-label="Meno">−</button><span id="q-${k}">${cifra(r.q)}</span><button onclick="qta('${id}',${k},1)" aria-label="Più">+</button>
+          <button onclick="qta('${id}',${k},-1)" aria-label="${perMqDi(r.u) > 1 ? '10 mq in meno' : 'Meno'}">−</button><span id="q-${k}">${qtaScritta(r)}</span><button onclick="qta('${id}',${k},1)" aria-label="${perMqDi(r.u) > 1 ? '10 mq in più' : 'Più'}">+</button>
         </div>`}
         <div class="interr ${r.on?'on':''}" id="i-${k}" role="switch" aria-checked="${r.on?'true':'false'}"
              aria-label="${r.on ? 'Togli dal totale' : 'Rimetti nel totale'}: ${esc(r.nome)}"
@@ -12014,17 +12031,27 @@ function mqVeri(r){
   const t = tipoUnita(r.u);
   return t.k === 'mq' && t.per > 1 ? cifra(Math.round(r.q * t.per), 0) + ' mq' : '';
 }
+/* Il «−/+» di una voce "ogni 100 mq" diceva «26», e sotto «2.600 mq»: il giardiniere
+   contava le volte del prezzo, e un tocco su + aggiungeva 100 mq di colpo. Ora il
+   numero e' in metri quadri, «2.600 mq», e un tocco vale 10 mq. Dietro restano le
+   volte, come prima (giro del 18 ottobre 2026; lo stesso campo in mq del 17/10). */
+function perMqDi(u){ const t = tipoUnita(u); return t.k === 'mq' && t.per > 1 ? t.per : 1; }
+function qtaScritta(r){
+  const per = perMqDi(r.u);
+  return per > 1 ? cifra(Math.round(r.q * per), 0) + ' mq' : cifra(r.q);
+}
 function qta(id,k,d){
   /* 1,36 volte "ogni 100 mq" piu' uno fa 2,36: si arrotonda al centesimo, se no
      a schermo compariva 2,3600000000000003 */
-  const p = prev(id), q = Math.round((p.righe[k].q + d) * 100) / 100;
+  const p = prev(id), per = perMqDi(p.righe[k].u), passo = per > 1 ? 10 / per : 1;
+  const q = Math.round((p.righe[k].q + d * passo) * 100) / 100;
   /* a zero la voce restava sul foglio del cliente con «0» e «€ 0», come un errore
      (la scheda della voce lo zero non lo accetta gia'). Per toglierla c'e' l'interruttore */
   if(q <= 0){ avvisa('Meno di così no. Per toglierla dal totale spegni il suo interruttore.'); return; }
   p.righe[k].q = q;
   /* appena la tocca lui, la misura non manca piu' */
   if(p.righe[k].daMisurare){ delete p.righe[k].daMisurare; disegnaVoci(id); }
-  else document.getElementById('q-'+k).textContent = cifra(p.righe[k].q);
+  else document.getElementById('q-'+k).textContent = qtaScritta(p.righe[k]);
   salva(); calcola(id);
 }
 function accendi(id,k){
@@ -12138,7 +12165,7 @@ PAGINE.listino = {
             ? `<div style="font-size:14px;color:var(--tenue);margin-top:3px">A voce: ${esc(v.detti)}</div>`
             : `<div style="margin-top:3px"><a href="#listino" onclick="schedaVoce('${v.id}');return false" style="font-size:14px;color:var(--accento)">Come la chiami a voce?</a></div>`}${
             oreDellaVoce(v) != null && !(allOra(v.u) && oreDellaVoce(v) === 1)
-            ? `<div class="ore-voce" style="font-size:14px;color:var(--tenue);margin-top:3px">Tempo: ${oreDellaVoce(v) === 1 ? 'un\'ora' : cifraOre(oreDellaVoce(v)) + ' ore'} ${esc(v.u)}</div>`
+            ? `<div class="ore-voce" style="font-size:14px;color:var(--tenue);margin-top:3px">Tempo: ${tempoScritto(oreDellaVoce(v))} ${esc(v.u)}</div>`
             : `<div style="margin-top:3px"><a href="#listino" class="ore-mancano" onclick="oreDalPreventivo('${v.id}',true);return false" style="font-size:14px;color:var(--accento)">Quanto tempo ci metti?</a></div>`}</td>
           <td>${esc(v.u)}</td>
           <td class="n"><span style="color:var(--tenue)">€</span>
