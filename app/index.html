@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-18 02:35';
+const COSTRUITA = '2026-10-19 02:14';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2199,10 +2199,18 @@ function tempoHtml(p){
     <div class="riga-tot"><span>Scrivi la durata sul preventivo</span>
       <div class="interr ${p.durata ? 'on' : ''}" id="durata-sul-foglio" role="switch" aria-checked="${p.durata ? 'true' : 'false'}"
         aria-label="Scrivi la durata sul preventivo" onclick="durataSulFoglio('${p.id}')"></div></div>
-    ${t.senza.length ? `<p class="aiuto-voci" style="margin-top:4px">Non contate, perché nel listino non hanno le ore: ${esc(t.senza.join(', '))}.${
-      t.senzaVoci.length < t.senza.length ? ` <a href="#listino" style="color:var(--accento)">Mettile nel listino</a>.` : ''}</p>
+    ${t.senza.length ? `<p class="aiuto-voci" style="margin-top:4px">${fraseSenzaOre(t.senza)}${
+      t.senzaVoci.length < t.senza.length ? ` <a href="#listino" style="color:var(--accento)">${t.senza.length === 1 ? 'Mettila' : 'Mettile'} nel listino</a>.` : ''}</p>
       ${t.senzaVoci.length ? `<div class="azioni" id="ore-mancanti" style="margin-top:6px">${t.senzaVoci.map(v =>
         `<button class="bottone vuoto piccolo" onclick="oreDalPreventivo('${v.id}')">Ore per ${esc(v.nome)}</button>`).join('')}</div>` : ''}` : ''}`;
+}
+/* «Non contate, perché nel listino non hanno le ore: Concimazione.» al plurale anche
+   per una voce sola, e col nome in fondo. Ora: «Concimazione non è contata: nel listino
+   non ha le ore.» (19 ottobre 2026) */
+function fraseSenzaOre(nomi){
+  const n = nomi.map(esc), uno = n.length === 1;
+  const chi = uno ? n[0] : n.slice(0, -1).join(', ') + ' e ' + n[n.length - 1];
+  return chi + (uno ? ' non è contata: nel listino non ha le ore.' : ' non sono contate: nel listino non hanno le ore.');
 }
 function personeAlLavoro(id, d){
   const p = prev(id); if(!p) return;
@@ -12036,9 +12044,17 @@ function mqVeri(r){
    numero e' in metri quadri, «2.600 mq», e un tocco vale 10 mq. Dietro restano le
    volte, come prima (giro del 18 ottobre 2026; lo stesso campo in mq del 17/10). */
 function perMqDi(u){ const t = tipoUnita(u); return t.k === 'mq' && t.per > 1 ? t.per : 1; }
+/* fra − e + della siepe c'era «60» da solo: sessanta cosa? Le voci al metro dicono
+   «60 m», quelle al metro quadro «42 mq», quelle a ore «3 ore». I pezzi restano un
+   numero: la parola giusta («piante», «viaggi») sta gia' nel prezzo sopra (19 ottobre 2026) */
 function qtaScritta(r){
-  const per = perMqDi(r.u);
-  return per > 1 ? cifra(Math.round(r.q * per), 0) + ' mq' : cifra(r.q);
+  const per = perMqDi(r.u), t = tipoUnita(r.u);
+  if(per > 1) return cifra(Math.round(r.q * per), 0) + ' mq';
+  if(aCorpo(r)) return cifra(r.q);
+  if(t.k === 'mq') return cifra(r.q) + ' mq';
+  if(t.k === 'm') return cifra(r.q) + ' m';
+  if(t.k === 'ore') return cifra(r.q) + (r.q === 1 ? ' ora' : ' ore');
+  return cifra(r.q);
 }
 function qta(id,k,d){
   /* 1,36 volte "ogni 100 mq" piu' uno fa 2,36: si arrotonda al centesimo, se no
@@ -12082,7 +12098,11 @@ function aggiungiRiga(id){
   const s = quantitaNota(v, g && g.ril);
   p.righe.push({v:v.id, q: s && s.q > 0 ? s.q : 1, p:v.p, nome:v.nome, u:v.u, iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true, aMano:true});
   salva(); vai();
-  if(s) avvisa(v.nome + ': ' + cifra(s.q, 2) + ' ' + v.u + '. ' + daDoveViene(s));
+  /* l'avviso diceva «Sfalcio prato: 3,20 ogni 100 mq. Dal disegno sulla foto: 320 mq»:
+     le volte del prezzo, che nessuno conta, e la misura detta due volte. Ora dice la
+     misura una volta, come la legge il giardiniere (19 ottobre 2026) */
+  if(s) avvisa(v.nome + ': ' + (s.da === 'disegno' ? scriviMisura(s.parte, s.misura) + ', dal disegno sulla foto.'
+    : qtaScritta({q: s.q, u: v.u}) + '.'));
 }
 /* Una lavorazione nuova mentre il cliente e' davanti: non ce l'hai a listino, la
    scrivi adesso col suo prezzo ed entra subito nel preventivo. Se vuoi, resta anche
