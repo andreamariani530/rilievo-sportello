@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-19 02:14';
+const COSTRUITA = '2026-10-20 02:14';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2205,12 +2205,13 @@ function tempoHtml(p){
         `<button class="bottone vuoto piccolo" onclick="oreDalPreventivo('${v.id}')">Ore per ${esc(v.nome)}</button>`).join('')}</div>` : ''}` : ''}`;
 }
 /* «Non contate, perché nel listino non hanno le ore: Concimazione.» al plurale anche
-   per una voce sola, e col nome in fondo. Ora: «Concimazione non è contata: nel listino
-   non ha le ore.» (19 ottobre 2026) */
+   per una voce sola, e col nome in fondo (19 ottobre 2026). Poi «Smaltimento verde non è
+   contata»: il femminile va bene per Concimazione, non per un nome maschile. «Resta fuori
+   dal conto» non ha genere e vale per ogni voce (20 ottobre 2026). */
 function fraseSenzaOre(nomi){
   const n = nomi.map(esc), uno = n.length === 1;
   const chi = uno ? n[0] : n.slice(0, -1).join(', ') + ' e ' + n[n.length - 1];
-  return chi + (uno ? ' non è contata: nel listino non ha le ore.' : ' non sono contate: nel listino non hanno le ore.');
+  return chi + (uno ? ' resta fuori dal conto: nel listino non ha le ore.' : ' restano fuori dal conto: nel listino non hanno le ore.');
 }
 function personeAlLavoro(id, d){
   const p = prev(id); if(!p) return;
@@ -12417,7 +12418,7 @@ PAGINE.numeri = {
               <div class="barra" style="width:${Math.max(1, Math.round(m.fatto * 100 / alto))}%"></div>
               <div class="barra pieno" style="width:${Math.max(1, Math.round(m.incassato * 100 / alto))}%"></div>
             </div>
-            <div class="cifre">${cifra(m.fatto, 0)}<br><span style="color:var(--accento)">${cifra(m.incassato, 0)}</span></div>
+            <div class="cifre">€ ${cifra(m.fatto, 0)}<br><span style="color:var(--accento)">€ ${cifra(m.incassato, 0)}</span></div>
           </div>`).join('')}
         <div class="legenda">
           <span><i></i> Preventivi consegnati</span>
@@ -12431,7 +12432,7 @@ PAGINE.numeri = {
             <div class="mese larga">
               <div class="nome">${esc(x.nome)}</div>
               <div class="barre"><div class="barra pieno" style="width:${Math.max(1, Math.round(x.quanto * 100 / (resa[0].quanto || 1)))}%"></div></div>
-              <div class="cifre">${cifra(x.quanto, 0)}</div>
+              <div class="cifre">€ ${cifra(x.quanto, 0)}</div>
             </div>`).join('') + `
             <p style="font-size:15px;color:var(--tenue);margin-top:12px">${resa.length === 1
               ? `Questa voce vale ${euro(totResa)} del lavoro che hai preso.`
@@ -14240,9 +14241,12 @@ PAGINE.piani = {
     </div>
     <div class="riquadro" style="margin-top:22px;max-width:640px" id="conto-piano">
       <div class="lbl" style="margin-bottom:10px">Quando partono i pagamenti, da ${m.nome.toLowerCase()}</div>
-      <div class="riga-tot"><span>${base.nome}</span><span>${base.prezzo} €</span></div>
-      ${personeInSquadra ? `<div class="riga-tot"><span>Squadra, ${personeInSquadra} × ${PIANI.squadra.prezzo} €</span><span>${personeInSquadra * PIANI.squadra.prezzo} €</span></div>` : ''}
-      <div class="riga-tot"><span><b>Al mese</b></span><span><b>${totale} €</b></span></div>
+      ${/* senza squadra «Pro 40 €» e sotto «Al mese 40 €»: lo stesso numero due volte
+           (20 ottobre 2026). Da soli una riga; la somma solo quando c'e' da sommare */
+        personeInSquadra ? `<div class="riga-tot"><span>${base.nome}</span><span>${base.prezzo} €</span></div>
+      <div class="riga-tot"><span>Squadra, ${personeInSquadra} × ${PIANI.squadra.prezzo} €</span><span>${personeInSquadra * PIANI.squadra.prezzo} €</span></div>
+      <div class="riga-tot"><span><b>Al mese</b></span><span><b>${totale} €</b></span></div>`
+        : `<div class="riga-tot"><span><b>${base.nome}, al mese</b></span><span><b>${totale} €</b></span></div>`}
       <p style="font-size:15px;color:var(--tenue);margin-top:10px">${m.piano === 'pro'
         ? 'Lavori all’aperto: il rilievo dall’alto ti fa risparmiare il metro.'
         : 'Se lavori anche all’aperto (terrazzi, giardini, recinzioni) ti serve Pro, per il rilievo dall’alto.'}
