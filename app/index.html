@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-20 02:14';
+const COSTRUITA = '2026-10-21 02:09';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3762,16 +3762,16 @@ function schedaRiga(id, k){
   fotoVoceInArrivo = undefined;
   /* anche qui la quantita' di una voce "ogni 100 mq" si scrive in metri quadri:
      «26» nel campo erano 2.600 mq (18 ottobre 2026) */
-  const campoMq = perMqDi(r.u) > 1;
-  const qVera = d => !(d.q > 0) || !campoMq ? d.q
-    : perMqDi(d.u) > 1 ? Math.round(d.q / perMqDi(d.u) * 100) / 100 : d.q;
+  const campoMq = tipoUnita(r.u).k === 'mq';
+  // Convert using the selected unit, retaining fractional square metres.
+  const qVera = d => d.q > 0 ? Number((d.q / perMqDi(d.u)).toPrecision(12)) : d.q;
   scheda({
     titolo: 'Modifica la voce',
     sotto: 'Vale solo su questo preventivo. Il listino non si tocca.',
     extra: '<input type="file" id="foto-voce" accept="image/*" style="display:none" onchange="fotoVoceDalTelefono(this)">',
     dopoCampi: `<div id="vista-foto-voce" class="vista-scontrino">${vistaFotoVoce(fotoVoceBuona(r.foto) ? r.foto : null)}</div>`,
     valori: Object.assign({}, r, {iva:aliquotaRiga(p,r), facoltativa: r.facoltativa ? 'si' : 'no', volte: volteRiga(r) > 1 ? r.volte : '',
-      q: campoMq ? Math.round(r.q * perMqDi(r.u)) : r.q}),
+      q: String(Number((r.q * perMqDi(r.u)).toPrecision(12))).replace('.', ',')}),
     campi:[
       {k:'nome', l:'Lavorazione'},
       {k:'u', l:'Unità', t:'scelta', m:true, opzioni: unitaConLaSua(r.u)},
@@ -3785,6 +3785,7 @@ function schedaRiga(id, k){
     ],
     conto: d => contoDellaRiga(Object.assign({}, d, {q: qVera(d)}), r),
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
+      : !aCorpo(d) && !(d.q > 0) ? 'Scrivi una quantità maggiore di zero.'
       : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.'
       : (d.volte !== null && !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60)
          ? 'Le volte nell\'anno sono un numero intero, da 1 a 60.' : null),
@@ -3812,6 +3813,17 @@ function schedaRiga(id, k){
       avvisaConTasto('Voce aggiornata.', 'Tieni ' + euro(x.p) + ' anche nel listino', () => tieniNelListino(x.v, x.p));
     }
   });
+  // Keep the label aligned with the current unit without rewriting user input.
+  const unita = document.getElementById('c-u'), quantita = document.getElementById('c-q');
+  const aggiornaQuantita = () => {
+    const mq = tipoUnita(unita.value).k === 'mq';
+    const nome = mq ? 'Quanti mq' : 'Quantità';
+    quantita.closest('label').querySelector('.lbl').textContent = nome;
+    quantita.placeholder = mq ? 'I metri quadri, per esempio 320' : aCorpo({u:unita.value}) ? 'A corpo non conta' : 'Per esempio 12,5';
+    schedaAperta.campi.find(c => c.k === 'q').l = nome;
+  };
+  unita.addEventListener('change', aggiornaQuantita);
+  aggiornaQuantita();
 }
 let prezzoNelListino = null;
 function tieniNelListino(idVoce, prezzo){
@@ -12050,7 +12062,7 @@ function perMqDi(u){ const t = tipoUnita(u); return t.k === 'mq' && t.per > 1 ? 
    numero: la parola giusta («piante», «viaggi») sta gia' nel prezzo sopra (19 ottobre 2026) */
 function qtaScritta(r){
   const per = perMqDi(r.u), t = tipoUnita(r.u);
-  if(per > 1) return cifra(Math.round(r.q * per), 0) + ' mq';
+  if(per > 1) return cifra(r.q * per) + ' mq';
   if(aCorpo(r)) return cifra(r.q);
   if(t.k === 'mq') return cifra(r.q) + ' mq';
   if(t.k === 'm') return cifra(r.q) + ' m';
@@ -12061,7 +12073,7 @@ function qta(id,k,d){
   /* 1,36 volte "ogni 100 mq" piu' uno fa 2,36: si arrotonda al centesimo, se no
      a schermo compariva 2,3600000000000003 */
   const p = prev(id), per = perMqDi(p.righe[k].u), passo = per > 1 ? 10 / per : 1;
-  const q = Math.round((p.righe[k].q + d * passo) * 100) / 100;
+  const q = per > 1 ? Number((p.righe[k].q + d * passo).toPrecision(12)) : Math.round((p.righe[k].q + d * passo) * 100) / 100;
   /* a zero la voce restava sul foglio del cliente con «0» e «€ 0», come un errore
      (la scheda della voce lo zero non lo accetta gia'). Per toglierla c'e' l'interruttore */
   if(q <= 0){ avvisa('Meno di così no. Per toglierla dal totale spegni il suo interruttore.'); return; }

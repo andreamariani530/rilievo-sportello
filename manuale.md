@@ -134,13 +134,13 @@ Il cuore del lavoro: cammini nel giardino e parli.
 - L'elenco ha le linguette: Tutti, Bozze, Senza risposta, Accettati, Pagati, Da incassare,
   Non andati, Messi via. Si vedono solo quelle che hanno qualcosa dentro.
   «+ Nuovo preventivo» per farne uno senza sopralluogo.
-- Dentro un preventivo cambi quantità con − e + (il − non scende a zero: per togliere una
-  voce si spegne il suo interruttore), spegni una voce col suo interruttore (esce dal
-  totale e si riaccende), aggiungi una voce del listino con «Aggiungi questa» o una nuova
-  con «+ Voce nuova», metti lo sconto: il totale si rifà subito davanti al cliente.
-  Se cambi il prezzo di una voce presa dal listino, l'avviso offre un tasto «Tieni» col
-  prezzo nuovo «anche nel listino»: toccalo e il prossimo preventivo esce col prezzo nuovo (quelli già mandati
-  non cambiano). Se non lo tocchi, il listino resta com'era.
+- Nel preventivo cambi quantità con − e +. Per escludere una voce, spegni il suo
+  interruttore; riaccendilo per rimetterla. Aggiungi dal listino con «Aggiungi questa»
+  o crea con «+ Voce nuova». Quantità e sconto aggiornano subito il totale.
+  Cambiando un prezzo, «Tieni» lo salva «anche nel listino» per i preventivi futuri.
+  Senza toccarlo, il listino resta invariato. I preventivi già mandati non cambiano.
+- Le quantità in metri quadri conservano i decimali anche cambiando unità di prezzo.
+  Una quantità vuota, zero o negativa va corretta prima di salvare; a corpo non serve.
 - Toccando il nome di una voce si apre «Modifica la voce»: lì c'è anche «Metti una foto»
   (la caldaia, il faretto, la pianta). La foto finisce piccola accanto alla voce, nel PDF e
   sul link; la riga dice «con foto». «Toglila» la toglie.
