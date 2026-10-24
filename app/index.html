@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-21 02:09';
+const COSTRUITA = '2026-10-24 02:06';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3330,7 +3330,9 @@ function scheda(o){
   chiudiScheda();
   const v = o.valori || {};
   const campo = c => {
-    const val = v[c.k] === undefined || v[c.k] === null ? '' : v[c.k];
+    const raw = v[c.k] === undefined || v[c.k] === null ? '' : v[c.k];
+    // Stored numbers use a decimal comma so reopening cannot turn decimals into thousands.
+    const val = c.t === 'numero' && typeof raw === 'number' ? String(raw).replace('.', ',') : raw;
     if(c.t === 'lungo')
       return `<textarea class="campo" id="c-${c.k}" placeholder="${esc(c.p||'')}">${esc(val)}</textarea>`;
     if(c.t === 'scelta')
@@ -4103,7 +4105,7 @@ function lavorazioneNuovaQui(idSopralluogo, indice){
       {k:'nome', l:'Come si chiama', p:'Rifacimento vialetto in ghiaia'},
       {k:'u', l:'Come la conti', t:'scelta', opzioni:unitaDelMestiere()},
       {k:'p', l:'Prezzo in euro', t:'numero', p:'450'},
-      {k:'q', l:'Quanta ne serve qui', t:'numero', m:true, p:'A corpo non conta'},
+      {k:'q', l:'Quanta ne serve qui', t:'numero', m:true},
       {k:'detti', l:'Come la chiami a voce (facoltativo)', m:true, p:'rifare il vialetto'}
     ],
     /* scritto il nome e scelto come si conta, la quantita' la mette il giardino:
@@ -4111,7 +4113,8 @@ function lavorazioneNuovaQui(idSopralluogo, indice){
     ricalcola: (k, d) => (k === 'u' || k === 'nome')
       ? {q: quantitaProposta({nome:d.nome, u:d.u, p:d.p}, rilievoDelSopralluogo(s))} : null,
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
-      : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.' : null,
+      : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.'
+      : !aPrezzoFisso(d.u) && !(d.q > 0) ? 'Scrivi una quantità maggiore di zero.' : null,
     testoSalva: 'Aggiungila',
     salva: d => {
       const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p};
@@ -4143,7 +4146,8 @@ function schedaLavorazione(idSopralluogo, indice){
   const perMq = v => { const u = tipoUnita(v && v.u); return u.k === 'mq' && u.per > 1 ? u.per : 1; };
   const nelCampo = (v, q, nota) => perMq(v) === 1 ? q
     : (nota || indice !== null ? String(Math.round(q * perMq(v) * 100) / 100).replace('.', ',') : '');
-  const inVolte = (v, n) => perMq(v) === 1 ? n : Math.round(n / perMq(v) * 100) / 100;
+  // Preserve area precision when converting square metres to price units.
+  const inVolte = (v, n) => perMq(v) === 1 ? n : Number((n / perMq(v)).toPrecision(12));
   const etichettaQ = v => {
     const c = document.getElementById('c-q'); if(!c) return;
     const l = c.parentNode.querySelector('.lbl'), mq = perMq(v) > 1;
