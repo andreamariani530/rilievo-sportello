@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-24 02:06';
+const COSTRUITA = '2026-10-25 02:07';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1870,7 +1870,7 @@ function chiediDitta(){
     valori: {iva: 22},
     campi:[
       {k:'nome',  l:'Nome della ditta', p:'Es. Mario Rossi e figli'},
-      {k:'tel',   l:'Telefono', p:'Es. 340 1234567'}
+      {k:'tel',   l:'Telefono', t:'tel', p:'Es. 340 1234567'}
     ],
     testoSalva: 'Comincio',
     salta: {testo: 'Salta', fai: () => { passo('salta'); partiMia({nome: '', tel: '', iva: 22}); }},
@@ -3338,8 +3338,9 @@ function scheda(o){
     if(c.t === 'scelta')
       return `<select class="campo" id="c-${c.k}">${c.opzioni.map(x =>
         `<option value="${esc(x[0])}" ${String(x[0])===String(val)?'selected':''}>${esc(x[1])}</option>`).join('')}</select>`;
-    const tipo = c.t === 'data' ? 'date' : c.t === 'ora' ? 'time' : c.t === 'password' ? 'password' : c.t === 'mail' ? 'email' : 'text';
+    const tipo = c.t === 'data' ? 'date' : c.t === 'ora' ? 'time' : c.t === 'password' ? 'password' : c.t === 'mail' ? 'email' : c.t === 'tel' ? 'tel' : 'text';
     const extra = c.t === 'numero' ? ' inputmode="decimal"'
+      : c.t === 'tel' ? ' autocomplete="tel"'
       : c.t === 'password' ? ' autocomplete="' + (c.nuova ? 'new-password' : 'current-password') + '"'
       : c.t === 'mail' ? ' autocomplete="email" autocapitalize="off" spellcheck="false"' : '';
     return `<input class="campo" id="c-${c.k}" type="${tipo}"${extra} value="${esc(val)}" placeholder="${esc(c.p||'')}">`;
@@ -3425,7 +3426,7 @@ function scheda(o){
         Object.keys(nuovi).forEach(k => {
           if(k === c.k || suoi.has(k) || nuovi[k] === null || nuovi[k] === undefined) return;
           const campo = document.getElementById('c-' + k); if(!campo) return;
-          campo.value = nuovi[k];
+          campo.value = typeof nuovi[k] === 'number' ? String(nuovi[k]).replace('.', ',') : nuovi[k];
           campo.dispatchEvent(new Event('input'));
           suoi.delete(k);
         });
@@ -3524,7 +3525,7 @@ function schedaRichiesta(id){
     valori: r || {canale:'Telefonata', arrivata:S.oggi, stato:'da_richiamare'},
     campi:[
       {k:'nome', l:'Nome', p:'Sig.ra Rossi'},
-      {k:'tel', l:'Telefono', p:'340 1234567'},
+      {k:'tel', l:'Telefono', t:'tel', p:'340 1234567'},
       {k:'luogo', l:'Paese', p:'Pandino (CR)'},
       {k:'indirizzo', l:'Indirizzo', p:'Via Roma 4, 26025 Pandino (CR)'},
       {k:'cosa', l:'Cosa vuole', t:'lungo', p:"Due parole, come te l'ha detto lei."},
@@ -3567,8 +3568,8 @@ function schedaCliente(id, per){
       {k:'luogo', l:'Paese', p:'Pandino'},
       {k:'indirizzo', l:'Indirizzo', p:'Via Castello 18, 26025 Pandino (CR)'},
       ...(fatt ? CAMPI_CLIENTE_FATTURA : []),
-      {k:'tel', l:'Telefono', p:'339 8817742'},
-      {k:'mail', l:'Mail', p:'nome@esempio.it'},
+      {k:'tel', l:'Telefono', t:'tel', p:'339 8817742'},
+      {k:'mail', l:'Mail', t:'mail', p:'nome@esempio.it'},
       {k:'dal', l:'Cliente dal', t:'data'},
       {k:'note', l:'Note', t:'lungo', p:'Quello che ti serve ricordare di lui.'}
     ],
@@ -4057,12 +4058,25 @@ function unitaSuggerita(u, q){
 /* Una lavorazione detta a voce che a listino non c'e': gli si chiede il prezzo qui,
    sul posto, e da quel momento e' nel suo listino con le parole con cui l'ha detta.
    Il listino cresce lavorando, invece di doverlo scrivere a tavolino una sera. */
+// New tasks always ask for physical measurements, including prices per 100 sqm.
+function etichettaMisuraNuova(){
+  const unita = document.getElementById('c-u'), quantita = document.getElementById('c-q');
+  const aggiorna = () => {
+    const mq = tipoUnita(unita.value).k === 'mq';
+    const label = mq ? 'Quanti mq' : 'Quanta ne serve qui';
+    quantita.closest('label').querySelector('.lbl').textContent = label;
+    quantita.placeholder = mq ? 'I metri quadri, per esempio 320' : aPrezzoFisso(unita.value) ? 'A corpo non conta' : 'Per esempio 12,5';
+    schedaAperta.campi.find(c => c.k === 'q').l = label;
+  };
+  unita.addEventListener('change', aggiorna);
+  aggiorna();
+}
+
 function mettiAListino(idSopralluogo, indice){
   const s = sopr(idSopralluogo); if(!s) return;
   const t = (s._trovate || [])[indice]; if(!t || !t.nuova) return;
   const u = unitaSuggerita(t.u, t.q);
-  const tipo = tipoUnita(u);
-  const quanto = t.q ? Math.round(t.q / tipo.per * 100) / 100 : 1;
+  const quanto = t.q > 0 ? t.q : 1;
   scheda({
     titolo: 'Non ce l\'hai a listino',
     sotto: 'L\'hai detta così: «' + t.detto + '». Dimmi quanto la fai pagare e la metto nel tuo listino: '
@@ -4082,12 +4096,13 @@ function mettiAListino(idSopralluogo, indice){
       const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p};
       if(t.detto) nuova.detti = t.detto;
       S.listino.push(nuova);
-      s._trovate[indice] = {voce: nuova.id, q: d.q, aMano: true};
+      s._trovate[indice] = {voce: nuova.id, q: Number((d.q / perMqDi(d.u)).toPrecision(12)), aMano: true};
     },
     elimina: () => { s._trovate.splice(indice, 1); },
     testoElimina: 'Lascio perdere questa lavorazione: non entra nel preventivo.',
     messaggio: 'Messa a listino. D\'ora in poi la riconosco quando la dici.'
   });
+  etichettaMisuraNuova();
 }
 const primaMaiuscola = t => String(t || '').charAt(0).toUpperCase() + String(t || '').slice(1);
 
@@ -4110,8 +4125,13 @@ function lavorazioneNuovaQui(idSopralluogo, indice){
     ],
     /* scritto il nome e scelto come si conta, la quantita' la mette il giardino:
        "Potatura siepe" + "al metro" prende i metri di siepe che stanno sulla foto */
-    ricalcola: (k, d) => (k === 'u' || k === 'nome')
-      ? {q: quantitaProposta({nome:d.nome, u:d.u, p:d.p}, rilievoDelSopralluogo(s))} : null,
+    ricalcola: (k, d) => {
+      if(k !== 'u' && k !== 'nome') return null;
+      const v = {nome:d.nome, u:d.u, p:d.p};
+      const nota = quantitaNota(v, rilievoDelSopralluogo(s));
+      // Use the measured area directly, avoiding rounding price units first.
+      return {q: nota ? (tipoUnita(d.u).k === 'mq' ? nota.misura : nota.q) : (tipoUnita(d.u).k === 'mq' ? '' : 1)};
+    },
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
       : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.'
       : !aPrezzoFisso(d.u) && !(d.q > 0) ? 'Scrivi una quantità maggiore di zero.' : null,
@@ -4120,12 +4140,13 @@ function lavorazioneNuovaQui(idSopralluogo, indice){
       const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p};
       if(d.detti) nuova.detti = d.detti;
       S.listino.push(nuova);
-      const riga = {voce: nuova.id, q: (d.q > 0 ? d.q : 1), aMano: true};
+      const riga = {voce: nuova.id, q: (d.q > 0 ? Number((d.q / perMqDi(d.u)).toPrecision(12)) : 1), aMano: true};
       if(indice === null || indice === undefined || !s._trovate[indice]) s._trovate.push(riga);
       else s._trovate[indice] = riga;
     },
     messaggio: 'Aggiunta, e messa nel tuo listino: la prossima volta la riconosco anche a voce.'
   });
+  etichettaMisuraNuova();
 }
 
 function schedaLavorazione(idSopralluogo, indice){
@@ -4518,8 +4539,8 @@ function schedaAzienda(per){
       {k:'piva', l:'Partita IVA', m:true, p:'01234567890'},
       ...(fatt ? CAMPI_DITTA_FATTURA : []),
       {k:'iva', l:'Aliquota IVA', t:'numero', m:true, p:'22'},
-      {k:'tel', l:'Telefono', m:true, p:'340 1234567'},
-      {k:'mail', l:'Mail', m:true, p:'info@esempio.it'},
+      {k:'tel', l:'Telefono', t:'tel', m:true, p:'340 1234567'},
+      {k:'mail', l:'Mail', t:'mail', m:true, p:'info@esempio.it'},
       {k:'validita', l:'Il preventivo vale (giorni)', t:'numero', m:true, facoltativo:true, p:'30'},
       {k:'acconto', l:'Acconto alla firma (%)', t:'numero', m:true, facoltativo:true, p:'Vuoto se non lo chiedi'},
       {k:'iban', l:'IBAN per i bonifici', p:'Se lo scrivi, il cliente vede come pagarti'},
@@ -13109,7 +13130,7 @@ function primaIlNome(poi){
     valori: {nome: '', tel: S.azienda.tel || ''},
     campi: [
       {k:'nome', l:'Nome della ditta', p:'Es. Mario Rossi e figli'},
-      {k:'tel',  l:'Telefono', p:'Es. 340 1234567'}
+      {k:'tel',  l:'Telefono', t:'tel', p:'Es. 340 1234567'}
     ],
     controlla: d => d.nome ? null : 'Scrivi il nome: senza, il preventivo esce senza intestazione.',
     testoSalva: 'Avanti',
@@ -13573,7 +13594,7 @@ function chiediSquadra(){
     valori: {nome: a.nome || '', tel: a.tel || a.telefono || '', quanti: ''},
     campi:[
       {k:'nome',   l:'La tua ditta',                  p:'Giardini Conti'},
-      {k:'tel',    l:'Il tuo numero',                 p:'328 000 0000'},
+      {k:'tel',    l:'Il tuo numero', t:'tel',                 p:'328 000 0000'},
       {k:'quanti', l:'Quante persone la userebbero',  p:'noi siamo in tre'}
     ],
     controlla: d => !d.nome ? 'Serve il nome della ditta.'
@@ -13869,7 +13890,7 @@ function schedaLavoro(id){
   if(!soloCapo){
     campi.push({k:'cliente',   l:'Cliente',   p:'Condominio Aurora'});
     campi.push({k:'indirizzo', l:'Indirizzo', p:'Via Roma 4, Lodi'});
-    campi.push({k:'telefono',  l:'Telefono',  p:'0371 000111', m:true});
+    campi.push({k:'telefono',  l:'Telefono', t:'tel',  p:'0371 000111', m:true});
     campi.push({k:'prezzo',    l:'Prezzo',    t:'numero', p:'450', m:true});
   }
   campi.push({k:'stato', l:'A che punto è', t:'scelta',
