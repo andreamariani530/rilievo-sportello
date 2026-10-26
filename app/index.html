@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-25 02:07';
+const COSTRUITA = '2026-10-26 03:05';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -12164,14 +12164,16 @@ function rigaNuovaQui(id){
     ricalcola: (k, d) => {
       if(k !== 'u' && k !== 'nome') return null;
       const g = giardinoDelPreventivo(p);
-      return {q: quantitaProposta({nome:d.nome, u:d.u, p:d.p}, g && g.ril)};
+      const nota = quantitaNota({nome:d.nome, u:d.u, p:d.p}, g && g.ril);
+      return {q: nota ? (tipoUnita(d.u).k === 'mq' ? nota.misura : nota.q) : (tipoUnita(d.u).k === 'mq' ? '' : 1)};
     },
     controlla: d => !d.nome ? 'Serve il nome della voce.'
       : !(d.p > 0) ? 'Serve il prezzo: è quello che finisce sul preventivo.'
+      : !aPrezzoFisso(d.u) && !(d.q > 0) ? 'Scrivi una quantità maggiore di zero.'
       : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.' : null,
     testoSalva: 'Mettila nel preventivo',
     salva: d => {
-      const q = (d.q > 0) ? d.q : 1;
+      const q = d.q > 0 ? Number((d.q / perMqDi(d.u)).toPrecision(12)) : 1;
       let idVoce = null;
       if(d.tieni !== 'no'){
         const nuova = {id: nuovoId('v'), nome: d.nome, u: d.u, p: d.p, iva:d.iva};
@@ -12181,6 +12183,7 @@ function rigaNuovaQui(id){
     },
     messaggio: 'Voce aggiunta al preventivo.'
   });
+  etichettaMisuraNuova();
 }
 function calcola(id){
   const p = prev(id); if(!p) return;
@@ -12228,7 +12231,7 @@ PAGINE.listino = {
           <td>${esc(v.u)}</td>
           <td class="n"><span style="color:var(--tenue)">€</span>
               <input class="campo" style="width:96px;text-align:right;padding:6px 8px;display:inline-block"
-              value="${v.p}" inputmode="decimal" onchange="cambiaPrezzo('${v.id}',this.value)"></td>
+              value="${esc(String(v.p).replace('.', ','))}" inputmode="decimal" onchange="cambiaPrezzo('${v.id}',this.value)"></td>
           <td class="n">${cifra(typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0))}%</td>
           <td class="n">${usataScritta(usata(v.id))}</td>
           <td class="n" style="width:40px">${comandi([{t:'Modifica o cancella', i:MATITA, f:`schedaVoce('${v.id}')`}])}</td>
