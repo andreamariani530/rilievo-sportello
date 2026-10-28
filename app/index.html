@@ -1507,7 +1507,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-26 03:05';
+const COSTRUITA = '2026-10-28 03:05';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3778,7 +3778,7 @@ function schedaRiga(id, k){
     campi:[
       {k:'nome', l:'Lavorazione'},
       {k:'u', l:'Unità', t:'scelta', m:true, opzioni: unitaConLaSua(r.u)},
-      {k:'p', l:'Prezzo in euro', t:'numero', m:true},
+      {k:'p', l:'Prezzo in euro', t:'numero', m:true, facoltativo:true},
       {k:'iva', l:'IVA %', t:'numero', m:true},
       campoMq ? {k:'q', l:'Quanti mq', t:'numero', m:true, facoltativo:true, p:'I metri quadri, per esempio 320'}
               : {k:'q', l:'Quantità', t:'numero', m:true, facoltativo:true, p:'A corpo non conta'},
@@ -3788,6 +3788,7 @@ function schedaRiga(id, k){
     ],
     conto: d => contoDellaRiga(Object.assign({}, d, {q: qVera(d)}), r),
     controlla: d => !d.nome ? 'Serve il nome della lavorazione.'
+      : d.p === null || !Number.isFinite(d.p) || d.p < 0 ? 'Scrivi un prezzo da zero in su. Per una voce gratuita scrivi 0.'
       : !aCorpo(d) && !(d.q > 0) ? 'Scrivi una quantità maggiore di zero.'
       : !(d.iva >= 0 && d.iva <= 100) ? 'L’IVA va da 0 a 100.'
       : (d.volte !== null && !(Number.isInteger(d.volte) && d.volte >= 1 && d.volte <= 60)
@@ -9500,7 +9501,7 @@ function mettiLeStanze(trovate, stanze, listino){
   const quanto = (v, parti, alta) => {
     const st = alta ? stanze.map(s => Object.assign({}, s, {h: alta})) : stanze;
     const mq = parti.reduce((t, p) => t + metriDaStanze(st, p), 0);
-    return Math.round(mq / tipoUnita(v.u).per * 100) / 100;
+    return Number((mq / tipoUnita(v.u).per).toPrecision(12));
   };
   const nomi = new Set(STANZE), via = [];
   trovate.forEach(t => {
@@ -9563,7 +9564,7 @@ function unisciTratti(liste){
       if(!g.detto && detto) g.detto = detto; return;
     }
     if(t.senzaNumero) return;
-    g.q = Math.round((g.q + t.q) * 100) / 100;
+    g.q = Number((g.q + t.q).toPrecision(12));
     if(t.stanza) g.stanza = g.stanza ? g.stanza + ' + ' + t.stanza : t.stanza;
   }));
   return tutte;
@@ -9711,7 +9712,8 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
       /* "potatura degli alberi", senza dire quanti: vale 1, ma si segna, cosi'
          se sulla foto gli alberi sono stati contati il preventivo prende quelli */
       const senzaNumero = !dubbio && g.voce.tipo.k === 'pezzi' && !numeri.some(n => n.u === 'pezzi' || n.u === null);
-      const q = dubbio ? 1 : Math.round(grezza / g.voce.tipo.per * 100) / 100;
+      // Price units are not measurements: rounding here would discard fractional square metres.
+      const q = dubbio ? 1 : Number((grezza / g.voce.tipo.per).toPrecision(12));
       /* le parole dette per questa lavorazione, senza numeri, misure e parolette: se
          l'artigiano la corregge, l'app gli propone di ricordarle ("facciamo taglio erba") */
       const detto = g.tok.filter(w => numeroDetto(w) == null && CIRCA[w] == null && !UNITA_DOPO[w] &&
@@ -9735,7 +9737,7 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
         /* p[0] * 2 === somma vuol dire: il primo numero e' grande quanto tutti gli altri
            messi insieme, cioe' era il totale e quelli dopo erano il suo elenco. */
         const elenco = g.voce.tipo.k === 'pezzi' && p.length >= 3 && Math.abs(p[0] * 2 - somma) < 1e-9;
-        gia.q = Math.round((elenco ? p[0] : somma) * 100) / 100;
+        gia.q = Number((elenco ? p[0] : somma).toPrecision(12));
       }
     });
   });
@@ -12075,7 +12077,7 @@ function disegnaVoci(id){
 function mqVeri(r){
   if(!r || aCorpo(r)) return '';
   const t = tipoUnita(r.u);
-  return t.k === 'mq' && t.per > 1 ? cifra(Math.round(r.q * t.per), 0) + ' mq' : '';
+  return t.k === 'mq' && t.per > 1 ? cifra(r.q * t.per) + ' mq' : '';
 }
 /* Il «−/+» di una voce "ogni 100 mq" diceva «26», e sotto «2.600 mq»: il giardiniere
    contava le volte del prezzo, e un tocco su + aggiungeva 100 mq di colpo. Ora il
@@ -12679,9 +12681,9 @@ PAGINE.documento = {
     const rate = Number.isInteger(p.rate) && p.rate > 1 ? p.rate : 0;
     const rateCarta = rateDi(c, rate, acconto);
     /* "1,36 ogni 100 mq" al cliente non dice niente: sotto si scrive quanti mq sono */
-    const dettaglio = r => { const t = tipoUnita(r.u);
+    const dettaglio = (r, misura = true) => { const t = tipoUnita(r.u);
       if(aCorpo(r)) return 'tutto compreso';
-      return esc(r.u) + (t.per > 1 ? ' · ' + cifra(Math.round(r.q * t.per), 0) + ' mq' : ''); };
+      return esc(r.u) + (misura && t.per > 1 ? ' · ' + cifra(r.q * t.per) + ' mq' : ''); };
     const firma = firmaBuona(p) ? p.firma : null;
     return `<div class="foglio">
       <div class="intestazione">
@@ -12714,8 +12716,8 @@ PAGINE.documento = {
         <thead><tr><th>Lavorazione</th><th class="n">Quantità</th><th class="n">Prezzo</th><th class="n">Importo</th></tr></thead>
         <tbody>
           ${righe.map(r => `<tr>
-            <td>${fotoVoceBuona(r.foto) ? `<div class="voce-con-foto"><img class="foto-voce" src="${r.foto}" alt=""><div>` : ''}${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}</div>${fotoVoceBuona(r.foto) ? '</div></div>' : ''}</td>
-            <td class="n" data-l="Quantità">${aCorpo(r) ? 'a corpo' : cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
+            <td>${fotoVoceBuona(r.foto) ? `<div class="voce-con-foto"><img class="foto-voce" src="${r.foto}" alt=""><div>` : ''}${esc(r.nome)}<div class="sub-doc">${dettaglio(r, false)}</div>${fotoVoceBuona(r.foto) ? '</div></div>' : ''}</td>
+            <td class="n" data-l="Quantità">${aCorpo(r) ? 'a corpo' : perMqDi(r.u) > 1 ? qtaScritta(r) : cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
             <td class="n" data-l="Prezzo">${euro(r.p)}</td>
             <td class="n" data-l="Importo">${euro(importoRiga(r))}</td>
           </tr>`).join('')}
