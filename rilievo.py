@@ -1002,15 +1002,23 @@ def _chiedi_al_wfs(lat, lon, lato_m=14.0, insisti=False):
         "La seconda porta del catasto non manda le particelle in questo momento.")
 
 
-def _particella_dal_wfs(lat, lon, insisti=False):
-    """Il punto -> la particella che lo contiene, letta dalla seconda porta.
+# Il catasto e' lento solo la prima volta che gli si chiede una zona: 6-20 secondi
+# per un quadratino nuovo, 0,15 per uno gia' chiesto. Il rilievo ne chiedeva una
+# decina diversi intorno alla casa (la spirale quando il civico cade in strada, i
+# punti intorno alla particella), e ognuno costava il prezzo pieno: 50-67 secondi
+# per un indirizzo nuovo (giro del cliente scettico, 29 ottobre 2026). Ora si
+# chiede una volta sola una zona di ZONA_WFS_M metri, che copre tutta la spirale,
+# e le particelle si cercano qui dentro: una domanda invece di dieci.
+ZONA_WFS_M = 70.0
+ZONA_WFS_DURATA = 600.0
+_ZONE_WFS = []                  # (scadenza, lat0, lon0, lat1, lon1, particelle)
+_ZONE_WFS_LUCCHETTO = threading.Lock()
 
-    Torna lo stesso foglietto della prima porta (codice, comune, sezione,
-    foglio, particella, riquadro), piu' il confine disegnato punto per punto.
-    None se li' non c'e' nessun lotto. Se la porta non risponde alza
-    CatastoOccupato, cosi' chi ha chiamato sa che deve provare l'altra.
-    """
-    radice = ET.fromstring(_chiedi_al_wfs(lat, lon, insisti=insisti))
+
+def _particelle_dal_testo(testo):
+    """Tutte le particelle di una risposta del WFS: codice e confini."""
+    trovate = []
+    radice = ET.fromstring(testo)
     for pezzo in radice.iter():
         if not pezzo.tag.endswith("}CadastralParcel"):
             continue
@@ -1020,11 +1028,51 @@ def _particella_dal_wfs(lat, lon, insisti=False):
                 codice = (campo.text or "").strip()
         if not codice:
             continue
-        confini = [e for e in pezzo.iter() if e.tag.endswith("}posList")]
-        for confine in confini:
+        confini = []
+        for confine in [e for e in pezzo.iter() if e.tag.endswith("}posList")]:
             n = [float(v) for v in (confine.text or "").split()]
             punti = list(zip(n[0::2], n[1::2]))       # il catasto scrive lat poi lon
-            if len(punti) < 3 or not _dentro_il_confine(punti, lat, lon):
+            if len(punti) >= 3:
+                confini.append(punti)
+        if confini:
+            trovate.append((codice, confini))
+    return trovate
+
+
+def _zona_wfs(lat, lon, insisti=False):
+    """Le particelle intorno al punto: dalla memoria se la zona e' gia' stata
+    chiesta da poco, se no con una domanda sola al catasto. Con `insisti` (il
+    controllo /catasto-risponde) si chiede sempre di nuovo: deve sentire il catasto
+    vero, non la memoria."""
+    margine = 2.0 / 111320.0                        # il punto deve stare ben dentro
+    adesso = time.time()
+    with _ZONE_WFS_LUCCHETTO:
+        _ZONE_WFS[:] = [z for z in _ZONE_WFS if z[0] > adesso]
+        for _, la0, lo0, la1, lo1, particelle in ([] if insisti else _ZONE_WFS):
+            if la0 + margine <= lat <= la1 - margine and lo0 + margine <= lon <= lo1 - margine:
+                return particelle
+    particelle = _particelle_dal_testo(_chiedi_al_wfs(lat, lon, lato_m=ZONA_WFS_M,
+                                                     insisti=insisti))
+    d = (ZONA_WFS_M / 2) / 111320.0
+    dlon = d / max(0.2, math.cos(math.radians(lat)))
+    with _ZONE_WFS_LUCCHETTO:
+        _ZONE_WFS.append((adesso + ZONA_WFS_DURATA, lat - d, lon - dlon, lat + d, lon + dlon,
+                          particelle))
+        del _ZONE_WFS[:-40]
+    return particelle
+
+
+def _particella_dal_wfs(lat, lon, insisti=False):
+    """Il punto -> la particella che lo contiene, letta dalla seconda porta.
+
+    Torna lo stesso foglietto della prima porta (codice, comune, sezione,
+    foglio, particella, riquadro), piu' il confine disegnato punto per punto.
+    None se li' non c'e' nessun lotto. Se la porta non risponde alza
+    CatastoOccupato, cosi' chi ha chiamato sa che deve provare l'altra.
+    """
+    for codice, confini in _zona_wfs(lat, lon, insisti=insisti):
+        for punti in confini:
+            if not _dentro_il_confine(punti, lat, lon):
                 continue
             comune, sezione, foglio, part = _leggi_codice_catastale(codice)
             if not _e_una_particella_vera(part):
