@@ -210,7 +210,7 @@ th.n{text-align:right;padding-right:0}
 .finestra h3{font-size:28px;margin-bottom:4px}
 .finestra .sopra{margin-bottom:20px}
 .finestra .piede{display:flex;gap:10px;align-items:center;margin-top:24px;padding-top:18px;
-  border-top:1px solid var(--filetto);flex-wrap:wrap;position:relative;z-index:3;background:var(--bianco)}
+  border-top:1px solid var(--filetto);flex-wrap:wrap;position:sticky;bottom:-30px;padding-bottom:14px;z-index:3;background:var(--bianco)}
 .finestra .piede .a-destra{margin-left:auto}
 .finestra .errore-scheda{flex-basis:100%;margin:0 0 4px;color:#8C4A3F;font-size:15.5px;line-height:1.4}
 .finestra .errore-scheda:empty{display:none}
@@ -236,7 +236,10 @@ th.n{text-align:right;padding-right:0}
     transform:translateX(-102%);transition:transform .26s ease;box-shadow:0 0 40px rgba(0,0,0,.18);
   }
   aside.aperta{transform:none}
-  .velo{position:fixed;inset:0;background:rgba(27,25,23,.35);z-index:35;display:none}
+  /* aperto, il menu sta sopra la barra in basso: «Piani e prezzi» e «Privacy» finivano
+     sotto la barra e il tocco apriva «Sopralluogo» (cliente scettico, 29/10/2026) */
+  aside{z-index:60}
+  .velo{position:fixed;inset:0;background:rgba(27,25,23,.35);z-index:55;display:none}
   .velo.on{display:block}
   .barra-mobile{
     display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--bianco);
@@ -1520,7 +1523,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-29 20:54';
+const COSTRUITA = '2026-10-29 21:25';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2239,8 +2242,11 @@ function tempoHtml(p){
   const t = tempoDelLavoro(p);
   if(!t.contate) return '';
   const oreDette = tempoScritto(t.ore);
-  return `<div class="riga-tot" style="color:var(--inchiostro)"><span>Tempo di lavoro${t.ripete ? ', a ogni passaggio' : ''}</span><span><b>circa ${giorniScritti(t.giorni)}</b></span></div>
-    <div class="riga-tot"><span>${oreDette} di lavoro</span>
+  /* sotto le quattro ore «circa mezza giornata» stava sopra «54 minuti di lavoro»: due
+     misure diverse dello stesso tempo (29/10/2026). Un lavoro corto si dice in ore o minuti */
+  const corto = t.giorni < 0.5;
+  return `<div class="riga-tot" style="color:var(--inchiostro)"><span>Tempo di lavoro${t.ripete ? ', a ogni passaggio' : ''}</span><span><b>circa ${corto ? tempoScritto(t.ore / t.persone) : giorniScritti(t.giorni)}</b></span></div>
+    <div class="riga-tot"><span>${corto ? 'Chi ci lavora' : oreDette + ' di lavoro'}</span>
       <span class="qta" id="persone-al-lavoro" style="transform:scale(.86);transform-origin:right center"><button onclick="personeAlLavoro('${p.id}',-1)" aria-label="Una persona in meno">−</button><span style="padding:0 4px;white-space:nowrap">${t.persone === 1 ? 'da solo' : 'in ' + t.persone}</span><button onclick="personeAlLavoro('${p.id}',1)" aria-label="Una persona in più">+</button></span></div>
     <div class="riga-tot"><span>Scrivi la durata sul preventivo</span>
       <div class="interr ${p.durata ? 'on' : ''}" id="durata-sul-foglio" role="switch" aria-checked="${p.durata ? 'true' : 'false'}"
