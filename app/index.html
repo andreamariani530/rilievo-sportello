@@ -454,6 +454,10 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
 body.porta-aperta{overflow:hidden}
 .porta{width:100%;max-width:900px}
 .porta-marchio{text-align:center;margin-bottom:24px}
+.porta-cosa{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;max-width:580px;margin:-18px auto 30px}
+.porta-cosa span{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--filetto);border-radius:999px;
+  padding:5px 12px;font-family:'Jost',sans-serif;font-size:13px;color:var(--soft);background:#fff}
+.porta-cosa svg{width:15px;height:15px;stroke:var(--casa-verde, #6f8466);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .porta-marchio .nome{font-family:'Cormorant',Georgia,serif;font-size:54px;line-height:1}
 .porta-marchio .lbl{margin-top:9px}
 .porta-testo{text-align:center;max-width:580px;margin:0 auto 34px;font-size:19px;
@@ -1018,6 +1022,15 @@ button.via{font:inherit;text-align:left;width:100%}
 .casa-domande button.urgente{border-color:#dfb79b;background:var(--casa-caldo2)}
 .casa-domande button.urgente svg{stroke:var(--casa-caldo)}
 .casa-riquadri{display:grid;grid-template-columns:1fr 1fr;gap:8.7px;margin-top:8.7px}
+.casa-ditta{margin-top:14px;border:1px solid var(--casa-filo2);border-radius:14px;background:#fff;padding:4px 12px}
+.casa-ditta .etichetta-ditta{font-family:'Jost',sans-serif;font-size:9.4px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--casa-muto);padding:9px 0 4px}
+.ditta-riga{display:grid;grid-template-columns:20px 1fr auto;column-gap:10px;align-items:center;padding:9px 0;
+  border-top:1px solid var(--casa-filo2);color:var(--inchiostro);text-decoration:none}
+.ditta-riga svg{width:17px;height:17px;stroke:var(--casa-verde);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;grid-row:span 2}
+.ditta-riga span{font-family:'Jost',sans-serif;font-size:14px}
+.ditta-riga b{font-family:'Cormorant',Georgia,serif;font-weight:500;font-size:22px;line-height:1;grid-row:span 2;white-space:nowrap}
+.ditta-riga em{font-style:normal;font-size:11.5px;color:var(--casa-muto);line-height:1.3}
 .casa-riquadri .riquadro{margin:0;border:1px solid var(--casa-filo2);border-radius:14px;background:#fff;box-shadow:none;
   padding:10.8px 12px;min-height:141px;text-align:left;font:inherit;color:var(--inchiostro);cursor:pointer;
   display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;
@@ -1251,7 +1264,7 @@ var AVVIO_DAL = Date.now(), AVVIO_FERMA = 1600;
   <aside id="lato">
     <div class="marchio">
       <div class="nome" id="marchio-nome">Rilievo</div>
-      <div class="sotto">Preventivi per artigiani</div>
+      <div class="sotto">L&rsquo;ufficio della ditta, nel telefono</div>
     </div>
     <nav id="nav">
       <div class="gruppo lbl">La giornata</div>
@@ -1507,7 +1520,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-28 03:05';
+const COSTRUITA = '2026-10-29 20:12';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1809,17 +1822,23 @@ function apriPorta(){
     <div class="porta">
       <div class="porta-marchio">
         <div class="nome">Rilievo</div>
-        <div class="lbl">Preventivi per artigiani</div>
+        <div class="lbl">L&rsquo;ufficio della ditta, nel telefono</div>
       </div>
-      <p class="porta-testo">Dal sopralluogo al preventivo consegnato, senza tornare in ufficio.
-        Detti il lavoro a voce, il preventivo esce da s&eacute;.</p>
+      <p class="porta-testo">Clienti, preventivi, fatture e incassi in un posto solo, sul telefono e sul computer.
+        Il preventivo lo fai sul posto, anche a corpo, e la sera resta tua.</p>
+      <!-- 29/10/2026: un giardiniere ha detto «e' la stessa cosa che faccio la sera al PC».
+           Vedeva solo il preventivo: qui si dice subito che dentro c'e' tutta la ditta -->
+      <div class="porta-cosa" aria-label="Cosa c'e' dentro">
+        <span>${iconaCasa('cliente')}Clienti</span><span>${iconaCasa('foglio')}Preventivi</span>
+        <span>${iconaCasa('ricevuta')}Fatture e documenti</span><span>${iconaCasa('soldi')}Incassi</span>
+      </div>
       ${sceltaMestiere(mestiereInArrivo)}
       <div class="porta-scelte">
         <button class="strada" id="strada-demo">
           <div class="lbl">Due minuti</div>
           <h3>Guarda com&rsquo;&egrave; fatta</h3>
-          <p>Entri nella giornata gi&agrave; piena di un giardiniere: un condominio che ha chiamato,
-             il rilievo fatto dal solo indirizzo, il preventivo che esce da s&eacute;. Ditta di esempio,
+          <p>Entri nella ditta gi&agrave; piena di un giardiniere: i clienti coi loro lavori, i preventivi,
+             le fatture, chi deve ancora pagare. E il giardino misurato dal solo indirizzo. Ditta di esempio,
              numeri di esempio.${mestiereInArrivo && mestiereInArrivo !== 'giardiniere'
                ? ' Con la tua ditta invece parte gi&agrave; da ' + mestiereDi(mestiereInArrivo).nome.toLowerCase() + ', col tuo listino.' : ''}</p>
           <span class="porta-via">Vedi la dimostrazione &rarr;</span>
@@ -1944,6 +1963,9 @@ const MESTIERI = [
   {id:'serramentista',  nome:'Serramentista',  sotto:'Finestre, porte e tapparelle', piano:'preventivi'},
   {id:'muratore',       nome:'Muratore',       sotto:'Muri, intonaci e cartongesso', piano:'preventivi'},
   {id:'termoidraulico', nome:'Termoidraulico', sotto:'Caldaie e condizionatori', piano:'preventivi'},
+  /* 29 ottobre 2026: un cliente vicino a Malpensa fa disinfestazione. Piano Pro: il
+     trattamento contro le zanzare si fa sul giardino, e il giardino Rilievo lo misura. */
+  {id:'disinfestatore', nome:'Disinfestatore', sotto:'Zanzare, topi e insetti', piano:'pro'},
   {id:'altro',         nome:'Altro',         sotto:'Lavori per la casa', piano:'preventivi'}
 ];
 const mestiereDi = id => MESTIERI.find(m => m.id === id) || MESTIERI[0];
@@ -2107,7 +2129,31 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "al-ora", "nome": "Manodopera", "u": "all'ora", "p": 40.55, "h": 1}, 
     {"id": "al-materiale", "nome": "Materiale", "u": "a corpo", "p": 50}, 
     {"id": "al-uscita", "nome": "Uscita e trasferta", "u": "a corpo", "p": 35}, 
-    {"id": "al-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180}]}};
+    {"id": "al-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180}]}, "disinfestatore": {"fonte": "Media Lombardia 2026: Prezzario Regione Lombardia 2026 (piccioni, piante), gare pubbliche (Universita' di Milano, Comune di Mirandola) e prezzi delle ditte lombarde", "voci": [
+    {"id": "di-uscita", "nome": "Uscita e sopralluogo", "u": "a intervento", "p": 60, "detti": "sopralluogo, diagnosi, uscita", "h": 0.5}, 
+    {"id": "di-zanzare", "nome": "Trattamento contro le zanzare", "u": "ogni 100 mq", "p": 20, "detti": "zanzare, zanzara tigre, adulticida", "h": 0.25}, 
+    {"id": "di-zanzstag", "nome": "Contratto zanzare stagionale, 7 passaggi da maggio a settembre", "u": "a contratto", "p": 800, "detti": "stagionale zanzare, abbonamento zanzare", "h": 7}, 
+    {"id": "di-larvicida", "nome": "Antilarvale nei tombini", "u": "a tombino", "p": 4, "detti": "antilarvale, larvicida, pastiglie nei tombini", "h": 0.05}, 
+    {"id": "di-derat", "nome": "Derattizzazione della casa", "u": "a intervento", "p": 150, "detti": "derattizzazione, topi, ratti", "h": 1}, 
+    {"id": "di-erogatore", "nome": "Erogatore di esca in piu'", "u": "a postazione", "p": 25, "detti": "erogatore, esca, trappola", "h": 0.15}, 
+    {"id": "di-controllo", "nome": "Controllo e monitoraggio degli erogatori", "u": "a postazione", "p": 6, "detti": "controllo erogatori, monitoraggio", "h": 0.08}, 
+    {"id": "di-deratanno", "nome": "Contratto derattizzazione annuale, 12 passaggi", "u": "a contratto", "p": 660, "detti": "derattizzazione annuale, contratto topi", "h": 6}, 
+    {"id": "di-deratcond", "nome": "Contratto derattizzazione condominio, 4 visite l'anno", "u": "a contratto", "p": 850, "detti": "condominio, derattizzazione condominio", "h": 4}, 
+    {"id": "di-vespe", "nome": "Nido di vespe", "u": "a nido", "p": 120, "detti": "vespe, nido di vespe", "h": 0.6}, 
+    {"id": "di-calabroni", "nome": "Nido di calabroni o in alto", "u": "a nido", "p": 250, "detti": "calabroni, velutina, nido in alto", "h": 1.2}, 
+    {"id": "di-blatte", "nome": "Blatte in casa, fino a 80 mq", "u": "a intervento", "p": 130, "detti": "blatte, scarafaggi", "h": 1}, 
+    {"id": "di-blattecant", "nome": "Blatte in tombini e cantine", "u": "a intervento", "p": 150, "detti": "blatte in cantina, scarafaggi in cantina", "h": 1}, 
+    {"id": "di-cimici", "nome": "Cimici dei letti", "u": "a stanza", "p": 130, "detti": "cimici, cimici dei letti", "h": 1.25}, 
+    {"id": "di-pulci", "nome": "Pulci e zecche in casa", "u": "a intervento", "p": 120, "detti": "pulci, zecche", "h": 0.8}, 
+    {"id": "di-formiche", "nome": "Formiche", "u": "a intervento", "p": 90, "detti": "formiche", "h": 0.6}, 
+    {"id": "di-processionaria", "nome": "Processionaria, nidi tolti", "u": "a pianta", "p": 180, "detti": "processionaria, bruchi", "h": 1.5}, 
+    {"id": "di-endoterapia", "nome": "Endoterapia nel tronco", "u": "a pianta", "p": 100, "detti": "endoterapia, iniezione", "h": 0.6}, 
+    {"id": "di-piante", "nome": "Antiparassitario su arbusti e aiuole", "u": "ogni 100 mq", "p": 20, "detti": "antiparassitario, aiuole, arbusti", "h": 0.25}, 
+    {"id": "di-punte", "nome": "Dissuasori a punte per piccioni", "u": "al metro", "p": 18, "detti": "punte, dissuasori, piccioni", "h": 0.2}, 
+    {"id": "di-rete", "nome": "Rete antipiccione", "u": "al metro quadro", "p": 20, "detti": "rete antipiccione", "h": 0.2}, 
+    {"id": "di-guano", "nome": "Pulizia del guano dei piccioni", "u": "al metro quadro", "p": 15, "detti": "guano", "h": 0.2}, 
+    {"id": "di-sanifica", "nome": "Sanificazione degli ambienti", "u": "al metro quadro", "p": 1.5, "detti": "sanificazione, igienizzazione", "h": 0.02}, 
+    {"id": "di-ora", "nome": "Ora di un operatore", "u": "all'ora", "p": 60, "detti": "operatore, manodopera", "h": 1}]}};
 
 /* ===== QUANTO TEMPO CI METTO (Andrea, 4 ottobre 2026) =====
    «Portiamoci avanti anche con gli altri lavori». Dalle quantita' del preventivo alle
@@ -2248,6 +2294,7 @@ const ESEMPI_VOCE = {
   serramentista: {nome:'Finestra in PVC, tapparella, cassonetto…', u:'al metro quadro', detti:'finestra, infisso, serramento', nuova:'Cambio della maniglia della porta'},
   muratore:      {nome:'Tramezzo, intonaco, sacco di malta…', u:'al metro quadro', detti:'tramezzo, tavolato, muro di forati', nuova:'Rifacimento del gradino della cantina'},
   termoidraulico:{nome:'Caldaia, valvola, raccordi…', u:'a pezzo', detti:'caldaia, generatore', nuova:'Spostamento della caldaia sul balcone'},
+  disinfestatore:{nome:'Trattamento, esca, erogatore…', u:'a intervento', detti:'zanzare, adulticida', nuova:'Chiusura dei passaggi dei topi'},
   altro:         {nome:'Manodopera, materiale, trasferta…', u:'all’ora', detti:'le parole che usi tu, separate da una virgola', nuova:'Montaggio di una mensola'}
 };
 /* come si detta un lavoro, e come sta scritto un preventivo vecchio, per ogni mestiere */
@@ -2260,6 +2307,7 @@ const ESEMPI_PARLATO = {
   serramentista: 'tre finestre 120 per 140 con le tapparelle',
   muratore: 'tramezzo in forati dodici metri quadri, sei metri di traccia',
   termoidraulico: 'caldaia a condensazione, quattro metri di canna fumaria',
+  disinfestatore: 'giardino di 400 metri quadri contro le zanzare, sei erogatori per i topi',
   altro: 'tre ore di lavoro e il materiale'
 };
 const esempioParlato = () => ESEMPI_PARLATO[mestiereDitta()] || ESEMPI_PARLATO.giardiniere;
@@ -2281,6 +2329,7 @@ const ESEMPI_MESTIERI = {
   serramentista: 'In soggiorno tre finestre in PVC a due ante 120 per 140 con le tapparelle nuove, e togliamo le vecchie. In cucina la zanzariera, e i davanzali in marmo quattro metri.',
   muratore: 'Bagno tre per due alto due e settanta: togliamo il vecchio rivestimento, rifacciamo il massetto, e in corridoio apriamo una porta nel tramezzo 80 per 210. Poi sei metri di traccia e due viaggi di macerie.',
   termoidraulico: 'Caldaia vecchia da cambiare con una a condensazione e quattro metri di canna fumaria. In camera un condizionatore monosplit, cinque metri di linea in rame e il foro nel muro.',
+  disinfestatore: 'Giardino di 400 metri quadri, trattamento contro le zanzare e le pastiglie antilarvali in sei tombini. Poi la derattizzazione della casa con quattro erogatori in piu\' lungo il muro di cinta, e un nido di vespe sotto la gronda.',
   altro: 'Tre ore di lavoro, il materiale e un viaggio per portare via le macerie.'
 };
 function esempioDelMestiere(m, base){
@@ -4001,7 +4050,8 @@ function unitaDetta(u){ return u === 'mq' ? 'mq' : u === 'm' ? 'm' : u === 'pezz
    «50 al metro»), e si leggeva come un prezzo: 50 euro al metro (4 ottobre 2026). */
 const PLURALI_UNITA = {pianta:'piante', viaggio:'viaggi', intervento:'interventi', pezzo:'pezzi',
   punto:'punti', attacco:'attacchi', ora:'ore', sacco:'sacchi', bancale:'bancali', giorno:'giorni',
-  stanza:'stanze', locale:'locali', porta:'porte', finestra:'finestre', presa:'prese', volta:'volte'};
+  stanza:'stanze', locale:'locali', porta:'porte', finestra:'finestre', presa:'prese', volta:'volte',
+  nido:'nidi', postazione:'postazioni', tombino:'tombini', contratto:'contratti'};
 function quantitaDetta(q, u){
   const n = Number(q) || 0, un = String(u || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if(!un) return cifra(n);
@@ -5020,7 +5070,37 @@ function casaHtml(){
     <div class="casa-riquadri" id="casa-riquadri">
       ${riquadro(oggiTile)}${riquadro(prevTile)}${riquadro(meseTile)}${riquadro(fattTile)}
     </div>
+    ${dittaInCasa()}
   </section>`;
+}
+/* «La tua ditta»: l'archivio a un tocco dalla casa. Un giardiniere (28/10/2026) ha visto
+   in Rilievo solo il preventivo, «la stessa cosa che faccio la sera al PC»: clienti,
+   documenti e soldi da prendere c'erano gia', ma stavano dietro la barra in basso.
+   Ogni riga si conta da sola: se una non riesce, sparisce lei e non la casa. */
+function daIncassare(){
+  return S.preventivi.filter(p => p.stato === 'accettato' && !soloFattura(p));
+}
+function dittaInCasa(){
+  const conta = f => { try{ return f(); }catch(e){ return null; } };
+  const nClienti = conta(() => S.clienti.length);
+  const nDoc = conta(() => S.preventivi.filter(p => !soloFattura(p) && p.stato !== 'bozza').length + S.documenti.length);
+  const incasso = conta(() => {
+    const l = daIncassare(), tot = l.reduce((t, p) => t + conti(p).totale, 0);
+    if(!isFinite(tot)) throw 0;
+    return {n: l.length, tot};
+  });
+  const nVoci = conta(() => S.listino.length);
+  const righe = [
+    nClienti === null ? '' : `<a class="ditta-riga" id="ditta-clienti" href="#clienti">${iconaCasa('cliente')}<span>Clienti</span>
+      <b>${nClienti}</b><em>${nClienti ? 'con lavori, foto e telefono' : 'entrano da soli col primo preventivo'}</em></a>`,
+    nDoc === null ? '' : `<a class="ditta-riga" id="ditta-documenti" href="#documenti">${iconaCasa('foglio')}<span>Documenti</span>
+      <b>${nDoc}</b><em>preventivi, fatture e file, cliente per cliente</em></a>`,
+    incasso === null ? '' : `<a class="ditta-riga" id="ditta-incassare" href="#preventivi">${iconaCasa('soldi')}<span>Da incassare</span>
+      <b>${incasso.n ? '€ ' + cifra(incasso.tot, 0) : '0'}</b><em>${incasso.n ? (incasso.n === 1 ? 'un lavoro preso, non ancora pagato' : incasso.n + ' lavori presi, non ancora pagati') + ', IVA compresa' : 'nessuno ti deve niente'}</em></a>`,
+    nVoci === null ? '' : `<a class="ditta-riga" id="ditta-listino" href="#listino">${iconaCasa('listino')}<span>Listino</span>
+      <b>${nVoci}</b><em>i tuoi prezzi, anche a corpo</em></a>`
+  ].join('');
+  return righe ? `<div class="casa-ditta" id="casa-ditta"><div class="etichetta-ditta">La tua ditta</div>${righe}</div>` : '';
 }
 /* il piccolo menu del «+»: si chiude toccando fuori, con Esc o scegliendo */
 function menuCasa(apri){
@@ -8657,11 +8737,47 @@ const CONCETTI_MESTIERI = {
     { chiavi: ['addolcitore'], dette: ['addolcitore','addolcitori','anticalcare','calcare','dosatore'] },
     { chiavi: ['manodopera'], dette: ['manodopera','operaio'] },
     { chiavi: ['uscita','trasferta'], dette: ['uscita','trasferta','chiamata','diritto'] },
-    MACERIE ]
+    MACERIE ],
+  /* 29 ottobre 2026: zanzare, topi, insetti, piccioni */
+  disinfestatore: [
+    { chiavi: ['zanzare'], dette: ['zanzare','zanzara','tigre','adulticida','adulticidi'] },
+    { chiavi: ['stagionale'], dette: ['stagionale','stagione','estate','abbonamento','passaggi'] },
+    { chiavi: ['antilarvale','tombini'],
+      dette: ['antilarvale','antilarvali','larvicida','larvicidi','larve','pastiglie','compresse','tombino','tombini',
+              'caditoia','caditoie','pozzetto','pozzetti','tombinatura'] },
+    { chiavi: ['derattizzazione','topi'],
+      dette: ['derattizzazione','derattizzare','derattizziamo','topi','topo','ratti','ratto','roditori','pantegane',
+              'pantegana','surmolotti','sorci'] },
+    { chiavi: ['erogatore','esca'],
+      dette: ['erogatore','erogatori','postazione','postazioni','esca','esche','trappola','trappole'] },
+    /* «controllo» e' un verbo buono per tutto: da solo non sceglie la voce, cosi'
+       «controllo di | otto erogatori» resta una riga sola, il controllo */
+    { chiavi: ['monitoraggio'], dette: ['monitoraggio','monitorare','ricontrollo','ispezione'] },
+    { chiavi: ['annuale','contratto'], dette: ['annuale','annuo','contratto','mensile','mensili','mese'] },
+    { chiavi: ['condominio'], dette: ['condominio','condomini','condominiale','palazzo','palazzina'] },
+    { chiavi: ['vespe'], dette: ['vespe','vespa','vespaio','alveare'] },
+    { chiavi: ['calabroni'], dette: ['calabroni','calabrone','velutina'] },
+    { chiavi: ['blatte'], dette: ['blatte','blatta','scarafaggi','scarafaggio','bacarozzi'] },
+    { chiavi: ['cantine'], dette: ['cantine','cantina','scantinato','box','garage','seminterrato'] },
+    { chiavi: ['cimici'], dette: ['cimici','cimice','letto','letti','materasso','materassi'] },
+    { chiavi: ['pulci','zecche'], dette: ['pulci','pulce','zecche','zecca'] },
+    { chiavi: ['formiche'], dette: ['formiche','formica','formicaio','formicai'] },
+    { chiavi: ['processionaria'], dette: ['processionaria','processionarie','bruchi','bruco'] },
+    { chiavi: ['endoterapia'], dette: ['endoterapia','iniezione','iniezioni','punteruolo','tronco'] },
+    { chiavi: ['antiparassitario','aiuole','arbusti'],
+      dette: ['antiparassitario','antiparassitari','aiuola','aiuole','arbusto','arbusti','cespugli'] },
+    { chiavi: ['punte','dissuasori'],
+      dette: ['punte','dissuasori','dissuasore','aghi','spilli','piccioni','piccione','colombi','volatili'] },
+    { chiavi: ['rete'], dette: ['rete','reti','retina','antipiccione'] },
+    { chiavi: ['guano'], dette: ['guano','escrementi','cacca'] },
+    { chiavi: ['sanificazione'],
+      dette: ['sanificazione','sanificare','sanifichiamo','igienizzazione','igienizzare','disinfezione','disinfettare'] },
+    { chiavi: ['operatore','manodopera'], dette: ['operatore','operatori','manodopera','operaio'] },
+    { chiavi: ['uscita','sopralluogo'], dette: ['uscita','sopralluogo','diagnosi','chiamata','trasferta','diritto'] } ]
 };
 /* "altro": un artigiano che non sta in nessuno dei mestieri. Prende tutto. */
 CONCETTI_MESTIERI.altro = CONCETTI.concat(...['elettricista','idraulico','imbianchino','piastrellista',
-  'serramentista','muratore','termoidraulico']
+  'serramentista','muratore','termoidraulico','disinfestatore']
   .map(m => CONCETTI_MESTIERI[m].filter(c => c !== MACERIE)), [MACERIE]);
 /* i concetti del mestiere con cui si sta capendo adesso. Li sceglie capisci() */
 let CONCETTI_IN_USO = CONCETTI;
@@ -12316,6 +12432,8 @@ PAGINE.cliente = {
     const l = lavoriDi(id).slice().sort((a,b) => (a.data < b.data ? 1 : -1));
     const accettato = l.filter(preso).reduce((t,p) => t + conti(p).netto, 0);
     const incassato = l.filter(p => p.stato === 'pagato').reduce((t,p) => t + conti(p).totale, 0);
+    /* preso e non ancora pagato: e' la domanda che si fa davanti al cliente */
+    const deve = l.filter(p => p.stato === 'accettato').reduce((t,p) => t + conti(p).totale, 0);
     const docs = S.documenti.filter(d => d.cliente === id);
     const fatture = fatturaAccesa() ? l.filter(p => p.fattura && p.fattura.xml) : [];
     const giardino = giardinoDelCliente(id);
@@ -12324,6 +12442,7 @@ PAGINE.cliente = {
       <div class="numero"><div class="val">${l.length}</div><div class="lbl">${l.length === 1 ? 'Preventivo' : 'Preventivi'}</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(accettato, 0)}</div><div class="lbl">${l.filter(preso).length === 1 ? 'Lavoro preso' : 'Lavori presi'}</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Già incassato</div></div>
+      <div class="numero" id="cliente-deve"><div class="val"${deve ? ' style="color:var(--casa-caldo, #b8683a)"' : ''}><small>€</small> ${cifra(deve, 0)}</div><div class="lbl">Ti deve ancora${deve ? ', IVA compresa' : ''}</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${c.dal ? dataCorta(c.dal) : '—'}</div><div class="lbl">Cliente dal</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${c.tel && String(c.tel).replace(/[^+\d]/g, '')
           ? `<a class="tel-cliente" href="tel:${esc(String(c.tel).replace(/[^+\d]/g, ''))}" style="color:inherit">${esc(c.tel)}</a>`

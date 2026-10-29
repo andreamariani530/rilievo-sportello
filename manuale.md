@@ -287,9 +287,13 @@ Si apre una ditta alla volta: chi non ha ancora il codice della ditta tocca
 
 Si sceglie sulla porta d'ingresso o in Impostazioni («Il tuo mestiere e il tuo piano»):
 giardiniere, elettricista, idraulico, imbianchino, piastrellista, serramentista, muratore
-(cartongesso compreso), termoidraulico (caldaie e condizionatori), altro. Ogni mestiere
-parte col suo listino, prezzi e ore presi dai prezzari regionali 2026, da cambiare coi
-tuoi, e la voce capisce le sue parole (tapparella, tavolato, split, termosifone...).
+(cartongesso compreso), termoidraulico (caldaie e condizionatori), disinfestatore (zanzare,
+topi, insetti, piccioni), altro. Ogni mestiere parte col suo listino, prezzi e ore presi
+dai prezzari regionali 2026, da cambiare coi tuoi, e la voce capisce le sue parole
+(tapparella, tavolato, split, termosifone, erogatore...). Per il disinfestatore i prezzi
+sono una media della Lombardia (prezzario regionale, gare pubbliche e ditte), e il
+trattamento contro le zanzare si conta a metri quadri: il giardino lo misura Rilievo
+dall'indirizzo.
 Cambiando mestiere le voci nuove si aggiungono e le tue restano coi tuoi prezzi.
 
 ## Piani e prezzi (`#piani`)

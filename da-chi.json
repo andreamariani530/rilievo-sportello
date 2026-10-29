@@ -168,6 +168,50 @@
    "ditta": "Riccardo (giardiniere)",
    "n": "41"
   },
+  "gardenangel": {
+   "ditta": "Garden Angel",
+   "n": "42"
+  },
+  "mezzombra": {
+   "ditta": "Mezz'ombra",
+   "n": "43"
+  },
+  "giardini-terrazzi": {
+   "ditta": "Giardini Terrazzi",
+   "n": "44"
+  },
+  "verde-doc": {
+   "ditta": "Verde Doc",
+   "n": "45"
+  },
+  "verdeaqua": {
+   "ditta": "Verdeaqua",
+   "n": "46"
+  },
+  "martesana-verde": {
+   "ditta": "Martesana Verde",
+   "n": "47"
+  },
+  "erre-giardini": {
+   "ditta": "Erre Giardini",
+   "n": "48"
+  },
+  "premium-giardini": {
+   "ditta": "Premium Giardini",
+   "n": "49"
+  },
+  "zr-giardinaggio": {
+   "ditta": "ZR Giardinaggio",
+   "n": "50"
+  },
+  "mondoverde": {
+   "ditta": "Il Mondo Verde",
+   "n": "51"
+  },
+  "padron": {
+   "ditta": "(da chiedere)",
+   "n": "52"
+  },
   "prova-andrea": {
    "ditta": "Il link di prova di Andrea",
    "prova": true
