@@ -3069,7 +3069,7 @@ def servizio(porta=8787, pubblico=False):
             if percorso == "/accesso/dimenticata":
                 g, m = accessi.chiedi_reset(mail, self._ip())
                 if g:
-                    base = (os.environ.get("RILIEVO_INDIRIZZO") or "https://rilievo-sportello.onrender.com").rstrip("/")
+                    base = (os.environ.get("RILIEVO_INDIRIZZO") or "https://rilievoapp.it").rstrip("/")
                     link = base + "/#nuova-password/" + urllib.parse.quote(m) + "/" + g
                     posta.manda(m, "Rilievo: scegli una password nuova",
                                 "Buongiorno,\n\nqualcuno (speriamo tu) ha chiesto di cambiare la password di Rilievo "

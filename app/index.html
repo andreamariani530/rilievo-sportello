@@ -1523,7 +1523,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-29 22:06';
+const COSTRUITA = '2026-10-30 00:49';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -5757,7 +5757,10 @@ function rilievoHtml(ril, s, r){
    Si accende con  python3 rilievo.py --servizio  e resta in ascolto qui. */
 /* il servizio del rilievo acceso su Render (piano gratuito, Francoforte): il catasto
    non lascia leggere i suoi dati a una pagina di un altro sito, serve lui in mezzo */
-const SPORTELLO_RILIEVO = 'https://rilievo-sportello.onrender.com';
+/* Dal 29/10 l'indirizzo che vede l'artigiano e' rilievoapp.it: aperta da li' (o dal vecchio
+   indirizzo, che resta vivo) l'app parla col server che la serve, cosi' la barra mostra un nome solo. */
+const SPORTELLO_RILIEVO = (typeof location !== 'undefined' && /^(www\.)?rilievoapp\.it$|^rilievo-sportello\.onrender\.com$/.test(location.hostname))
+  ? location.origin : 'https://rilievo-sportello.onrender.com';
 
 /* =====================================================================
    IL CODICE D'INGRESSO
