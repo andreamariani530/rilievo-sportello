@@ -17,7 +17,10 @@ COME E' FATTO
   con mail e password del suo accesso di Rilievo (solo le mail in CENTRALINO_MAIL), oppure
   con un codice di sei cifre che mostra il Centralino gia' aperto (per l'app sulla Home,
   che su iPhone non vede i cookie di Safari).
-- Il braccio destro di Knowlee scrive e legge con la chiave CENTRALINO_PONTE (/centralino/api/...).
+- Il braccio destro di Knowlee scrive e legge con la chiave del ponte (/centralino/api/...).
+  Le due chiavi (accesso e ponte) sono CENTRALINO_CHIAVE e CENTRALINO_PONTE se ci sono su
+  Render; se no si ricavano dalla chiave della posta (vedi _ricavata), e il deposito di Andrea
+  ha le stesse in ~/.knowlee/segreti/centralino-chiave e centralino-ponte.
 - Le chiavi non si scrivono mai nei file: stanno nelle variabili di Render. Sul disco solo
   le impronte sha256 dei gettoni.
 """
@@ -513,7 +516,7 @@ def canali():
     giro = _leggi("giro.json", {})
     q = _da_iso(giro.get("quando"))
     ore = (time.time() - q.timestamp()) / 3600 if q else None
-    ponte = _env("CENTRALINO_PONTE")
+    ponte = bool(chiave_di("ponte"))
     vivo = ponte and ore is not None and ore < 3
     ultimi = {}
     for e in eventi(MAX_EVENTI):
@@ -535,7 +538,7 @@ def canali():
         {"nome": "Knowlee · braccio destro", "fonte": "braccio",
          "stato": "acceso" if vivo else ("in attesa" if ponte else "da configurare"),
          "spiega": "Ogni ora il braccio destro scrive qui le cose nuove e legge le tue richieste.",
-         "serve": "" if ponte else "La chiave del ponte su Render (CENTRALINO_PONTE).",
+         "serve": "" if ponte else "La chiave del ponte sul server.",
          "nota": ("ultimo giro " + _ora_roma(giro["quando"]).strftime("%d/%m %H:%M")) if q else "nessun giro ancora"},
         {"nome": "Posta Gmail", "fonte": "posta", "stato": via_braccio,
          "spiega": "La legge il braccio destro con il suo collegamento a Gmail e scrive qui le mail importanti.",
@@ -599,7 +602,7 @@ def stato():
     qg = _da_iso(giro.get("quando"))
     if qg:
         ponte_vivo = (time.time() - qg.timestamp()) < 3 * 3600
-    attive = [True, True, ponte_vivo or _env("CENTRALINO_PONTE"),
+    attive = [True, True, ponte_vivo or bool(chiave_di("ponte")),
               _env("CENTRALINO_WA_VERIFICA") and _env("CENTRALINO_WA_SEGRETO"), False]
     attive[0] = ponte_vivo
     # serie per i piccoli grafici: eventi per ora nelle ultime 9 ore
@@ -720,13 +723,27 @@ def _sbagliato(ip):
     _tentativi.setdefault(ip, []).append(time.time())
 
 
+def _ricavata(nome):
+    """Se su Render non c'e' una chiave sua, la si ricava dalla chiave della posta
+    (RILIEVO_CHIAVE_POSTA), che sta gia' sul server e nel deposito di Andrea: stessa
+    formula da tutte e due le parti, e nessuna chiave nuova da trascrivere a mano."""
+    base = (os.environ.get("RILIEVO_CHIAVE_POSTA") or "").strip()
+    if len(base) < 16:
+        return ""
+    return hmac.new(base.encode(), ("centralino:" + nome).encode(), hashlib.sha256).hexdigest()
+
+
+def chiave_di(nome):
+    return (os.environ.get("CENTRALINO_" + nome.upper()) or "").strip() or _ricavata(nome)
+
+
 def chiave_giusta(k):
-    giusta = (os.environ.get("CENTRALINO_CHIAVE") or "").strip()
+    giusta = chiave_di("chiave")
     return len(giusta) >= 24 and _uguale(k, giusta)
 
 
 def ponte_giusto(k):
-    giusta = (os.environ.get("CENTRALINO_PONTE") or "").strip()
+    giusta = chiave_di("ponte")
     return len(giusta) >= 24 and _uguale(k, giusta)
 
 
