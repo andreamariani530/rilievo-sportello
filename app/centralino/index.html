@@ -416,7 +416,7 @@ function mostra(){
     ['Ultimo giro',t.ultimo_giro,spark(t.serie.map((v,i)=>v+i/3))]
   ].map(([k,v,g])=>`<div class="tel" style="color:#22c8ff"><small>${k}</small><b>${esc(v)}</b>${g}</div>`).join('');
   $('registro').innerHTML=st.registro.slice(0,5).map(e=>`<div style="--c:${e.livello==='calm'?'var(--ok)':COL[e.livello]}"><time>${esc(e.ora)}</time><em>${esc(e.nome_fonte.toUpperCase())}</em><span>${esc(e.titolo)}</span></div>`).join('')||'<div><time>—</time><em>—</em><span>ancora nessun avvenimento</span></div>';
-  const nMsg=(st.eventi||[]).filter(e=>e.stato==='nuovo').length,nDec=(st.decisioni||[]).filter(d=>d.stato==='attesa').length,nCon=(st.contatti||[]).filter(c=>c.nuovo).length;
+  const nMsg=(st.eventi||[]).filter(e=>e.stato==='nuovo'&&e.livello!=='calm').length,nDec=(st.decisioni||[]).filter(d=>d.stato==='attesa').length,nCon=(st.contatti||[]).filter(c=>c.nuovo).length;
   $('bMsg').textContent=nMsg||'';$('bDec').textContent=nDec||'';$('bCon').textContent=nCon||'';
   if(S.sez!=='oggi'&&S.sez!=='chat')apri(S.sez,true);
 }

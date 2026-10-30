@@ -309,7 +309,12 @@ def contatti():
         return []
     elenco = _visite.da_chi()
     per = {x["codice"]: x for x in (_visite.riassunto().get("codici") or [])}
-    visti = _leggi("contatti-visti.json", {})
+    visti = _leggi("contatti-visti.json", None)
+    if visti is None:
+        # la prima volta: quello che e' successo prima del Centralino e' gia' storia
+        visti = {"*": datetime.datetime.now(ROMA).strftime("%Y-%m-%d %H:%M:%S")}
+        with _l:
+            _scrivi("contatti-visti.json", visti)
     fuori = []
     for c, chi in elenco.items():
         if isinstance(chi, dict) and chi.get("prova"):
@@ -321,7 +326,7 @@ def contatti():
                       "aperture": x.get("aperture", 0), "rilievi": x.get("rilievi", 0),
                       "ultima": ultima, "fin_dove": PASSI_PAROLE.get(x.get("piu_lontano") or "", ""),
                       "perche": (x.get("perche") or [""])[-1],
-                      "nuovo": bool(ultima) and ultima > visti.get(c, "")})
+                      "nuovo": bool(ultima) and ultima > max(visti.get(c, ""), visti.get("*", ""))})
     fuori.sort(key=lambda x: (x["ultima"] or ""), reverse=True)
     return fuori
 
@@ -484,8 +489,10 @@ def aggancia(visite=None, avvisi=None, richieste_dal_link=None, fattureincloud=N
                 continue
             _avvolgi_invia(cls, nome)
 
-    _sicuro(aggiungi, "render", "Server acceso (versione %s)" % VERSIONE, "Il server di Rilievo è ripartito.",
-            livello="calm", tipo="avvio", chiave="avvio:" + VERSIONE, avvisa=False)
+    ev = _sicuro(aggiungi, "render", "Server acceso (versione %s)" % VERSIONE, "Il server di Rilievo è ripartito.",
+                 livello="calm", tipo="avvio", chiave="avvio:" + VERSIONE, avvisa=False)
+    if ev and ev[1]:
+        _sicuro(segna_evento, ev[0]["id"], "visto")
 
 
 def _avvolgi_invia(cls, nome):
