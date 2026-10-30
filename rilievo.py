@@ -42,6 +42,14 @@ import visite             # chi apre il link: un link per ogni ditta (8/10/2026)
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 import fattureincloud      # il collegamento col Fatture in Cloud dell'artigiano (4/10/2026)
 import assistente          # l'assistente in chat, col manuale dell'app dentro
+# il Centralino di Andrea (30/10/2026): un modulo a parte. Se si rompe, Rilievo resta uguale.
+try:
+    import centralino
+    centralino.aggancia(visite=visite, avvisi=avvisi, richieste_dal_link=richieste_dal_link,
+                        fattureincloud=fattureincloud, fattura=fattura)
+except Exception as _e:    # noqa: BLE001
+    centralino = None
+    print("Centralino non acceso:", type(_e).__name__, _e)
 from PIL import Image, ImageDraw, ImageFilter
 
 QUI          = pathlib.Path(__file__).parent
@@ -2949,6 +2957,8 @@ def servizio(porta=8787, pubblico=False):
             servizio e' in sola lettura e resta com'e'."""
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
+            if centralino and centralino.gestisci(self, "POST", u.path, q):
+                return
             codice = (q.get("codice") or [""])[0]
             # i passi di chi arriva dal link (navigator.sendBeacon manda una POST vuota)
             if u.path == "/passo":
@@ -3437,6 +3447,8 @@ def servizio(porta=8787, pubblico=False):
         def do_GET(self):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
+            if centralino and centralino.gestisci(self, "GET", u.path, q):
+                return
             # chi apre il link della sua ditta (?da=flora) e chi chiede un rilievo:
             # una riga sul disco, mai l'IP. Andrea, 8/10/2026: «riesci a capire se
             # qualcuno ha cliccato il link?»

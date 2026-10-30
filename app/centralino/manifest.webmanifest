@@ -1,0 +1,25 @@
+{
+ "name": "Centralino",
+ "short_name": "Centralino",
+ "lang": "it",
+ "description": "Il centralino personale di Andrea.",
+ "start_url": "/centralino",
+ "scope": "/centralino",
+ "id": "/centralino",
+ "display": "standalone",
+ "background_color": "#010611",
+ "theme_color": "#010611",
+ "icons": [
+  {
+   "src": "/centralino/icona-180.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  },
+  {
+   "src": "/centralino/icona-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  }
+ ]
+}
