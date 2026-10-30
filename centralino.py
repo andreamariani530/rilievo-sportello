@@ -1370,6 +1370,7 @@ STATICI = {
     "/centralino/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
     "/centralino/icona-180.png": ("icona-180.png", "image/png"),
     "/centralino/icona-512.png": ("icona-512.png", "image/png"),
+    "/centralino/sfondo.png": ("sfondo.png", "image/png"),
     "/centralino/caratteri/oxanium.ttf": ("caratteri/oxanium.ttf", "font/ttf"),
     "/centralino/caratteri/mono.ttf": ("caratteri/mono.ttf", "font/ttf"),
     "/centralino/caratteri/plex-400.ttf": ("caratteri/plex-400.ttf", "font/ttf"),
