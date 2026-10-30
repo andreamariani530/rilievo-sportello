@@ -498,6 +498,9 @@ function sistema(st){
   h+=`<div class="titoletto">Widget per la Home</div><p style="font-size:14px;color:#bfe9f7">Serve l'app gratuita Scriptable. Tocca il tasto, copia lo script e incollalo in Scriptable (guida nel LEGGIMI).</p>
      <div class="tasti" style="margin-top:8px"><button class="btn" id="preparaWidget">Prepara lo script</button></div><div id="zonaWidget"></div>
      <img class="anteprima-widget" alt="Anteprima del widget grande" src="/centralino/widget.png?misura=grande&t=${Date.now()}">`;
+  h+=`<div class="titoletto">Voce</div><p style="font-size:14px;color:#bfe9f7">Scegli la voce e tocca Prova. Le voci «Premium» sono le piu' naturali: sull'iPhone si scaricano gratis da Impostazioni › Accessibilita' › Contenuto letto › Voci › Italiano.</p>
+     <select id="sceltaVoce" style="width:100%;margin-top:8px;padding:10px;background:#04152a;color:#e8f8ff;border:1px solid #1f5f86;border-radius:8px;font-size:15px"></select>
+     <div class="tasti" style="margin-top:8px"><button class="btn" id="provaVoce">Prova</button></div>`;
   h+=`<div class="titoletto">App sulla Home</div><p style="font-size:14px;color:#bfe9f7">Sull'iPhone l'app sulla Home non vede l'accesso di Safari. Tocca qui, poi scrivi il codice nell'app.</p>
      <div class="tasti" style="margin-top:8px"><button class="btn" id="abbina">Dammi un codice</button><button class="btn vuoto" id="esci">Esci</button></div><div id="zonaCodice" style="font:500 34px Oxanium,sans-serif;letter-spacing:.3em;color:#fff;margin-top:10px"></div>`;
   h+=`<p style="margin-top:18px;font:10px var(--mono);letter-spacing:.12em;color:var(--mute)">SERVER ${esc(st.versione||'')} · CLAUDE ${st.chat?st.chat.restano+'/'+st.chat.tetto+' DOMANDE':''}</p>`;
@@ -510,6 +513,11 @@ function legaSistema(){
     $('zonaWidget').innerHTML=`<textarea class="script" id="script" readonly></textarea><div class="tasti" style="margin-top:8px"><button class="btn" id="copia">Copia</button></div>`;
     $('script').value=t;$('copia').onclick=async()=>{try{await navigator.clipboard.writeText(t);$('copia').textContent='Copiato'}catch(e){$('script').select();document.execCommand('copy');$('copia').textContent='Copiato'}}};
   const a=$('abbina');if(a)a.onclick=async()=>{const r=await api('/centralino/abbina',{});if(r.ok)$('zonaCodice').textContent=r.d.codice+'  ';$('zonaCodice').insertAdjacentHTML('beforeend','<div style="font:11px var(--mono);letter-spacing:.1em;color:var(--mute)">VALE 10 MINUTI, UNA VOLTA</div>')};
+  const sv=$('sceltaVoce');if(sv){const riempi=()=>{const V=vociItaliane(),att=scegliVoce();
+      sv.innerHTML=V.length?V.slice().sort((a,b)=>punteggio(b)-punteggio(a)).map(v=>`<option value="${esc(v.name)}"${att&&att.name===v.name?' selected':''}>${esc(v.name)}</option>`).join(''):'<option>Nessuna voce italiana sul telefono</option>'};
+    riempi();speechSynthesis.onvoiceschanged=riempi;
+    sv.onchange=()=>{try{localStorage.setItem('centralino-voce',sv.value)}catch(e){}};
+    $('provaVoce').onclick=()=>{try{localStorage.setItem('centralino-voce',sv.value)}catch(e){}parla('Buonasera Andrea. Sono Jarvis. Oggi è tutto tranquillo, ti avviso io se qualcuno ti cerca.')}}
   const x=$('esci');if(x)x.onclick=async()=>{await api('/centralino/esci',{});try{localStorage.removeItem('centralino-gettone')}catch(e){}S.g='';porta(true)};
 }
 $('chiudi').onclick=()=>{apri('oggi');history.replaceState(null,'','#')};
@@ -538,10 +546,20 @@ function rinfrescaChat(){const c=$('chat');if(c){c.innerHTML=chatHtml();$('corpo
 
 /* ---------- voce: parla e ascolta ---------- */
 let parlando=false;
+/* voce: si preferiscono le voci italiane di qualita' (Premium/Migliorata), femminili e pacate */
+const PREFERITE=['federica','emma','paola','alice','luca'];
+function vociItaliane(){return('speechSynthesis' in window)?speechSynthesis.getVoices().filter(v=>/^it/i.test(v.lang)):[]}
+function punteggio(v){const n=v.name.toLowerCase();let p=0;
+  if(/premium/.test(n))p+=40;else if(/enhanced|migliorat|ottimizzat|neural|natural|online/.test(n))p+=30;
+  const i=PREFERITE.findIndex(x=>n.includes(x));if(i>=0)p+=10-i;
+  if(/google/.test(n))p+=5;if(/compact|eloquence|grandpa|grandma|nonn|rocko|shelley|sandy|flo|reed|eddy/.test(n))p-=30;return p}
+function scegliVoce(){const V=vociItaliane();let nome='';try{nome=localStorage.getItem('centralino-voce')||''}catch(e){}
+  return V.find(v=>v.name===nome)||V.slice().sort((a,b)=>punteggio(b)-punteggio(a))[0]||null}
+if('speechSynthesis' in window)speechSynthesis.getVoices();
 function parla(t){
   if(!('speechSynthesis' in window)||!t)return;
-  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';u.rate=1.02;
-  const it=speechSynthesis.getVoices().find(v=>v.lang.startsWith('it'));if(it)u.voice=it;
+  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';u.rate=0.94;u.pitch=1;
+  const it=scegliVoce();if(it)u.voice=it;
   u.onstart=()=>{parlando=true;$('dice').innerHTML='<b>sto parlando…</b> · tocca per fermare'};
   u.onend=u.onerror=()=>{parlando=false;$('dice').innerHTML='tocca il cerchio · <b>ti leggo cosa c\'è</b>'};
   speechSynthesis.speak(u);
