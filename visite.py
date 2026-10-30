@@ -71,6 +71,13 @@ def _finte():
     return {(c, t) for c, x in da_chi().items() if isinstance(x, dict) for t in (x.get("finte") or [])}
 
 
+def _finte_fino():
+    """Per codice: "finte_fino": "2026-10-30 07:30:00". Ogni riga di quel codice fino a
+    quell'ora e' nostra e non conta. Il 30/10/2026 Andrea apriva il link di Mattia toccando
+    l'avviso ntfy per copiare il messaggio: tre aperture sue, non del contatto."""
+    return {c: str(x["finte_fino"]) for c, x in da_chi().items() if isinstance(x, dict) and x.get("finte_fino")}
+
+
 def _righe():
     f = _file()
     if not f.is_file():
@@ -82,8 +89,12 @@ def _righe():
             x = json.loads(r)
         except ValueError:
             continue
-        if (x.get("codice"), x.get("ora")) not in finte:
-            fuori.append(x)
+        if (x.get("codice"), x.get("ora")) in finte:
+            continue
+        fino = _finte_fino().get(x.get("codice"))
+        if fino and str(x.get("ora") or "") <= fino:
+            continue
+        fuori.append(x)
     return fuori
 
 
