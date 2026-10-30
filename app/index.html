@@ -1417,6 +1417,9 @@ let S    = null;          // lo stato di adesso
    Da qui in avanti NON si cambia piu': da adesso dentro c'e' roba vera. */
 const CHIAVE = 'rilievo-dimostrazione-2026-09b';
 const CHIAVE_SCELTA = 'rilievo-scelta-2026-09b';   // 'demo' oppure 'mia'
+/* 30/10/2026: il mestiere toccato sulla porta stava solo in memoria. Chi riapriva il link
+   se lo vedeva richiedere nella scheda della ditta, e «Salta» scivolava sotto lo schermo */
+const CHIAVE_MESTIERE = 'rilievo-mestiere-porta';
 
 /* ---------------- avvio ---------------- */
 async function avvia(){
@@ -1523,7 +1526,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-30 00:49';
+const COSTRUITA = '2026-10-30 03:08';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -1804,7 +1807,17 @@ function ricomincia(){
    resta segnata sul dispositivo, cosi' la porta non ricompare ogni volta.
    ===================================================================== */
 function primaVolta(){
-  try{ return !localStorage.getItem(CHIAVE) && !localStorage.getItem(CHIAVE_SCELTA); }
+  /* 30/10/2026: dall'8 ottobre all'avvio le foto dell'esempio passano in IndexedDB e i dati
+     si salvano, anche se uno non ha scelto niente. Chi apriva il link e chiudeva, riaprendo
+     non vedeva piu' la porta: finiva nella ditta di esempio senza la riga «Prova con la tua».
+     Senza una scelta, se i dati salvati sono ancora quelli dell'esempio, e' la prima volta. */
+  try{
+    if(localStorage.getItem(CHIAVE_SCELTA)) return false;
+    const g = localStorage.getItem(CHIAVE);
+    if(!g) return true;
+    const d = JSON.parse(g);
+    return !!(d && d.azienda && DATI && DATI.azienda) && d.azienda.nome === DATI.azienda.nome;
+  }
   catch(e){ return false; }
 }
 function segnaScelta(quale){ try{ localStorage.setItem(CHIAVE_SCELTA, quale); }catch(e){} }
@@ -1818,6 +1831,8 @@ function apriPorta(){
      la dimostrazione era quella di un giardiniere (10 ottobre 2026, primo elettricista) */
   try{ const m = new URLSearchParams(location.search).get('m');
        if(!mestiereInArrivo && m && MESTIERI.some(x => x.id === m)) mestiereInArrivo = m; }catch(e){}
+  try{ const g = localStorage.getItem(CHIAVE_MESTIERE);
+       if(!mestiereInArrivo && g && MESTIERI.some(x => x.id === g)) mestiereInArrivo = g; }catch(e){}
   chiudiPorta();
   const velo = document.createElement('div');
   velo.className = 'velo-porta';
@@ -2358,6 +2373,7 @@ function sceltaMestiere(scelto){
 }
 function tocchiMestiere(id){
   mestiereInArrivo = id;
+  try{ localStorage.setItem(CHIAVE_MESTIERE, id); }catch(e){}
   passo('mestiere', id);
   document.querySelectorAll('#scelta-mestiere').forEach(b => { b.outerHTML = sceltaMestiere(id); });
   const s = document.getElementById('c-sotto');
@@ -6077,10 +6093,10 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
   if(senzaRete()){ avvisa(SENZA_RETE); return; }
   const turno = turniRilievo[idSopralluogo] = (turniRilievo[idSopralluogo] || 0) + 1;
   const superata = () => turniRilievo[idSopralluogo] !== turno;
-  avvisaFermo('Scarico la foto dall’alto e il catasto: circa 15 secondi. Resta qui.');
+  avvisaFermo('Scarico la foto dall’alto e il catasto: di solito meno di mezzo minuto. Resta qui.');
   /* sul piano gratuito il servizio dorme dopo 15 minuti senza richieste:
      al primo tocco puo' metterci un minuto a svegliarsi. Meglio dirlo. */
-  const sveglia = setTimeout(() => { if(!superata()) avvisaFermo('Ci sto mettendo più del solito: ancora qualche secondo. Resta qui.'); }, 15000);
+  const sveglia = setTimeout(() => { if(!superata()) avvisaFermo('Ci sto mettendo più del solito: ancora qualche secondo. Resta qui.'); }, 30000);
   const basta = new AbortController();
   const scade = setTimeout(() => basta.abort(), 150000);
   const capDetto = (cap || (sopr(idSopralluogo) || {}).cap || '').replace(/\D/g, '').slice(0, 5);
@@ -15049,7 +15065,7 @@ function riquadroCopia(){
            <div class="riga-tot"><span>Ultima copia</span><span id="copia-quando">${c.spenta ? 'spenta' : c.conflitto ? 'ferma: scegli quale tenere'
              : c.ultima ? esc(quandoOra(c.ultima)) : (c.errore ? esc(c.errore) : 'fra pochi secondi')}</span></div>`
         : `<p style="font-size:16px;color:var(--soft)">${c.errore ? esc(c.errore) + ' '
-             : 'Per ora il tuo lavoro sta solo su questo telefono: se lo perdi, lo perdi. '}Con la mail e una password si salva
+             : 'Per ora il tuo lavoro resta su questo telefono. '}Con la mail e una password si salva
            anche fuori, e lo ritrovi su qualsiasi telefono.</p>`}
       <div class="azioni" style="margin-top:16px">
         ${dentro ? (c.conflitto ? `<button class="bottone vuoto" onclick="avvisaConflittoCopia()">Prendi il lavoro dell’altro telefono</button>
