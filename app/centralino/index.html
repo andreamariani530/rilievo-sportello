@@ -309,6 +309,7 @@
     <div class="o">— oppure —</div>
     <input id="pCodice" inputmode="text" placeholder="Codice di 6 cifre o chiave" autocomplete="one-time-code">
     <button class="btn vuoto" type="submit" data-via="codice">Entra col codice</button>
+    <button class="btn vuoto" type="button" id="codiceMail">Mandami un codice per mail</button>
     <div class="err" id="pErr" role="alert"></div>
   </form>
 </div>
@@ -572,6 +573,15 @@ $('modulo').onsubmit=async e=>{
   let d={};try{d=await r.json()}catch(x){}
   if(r.ok&&d.gettone){S.g=d.gettone;try{localStorage.setItem('centralino-gettone',d.gettone)}catch(x){}porta(false);aggiorna()}
   else $('pErr').textContent=d.errore||'Non è giusto. Riprova.';
+};
+
+$('codiceMail').onclick=async()=>{
+  $('pErr').textContent='';const b=$('codiceMail');b.disabled=true;
+  const r=await fetch('/centralino/codice-per-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  let d={};try{d=await r.json()}catch(x){}
+  $('pErr').style.color=r.ok?'var(--ok)':'';
+  $('pErr').textContent=r.ok?'Mandato a '+d.dove+'. Scrivi qui sopra il codice che ti arriva.':(d.errore||'Non sono riuscito a mandarlo.');
+  if(r.ok)$('pCodice').focus();setTimeout(()=>b.disabled=false,15000);
 };
 
 /* ---------- onda e stelle ---------- */

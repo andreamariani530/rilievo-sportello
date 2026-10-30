@@ -778,6 +778,38 @@ def accedi(dati, ip=""):
     return 401, {"errore": "Non è giusto. Riprova."}
 
 
+_mandati = []
+
+
+def codice_per_mail():
+    """Un codice di 6 cifre, 15 minuti, mandato SOLO alla casella di lavoro di Andrea.
+    Chi tocca il tasto non sceglie a chi va: al massimo riempie di mail Andrea, e c'e' un tetto."""
+    import posta
+    a = (os.environ.get("CENTRALINO_MAIL_CODICE") or "andreamariani530a@gmail.com").strip()
+    adesso = time.time()
+    with _l:
+        _mandati[:] = [t for t in _mandati if adesso - t < 86400]
+        if len([t for t in _mandati if adesso - t < 900]) >= 3 or len(_mandati) >= 10:
+            return 429, {"errore": "Ho già mandato dei codici da poco. Guarda la posta, o riprova fra un quarto d'ora."}
+        if not posta.accesa():
+            return 503, {"errore": "La posta del server è spenta: entra con la chiave."}
+        _mandati.append(adesso)
+        c = "%06d" % secrets.randbelow(10 ** 6)
+        _abbinamenti[c] = adesso + 900
+
+    def manda():
+        try:
+            posta.manda(a, "Centralino: il tuo codice è %s" % c,
+                        "Ciao Andrea,\n\nil codice per entrare nel Centralino è:\n\n    %s\n\n"
+                        "Vale 15 minuti e una volta sola. Scrivilo nel Centralino, nel campo "
+                        "«Codice di 6 cifre o chiave».\n\nSe non l'hai chiesto tu, non fare niente: "
+                        "senza il codice non entra nessuno.\n" % c, nome="Centralino")
+        except Exception as e:          # noqa: BLE001
+            print("  centralino: codice per mail non partito", type(e).__name__, flush=True)
+    threading.Thread(target=manda, daemon=True).start()
+    return 200, {"mandato": True, "dove": a[:2] + "…@" + a.split("@")[-1]}
+
+
 def abbinamento():
     c = "%06d" % secrets.randbelow(10 ** 6)
     with _l:
@@ -1457,6 +1489,10 @@ def _post(h, p, q):
             _risposta(h, 200 if r else 404, r or {"errore": "Richiesta non trovata."})
             return
         _risposta(h, 404, {"errore": "Non c'è niente qui."})
+        return
+    if p == "/centralino/codice-per-mail":
+        codice, r = codice_per_mail()
+        _risposta(h, codice, r)
         return
     if p == "/centralino/accedi":
         codice, r = accedi(_json(h, 8192), _ip(h))
