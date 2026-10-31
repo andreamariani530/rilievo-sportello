@@ -3500,6 +3500,16 @@ def servizio(porta=8787, pubblico=False):
                 self.end_headers()
                 self.wfile.write(dati)
                 return
+            # la prova per Google Search Console che il sito e' di Andrea: va lasciata
+            # sempre, se sparisce Google toglie la verifica
+            if u.path == "/google45e32c53f91866e0.html":
+                dati = b"google-site-verification: google45e32c53f91866e0.html"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(dati)))
+                self.end_headers()
+                self.wfile.write(dati)
+                return
             if u.path == "/sitemap.xml":
                 dati = ('<?xml version="1.0" encoding="UTF-8"?>\n'
                         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
