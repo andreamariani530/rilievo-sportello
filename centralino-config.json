@@ -1,0 +1,15 @@
+{
+ "_spiega": "Tutto quello che cambia da una persona all'altra sta qui. Per dare il Centralino a qualcun altro si cambia questo file (e le chiavi su Render). Le variabili CENTRALINO_* su Render, se ci sono, vincono su questo file.",
+ "proprietario": "Andrea",
+ "nome_completo": "Andrea Mariani",
+ "assistente": "Jarvis",
+ "mail_accesso": ["andreamariani530a@gmail.com", "andreamariani530@gmail.com"],
+ "mail_codice": "andreamariani530a@gmail.com",
+ "fuso": "Europe/Rome",
+ "silenzio": {"da": "23:30", "a": "07:00"},
+ "voce": {"servizio": "elevenlabs", "voice_id": "UnOINkXZ3yK4vVg3Iayj", "nome": "Beatrice", "tetto_caratteri_mese": 50000},
+ "notifiche": {"contatto_vapid": "mailto:info@rilievoapp.it", "tetto_giorno": 80},
+ "fonti": {"rilievo": true, "posta": true, "fiverr": true, "tiktok": true, "calendario": true, "whatsapp": false, "instagram": false, "fatture": true},
+ "collegamenti": [["Knowlee", "https://os-6d0fa8.knowlee.ai"], ["Claude", ""], ["Gmail", "https://mail.google.com/mail/u/0/#inbox"],
+                  ["Render", "https://dashboard.render.com/web/srv-dahhku15efls73bvrgp0"], ["TikTok", "https://www.tiktok.com/tiktokstudio"], ["Rilievo", "/"]]
+}

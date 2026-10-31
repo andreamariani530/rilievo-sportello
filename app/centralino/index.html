@@ -234,6 +234,57 @@
   .porta .o{font:10px var(--mono);letter-spacing:.24em;color:var(--mute);text-align:center;margin:4px 0}
   .porta .err{color:var(--red);font-size:14px;text-align:center;min-height:18px}
   .porta a{color:var(--ice);font-size:13px;text-align:center}
+
+  /* ===== 31/10: registro senza sovrapposizioni, telemetria 3x2 toccabile ===== */
+  .registro{padding-top:12px;margin-top:8px}
+  .registro div:nth-child(n+4){display:none}
+  .telemetria{margin-top:8px}
+  .tel{padding:5px 6px 4px}
+  .registro::before{top:-1px}
+  .registro div{grid-template-columns:42px 104px minmax(0,1fr)}
+  .registro em,.registro span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .telemetria{grid-template-columns:repeat(3,1fr)}
+  .tel{cursor:pointer;min-width:0}
+  .tel:active{background:rgba(34,200,255,.18)}
+  .tel b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tel i{display:block;font:normal 10px var(--mono);letter-spacing:.06em;color:var(--ice);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .tel .su{color:var(--ok)} .tel .giu{color:var(--red)}
+  .metri .chip{font:inherit;letter-spacing:inherit;color:var(--ice);background:rgba(34,200,255,.1);border:1px solid var(--line);padding:3px 7px;cursor:pointer;text-transform:uppercase;min-height:26px}
+  .metri .chip:active{background:rgba(34,200,255,.3)}
+
+  /* pannelli Agenda e TikTok */
+  .grandi{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .grande{position:relative;padding:10px 12px;border:1px solid var(--line);background:rgba(4,34,63,.45);clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)}
+  .grande small{display:block;font:10px var(--mono);letter-spacing:.18em;color:var(--mute);text-transform:uppercase}
+  .grande b{display:block;font:500 34px/1.05 Oxanium,sans-serif;color:#f0fdff;text-shadow:0 0 14px rgba(34,200,255,.7);margin-top:4px}
+  .grande em{font:normal 12px var(--mono);letter-spacing:.06em;color:var(--mute)}
+  .grande em.su{color:var(--ok)} .grande em.giu{color:var(--red)}
+  .grafico{width:100%;height:150px;display:block;margin-top:4px;border:1px solid var(--line);background:rgba(1,6,17,.5)}
+  .riga-ag{display:grid;grid-template-columns:62px 1fr;gap:10px;align-items:baseline;padding:10px 4px;border-bottom:1px solid var(--line)}
+  .riga-ag time{font:500 20px Oxanium,sans-serif;color:#f0fdff;text-shadow:0 0 10px var(--cyan)}
+  .riga-ag h3{font:500 16px/1.3 "IBM Plex Sans Condensed",sans-serif;color:#f0fdff}
+  .riga-ag p{font-size:13px;color:var(--mute)}
+  .riga-ag.passato{opacity:.45}
+  .valore{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .valore code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:12px var(--mono);color:#f0fdff;background:rgba(1,6,17,.7);border:1px solid var(--line);padding:9px 8px}
+  .passi{margin:6px 0 0 18px;font-size:14px;line-height:1.5;color:#bfe9f7}
+  .passi b{color:#fff}
+  .lampo{animation:lampo 1.6s ease 2}
+  @keyframes lampo{50%{box-shadow:0 0 0 2px var(--ice),0 0 30px var(--cyan)}}
+
+  @media (orientation:portrait) and (max-height:980px){.reattore{width:min(360px,86vw)}}
+  /* ===== modalita' plancia: schermo acceso, in orizzontale come una plancia ===== */
+  body.plancia .plancia nav{display:none}
+  body.plancia .dice::after{content:" · plancia accesa";color:var(--ok)}
+  @media (orientation:landscape) and (max-height:560px){
+    .schermo{max-width:none;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto auto 1fr auto;column-gap:18px;padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
+    .testata{grid-column:1/-1}
+    .reattore{grid-column:1;grid-row:2/span 4;width:min(72vh,42vw);align-self:center}
+    .registro{display:none}
+    .proiezione,.telemetria,.registro,.plancia{grid-column:2}
+    .plancia nav{display:none}
+    .plancia .onda{height:22px}
+  }
 </style>
 </head>
 <body class="calm">
@@ -257,7 +308,7 @@
     </div>
     <div class="orologio"><div class="h" id="ora">--:--</div><div class="d" id="data">—</div></div>
     <div class="dx metri">
-      <div>RILIEVOAPP.IT</div>
+      <div><button class="chip" id="vaiPlancia" aria-label="Accendi la plancia: schermo sempre acceso">◱ PLANCIA</button></div>
       <div class="metro"><b>SRV</b><i id="metroSrv" style="--v:100%;--c:var(--ok)"></i><b id="srv">OK</b></div>
       <div class="metro"><b>KNW</b><i id="metroKnw" style="--v:100%;--c:var(--ok)"></i><b id="knw">—</b></div>
     </div>
@@ -393,14 +444,14 @@ const PAROLA={calm:'Tranquillo',need:'Serve un tuo sì',urgent:'Urgente'};
 /* ---------- lo stato vero ---------- */
 function mostra(){
   const st=S.st;if(!st)return;
-  document.body.className=st.livello;
+  document.body.className=st.livello+(S.plancia?' plancia':'');
   const ang=st.spicchio*72+36,spread={calm:0,need:110,urgent:210}[st.livello];
   ['caldo','caldo2'].forEach(id=>{$(id).style.setProperty('--ang',ang+'deg');$(id).style.setProperty('--spread',spread+'deg')});
   $('num').textContent=st.livello==='urgent'?'!':String(st.numero);$('eti').textContent=st.etichetta;
   attive=st.fonti.map(f=>f.attiva?1:0);ridisegna();
   const n=attive.reduce((a,b)=>a+b,0);$('numFonti').textContent=n+'/5';$('metroFonti').style.setProperty('--v',n*20+'%');
   const giroOk=st.telemetria.ultimo_giro!=='—'&&attive[2];
-  $('knw').textContent=giroOk?'OK':'—';$('metroKnw').style.setProperty('--v',giroOk?'100%':'15%');$('metroKnw').style.setProperty('--c',giroOk?'var(--ok)':'var(--hot)');
+  $('knw').textContent=giroOk?st.telemetria.ultimo_giro:'—';$('metroKnw').style.setProperty('--v',giroOk?'100%':'15%');$('metroKnw').style.setProperty('--c',giroOk?'var(--ok)':'var(--hot)');
   $('srv').textContent='OK';
   const p=st.principale,o=$('ologramma'),firma=JSON.stringify(p);
   if(o.dataset.firma!==firma){o.dataset.firma=firma;o.style.animation='none';o.offsetHeight;o.style.animation='';
@@ -408,25 +459,31 @@ function mostra(){
     else{o.innerHTML=`<div class="t"><span>${esc(PAROLA[p.livello])} · ${esc(p.nome_fonte)}</span><span>${esc(p.giorno)} ${esc(p.ora)}</span></div><p>${esc(p.titolo)}${p.testo?`<small>${esc(p.testo.split('\n').slice(-3).join('\n'))}</small>`:''}</p><div class="tasti">${tastiDi(p,true)}</div>`}}
   const c=st.coda;$('coda').style.setProperty('--c2',c?COL[c.livello]:'var(--cyan)');
   $('coda').innerHTML=c?`${esc(c.nome_fonte)}<span>${esc(c.titolo)} · ${esc(c.ora)}</span>`:'';
-  const t=st.telemetria;
+  const t=st.telemetria,ag=st.agenda||{},tk=st.tiktok||{},tu=tk.ultimo||{},td=tk.da_ieri||{};
+  const prossimo=(ag.oggi||[]).find(x=>!x.passato)||(ag.domani||[])[0];
+  const delta=v=>v?`<span class="${v>0?'su':'giu'}">${v>0?'+':''}${v} da ieri</span>`:'';
+  const sett=(tk.settimana||[]).map(g=>g.visualizzazioni||0);
   $('telemetria').innerHTML=[
-    ['Link aperti 24h',String(t.aperture24),barre(Math.min(t.aperture24,6),6,'#ff2f4a')],
-    ['Messaggi nuovi',String(t.messaggi_nuovi),spark(t.serie)],
-    ['Lavori ok',t.lavori,barre(t.lavori_tot?Math.round(6*t.lavori_ok/t.lavori_tot):0,6,'#3dffb0')],
-    ['Ultimo giro',t.ultimo_giro,spark(t.serie.map((v,i)=>v+i/3))]
-  ].map(([k,v,g])=>`<div class="tel" style="color:#22c8ff"><small>${k}</small><b>${esc(v)}</b>${g}</div>`).join('');
+    ['Link aperti 24h',String(t.aperture24),barre(Math.min(t.aperture24,6),6,'#ff2f4a'),'contatti'],
+    ['Messaggi nuovi',String(t.messaggi_nuovi),spark(t.serie),'messaggi'],
+    ['Lavori ok',t.lavori,barre(t.lavori_tot?Math.round(6*t.lavori_ok/t.lavori_tot):0,6,'#3dffb0'),'sistema'],
+    ['Agenda',prossimo?(prossimo.ora||'oggi'):'libero',`<i>${esc(prossimo?((ag.oggi||[]).includes(prossimo)?'':'domani · ')+prossimo.titolo:(ag.aggiornata?'niente oggi e domani':'in arrivo'))}</i>`,'agenda'],
+    ['TikTok follower',tu.follower!=null?String(tu.follower):'—',`<i>${delta(td.follower)||esc(tk.ora?'letto '+tk.ora.slice(-5):'primo giro in arrivo')}</i>`,'tiktok'],
+    ['TikTok visual.',tu.visualizzazioni!=null?Number(tu.visualizzazioni).toLocaleString('it-IT'):'—',sett.some(v=>v)?spark(sett):`<i>${delta(td.visualizzazioni)}</i>`,'tiktok']
+  ].map(([k,v,g,z])=>`<div class="tel" style="color:#22c8ff" data-vai="${z}" role="button" tabindex="0"><small>${k}</small><b>${esc(v)}</b>${g}</div>`).join('');
   $('registro').innerHTML=st.registro.slice(0,5).map(e=>`<div style="--c:${e.livello==='calm'?'var(--ok)':COL[e.livello]}"><time>${esc(e.ora)}</time><em>${esc(e.nome_fonte.toUpperCase())}</em><span>${esc(e.titolo)}</span></div>`).join('')||'<div><time>—</time><em>—</em><span>ancora nessun avvenimento</span></div>';
   const nMsg=(st.eventi||[]).filter(e=>e.stato==='nuovo'&&e.livello!=='calm').length,nDec=(st.decisioni||[]).filter(d=>d.stato==='attesa').length,nCon=(st.contatti||[]).filter(c=>c.nuovo).length;
   $('bMsg').textContent=nMsg||'';$('bDec').textContent=nDec||'';$('bCon').textContent=nCon||'';
-  if(S.sez!=='oggi'&&S.sez!=='chat')apri(S.sez,true);
+  const scrive=document.activeElement&&$('corpo').contains(document.activeElement)&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if(S.sez!=='oggi'&&S.sez!=='chat'&&!scrive)apri(S.sez,true);
 }
 function tastiDi(x,grande){
   if(x.genere==='decisione'&&(x.stato==='attesa'||!x.stato))return`<button data-dec="${x.id}" data-r="si">${esc(x.si||'Sì')}</button><button data-dec="${x.id}" data-r="no">${esc(x.no||'No')}</button>`;
   const apri=x.link?`<button data-apri="${esc(x.link)}">Apri</button>`:'';
   return apri+`<button data-ev="${x.id}" data-s="fatto">Fatto</button>`+(apri?'':`<button data-ev="${x.id}" data-s="visto">Visto</button>`);
 }
-async function aggiorna(){
-  if(document.hidden)return;
+async function aggiorna(forza){
+  if(document.hidden&&!forza)return;
   const r=await api('/centralino/stato.json');
   if(r.ok){S.st=r.d;porta(false);mostra()}
   else if(r.status===0){$('dice').innerHTML='<b>niente rete</b> · riprovo fra 30 secondi'}
@@ -449,9 +506,9 @@ function apriLink(u){if(/^(tel|sms|mailto):/.test(u))location.href=u;else window
 function apriClaude(){const t=Date.now();location.href='claude://';setTimeout(()=>{if(!document.hidden&&Date.now()-t<2500)window.open('https://claude.ai/new','_blank','noopener')},1200)}
 
 /* ---------- i fogli: Messaggi, Decisioni, Contatti, Sistema, Chat ---------- */
-const TITOLI={messaggi:'Messaggi',decisioni:'Decisioni',contatti:'Contatti',sistema:'Sistema',chat:'Claude'};
+const TITOLI={messaggi:'Messaggi',decisioni:'Decisioni',contatti:'Contatti',sistema:'Sistema',chat:'Claude',agenda:'Agenda',tiktok:'TikTok'};
 function voceEvento(e){
-  return`<div class="voce ${e.livello}${e.stato!=='nuovo'&&e.stato!=='attesa'?' spenta':''}"><div class="meta"><span>${esc(e.nome_fonte)} · ${esc(PAROLA[e.livello])}</span><span>${esc(e.giorno)} ${esc(e.ora)}</span></div>
+  return`<div class="voce ${e.livello}${e.stato!=='nuovo'&&e.stato!=='attesa'?' spenta':''}" data-id="${esc(e.id)}"><div class="meta"><span>${esc(e.nome_fonte)} · ${esc(PAROLA[e.livello])}</span><span>${esc(e.giorno)} ${esc(e.ora)}</span></div>
     <h3>${esc(e.titolo)}</h3>${e.testo?`<p>${esc(e.testo)}</p>`:''}${(e.stato==='nuovo'||e.stato==='attesa')?`<div class="tasti">${tastiDi(e).replace(/<button /g,'<button class="btn" ').replace(/data-s="visto"/,'data-s="visto" style="background:transparent"')}</div>`:(e.link?`<div class="tasti"><button class="btn vuoto" data-apri="${esc(e.link)}">Apri</button></div>`:'')}</div>`;
 }
 function apri(sez,soloContenuto){
@@ -474,22 +531,37 @@ function apri(sez,soloContenuto){
       <h3>${esc(c.ditta)}</h3><p>${c.aperture} aperture · ${c.rilievi} rilievi${c.fin_dove?' · '+esc(c.fin_dove):''}${c.perche?'\nsi era fermato perché '+esc(c.perche):''}</p>${c.nuovo?`<div class="tasti"><button class="btn" data-con="${esc(c.codice)}">Visto</button></div>`:''}</div>`).join('')||'<div class="vuoto-elenco">Nessun contatto</div>';
   }
   if(sez==='sistema')h=sistema(st);
+  if(sez==='agenda')h=agendaHtml(st);
+  if(sez==='tiktok')h=tiktokHtml(st);
   if(sez==='chat'){h=`<div class="chat" id="chat">${chatHtml()}</div>`;
     $('piede').innerHTML=`<div class="griglia" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">${collegamenti(true)}</div>
       <form class="scrivi" id="scrivi"><input id="domanda" placeholder="Chiedi a Claude…" autocomplete="off"><button class="btn vuoto" type="button" id="micChat" aria-label="Detta"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="btn" type="submit">Invia</button></form>`;
     $('scrivi').onsubmit=e=>{e.preventDefault();const t=$('domanda').value.trim();if(t){$('domanda').value='';chiedi(t)}};
-    $('micChat').onclick=()=>ascolta();
+    $('micChat').onclick=()=>{sbloccaVoce();ascolta()};
   }
   if(!soloContenuto||sez!=='chat'){const y=corpo.scrollTop;corpo.innerHTML=h;if(soloContenuto)corpo.scrollTop=y;else corpo.scrollTop=sez==='chat'?corpo.scrollHeight:0}
   corpo.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.filtro=b.dataset.f;apri('messaggi',true)});
   if(sez==='sistema')legaSistema();
+  if(sez==='agenda')legaAgenda();
 }
 function collegamenti(corti){
   const L=[['Knowlee','https://os-6d0fa8.knowlee.ai'],['Claude',null],['Gmail','https://mail.google.com/mail/u/0/#inbox'],['Render','https://dashboard.render.com/web/srv-dahhku15efls73bvrgp0'],['TikTok','https://www.tiktok.com/messages'],['Rilievo','/']];
   return L.map(([n,u])=>u?`<button class="btn vuoto" data-apri="${u}">${n}</button>`:`<a href="#" class="btn vuoto" data-claude>${n}</a>`).join('');
 }
 function sistema(st){
-  let h=`<div class="titoletto">Canali</div>`;
+  const n=st.notifiche||{};
+  let h=`<div class="titoletto">Notifiche</div><p style="font-size:14px;color:#bfe9f7" id="statoNotifiche">${esc(testoNotifiche(n))}</p>
+     <div class="tasti" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="accendiNotifiche">Accendi le notifiche</button><button class="btn vuoto" id="provaNotifica">Mandami una prova</button></div>`;
+  h+=`<div class="titoletto">Tasto Azione</div><p style="font-size:14px;color:#bfe9f7">Premi il tasto Azione, parli, ${esc(st.assistente||'Jarvis')} ti risponde a voce. Va anche a schermo bloccato. Si fa una volta in Comandi Rapidi:</p>
+     <ol class="passi"><li>Comandi Rapidi > <b>+</b> > nome <b>Jarvis</b>.</li><li>Azione <b>Detta testo</b> (lingua italiano).</li><li>Azione <b>Ottieni contenuto dell'URL</b>: incolla l'indirizzo, metodo <b>POST</b>, intestazione <b>X-Jarvis</b> con la chiave, corpo <b>File</b> = Testo dettato.</li><li>Azione <b>Leggi testo</b> (voce italiana).</li><li>Impostazioni > Tasto Azione > <b>Comando rapido</b> > Jarvis.</li></ol>
+     <div class="valore"><code id="jarvisUrl">…</code><button class="btn vuoto" data-copia="jarvisUrl">Copia</button></div>
+     <div class="valore"><code>X-Jarvis</code><button class="btn vuoto" data-copia-testo="X-Jarvis">Copia</button></div>
+     <div class="valore"><code id="jarvisChiave">…</code><button class="btn vuoto" data-copia="jarvisChiave">Copia</button></div>
+     <div class="tasti" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="provaJarvis">Prova Jarvis</button><button class="btn vuoto" id="revocaJarvis">Cambia chiave</button></div>
+     <p style="font-size:13px;color:var(--mute);margin-top:8px">Seconda via, senza tasto: Impostazioni > Accessibilità > Tocco > <b>Tocco sul retro</b> > Doppio tocco > Jarvis. Le attività sulla schermata di blocco (come il timer o le consegne) vogliono un'app vera da App Store: per ora non ci sono.</p>`;
+  h+=`<div class="titoletto">Plancia</div><p style="font-size:14px;color:#bfe9f7">Lo schermo resta acceso e si aggiorna da solo. Metti il telefono in carica, in orizzontale.</p>
+     <div class="tasti" style="margin-top:8px"><button class="btn" id="accendiPlancia">${S.plancia?'Spegni la plancia':'Accendi la plancia'}</button></div>`;
+  h+=`<div class="titoletto">Canali</div>`;
   h+=(st.canali||[]).map(c=>{const k=/^acceso/.test(c.stato)?'acceso':(c.stato==='spento'?'spento':'altro');
     return`<div class="voce"><div class="meta"><span>${esc(c.nome)}</span><span class="pill ${k}">${esc(c.stato)}</span></div><p>${esc(c.spiega)}</p>${c.serve?`<p style="color:var(--hot)">Per accenderlo: ${esc(c.serve)}</p>`:''}<p style="font:10px var(--mono);letter-spacing:.1em;color:var(--mute)">${esc(c.nota)}</p></div>`}).join('');
   h+=`<div class="titoletto">Apri</div><div class="griglia">${collegamenti()}</div>`;
@@ -498,7 +570,7 @@ function sistema(st){
   h+=`<div class="titoletto">Widget per la Home</div><p style="font-size:14px;color:#bfe9f7">Serve l'app gratuita Scriptable. Tocca il tasto, copia lo script e incollalo in Scriptable (guida nel LEGGIMI).</p>
      <div class="tasti" style="margin-top:8px"><button class="btn" id="preparaWidget">Prepara lo script</button></div><div id="zonaWidget"></div>
      <img class="anteprima-widget" alt="Anteprima del widget grande" src="/centralino/widget.png?misura=grande&t=${Date.now()}">`;
-  h+=`<div class="titoletto">Voce</div><p style="font-size:14px;color:#bfe9f7">Jarvis parla con la voce di Beatrice. La lista qui sotto è la voce del telefono, che usa solo quando Beatrice non è disponibile.</p>
+  h+=`<div class="titoletto">Voce</div><p style="font-size:14px;color:#bfe9f7">${st.voce_server?'Jarvis parla con la voce di Beatrice. La lista qui sotto è la voce del telefono, che usa solo quando Beatrice non risponde.':'Beatrice è spenta finché non c\'è la sua chiave sul server: Jarvis parla con la voce del telefono scelta qui sotto.'}</p>
      <select id="sceltaVoce" style="width:100%;margin-top:8px;padding:10px;background:#04152a;color:#e8f8ff;border:1px solid #1f5f86;border-radius:8px;font-size:15px"></select>
      <div class="tasti" style="margin-top:8px"><button class="btn" id="provaVoce">Prova</button></div>`;
   h+=`<div class="titoletto">App sulla Home</div><p style="font-size:14px;color:#bfe9f7">Sull'iPhone l'app sulla Home non vede l'accesso di Safari. Tocca qui, poi scrivi il codice nell'app.</p>
@@ -506,7 +578,24 @@ function sistema(st){
   h+=`<p style="margin-top:18px;font:10px var(--mono);letter-spacing:.12em;color:var(--mute)">SERVER ${esc(st.versione||'')} · CLAUDE ${st.chat?st.chat.restano+'/'+st.chat.tetto+' DOMANDE':''}</p>`;
   return h;
 }
+function testoNotifiche(n){
+  const tel=(n&&n.telefoni)||0;
+  if(!pushOk)return navigator.standalone===false||/iPhone|iPad/.test(navigator.userAgent)&&!navigator.standalone?'Da Safari le notifiche non si accendono. Apri il Centralino dall\'icona sulla Home e torna qui.':'Questo browser non riceve notifiche.';
+  if(Notification.permission==='denied')return'Le notifiche sono bloccate. Riaccendile da Impostazioni > Notifiche > Centralino.';
+  if(Notification.permission==='granted'&&tel)return'Accese. Telefoni iscritti: '+tel+'. Zitte fra le 23:30 e le 7, tranne le cose urgenti davvero.';
+  return'Spente. Tocca «Accendi le notifiche» e rispondi «Consenti».'+(tel?' (Altri telefoni iscritti: '+tel+')':'');
+}
 function legaSistema(){
+  const an=$('accendiNotifiche');if(an)an.onclick=()=>accendiNotifiche();
+  const pn=$('provaNotifica');if(pn)pn.onclick=async()=>{pn.disabled=true;const r=await api('/centralino/push/prova',{});
+    $('statoNotifiche').textContent=r.ok?(r.d.arrivate?'Prova mandata a '+r.d.arrivate+' telefoni. Deve suonare fra pochi secondi.':'Nessun telefono l\'ha ricevuta. Accendi prima le notifiche.'):'Il server non risponde.';pn.disabled=false};
+  const ap=$('accendiPlancia');if(ap)ap.onclick=()=>plancia(!S.plancia);
+  api('/centralino/jarvis/chiave').then(r=>{if(r.ok&&$('jarvisUrl')){$('jarvisUrl').textContent=r.d.indirizzo;$('jarvisChiave').textContent=r.d.chiave||'manca la chiave base sul server'}});
+  document.querySelectorAll('[data-copia],[data-copia-testo]').forEach(b=>b.onclick=async()=>{const t=b.dataset.copiaTesto||$(b.dataset.copia).textContent;
+    try{await navigator.clipboard.writeText(t)}catch(e){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();document.execCommand('copy');x.remove()}b.textContent='Copiato';setTimeout(()=>b.textContent='Copia',1800)});
+  const pj=$('provaJarvis');if(pj)pj.onclick=async()=>{sbloccaVoce();pj.disabled=true;const k=$('jarvisChiave').textContent;
+    try{const r=await fetch('/centralino/jarvis',{method:'POST',headers:{'X-Jarvis':k,'Content-Type':'text/plain'},body:'novità'});const t=await r.text();parla(t)}catch(e){parla('Non riesco a raggiungere il server.')}pj.disabled=false};
+  const rj=$('revocaJarvis');if(rj)rj.onclick=async()=>{if(!confirm('Cambio la chiave? La scorciatoia di adesso smette di funzionare e va aggiornata.'))return;const r=await api('/centralino/jarvis/revoca',{});if(r.ok)$('jarvisChiave').textContent=r.d.chiave};
   const m=$('mandaRichiesta');if(m)m.onclick=async()=>{const t=$('testoRichiesta').value.trim();if(!t)return;m.disabled=true;const r=await api('/centralino/richiesta',{testo:t});if(r.ok){$('testoRichiesta').value='';aggiorna()}m.disabled=false};
   const w=$('preparaWidget');if(w)w.onclick=async()=>{const h={'X-Centralino-App':'1'};if(S.g)h['X-Centralino']=S.g;
     const r=await fetch('/centralino/widget.js',{headers:h,credentials:'same-origin'});const t=await r.text();
@@ -524,6 +613,54 @@ $('chiudi').onclick=()=>{apri('oggi');history.replaceState(null,'','#')};
 document.querySelectorAll('nav [data-sez]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();apri(a.dataset.sez)}));
 $('vaiSistema').onclick=()=>apri('sistema');$('vaiSistema').onkeydown=e=>{if(e.key==='Enter')apri('sistema')};
 $('coda').onclick=()=>apri('messaggi');
+$('telemetria').addEventListener('click',e=>{const t=e.target.closest('[data-vai]');if(t)apri(t.dataset.vai)});
+$('vaiPlancia').addEventListener('click',e=>{e.stopPropagation();plancia(!S.plancia)});
+
+/* ---------- Agenda ---------- */
+function agendaHtml(st){
+  const a=st.agenda||{};
+  const lista=el=>el.length?el.map(x=>`<div class="riga-ag${x.passato?' passato':''}"><time>${esc(x.ora||'tutto')}</time><div><h3>${esc(x.titolo)}</h3>${x.luogo?`<p>${esc(x.luogo)}</p>`:''}</div></div>`).join(''):'<div class="vuoto-elenco">Niente in calendario</div>';
+  let h=`<div class="titoletto">Oggi</div>${lista(a.oggi||[])}<div class="titoletto">Domani</div>${lista(a.domani||[])}`;
+  h+=`<div class="titoletto">Aggiungi</div><p style="font-size:14px;color:#bfe9f7">Scrivilo come lo diresti. Il braccio destro lo mette nel calendario e te lo conferma qui. Puoi anche dirlo col microfono.</p>
+     <input id="nuovoAppuntamento" placeholder="es. domani alle 9 il commercialista" autocomplete="off" style="margin-top:8px"><div class="tasti" style="margin-top:8px"><button class="btn" id="mandaAppuntamento">Segna</button></div><p id="esitoAppuntamento" style="font-size:13px;color:var(--ok);margin-top:6px"></p>`;
+  const att=(st.richieste||[]).filter(r=>r.tipo==='calendario').slice(0,6);
+  if(att.length)h+=`<div class="titoletto">Chiesti al calendario</div>`+att.map(r=>`<div class="voce ${r.stato==='nuova'?'need':''}${r.stato==='fatta'?' spenta':''}"><div class="meta"><span>${esc(r.stato)}</span></div><h3>${esc(r.testo)}</h3>${r.esito?`<p>${esc(r.esito)}</p>`:''}</div>`).join('');
+  h+=`<p style="margin-top:14px;font:10px var(--mono);letter-spacing:.12em;color:var(--mute)">GOOGLE CALENDAR · ${a.aggiornata?'AGGIORNATA '+esc(a.aggiornata):'IN ATTESA DEL BRACCIO DESTRO'} · AVVISO 30 MINUTI PRIMA</p>`;
+  return h;
+}
+function legaAgenda(){const b=$('mandaAppuntamento');if(!b)return;b.onclick=async()=>{const t=$('nuovoAppuntamento').value.trim();if(!t)return;b.disabled=true;
+  const r=await api('/centralino/richiesta',{testo:'Segna nel calendario: '+t,tipo:'calendario'});b.disabled=false;
+  if(r.ok){$('nuovoAppuntamento').value='';$('esitoAppuntamento').textContent='Passato al braccio destro. Te lo conferma qui al prossimo giro.';aggiorna()}}}
+
+/* ---------- TikTok ---------- */
+function grafico(sett){
+  const W=360,H=150,v=sett.map(g=>g.visualizzazioni),f=sett.map(g=>g.follower);
+  const mv=Math.max(1,...v.filter(x=>x!=null)),mf=Math.max(1,...f.filter(x=>x!=null));
+  const X=i=>22+i*(W-44)/6;let s=`<svg class="grafico" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+  for(let y=20;y<H-20;y+=26)s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="rgba(120,220,255,.12)"/>`;
+  f.forEach((x,i)=>{if(x==null)return;const h=(x/mf)*(H-50);s+=`<rect x="${X(i)-9}" y="${H-24-h}" width="18" height="${h}" fill="rgba(61,255,176,.35)" stroke="#3dffb0" stroke-width=".8"/>`});
+  const pts=v.map((x,i)=>x==null?null:`${X(i)},${H-24-(x/mv)*(H-50)}`).filter(Boolean);
+  if(pts.length>1)s+=`<polyline points="${pts.join(' ')}" fill="none" stroke="#22c8ff" stroke-width="2" style="filter:drop-shadow(0 0 4px #22c8ff)"/>`;
+  pts.forEach(p=>{const[x,y]=p.split(',');s+=`<circle cx="${x}" cy="${y}" r="3" fill="#a8f1ff"/>`});
+  sett.forEach((g,i)=>s+=`<text x="${X(i)}" y="${H-8}" fill="rgba(168,241,255,.7)" font-size="10" font-family="Share Tech Mono,monospace" text-anchor="middle">${esc(g.giorno)}</text>`);
+  return s+`</svg><p style="font:10px var(--mono);letter-spacing:.1em;color:var(--mute);margin-top:4px"><span style="color:#22c8ff">━ VISUALIZZAZIONI</span> · <span style="color:#3dffb0">▮ FOLLOWER</span> · ULTIMI 7 GIORNI</p>`;
+}
+function tiktokHtml(st){
+  const t=st.tiktok||{};
+  if(!t.ultimo)return`<div class="vuoto-elenco">Il primo giro su TikTok non è ancora arrivato.<br>Lo fa un lavoro di Knowlee ogni 20 minuti.</div>`;
+  const u=t.ultimo,d=t.da_ieri||{},n=x=>x==null?'—':Number(x).toLocaleString('it-IT');
+  const dl=v=>v==null?'<em>da ieri: si vede domani</em>':v?`<em class="${v>0?'su':'giu'}">${v>0?'▲ +':'▼ '}${Number(v).toLocaleString('it-IT')} da ieri</em>`:'<em>uguale a ieri</em>';
+  let h=`<div class="grandi">${[['Follower',u.follower,d.follower],['Visualizzazioni',u.visualizzazioni,d.visualizzazioni],['Like',u.like,d.like],['Commenti',u.commenti,d.commenti]]
+    .map(([k,v,x])=>`<div class="grande"><small>${k}</small><b>${n(v)}</b>${dl(x)}</div>`).join('')}</div>`;
+  h+=`<div class="titoletto">Andamento</div>${grafico(t.settimana||[])}`;
+  h+=`<div class="titoletto">Cosa è cambiato dall'ultima volta</div><p style="font-size:15px;color:#f0fdff">${esc(t.cambiato||'Niente di nuovo dall\'ultima lettura.')}</p>`;
+  if(u.messaggi_nuovi)h+=`<p style="font-size:15px;color:var(--red);margin-top:6px">${u.messaggi_nuovi===1?'1 messaggio privato':u.messaggi_nuovi+' messaggi privati'} da leggere</p>`;
+  if(t.migliore)h+=`<div class="titoletto">Video migliore</div><div class="voce"><div class="meta"><span>${n(t.migliore.visualizzazioni)} visualizzazioni</span><span>${n(t.migliore.like)} like</span></div><h3>${esc(t.migliore.titolo||'(senza titolo)')}</h3><p>${t.migliore.tempo_medio?'tempo medio '+esc(t.migliore.tempo_medio):''}${t.migliore.fino_in_fondo?' · fino in fondo '+esc(t.migliore.fino_in_fondo):''}</p></div>`;
+  if((t.video||[]).length>1)h+=`<div class="titoletto">Tutti i video</div>`+t.video.map(v=>`<div class="voce"><div class="meta"><span>${n(v.visualizzazioni)} visual.</span><span>${n(v.like)} like · ${n(v.commenti)} comm.</span></div><h3>${esc(v.titolo||v.id)}</h3>${v.tempo_medio?`<p>tempo medio ${esc(v.tempo_medio)}${v.fino_in_fondo?' · fino in fondo '+esc(v.fino_in_fondo):''}</p>`:''}</div>`).join('');
+  h+=`<div class="tasti" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn vuoto" data-apri="https://www.tiktok.com/tiktokstudio">TikTok Studio</button><button class="btn vuoto" data-apri="https://www.tiktok.com/messages">Messaggi</button></div>`;
+  h+=`<p style="margin-top:14px;font:10px var(--mono);letter-spacing:.12em;color:var(--mute)">@RILIEVO_APP · LETTO ${esc(t.ora)} · OGNI 20 MINUTI</p>`;
+  return h;
+}
 
 /* ---------- Claude ---------- */
 function chatHtml(){
@@ -559,10 +696,17 @@ if('speechSynthesis' in window)speechSynthesis.getVoices();
 /* prima la voce di Beatrice dal server; se non c'e', la voce del telefono */
 const lettore=new Audio();lettore.preload='auto';let sbloccato=false,turno=0;
 function sblocca(){if(sbloccato)return;sbloccato=true;lettore.src='data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//NwwAAAAAAAAAAAAEluZm8AAAAPAAAABgAAAykAWlpaWlpaWlpaWlpaWlpaWnt7e3t7e3t7e3t7e3t7e3t7nJycnJycnJycnJycnJycnL29vb29vb29vb29vb29vb293t7e3t7e3t7e3t7e3t7e3t7/////////////////////AAAAAExhdmM2MC4zMQAAAAAAAAAAAAAAACQCowAAAAAAAAMpso+sIAAAAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NCxKMAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//NAxKQAAANIAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80LEowAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';lettore.play().catch(()=>{})}
-document.addEventListener('touchend',sblocca,{once:true});document.addEventListener('click',sblocca,{once:true});
+/* iPhone: la voce del telefono parla solo se la prima volta parte dentro un tocco.
+   Un enunciato vuoto al primo tocco la sblocca per tutto il resto della visita. */
+let sintesiSbloccata=false;
+function sbloccaVoce(){sblocca();if(sintesiSbloccata||!('speechSynthesis' in window))return;
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;u.lang='it-IT';speechSynthesis.speak(u);sintesiSbloccata=true}catch(e){}}
+document.addEventListener('touchend',sbloccaVoce,{once:true,capture:true});document.addEventListener('click',sbloccaVoce,{once:true,capture:true});
 function fermaVoce(){turno++;try{lettore.pause()}catch(e){}if('speechSynthesis' in window)speechSynthesis.cancel();parlando=false;$('dice').innerHTML='tocca il cerchio · <b>ti leggo cosa c\'è</b>'}
 async function parla(t){
-  if(!t)return;const mio=++turno;sblocca();
+  if(!t)return;const mio=++turno;sbloccaVoce();
+  /* Beatrice spenta: si parla subito col telefono, ancora dentro il tocco, senza chiedere al server */
+  if(!(S.st&&S.st.voce_server)){parlaTelefono(t);return}
   $('dice').innerHTML='<b>preparo la voce…</b>';parlando=true;
   try{const h={'X-Centralino-App':'1','Content-Type':'application/json'};if(S.g)h['X-Centralino']=S.g;
     const r=await fetch('/centralino/voce',{method:'POST',headers:h,body:JSON.stringify({testo:t}),credentials:'same-origin'});
@@ -577,11 +721,13 @@ async function parla(t){
 }
 function parlaTelefono(t){
   if(!('speechSynthesis' in window)||!t){parlando=false;$('dice').innerHTML='tocca il cerchio · <b>ti leggo cosa c\'è</b>';return}
-  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';u.rate=0.94;u.pitch=1;
+  if(speechSynthesis.speaking||speechSynthesis.pending)speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';u.rate=0.94;u.pitch=1;
   const it=scegliVoce();if(it)u.voice=it;
   u.onstart=()=>{parlando=true;$('dice').innerHTML='<b>sto parlando…</b> · tocca per fermare'};
   u.onend=u.onerror=()=>{parlando=false;$('dice').innerHTML='tocca il cerchio · <b>ti leggo cosa c\'è</b>'};
   speechSynthesis.speak(u);
+  if(speechSynthesis.paused)speechSynthesis.resume();
 }
 $('reattore').addEventListener('click',()=>{if(parlando){fermaVoce();return}parla(S.st?S.st.voce:'Sto ancora leggendo cosa c\'è.')});
 const Riconosci=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -595,7 +741,62 @@ function ascolta(){
   r.onend=()=>{parlando=false;if($('dice').textContent.startsWith('ti ascolto'))$('dice').innerHTML='tocca il cerchio · <b>ti leggo cosa c\'è</b>'};
   try{r.start()}catch(e){apri('chat')}
 }
-$('mic').addEventListener('click',()=>ascolta());
+$('mic').addEventListener('click',()=>{sbloccaVoce();ascolta()});
+
+/* ---------- notifiche dell'app ---------- */
+const pushOk=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+let swReg=null,chiavePush='';
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/centralino/sw.js',{scope:'/centralino'}).then(r=>{swReg=r;riscrivi()}).catch(()=>{});
+  navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.apri)vaiA(e.data.apri)});
+}
+fetch('/centralino/push/chiave').then(r=>r.json()).then(d=>chiavePush=d.chiave||'').catch(()=>{});
+const b64u=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');s+='='.repeat((4-s.length%4)%4);return Uint8Array.from(atob(s),c=>c.charCodeAt(0))};
+async function iscriviQui(){
+  const reg=swReg||await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){if(!chiavePush)chiavePush=(await (await fetch('/centralino/push/chiave')).json()).chiave;
+    sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(chiavePush)})}
+  return api('/centralino/push/iscrivi',{iscrizione:sub.toJSON()});
+}
+async function riscrivi(){try{if(pushOk&&Notification.permission==='granted'&&S.g)await iscriviQui()}catch(e){}}
+function accendiNotifiche(){
+  const scrivi=t=>{const x=$('statoNotifiche');if(x)x.textContent=t};
+  if(!pushOk){scrivi(testoNotifiche({}));return}
+  /* la richiesta del permesso deve partire dentro il tocco, prima di ogni attesa */
+  Notification.requestPermission().then(async p=>{
+    if(p!=='granted'){scrivi('Senza il tuo «Consenti» non posso mandarti notifiche.');return}
+    scrivi('Collego questo telefono…');
+    try{const r=await iscriviQui();scrivi(r.ok?'Accese. Ora tocca «Mandami una prova».':'Il server non ha preso l\'iscrizione: '+(r.d.errore||r.status))}
+    catch(e){scrivi('Non sono riuscito a collegare il telefono: '+e.message)}
+    aggiorna()});
+}
+function vaiA(u){
+  const h=String(u||'').split('#')[1]||'';if(!h){apri('oggi');return}
+  const m=h.match(/^evento=([0-9a-f]{12})$/);
+  if(m){S.filtro='tutti';apri('messaggi');setTimeout(()=>{const v=document.querySelector(`#corpo [data-id="${m[1]}"]`);if(v){v.scrollIntoView({block:'center'});v.classList.add('lampo')}},200);return}
+  if(TITOLI[h])apri(h);
+}
+
+/* ---------- plancia: schermo acceso, aggiornamento continuo ---------- */
+let blocco=null,giroPlancia=null;
+async function tieniAcceso(){try{if('wakeLock' in navigator){blocco=await navigator.wakeLock.request('screen');return true}}catch(e){}return false}
+async function plancia(on){
+  S.plancia=on;document.body.classList.toggle('plancia',on);$('vaiPlancia').textContent=on?'■ ESCI':'◱ PLANCIA';
+  if(on){
+    try{if(!navigator.standalone&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'})}catch(e){}
+    const ok=await tieniAcceso();
+    $('dice').innerHTML=ok?'<b>plancia</b> · lo schermo resta acceso':'<b>plancia</b> · questo telefono non tiene acceso lo schermo da solo';
+    clearInterval(giroPlancia);giroPlancia=setInterval(()=>aggiorna(true),15000);aggiorna(true);
+  }else{
+    try{blocco&&blocco.release()}catch(e){}blocco=null;clearInterval(giroPlancia);
+    try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}
+    $('dice').innerHTML='tocca il cerchio · <b>ti leggo cosa c\'è</b>';
+  }
+  if(S.sez==='sistema')apri('sistema',true);
+}
+window.plancia=plancia;
+document.addEventListener('visibilitychange',()=>{if(S.plancia&&!document.hidden)tieniAcceso()});
 
 /* ---------- la porta ---------- */
 function porta(si){$('porta').classList.toggle('aperta',si);if(si)$('eti').textContent='accesso'}
@@ -646,7 +847,7 @@ let tt=0;
 
 /* ---------- partenza ---------- */
 const sezIniziale=(location.hash||'').slice(1);
-aggiorna().then(()=>{if(TITOLI[sezIniziale])apri(sezIniziale)});
+aggiorna().then(()=>{if(sezIniziale)vaiA('#'+sezIniziale);riscrivi()});
 </script>
 </body>
 </html>
