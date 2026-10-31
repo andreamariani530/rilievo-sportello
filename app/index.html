@@ -1252,8 +1252,140 @@ nav .gruppo{text-transform:none;letter-spacing:.02em;font-size:12px;margin:14px 
 .piano .per-te-segno{border-radius:999px}
 .conto-squadra button{border-radius:12px;border-color:var(--filetto2)}
 </style>
+<!-- IL SITO (Andrea, 31/10/2026: «cosi' apre gia' l'app, non il nostro sito»).
+     Chi arriva su rilievoapp.it da Google o scrivendo l'indirizzo vede prima la
+     presentazione. L'app si apre come sempre per chi ha il suo link (?da=), per chi
+     l'ha gia' usata su quel telefono, per chi la apre dall'icona, e con ?app=1.
+     ?sito=1 mostra il sito anche a chi l'app la usa gia' (per guardarlo). Sta nella
+     stessa pagina dell'app apposta: il telefono che tiene una copia dell'app per
+     aprirla senza rete continua a tenere la stessa pagina. -->
+<script>
+(function(){
+  var sito = false;
+  try{
+    var q = location.search, ls = localStorage;
+    var forza = /[?&]sito=1/.test(q);
+    var app = /[?&](da|app|codice)=/.test(q) || location.hash.length > 1 ||
+              (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+    if(!app) for(var i = 0; i < ls.length; i++){ if(/^rilievo/.test(ls.key(i))){ app = true; break; } }
+    sito = forza || !app;
+    if(sito){
+      /* l'app intanto si avvia dietro al sito: non deve lasciare segni nel telefono,
+         se no la volta dopo questa persona salterebbe la presentazione */
+      var scrivi = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(k, v){ if(/^rilievo/.test(String(k))) return; return scrivi.call(this, k, v); };
+    }
+  }catch(e){ sito = false; }
+  if(sito) document.documentElement.classList.add('vista-sito');
+})();
+</script>
+<style>
+#sito{display:none}
+html.vista-sito,html.vista-sito body{overflow:hidden!important;height:100%}
+html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:#F7F1E5;color:#1B1917;font-family:'EBGaramond',Georgia,'Times New Roman',serif;font-size:19px;line-height:1.55;
+  text-align:left;-webkit-font-smoothing:antialiased}
+#sito *{box-sizing:border-box;margin:0;padding:0}
+#sito .s-pag{max-width:880px;margin:0 auto;padding:0 26px}
+#sito .s-testa{display:flex;align-items:center;justify-content:space-between;padding:26px 0 0}
+#sito .s-marchio{display:flex;align-items:center;gap:12px;font-family:'Cormorant',Georgia,serif;font-size:27px;letter-spacing:.02em;color:#1B1917;text-decoration:none}
+#sito .s-marchio i{display:grid;place-items:center;width:38px;height:38px;border:1px solid #4F6B54;border-radius:50%;
+  font-style:normal;font-family:'Cormorant',Georgia,serif;font-size:25px;color:#4F6B54;line-height:1}
+#sito .s-scrivi{font-family:'Jost',system-ui,sans-serif;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#4F6B54;text-decoration:none}
+#sito .s-eti{font-family:'Jost',system-ui,sans-serif;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#8A8377;margin-bottom:18px}
+#sito .s-apre{padding:84px 0 70px;border-bottom:1px solid #E2DCD0}
+#sito h1{font-family:'Cormorant',Georgia,serif;font-weight:500;font-size:clamp(42px,7.4vw,74px);line-height:1.02;letter-spacing:-.01em;color:#1B1917;max-width:14ch}
+#sito h1 em{font-style:italic;color:#4F6B54}
+#sito .s-sotto{margin-top:26px;max-width:34em;font-size:21px;color:#4A453E}
+#sito .s-tasti{margin-top:38px;display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center}
+#sito .s-tasto{display:inline-block;background:#3E4A3A;color:#FFFDF9;text-decoration:none;font-family:'Jost',system-ui,sans-serif;
+  font-size:15px;letter-spacing:.06em;padding:16px 28px;border-radius:999px}
+#sito .s-tasto:active{opacity:.85}
+#sito .s-link{font-family:'Jost',system-ui,sans-serif;font-size:15px;color:#3E4A3A;text-decoration:none;border-bottom:1px solid #9A7B3F;padding-bottom:2px}
+#sito .s-nota{margin-top:18px;font-size:16px;color:#8A8377;font-style:italic}
+#sito section{padding:70px 0;border-bottom:1px solid #E2DCD0}
+#sito h2{font-family:'Cormorant',Georgia,serif;font-weight:500;font-size:clamp(32px,5vw,46px);line-height:1.1;margin-bottom:34px;max-width:18ch}
+#sito .s-passi{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:34px}
+#sito .s-passo b{display:block;font-family:'Cormorant',Georgia,serif;font-weight:500;font-size:58px;line-height:1;color:#9A7B3F;margin-bottom:10px}
+#sito .s-passo h3{font-family:'Cormorant',Georgia,serif;font-weight:600;font-size:26px;margin-bottom:8px}
+#sito .s-passo p{color:#4A453E;font-size:18px}
+#sito .s-righe{list-style:none;border-top:1px solid #E2DCD0}
+#sito .s-righe li{display:flex;gap:20px;align-items:baseline;padding:18px 0;border-bottom:1px solid #E2DCD0;font-size:20px}
+#sito .s-righe li span{font-family:'Jost',system-ui,sans-serif;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#8A8377;min-width:7.5em}
+#sito .s-mestieri{font-family:'Cormorant',Georgia,serif;font-size:clamp(24px,3.6vw,32px);line-height:1.45;color:#4A453E;max-width:30ch}
+#sito .s-mestieri em{color:#1B1917;font-style:normal}
+#sito .s-fine{padding:80px 0 40px;text-align:left}
+#sito .s-piede{padding:34px 0 50px;display:flex;flex-wrap:wrap;gap:10px 26px;font-family:'Jost',system-ui,sans-serif;font-size:13px;color:#8A8377}
+#sito .s-piede a{color:#8A8377;text-decoration:none;border-bottom:1px solid #E2DCD0}
+@media (max-width:560px){
+  html.vista-sito #sito{font-size:18px}
+  #sito .s-apre{padding:58px 0 54px}
+  #sito section{padding:54px 0}
+  #sito .s-sotto{font-size:19px}
+  #sito .s-righe li{flex-direction:column;gap:4px}
+}
+</style>
 </head>
 <body>
+<div id="sito">
+ <div class="s-pag">
+  <header class="s-testa">
+   <a class="s-marchio" href="/"><i>R</i>Rilievo</a>
+   <a class="s-scrivi" href="mailto:info@rilievoapp.it?subject=Vorrei%20provare%20Rilievo">Scrivici</a>
+  </header>
+
+  <div class="s-apre">
+   <p class="s-eti">Preventivi per giardinieri e artigiani</p>
+   <h1>Il preventivo pronto <em>prima</em> del sopralluogo.</h1>
+   <p class="s-sotto">Scrivi l'indirizzo del cliente. Rilievo misura il terreno dalla foto dall'alto e prepara il preventivo coi tuoi prezzi. Lo mandi con un link, il cliente lo accetta dal telefono.</p>
+   <div class="s-tasti">
+    <a class="s-tasto" href="mailto:info@rilievoapp.it?subject=Vorrei%20provare%20Rilievo&amp;body=Ciao%2C%20faccio%20il%20...%20a%20...%20e%20vorrei%20provare%20Rilievo.">Chiedi di provarla</a>
+    <a class="s-link" href="https://www.tiktok.com/@rilievo_app" rel="noopener">Guardala su TikTok</a>
+   </div>
+   <p class="s-nota">La stiamo provando con pochi artigiani alla volta. Gratis, finché è in prova.</p>
+  </div>
+
+  <section>
+   <p class="s-eti">Come funziona</p>
+   <h2>Tre passi, dal telefono o dal computer.</h2>
+   <div class="s-passi">
+    <div class="s-passo"><b>1</b><h3>L'indirizzo</h3><p>Scrivi dove abita il cliente. Rilievo trova la casa e il terreno.</p></div>
+    <div class="s-passo"><b>2</b><h3>La misura</h3><p>I metri quadri e le siepi escono dalla foto dall'alto. Niente metro, niente giro a vuoto.</p></div>
+    <div class="s-passo"><b>3</b><h3>Il preventivo</h3><p>Le voci e i prezzi sono i tuoi. Lo mandi con un link e il cliente risponde con un tocco.</p></div>
+   </div>
+  </section>
+
+  <section>
+   <p class="s-eti">Il tuo ufficio, dove vuoi</p>
+   <h2>Tutto il lavoro in un posto solo.</h2>
+   <ul class="s-righe">
+    <li><span>Clienti</span>Chi ti ha chiesto cosa, e quando.</li>
+    <li><span>Preventivi</span>Fatti in pochi minuti, belli da mandare.</li>
+    <li><span>Risposte</span>Il cliente accetta dal telefono, tu lo vedi subito.</li>
+    <li><span>Fatture</span>Dal preventivo accettato alla fattura, senza riscrivere niente.</li>
+   </ul>
+  </section>
+
+  <section>
+   <p class="s-eti">Per chi</p>
+   <p class="s-mestieri">Nata per i <em>giardinieri</em>. Va bene anche per elettricisti, idraulici, imbianchini, piastrellisti, muratori, serramentisti e disinfestatori.</p>
+  </section>
+
+  <div class="s-fine">
+   <h2>Vuoi provarla sui tuoi lavori?</h2>
+   <p class="s-sotto">Scrivici il tuo mestiere e la zona: ti mandiamo il tuo link personale. Risponde chi la costruisce.</p>
+   <div class="s-tasti">
+    <a class="s-tasto" href="mailto:info@rilievoapp.it?subject=Vorrei%20provare%20Rilievo&amp;body=Ciao%2C%20faccio%20il%20...%20a%20...%20e%20vorrei%20provare%20Rilievo.">Scrivi a info@rilievoapp.it</a>
+   </div>
+  </div>
+
+  <footer class="s-piede">
+   <span>© 2026 Rilievo</span>
+   <a href="mailto:info@rilievoapp.it">info@rilievoapp.it</a>
+   <a href="/?app=1#privacy">Come trattiamo i dati</a>
+  </footer>
+ </div>
+</div>
 
 <div id="avvio" aria-hidden="true"><svg viewBox="0 0 512 512" focusable="false">
   <g transform="translate(168.1 320.5) scale(0.2532 -0.2532)"><path fill="#1B1915" d="M546.5 0Q530.4 0 493.9 38.3Q457.3 76.6 405.9 148.5Q354.5 220.3 290.6 319.3L358.4 340.2Q441.7 219.2 500.1 147Q558.6 74.8 603.7 43.4Q648.8 12 690.4 12Q693 12 693 6Q693 0 690.4 0Q634.2 0 598.7 0Q563.2 0 546.5 0ZM306.2 628Q390 628 434.5 592.6Q479.1 557.2 479.1 497.7Q479.1 442 447.2 397.9Q415.3 353.7 363.8 328.7Q312.3 303.7 252.5 303.7Q241.3 303.7 228.1 304.3Q215 304.8 204.1 305.8V81Q204.1 52 209.7 37Q215.2 22 232.7 17Q250.2 12 285 12Q287.6 12 287.6 6Q287.6 0 285 0Q260.1 0 230 1Q200 2 163.6 2Q129.8 2 98.7 1Q67.5 0 42.6 0Q40.2 0 40.2 6Q40.2 12 42.6 12Q77.5 12 95 17Q112.4 22 118.8 37Q125.1 52 125.1 81V544Q125.1 573 119.3 587.5Q113.4 602 96.2 607.5Q79 613 44.2 613Q41.6 613 41.6 619Q41.6 625 44.2 625Q68.5 625 99.2 623.5Q129.8 622 163.6 622Q195.5 622 235.8 625Q276.2 628 306.2 628ZM396.9 465.7Q396.9 522 381.9 553.5Q366.9 585.1 339.6 598.2Q312.3 611.4 274.8 611.4Q237 611.4 220.6 597.5Q204.1 583.6 204.1 542V331.1Q218.1 329.6 234.4 328.6Q250.7 327.6 263.2 327.6Q337.1 327.6 367 362.1Q396.9 396.5 396.9 465.7Z"/></g>
@@ -1536,7 +1668,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-31 23:17';
+const COSTRUITA = '2026-11-01 00:53';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
