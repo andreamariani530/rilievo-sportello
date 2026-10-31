@@ -587,8 +587,17 @@ function testoNotifiche(n){
 }
 function legaSistema(){
   const an=$('accendiNotifiche');if(an)an.onclick=()=>accendiNotifiche();
-  const pn=$('provaNotifica');if(pn)pn.onclick=async()=>{pn.disabled=true;const r=await api('/centralino/push/prova',{});
-    $('statoNotifiche').textContent=r.ok?(r.d.arrivate?'Prova mandata a '+r.d.arrivate+' telefoni. Deve suonare fra pochi secondi.':'Nessun telefono l\'ha ricevuta. Accendi prima le notifiche.'):'Il server non risponde.';pn.disabled=false};
+  const pn=$('provaNotifica');if(pn)pn.onclick=async()=>{pn.disabled=true;const st=t=>$('statoNotifiche').textContent=t;
+    st('Mando la prova…');let r=await api('/centralino/push/prova',{});
+    /* se non arriva, l'iscrizione di questo telefono puo' essere vecchia: la rifaccio da capo e riprovo una volta */
+    if(r.ok&&!r.d.arrivate&&pushOk&&Notification.permission==='granted'){
+      st('Non è arrivata. Ricollego questo telefono e riprovo…');
+      try{const reg=swReg||await navigator.serviceWorker.ready;const vecchia=await reg.pushManager.getSubscription();
+        if(vecchia){await api('/centralino/push/togli',{endpoint:vecchia.endpoint});await vecchia.unsubscribe()}
+        chiavePush=(await (await fetch('/centralino/push/chiave',{cache:'no-store'})).json()).chiave;
+        await iscriviQui();r=await api('/centralino/push/prova',{})}catch(e){}}
+    const rif=(r.d&&r.d.rifiuto&&r.d.rifiuto.motivo)?' Motivo: '+r.d.rifiuto.codice+' '+r.d.rifiuto.motivo:'';
+    st(r.ok?(r.d.arrivate?'Prova mandata. Deve suonare fra pochi secondi.':(Notification.permission==='granted'?'Il telefono non l\'ha ricevuta.'+rif:'Accendi prima le notifiche.')):'Il server non risponde.');pn.disabled=false};
   const ap=$('accendiPlancia');if(ap)ap.onclick=()=>plancia(!S.plancia);
   api('/centralino/jarvis/chiave').then(r=>{if(r.ok&&$('jarvisUrl')){$('jarvisUrl').textContent=r.d.indirizzo;$('jarvisChiave').textContent=r.d.chiave||'manca la chiave base sul server'}});
   document.querySelectorAll('[data-copia],[data-copia-testo]').forEach(b=>b.onclick=async()=>{const t=b.dataset.copiaTesto||$(b.dataset.copia).textContent;

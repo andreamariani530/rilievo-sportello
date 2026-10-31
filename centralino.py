@@ -1232,20 +1232,37 @@ def togli_iscrizione(ep):
     return len(tutte) - len(resto)
 
 
+ULTIMO_RIFIUTO = {}
+
+
 def _manda_push(sub, carico, urgenza="normal"):
     corpo = cifra_push(json.dumps(carico, ensure_ascii=False).encode("utf-8"), sub["p256dh"], sub["auth"])
-    req = urllib.request.Request(sub["endpoint"], data=corpo, method="POST", headers={
-        "TTL": "86400", "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream",
-        "Urgency": urgenza, "Authorization": _vapid_intestazione(sub["endpoint"]),
-        "Topic": re.sub(r"[^A-Za-z0-9_-]", "", carico.get("tag") or "")[:32] or "centralino"})
-    try:
-        with urllib.request.urlopen(req, timeout=12) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        return e.code
-    except Exception as e:              # noqa: BLE001
-        print("     centralino push:", type(e).__name__, flush=True)
-        return 0
+    base = {"TTL": "86400", "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream",
+            "Authorization": _vapid_intestazione(sub["endpoint"])}
+    piene = dict(base, **{"Urgency": urgenza,
+                          "Topic": re.sub(r"[^A-Za-z0-9_-]", "", carico.get("tag") or "")[:32] or "centralino"})
+    codice = 0
+    # prima con Urgency e Topic; se il servizio rifiuta (400), di nuovo con le sole intestazioni obbligatorie
+    for intest in (piene, base):
+        req = urllib.request.Request(sub["endpoint"], data=corpo, method="POST", headers=intest)
+        try:
+            with urllib.request.urlopen(req, timeout=12) as r:
+                return r.status
+        except urllib.error.HTTPError as e:
+            codice = e.code
+            try:
+                motivo = e.read()[:300].decode("utf-8", "replace")
+            except Exception:           # noqa: BLE001
+                motivo = ""
+            ULTIMO_RIFIUTO.update({"codice": codice, "motivo": motivo, "quando": adesso_iso(),
+                                   "servizio": urllib.parse.urlsplit(sub["endpoint"]).netloc})
+            print("     centralino push: %s %s %s" % (codice, ULTIMO_RIFIUTO["servizio"], motivo), flush=True)
+            if codice != 400:
+                return codice
+        except Exception as e:          # noqa: BLE001
+            print("     centralino push:", type(e).__name__, flush=True)
+            return 0
+    return codice
 
 
 def notifica_ora(titolo, testo="", url="/centralino", livello="calm", tag=""):
@@ -2129,7 +2146,7 @@ def _post(h, p, q):
             return
         if p == "/centralino/api/notifica":
             n = notifica_ora(d.get("titolo"), d.get("testo"), d.get("url") or "/centralino", d.get("livello") or "need", d.get("tag") or "")
-            _risposta(h, 200, {"arrivate": n, "telefoni": len(iscrizioni())})
+            _risposta(h, 200, {"arrivate": n, "telefoni": len(iscrizioni()), "rifiuto": dict(ULTIMO_RIFIUTO) if not n else {}})
             return
         if p == "/centralino/api/giro":
             _risposta(h, 200, segna_giro(d.get("nota"), d.get("lavori_ok"), d.get("lavori_tot")))
@@ -2204,7 +2221,7 @@ def _post(h, p, q):
     if p == "/centralino/push/prova":
         n = notifica_ora("%s: prova" % ASSISTENTE, "Le notifiche funzionano. Tocca per aprire il Centralino.",
                          "/centralino#sistema", livello="need", tag="prova")
-        _risposta(h, 200, {"arrivate": n, "telefoni": len(iscrizioni())})
+        _risposta(h, 200, {"arrivate": n, "telefoni": len(iscrizioni()), "rifiuto": dict(ULTIMO_RIFIUTO) if not n else {}})
         return
     if p == "/centralino/jarvis/revoca":
         _risposta(h, 200, {"chiave": revoca_jarvis()})
