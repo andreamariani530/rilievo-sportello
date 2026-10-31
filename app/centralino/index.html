@@ -706,7 +706,7 @@ function fermaVoce(){turno++;try{lettore.pause()}catch(e){}if('speechSynthesis' 
 async function parla(t){
   if(!t)return;const mio=++turno;sbloccaVoce();
   /* Beatrice spenta: si parla subito col telefono, ancora dentro il tocco, senza chiedere al server */
-  if(!(S.st&&S.st.voce_server)){parlaTelefono(t);return}
+  if(!(S.st&&(S.st.voce_server||(S.st.voce_beatrice&&t===S.st.voce)))){parlaTelefono(t);return}
   $('dice').innerHTML='<b>preparo la voce…</b>';parlando=true;
   try{const h={'X-Centralino-App':'1','Content-Type':'application/json'};if(S.g)h['X-Centralino']=S.g;
     const r=await fetch('/centralino/voce',{method:'POST',headers:h,body:JSON.stringify({testo:t}),credentials:'same-origin'});

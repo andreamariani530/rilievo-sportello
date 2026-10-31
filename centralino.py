@@ -681,6 +681,7 @@ def stato():
         "fonti": [{"nome": n, "attiva": bool(a)} for n, a in zip(SPICCHI, attive)],
         "voce": riepilogo_a_voce(cose),
         "voce_server": voce_pronta(),
+        "voce_beatrice": voce_registrata(riepilogo_a_voce(cose)) is not None,
         "agenda": agenda(),
         "tiktok": tiktok_riassunto(),
         "notifiche": {"telefoni": len(iscrizioni()), "ultima": _leggi("push-ultima.json", {})},
@@ -1006,8 +1007,75 @@ def voce_pronta():
     return _leggi("voce-%s.json" % time.strftime("%Y-%m", time.gmtime()), {}).get("caratteri", 0) < TETTO_VOCE - 200
 
 
+TETTO_PRONTE = int((CONFIG.get("voce") or {}).get("tetto_preparate_mese") or 20000)   # caratteri preparati da Knowlee
+
+
+def _norma_voce(t):
+    return re.sub(r"\s+", " ", str(t or "")).strip()[:1500]
+
+
+def _file_voce(testo):
+    k = hashlib.sha256(_norma_voce(testo).encode("utf-8")).hexdigest()[:32]
+    d = _cartella() / "voci"
+    d.mkdir(exist_ok=True)
+    return d / (k + ".mp3")
+
+
+def voce_registrata(testo):
+    """L'audio gia' pronto per questo testo (preparato da Knowlee o gia' detto), oppure None."""
+    f = _file_voce(testo)
+    try:
+        return f.read_bytes() if _norma_voce(testo) and f.exists() else None
+    except OSError:
+        return None
+
+
+def _salva_voce(testo, audio):
+    f = _file_voce(testo)
+    f.write_bytes(audio)
+    vecchie = sorted(f.parent.glob("*.mp3"), key=lambda x: x.stat().st_mtime)
+    for x in vecchie[:-300]:
+        try:
+            x.unlink()
+        except OSError:
+            pass
+
+
+def voce_da_preparare():
+    """Per il braccio destro: i testi che Jarvis dira' adesso e che non hanno ancora la voce di Beatrice."""
+    nome = "voce-pronte-%s.json" % time.strftime("%Y-%m", time.gmtime())
+    usati = _leggi(nome, {}).get("caratteri", 0)
+    testi = []
+    t = _norma_voce(stato()["voce"])
+    if t and not voce_registrata(t) and usati + len(t) <= TETTO_PRONTE and not ora_di_silenzio():
+        testi.append(t)
+    return {"testi": testi, "caratteri_mese": usati, "tetto": TETTO_PRONTE}
+
+
+def voce_preparata(testo, audio_b64):
+    import base64
+    testo = _norma_voce(testo)
+    try:
+        audio = base64.b64decode(audio_b64 or "", validate=False)
+    except (ValueError, TypeError):
+        return 400, {"errore": "audio non valido"}
+    if not testo or not (1000 < len(audio) < 3 * 1024 * 1024) or not (audio[:3] == b"ID3" or audio[0] == 0xFF):
+        return 400, {"errore": "serve un mp3 e il suo testo"}
+    with _l:
+        nome = "voce-pronte-%s.json" % time.strftime("%Y-%m", time.gmtime())
+        conti = _leggi(nome, {})
+        if not voce_registrata(testo):
+            conti["caratteri"] = conti.get("caratteri", 0) + len(testo)
+            _scrivi(nome, conti)
+        _salva_voce(testo, audio)
+    return 200, {"salvata": True, "caratteri_mese": conti.get("caratteri", 0)}
+
+
 def voce(testo):
     """Torna (codice, mp3 o dict). Se non c'e' la chiave o il tetto e' pieno, 503: la pagina usa la voce del telefono."""
+    pronta = voce_registrata(testo)
+    if pronta:
+        return 200, pronta
     chiave = (os.environ.get("ELEVENLABS_API_KEY") or "").strip()
     testo = _txt(testo, 1500)
     if not chiave:
@@ -1037,6 +1105,7 @@ def voce(testo):
         conti = _leggi(nome, {})
         conti["caratteri"] = conti.get("caratteri", 0) + len(testo)
         _scrivi(nome, conti)
+        _salva_voce(testo, audio)
     return 200, audio
 
 
@@ -2002,6 +2071,12 @@ def _get(h, p, q):
             return
         _risposta(h, 200, {"richieste": richieste(g("stato") or None)[:100]})
         return
+    if p == "/centralino/api/voce-da-preparare":
+        if not _ponte(h):
+            _risposta(h, 401, {"errore": "Serve la chiave del ponte."})
+            return
+        _risposta(h, 200, voce_da_preparare())
+        return
     if p == "/centralino/api/stato":
         if not _ponte(h):
             _risposta(h, 401, {"errore": "Serve la chiave del ponte."})
@@ -2022,6 +2097,11 @@ def _post(h, p, q):
     if p.startswith("/centralino/api/"):
         if not _ponte(h):
             _risposta(h, 401, {"errore": "Serve la chiave del ponte."})
+            return
+        if p == "/centralino/api/voce":
+            d = _json(h, 5 * 1024 * 1024)
+            codice, r = voce_preparata(d.get("testo"), d.get("audio"))
+            _risposta(h, codice, r)
             return
         d = _json(h)
         if p == "/centralino/api/eventi":
@@ -2079,7 +2159,7 @@ def _post(h, p, q):
             return
         risposta, richiesta = jarvis((d or {}).get("testo") or (q.get("testo") or [""])[0])
         audio = ""
-        if p != "/centralino/jarvis" and voce_pronta():
+        if p != "/centralino/jarvis" and (voce_pronta() or voce_registrata(risposta)):
             cod, mp3 = voce(risposta)
             if cod == 200:
                 if p.endswith(".mp3"):
