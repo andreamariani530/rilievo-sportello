@@ -573,6 +573,10 @@ def canali():
         {"nome": "Fatture in Cloud", "fonte": "fatture", "stato": "acceso" if fic else "da configurare",
          "spiega": "Le fatture passate a Fatture in Cloud diventano eventi qui.",
          "serve": "" if fic else "Le chiavi di Fatture in Cloud su Render.", "nota": ultimo("fatture")},
+        {"nome": "Voce di Jarvis (Beatrice)", "fonte": "voce", "stato": "acceso" if voce_accesa() else "spento",
+         "spiega": "Jarvis legge con la voce di Beatrice (ElevenLabs). Se manca la chiave o finiscono i caratteri del mese, usa la voce del telefono.",
+         "serve": "" if voce_accesa() else "La chiave ElevenLabs su Render (ELEVENLABS_API_KEY).",
+         "nota": "%d caratteri usati questo mese su %d" % (_leggi("voce-%s.json" % time.strftime("%Y-%m", time.gmtime()), {}).get("caratteri", 0), TETTO_VOCE)},
         {"nome": "Render (il server)", "fonte": "render", "stato": "acceso",
          "spiega": "Se stai leggendo questa pagina, il server risponde.",
          "serve": "", "nota": "versione %s · acceso da %s" % (VERSIONE, ("%.0f ore" % su_da) if su_da >= 1 else "meno di un'ora")},
@@ -915,6 +919,50 @@ def chiedi(domanda, storia=None):
         testo = (testo[:m.start()] + testo[m.end():]).strip()
         richiesta = nuova_richiesta(m.group(1).strip(), da="claude")
     return 200, {"risposta": testo, "richiesta": richiesta, "restano": max(0, TETTO_CHAT - conti["n"])}
+
+
+# ------------------------------------------------------------------ la voce (ElevenLabs, con la voce del telefono come riserva)
+
+VOCE_ID = (os.environ.get("CENTRALINO_VOCE_ID") or "UnOINkXZ3yK4vVg3Iayj").strip()   # Beatrice, scelta da Andrea il 31/10
+TETTO_VOCE = 50000             # caratteri al mese letti con ElevenLabs, poi torna la voce del telefono
+
+
+def voce_accesa():
+    return _env("ELEVENLABS_API_KEY")
+
+
+def voce(testo):
+    """Torna (codice, mp3 o dict). Se non c'e' la chiave o il tetto e' pieno, 503: la pagina usa la voce del telefono."""
+    chiave = (os.environ.get("ELEVENLABS_API_KEY") or "").strip()
+    testo = _txt(testo, 1500)
+    if not chiave:
+        return 503, {"errore": "voce spenta"}
+    if not testo:
+        return 400, {"errore": "niente da leggere"}
+    nome = "voce-%s.json" % time.strftime("%Y-%m", time.gmtime())
+    with _l:
+        conti = _leggi(nome, {})
+        if conti.get("caratteri", 0) + len(testo) > TETTO_VOCE:
+            return 503, {"errore": "tetto del mese"}
+    corpo = {"text": testo, "model_id": "eleven_multilingual_v2", "language_code": "it",
+             "voice_settings": {"stability": 0.55, "similarity_boost": 0.75, "style": 0, "use_speaker_boost": True, "speed": 0.97}}
+    try:
+        req = urllib.request.Request("https://api.elevenlabs.io/v1/text-to-speech/%s?output_format=mp3_44100_64" % VOCE_ID,
+                                     data=json.dumps(corpo).encode(), method="POST",
+                                     headers={"xi-api-key": chiave, "content-type": "application/json", "accept": "audio/mpeg"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            audio = r.read()
+    except urllib.error.HTTPError as e:
+        print("  centralino voce: ElevenLabs %s %s" % (e.code, e.read()[:200]), flush=True)
+        return 503, {"errore": "voce non disponibile"}
+    except Exception as e:              # noqa: BLE001
+        print("  centralino voce:", type(e).__name__, flush=True)
+        return 503, {"errore": "voce non disponibile"}
+    with _l:
+        conti = _leggi(nome, {})
+        conti["caratteri"] = conti.get("caratteri", 0) + len(testo)
+        _scrivi(nome, conti)
+    return 200, audio
 
 
 # ------------------------------------------------------------------ il gancio di Meta (WhatsApp, Instagram, Facebook)
@@ -1525,6 +1573,10 @@ def _post(h, p, q):
     if p == "/centralino/chiedi":
         codice, r = chiedi(d.get("domanda"), d.get("storia"))
         _risposta(h, codice, r)
+        return
+    if p == "/centralino/voce":
+        codice, r = voce(d.get("testo"))
+        _risposta(h, codice, r, "audio/mpeg" if codice == 200 else "application/json; charset=utf-8")
         return
     m = re.fullmatch(r"/centralino/evento/([0-9a-f]{12})", p)
     if m:
