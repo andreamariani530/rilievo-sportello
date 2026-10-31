@@ -3485,6 +3485,32 @@ def servizio(porta=8787, pubblico=False):
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
+            # per farsi trovare su Google (Andrea, 31/10/2026: «se qualcuno cerca rilievo
+            # usciamo?»). Si mostra solo la pagina dell'app: i preventivi dei clienti,
+            # le richieste e il centralino restano fuori dai motori di ricerca.
+            if u.path == "/robots.txt":
+                testo = ("User-agent: *\nAllow: /$\nAllow: /telefono\n"
+                         "Disallow: /p/\nDisallow: /chiedi/\nDisallow: /centralino\n"
+                         "Disallow: /posta\nDisallow: /visite\nDisallow: /fic/\n"
+                         "Disallow: /fattura\n\nSitemap: https://rilievoapp.it/sitemap.xml\n")
+                dati = testo.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(dati)))
+                self.end_headers()
+                self.wfile.write(dati)
+                return
+            if u.path == "/sitemap.xml":
+                dati = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+                        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                        '<url><loc>https://rilievoapp.it/</loc></url>\n'
+                        '</urlset>\n').encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/xml; charset=utf-8")
+                self.send_header("Content-Length", str(len(dati)))
+                self.end_headers()
+                self.wfile.write(dati)
+                return
             # la guida per mettere Rilievo fra le icone del telefono (Andrea, 7/10/2026):
             # un indirizzo corto da mettere nelle mail ai giardinieri
             if u.path in ("/telefono", "/telefono/"):
