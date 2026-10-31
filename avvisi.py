@@ -94,8 +94,7 @@ def manda_per_andrea(chiave, a, oggetto, testo):
         return 429, {"errore": "Tetto di oggi raggiunto."}
     if not posta.accesa():
         return 503, {"errore": "La posta del server e' spenta."}
-    utente = (os.environ.get("RILIEVO_POSTA_UTENTE") or "").strip()
-    ok = posta.manda(a, str(oggetto)[:200], str(testo), nome="Andrea Mariani", rispondi_a=utente)
+    ok = posta.manda(a, str(oggetto)[:200], str(testo), nome="Andrea Mariani", rispondi_a=posta.mittente())
     if not ok:
         return 502, {"errore": "Gmail non ha preso la mail."}
     _inviate[oggi] = _inviate.get(oggi, 0) + 1
