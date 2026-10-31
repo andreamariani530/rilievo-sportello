@@ -713,7 +713,7 @@ def _corto(x):
 
 def riepilogo_a_voce(cose):
     h = datetime.datetime.now(ROMA).hour
-    saluto = ("Buongiorno %s." if 5 <= h < 13 else ("Buon pomeriggio %s." if h < 18 else "Buonasera %s.")) % PROPRIETARIO
+    saluto = ("Buongiorno %s." if 5 <= h < 13 else ("Buon pomeriggio %s." if 13 <= h < 18 else "Buonasera %s.")) % PROPRIETARIO
     if not cose:
         return saluto + " È tutto tranquillo. Il server risponde e non c'è niente che aspetta te."
     urg = [c for c in cose if c["livello"] == "urgent"]
