@@ -1526,7 +1526,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-10-30 03:08';
+const COSTRUITA = '2026-10-31 03:16';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -5701,7 +5701,7 @@ function rilievoHtml(ril, s, r){
     </div>
     <div class="azioni" style="margin:-4px 0 14px">
       <button class="bottone vuoto piccolo" onclick="schedaRilievo('${s.id}')">Correggi le misure</button>
-      <button class="bottone vuoto piccolo" onclick="preparaRilievo('${s.id}')">Rifallo dall'indirizzo</button>
+      <button class="bottone vuoto piccolo" onclick="preparaRilievo('${s.id}', true)">Rifallo dall'indirizzo</button>
     </div>
     <div class="rilievo-due">
     <div class="tavola">
@@ -6032,9 +6032,22 @@ function svegliaRilievo(){
   try{ fetch(SPORTELLO_RILIEVO + '/ci-sei?' + col(), {mode:'cors'}).catch(() => {}); }catch(e){}
 }
 
-function preparaRilievo(idSopralluogo){
+const provatiDaSolo = {};
+function preparaRilievo(idSopralluogo, chiedi){
   const s = sopr(idSopralluogo); if(!s) return;
   const r = richiesta(s.richiesta);
+  /* L'indirizzo l'ha appena scritto in «Nuovo sopralluogo»: chiederglielo di nuovo, in
+     una finestra col CAP, era un tocco e un dubbio in piu' (giro del cliente scettico,
+     29 ottobre 2026, momento 11). Se c'e' via e comune si parte subito. La finestra
+     resta per «Rifallo dall'indirizzo» e «Riscrivi l'indirizzo», e per un indirizzo
+     senza comune, che da solo non si trova. Se quell'indirizzo e' gia' stato provato e
+     non e' andato, la seconda volta si apre la finestra: rifare uguale non serve. */
+  const scritto = String(s.luogo || (r ? r.dove : '') || '').trim();
+  if(!chiedi && /[a-z].*,\s*\S{2,}/i.test(scritto) && !s.rilievo && provatiDaSolo[idSopralluogo] !== scritto){
+    provatiDaSolo[idSopralluogo] = scritto;
+    chiediRilievo(idSopralluogo, scritto, 0, false, s.cap || '');
+    return;
+  }
   scheda({
     titolo:'Prepara il rilievo',
     sotto:'Scrivi l\'indirizzo come lo scriveresti a una persona: se il posto è una frazione, scrivila prima del comune. Il CAP non serve quasi mai, ma nei paesini piccoli toglie ogni dubbio.',
@@ -6270,7 +6283,7 @@ function rilievoNonDisponibile(idSopralluogo, errore, suggerimenti, indirizzo){
     extra: lista + `<p style="padding:0 24px">Chiudi questa finestra per continuare il sopralluogo,
       oppure scrivi le misure che hai preso. Puoi anche riscrivere l'indirizzo, con la frazione
       prima del comune e il CAP se lo sai.
-      <button type="button" class="bottone vuoto piccolo" style="margin-left:8px" onclick="chiudiScheda();setTimeout(function(){preparaRilievo('${idSopralluogo}')},60)">Riscrivi l'indirizzo</button></p>`,
+      <button type="button" class="bottone vuoto piccolo" style="margin-left:8px" onclick="chiudiScheda();setTimeout(function(){preparaRilievo('${idSopralluogo}', true)},60)">Riscrivi l'indirizzo</button></p>`,
     testoSalva:'Inserisci le misure',
     salva:() => rilievoAMano(idSopralluogo)
   });
@@ -8944,6 +8957,18 @@ function numeriDetti(tok){
     }
     return false;
   };
+  /* "decespugliatore LUNGO LA RECINZIONE sessanta metri": e' la lunghezza di un bordo,
+     non un pezzo di prato. Sommata allo sfalcio, "sfalcio 800 mq decespugliatore lungo
+     la recinzione 60 metri" usciva da 860 mq (31 ottobre 2026). Serve "lungo" e il nome
+     di un bordo, nelle sei parole prima del numero: "il prato lungo venti metri e largo
+     dieci" resta una misura del prato. */
+  const BORDO = new Set(['recinzione','recinzioni','recinto','rete','muro','muri','muretto',
+    'muretti','confine','confini','bordo','bordi','cordolo','cordoli','marciapiede','vialetto',
+    'cancellata','perimetro','staccionata']);
+  const lungoIlBordo = i => {
+    const prima = tok.slice(Math.max(0, i - 6), i);
+    return prima.some(w => /^lung(o|a|hi|he)$/.test(w) || w === 'perimetro') && prima.some(w => BORDO.has(w));
+  };
   /* ===== UN NUMERO SOLO DETTO IN DUE PAROLE (22 settembre 2026) =====
      "prato MILLE DUECENTO metri quadri": dettando esce spesso spezzato, e restava solo il
      secondo pezzo. Milleduecento metri quadri diventavano duecento: un prato fatturato un
@@ -8980,6 +9005,7 @@ function numeriDetti(tok){
     if(TEMPO.has(cosaDopo(i)) && n.u !== 'ore') n.tempo = true;
     if(diAltezza(i)) n.altezza = true;
     if(altroPosto(i)) n.altroPosto = true;
+    if(n.u === 'm' && lungoIlBordo(i)) n.bordo = true;
     fuori.push(n);
   });
   /* ===== IL FORO: LARGHEZZA PER ALTEZZA (4 ottobre 2026) =====
@@ -9181,6 +9207,8 @@ const somiglia = (w, p) => ugualiQuasi(w, p) ||
    finiscono come un verbo senza esserlo: "prato" finisce in -ato ma e' una cosa.  */
 const sembraVerbo = w => (/(are|ire|iamo|amo|ano)$/.test(w) && w.length >= 6) ||
                          (/(ato|ata|ati|uto|uta)$/.test(w) && w.length >= 7);
+const SEMINA_DETTA = new Set(['semina','seminare','seminato','seminata','seminiamo','semenza',
+  'semente','rotolo','rotoli','zolla','zolle']);
 function scegliVoce(tok, voci){
   const unita = new Set(numeriDetti(tok).map(n => n.u).filter(Boolean));
   let meglio = null;
@@ -9204,6 +9232,14 @@ function scegliVoce(tok, voci){
        (c.punti === meglio.punti && (c.combacia > meglio.combacia ||
         (c.combacia === meglio.combacia && c.primo < meglio.primo)))) meglio = c;
   });
+  /* "SEMINA del prato 200 mq", "prato a ROTOLI", "prato nuovo in ZOLLE": e' un prato da
+     fare, non da tagliare. Se nel listino non c'e' una voce della semina, il prato
+     sceglieva lo sfalcio, e la semina si pagava come un taglio d'erba: 70 euro invece
+     di centinaia (31 ottobre 2026). Meglio una lavorazione nuova, che chiede il prezzo. */
+  if(meglio && CONCETTI_IN_USO.some(c => c.chiavi.includes('semina'))){
+    const sue = meglio.x.parole || [];
+    if(tok.some(w => SEMINA_DETTA.has(w) && !sue.some(p => somiglia(w, p.p)))) return null;
+  }
   return meglio ? meglio.x : null;
 }
 /* una misura vale per questa voce? Quella dell'unita' giusta sempre, e un numero
@@ -9213,7 +9249,7 @@ function scegliVoce(tok, voci){
    un'aiuola in metri lineari. Trovato il 17 settembre 2026 provando le frasi vere. */
 const misuraDellaVoce = (n, k) =>
   !n.altezza && !n.prezzo && !n.tempo && (!n.conteggio || k === 'pezzi') &&
-  (n.u === k || n.u === null || (k === 'mq' && n.u === 'm'));
+  (n.u === k || n.u === null || (k === 'mq' && n.u === 'm' && !n.bordo));
 /* ===== SI E' CORRETTO, E LA PARTE DI UN TOTALE PIU' GRANDE (22 settembre 2026) =====
    Due modi di parlare che mettevano nel preventivo un numero che il cliente non ha mai
    chiesto, trovati dettando senza punteggiatura:
@@ -9259,7 +9295,7 @@ function quantitaPer(tipo, numeri){
   const giusto = numeri.find(n => n.u === tipo.k);
   if(giusto) return conQuelliPrima(giusto, conGliAltri(giusto));
   if(tipo.k === 'mq'){
-    const lineare = numeri.find(n => n.u === 'm');
+    const lineare = numeri.find(n => n.u === 'm' && !n.bordo);
     if(lineare) return conGliAltri(lineare);
   }
   const nudo = numeri.find(n => n.u === null);
@@ -9755,12 +9791,17 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
     /* un pezzo senza lavorazione ("circa dieci metri") va con quello prima;
        due pezzi della stessa lavorazione con due misure restano due, e si sommano */
     const gruppi = [];
+    /* "il prato a rotoli 120 metri quadri e poi la potatura di tre ulivi": il prato a
+       rotoli non e' a listino, ma ha la sua misura e una cosa del mestiere. E' un lavoro
+       per conto suo, non il pezzo davanti della potatura: prima spariva dentro gli ulivi
+       senza lasciare traccia (31 ottobre 2026). */
+    const daSolo = g => numeriDetti(g.tok).some(n => n.u) && !!lavorazioneFuoriListino(g.tok);
     rimasti.forEach(p => {
       const ultimo = gruppi[gruppi.length - 1];
       if(!p.voce){
         if(ultimo) ultimo.tok = ultimo.tok.concat(p.tok);
         else gruppi.push({voce:null, tok:p.tok.slice()});
-      } else if(ultimo && (!ultimo.voce ||
+      } else if(ultimo && ((!ultimo.voce && !daSolo(ultimo)) ||
                 (ultimo.voce === p.voce && !(haMisura(ultimo) && haMisura(p))))){
         /* "posa di tre | finestre": il pezzo davanti, senza una lavorazione sua, dice di
            quale voce si parla quanto il nome che viene dopo. Si sceglie sull'insieme,
