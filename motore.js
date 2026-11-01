@@ -43,6 +43,17 @@ export function creaAuth(s) {
 	}
 }
 
+// Racconta i passaggi del collegamento senza oggetti: solo la frase, con i numeri lunghi coperti.
+const registro = {
+	level: 'info',
+	child() { return registro },
+	trace() {}, debug() {},
+	info(a, b) { const t = typeof a === 'string' ? a : b; if (/pair|regist|logged|stream errored/i.test(t || '')) console.log('wa:', t.replace(/\d{6,}/g, '…').slice(0, 160)) },
+	warn(a, b) { const t = typeof a === 'string' ? a : b; if (t) console.log('wa avviso:', t.replace(/\d{6,}/g, '…').slice(0, 160)) },
+	error(a, b) { const t = typeof a === 'string' ? a : b; if (t) console.log('wa errore:', t.replace(/\d{6,}/g, '…').slice(0, 160)) },
+	fatal(a, b) { const t = typeof a === 'string' ? a : b; if (t) console.log('wa errore:', t.replace(/\d{6,}/g, '…').slice(0, 160)) }
+}
+
 const cifre = (jid) => String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '')
 
 // Traduce un messaggio di Baileys nella forma che il Centralino sa gia' leggere. Null = da ignorare.
@@ -99,7 +110,7 @@ export function creaMotore({ sessione, numero, avvisa, attesaQR = 45000 }) {
 		sock = makeWASocket({
 			...(version ? { version } : {}),
 			auth: creaAuth(sessione),
-			logger: pino({ level: 'silent' }),
+			logger: registro,
 			browser: Browsers.macOS('Chrome'),
 			markOnlineOnConnect: false,
 			syncFullHistory: false,

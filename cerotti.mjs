@@ -1,6 +1,6 @@
 // Correzioni a baileys@7.0.0-rc14, la versione fissata nel file di blocco. Sono le stesse delle
 // richieste aperte sul progetto originale (WhiskeySockets/Baileys), non ancora pubblicate su npm:
-//   #2872 codice di abbinamento   #2765 collegamento su iPhone   #2789 non risultare online
+//   #2872 e #2559 codice di abbinamento   #2765 collegamento su iPhone   #2789 non risultare online
 // Se un pezzo non si trova esattamente, la costruzione si ferma: meglio niente che un ibrido.
 import { readFileSync, writeFileSync } from 'node:fs'
 
@@ -34,6 +34,9 @@ const CEROTTI = [
 	['Socket/socket.js', '#2765 il server ritira il segreto del QR',
 		`ws.on('CB:iq,type:set,pair-device', async (stanza) => {`,
 		`let refCorrenteQR;\n    let ridisegnaQR;\n    ws.on('CB:notification,type:companion_reg_refresh', (node) => {\n        const figli = ['companion_reg_refresh', 'pair-device-rotate-qr'];\n        if (creds.me || !figli.some(tag => getBinaryNodeChild(node, tag))) {\n            return;\n        }\n        const advSecretKey = randomBytes(32).toString('base64');\n        creds.advSecretKey = advSecretKey;\n        ev.emit('creds.update', { advSecretKey });\n        ridisegnaQR?.();\n    });\n    ws.on('CB:iq,type:set,pair-device', async (stanza) => {`],
+	['Socket/socket.js', '#2559 se WhatsApp rifiuta la richiesta del codice, si vede subito',
+		`await sendNode({\n            tag: 'iq',\n            attrs: {\n                to: S_WHATSAPP_NET,\n                type: 'set',\n                id: generateMessageTag(),\n                xmlns: 'md'\n            },\n            content: [\n                {\n                    tag: 'link_code_companion_reg',`,
+		`await query({\n            tag: 'iq',\n            attrs: {\n                to: S_WHATSAPP_NET,\n                type: 'set',\n                id: generateMessageTag(),\n                xmlns: 'md'\n            },\n            content: [\n                {\n                    tag: 'link_code_companion_reg',`],
 	['Socket/socket.js', '#2789 mai una presenza senza nome',
 		`if (creds.me?.name !== name) {`,
 		`if (typeof name === 'string' && name.length > 0 && creds.me?.name !== name) {`]
