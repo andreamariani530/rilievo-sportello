@@ -56,9 +56,16 @@ def codice_pulito(c):
 def da_chi():
     try:
         d = json.loads((QUI / "da-chi.json").read_text(encoding="utf-8"))
-        return d.get("codici") or {}
+        elenco = d.get("codici") or {}
     except Exception:                   # noqa: BLE001
-        return {}
+        elenco = {}
+    # chi ha chiesto l'accesso dal sito e Andrea ha fatto entrare (1/11/2026)
+    try:
+        import ingresso
+        elenco = {**ingresso.accesi(), **elenco}
+    except Exception:                   # noqa: BLE001
+        pass
+    return elenco
 
 
 def _finte():

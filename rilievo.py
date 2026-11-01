@@ -39,6 +39,7 @@ import preventivo_col_link # il preventivo che il cliente apre e accetta da un l
 import richieste_dal_link  # il link della ditta: i clienti nuovi scrivono da li' (4/10/2026)
 import avvisi             # chi si iscrive e chi rientra: avviso ad Andrea
 import visite             # chi apre il link: un link per ogni ditta (8/10/2026)
+import ingresso           # chi arriva dal sito chiede l'accesso (1/11/2026)
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 import fattureincloud      # il collegamento col Fatture in Cloud dell'artigiano (4/10/2026)
 import assistente          # l'assistente in chat, col manuale dell'app dentro
@@ -2967,6 +2968,19 @@ def servizio(porta=8787, pubblico=False):
             if u.path == "/fattura/invia":
                 self._fattura_invia(codice)
                 return
+            if u.path == "/ingresso/chiedi":
+                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()
+                codice_http, r = ingresso.chiedi(self._corpo(8 * 1024), ip)
+                self._manda(codice_http, r)
+                return
+            m = re.fullmatch(r"/ingresso/decidi/([A-Za-z0-9_-]{20,60})/(si|no)", u.path)
+            if m:
+                r = ingresso.decidi(m.group(1), m.group(2) == "si")
+                self.send_response(303 if r else 404)
+                self.send_header("Location", "/ingresso/decidi/" + m.group(1))
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             if u.path == "/posta/andrea":
                 dentro = self._corpo(32 * 1024)
                 dentro = dentro if isinstance(dentro, dict) else {}
@@ -3485,13 +3499,37 @@ def servizio(porta=8787, pubblico=False):
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
+            # il sito: «Ho gia' un codice» e la pagina dove Andrea decide (1/11/2026)
+            if u.path == "/ingresso/codice":
+                c = visite.codice_pulito((q.get("c") or [""])[0].lower())
+                self._manda(200, {"valido": bool(c and c in visite.da_chi()), "codice": c or ""})
+                return
+            if u.path == "/ingresso/elenco":
+                if not visite.chiave_giusta(self.headers.get("X-Chiave")):
+                    self._manda(401, {"errore": "Serve la chiave."})
+                    return
+                self._manda(200, {"richieste": ingresso.elenco()})
+                return
+            m = re.fullmatch(r"/ingresso/decidi/([A-Za-z0-9_-]{20,60})", u.path)
+            if m:
+                pagina = ingresso.pagina(m.group(1))
+                dati = (pagina or "<!doctype html><meta charset=utf-8><p>Richiesta non trovata.</p>").encode("utf-8")
+                self.send_response(200 if pagina else 404)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("X-Robots-Tag", "noindex, nofollow")
+                self.send_header("Referrer-Policy", "no-referrer")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(dati)))
+                self.end_headers()
+                self.wfile.write(dati)
+                return
             # per farsi trovare su Google (Andrea, 31/10/2026: «se qualcuno cerca rilievo
             # usciamo?»). Si mostra solo la pagina dell'app: i preventivi dei clienti,
             # le richieste e il centralino restano fuori dai motori di ricerca.
             if u.path == "/robots.txt":
                 testo = ("User-agent: *\nAllow: /$\nAllow: /telefono\n"
                          "Disallow: /p/\nDisallow: /chiedi/\nDisallow: /centralino\n"
-                         "Disallow: /posta\nDisallow: /visite\nDisallow: /fic/\n"
+                         "Disallow: /posta\nDisallow: /visite\nDisallow: /fic/\nDisallow: /ingresso/\n"
                          "Disallow: /fattura\n\nSitemap: https://rilievoapp.it/sitemap.xml\n")
                 dati = testo.encode("utf-8")
                 self.send_response(200)
