@@ -1317,6 +1317,11 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
 #sito .s-fine{padding:80px 0 40px;text-align:left}
 #sito .s-piede{padding:34px 0 50px;display:flex;flex-wrap:wrap;gap:10px 26px;font-family:'Jost',system-ui,sans-serif;font-size:13px;color:#8A8377}
 #sito .s-piede a{color:#8A8377;text-decoration:none;border-bottom:1px solid #E2DCD0}
+#sito .s-informativa{padding-top:60px;padding-bottom:60px}
+#sito .s-testo-privacy h3{font-family:'Cormorant',Georgia,serif;font-weight:600;font-size:24px;margin:30px 0 8px}
+#sito .s-testo-privacy p{margin:0 0 12px;color:#4A453E;font-size:18px}
+#sito .s-testo-privacy a{color:#3E4A3A}
+#sito [hidden]{display:none!important}
 @media (max-width:560px){
   html.vista-sito #sito{font-size:18px}
   #sito .s-apre{padding:58px 0 54px}
@@ -1382,10 +1387,34 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
   <footer class="s-piede">
    <span>© 2026 Rilievo</span>
    <a href="mailto:info@rilievoapp.it">info@rilievoapp.it</a>
-   <a href="/?app=1#privacy">Come trattiamo i dati</a>
+   <a href="/privacy" id="s-privacy">Come trattiamo i dati</a>
   </footer>
  </div>
+ <!-- l'informativa si legge dentro il sito: il vecchio link /?app=1#privacy apriva
+      l'app a chiunque, e dopo il sito non tornava piu' (1 novembre 2026) -->
+ <div class="s-pag s-informativa" id="s-informativa" hidden>
+  <p class="s-eti">Informativa privacy</p>
+  <h2>Come trattiamo i dati</h2>
+  <div class="s-testo-privacy"></div>
+  <div class="s-tasti"><a class="s-tasto" href="/" id="s-torna">Torna al sito</a></div>
+ </div>
 </div>
+<script>
+document.getElementById('s-privacy').addEventListener('click', function(e){
+  if(typeof testoPrivacy !== 'function') return;       // l'app non e' ancora pronta: va al link
+  e.preventDefault();
+  var box = document.getElementById('s-informativa'), sito = document.getElementById('sito');
+  box.querySelector('.s-testo-privacy').innerHTML = testoPrivacy();
+  [].forEach.call(sito.children, function(c){ c.hidden = c !== box; });
+  sito.scrollTop = 0;
+});
+document.getElementById('s-torna').addEventListener('click', function(e){
+  e.preventDefault();
+  var sito = document.getElementById('sito');
+  [].forEach.call(sito.children, function(c){ c.hidden = c.id === 's-informativa'; });
+  sito.scrollTop = 0;
+});
+</script>
 
 <div id="avvio" aria-hidden="true"><svg viewBox="0 0 512 512" focusable="false">
   <g transform="translate(168.1 320.5) scale(0.2532 -0.2532)"><path fill="#1B1915" d="M546.5 0Q530.4 0 493.9 38.3Q457.3 76.6 405.9 148.5Q354.5 220.3 290.6 319.3L358.4 340.2Q441.7 219.2 500.1 147Q558.6 74.8 603.7 43.4Q648.8 12 690.4 12Q693 12 693 6Q693 0 690.4 0Q634.2 0 598.7 0Q563.2 0 546.5 0ZM306.2 628Q390 628 434.5 592.6Q479.1 557.2 479.1 497.7Q479.1 442 447.2 397.9Q415.3 353.7 363.8 328.7Q312.3 303.7 252.5 303.7Q241.3 303.7 228.1 304.3Q215 304.8 204.1 305.8V81Q204.1 52 209.7 37Q215.2 22 232.7 17Q250.2 12 285 12Q287.6 12 287.6 6Q287.6 0 285 0Q260.1 0 230 1Q200 2 163.6 2Q129.8 2 98.7 1Q67.5 0 42.6 0Q40.2 0 40.2 6Q40.2 12 42.6 12Q77.5 12 95 17Q112.4 22 118.8 37Q125.1 52 125.1 81V544Q125.1 573 119.3 587.5Q113.4 602 96.2 607.5Q79 613 44.2 613Q41.6 613 41.6 619Q41.6 625 44.2 625Q68.5 625 99.2 623.5Q129.8 622 163.6 622Q195.5 622 235.8 625Q276.2 628 306.2 628ZM396.9 465.7Q396.9 522 381.9 553.5Q366.9 585.1 339.6 598.2Q312.3 611.4 274.8 611.4Q237 611.4 220.6 597.5Q204.1 583.6 204.1 542V331.1Q218.1 329.6 234.4 328.6Q250.7 327.6 263.2 327.6Q337.1 327.6 367 362.1Q396.9 396.5 396.9 465.7Z"/></g>
@@ -1668,7 +1697,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-01 00:53';
+const COSTRUITA = '2026-11-01 03:22';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -9033,6 +9062,9 @@ function numeroDetto(w){
   const dopo  = k[3] ? PAROLE_NUMERO[k[3]] : 0;
   return (prima == null || dopo == null) ? null : prima * 1000 + dopo;
 }
+/* le parole che contano i pezzi di una cosa sola: un numero davanti a loro e' un conto */
+const PEZZI_DI_UNA_COSA = new Set(['lato','lati','pezzo','pezzi','tratto','tratti','parte','parti',
+  'fila','file','filare','filari','spezzone','spezzoni']);
 function numeriDetti(tok){
   /* l'unita' detta subito dopo il numero, col suo fattore: "due ettari" e' mq per 10000 */
   const misuraDopo = i => {
@@ -9058,6 +9090,9 @@ function numeriDetti(tok){
     for(let j = i + 1; j < tok.length && j <= i + 2; j++){
       if(RIEMPITIVI.has(tok[j]) || ARTICOLI.has(tok[j])) continue;
       if(UNITA_DOPO[tok[j]]) return false;
+      /* "la siepe sono DUE LATI uno da 12 e uno da 18 metri": il due conta i lati, e
+         sommato ai metri la siepe usciva da 32 invece che da 30 (1 novembre 2026) */
+      if(PEZZI_DI_UNA_COSA.has(tok[j])) return true;
       return PAROLE_CONCETTO.some(m => somiglia(tok[j], m));
     }
     return false;
@@ -9095,6 +9130,10 @@ function numeriDetti(tok){
       /* "e davanti UNO DI trecento": qui "uno" sta per "un altro prato". Vale solo
          con il "di" attaccato, se no ogni "un viaggio" diventerebbe un secondo pezzo. */
       if((w === 'uno' || w === 'una') && (tok[j + 1] === 'di' || tok[j + 1] === 'da')) return true;
+      /* "uno DAVANTI di duecento e uno DIETRO di trecento": fra "uno" e "di" ci puo'
+         stare il posto. Prima il prato davanti spariva, 300 mq invece di 500 (1/11/2026) */
+      if((w === 'uno' || w === 'una') && tok.slice(j + 1, i).every(x => POSTO.has(x) || x === 'di' || x === 'da') &&
+         tok.slice(j + 1, i).some(x => x === 'di' || x === 'da') && tok.slice(j + 1, i).some(x => POSTO.has(x))) return true;
       if(fuori.some(n => n.i === j)) return false;     // arrivati al numero di prima: basta
     }
     return false;
@@ -9123,6 +9162,18 @@ function numeriDetti(tok){
     const b = numeroDetto(tok[i + 1] || '');
     if(a == null || b == null || a < 100 || a % 100 !== 0 || b >= a) return;
     unite.set(i + 1, a + b); saltare.add(i);
+  });
+  /* "il giardino e' di MILLE E DUECENTO metri quadri" (1 novembre 2026): detto con la
+     "e" in mezzo, i mille sparivano e restavano duecento metri quadri. Si uniscono solo
+     le migliaia tonde seguite da "e" e da un numero sotto il mille che porta la misura
+     ("metri", "mq") o chiude la frase: "mille e tre alberi" restano due cose. */
+  tok.forEach((w, i) => {
+    if(tok[i + 1] !== 'e' || saltare.has(i)) return;
+    const a = unite.has(i) ? unite.get(i) : numeroDetto(w);
+    const b = numeroDetto(tok[i + 2] || '');
+    if(a == null || b == null || a < 1000 || a % 1000 !== 0 || b < 1 || b >= 1000) return;
+    if(tok[i + 3] && UNITA_DOPO[tok[i + 3]] !== 'mq' && UNITA_DOPO[tok[i + 3]] !== 'm') return;   // "alberi" e' un'unita' anche lei, ma conta
+    unite.set(i + 2, a + b); saltare.add(i);
   });
   const fuori = [];
   tok.forEach((w, i) => {
@@ -9351,6 +9402,9 @@ const sembraVerbo = w => (/(are|ire|iamo|amo|ano)$/.test(w) && w.length >= 6) ||
                          (/(ato|ata|ati|uto|uta)$/.test(w) && w.length >= 7);
 const SEMINA_DETTA = new Set(['semina','seminare','seminato','seminata','seminiamo','semenza',
   'semente','rotolo','rotoli','zolla','zolle']);
+const TRATTAMENTO_DETTO = new Set(['trattamento','trattamenti','trattare','antiparassitario',
+  'antiparassitari','insetticida','insetticidi','fungicida','fungicidi','anticrittogamico',
+  'anticrittogamici','endoterapia','irrorazione','irrorare']);
 function scegliVoce(tok, voci){
   const unita = new Set(numeriDetti(tok).map(n => n.u).filter(Boolean));
   let meglio = null;
@@ -9381,6 +9435,13 @@ function scegliVoce(tok, voci){
   if(meglio && CONCETTI_IN_USO.some(c => c.chiavi.includes('semina'))){
     const sue = meglio.x.parole || [];
     if(tok.some(w => SEMINA_DETTA.has(w) && !sue.some(p => somiglia(w, p.p)))) return null;
+    /* "TRATTAMENTO ANTIPARASSITARIO a 6 piante" (1 novembre 2026): senza una voce dei
+       trattamenti nel listino, le piante sceglievano la potatura, e un trattamento si
+       pagava come sei potature di alberi ad alto fusto. Se nel pezzo non c'e' una parola
+       del nome della voce scelta ("potatura"), e' una lavorazione nuova col suo prezzo. */
+    const nome = (senzaAccenti(String(meglio.x.nome || '').toLowerCase()).match(/[a-z]+/g) || []).filter(p => p.length >= 4);
+    if(tok.some(w => TRATTAMENTO_DETTO.has(w) && !sue.some(p => somiglia(w, p.p))) &&
+       !tok.some(w => nome.some(p => somiglia(w, p)))) return null;
   }
   return meglio ? meglio.x : null;
 }
@@ -9940,8 +10001,14 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
     const daSolo = g => numeriDetti(g.tok).some(n => n.u) && !!lavorazioneFuoriListino(g.tok);
     rimasti.forEach(p => {
       const ultimo = gruppi[gruppi.length - 1];
+      /* "siepe 15 metri E POI TRATTAMENTO antiparassitario a 6 piante", "... e poi la
+         SEMINA del prato": la semina e il trattamento non sono a listino, ma sono un
+         lavoro, non un pezzo della siepe. Finivano dentro la siepe e sparivano dal
+         preventivo (1 novembre 2026). Fanno un gruppo loro, che chiede il prezzo. */
+      const lavoroNuovo = !p.voce && ultimo && ultimo.voce && CONCETTI_IN_USO.some(c => c.chiavi.includes('semina')) &&
+        p.tok.some(w => TRATTAMENTO_DETTO.has(w) || SEMINA_DETTA.has(w)) && !!lavorazioneFuoriListino(p.tok);
       if(!p.voce){
-        if(ultimo) ultimo.tok = ultimo.tok.concat(p.tok);
+        if(ultimo && !lavoroNuovo) ultimo.tok = ultimo.tok.concat(p.tok);
         else gruppi.push({voce:null, tok:p.tok.slice()});
       } else if(ultimo && ((!ultimo.voce && !daSolo(ultimo)) ||
                 (ultimo.voce === p.voce && !(haMisura(ultimo) && haMisura(p))))){
