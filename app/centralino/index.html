@@ -664,7 +664,7 @@ function waHtml(){
   const c=S.waConv;if(!c)return'<div class="vuoto-elenco">Carico…</div>';
   const sotto=m=>{if(m.dir==='in')return`<span class="sotto">${esc(m.giorno)} ${esc(m.ora)}</span>`;
     if(m.stato==='errore')return`<span class="sotto errore">${esc(m.ora)} · non consegnato: ${esc(m.errore||'')}</span>`;
-    return`<span class="sotto ${m.stato==='letto'?'letto':''}">${esc(m.giorno)} ${esc(m.ora)} · ${m.da==='telefono'?'inviato da te dal telefono':esc(m.stato||'')}</span>`};
+    return`<span class="sotto ${m.stato==='letto'?'letto':''}">${esc(m.giorno)} ${esc(m.ora)} · ${m.da==='telefono'?'inviato da te dal telefono':(m.da==='jarvis'?'risposto da Jarvis · '+esc(m.stato||''):esc(m.stato||''))}</span>`};
   const media=m=>{const x=m.media;if(!x)return'';
     if(x.stato==='pronto')return`<div data-media="${esc(x.chiave)}" data-mime="${esc(x.mime||'')}" data-nome="${esc(x.nome||'')}"></div>`;
     if(x.stato==='da scaricare'||x.stato==='scarico')return`<div style="font:11px var(--mono);color:var(--mute)">scarico il file…</div>`;
@@ -737,10 +737,22 @@ function waCodiceHtml(codice){const c=String(codice||'');const belle=c.length===
     <p style="font-size:13px;color:var(--mute);text-align:center;margin:2px 0 10px" id="waScade"></p>
     <div class="tasti" style="display:flex;justify-content:center"><button class="btn vuoto" id="waCopiaCodice">Copia il codice</button></div>
     <ol style="font-size:14px;color:#bfe9f7;padding-left:20px;margin:12px 0 0;line-height:1.5"><li>Apri <b>WhatsApp Business</b></li><li><b>Impostazioni</b> &gt; <b>Dispositivi collegati</b></li><li><b>Collega un dispositivo</b></li><li>Sotto la fotocamera tocca <b>Collega con numero di telefono</b></li><li>Scrivi questo codice</li></ol></div>`}
+function waAutoHtml(a){
+  const stato=a.guasto?'Non sono caricate: resta tutto a bozza.':(a.fermo_tetto?'Ferme: tetto di spesa del mese raggiunto. Tornano il primo del mese.':(a.acceso?'Acceso. Rispondo da solo al link e a come si usa l\'app. Il resto è bozza per te.':'Spento. Solo bozze.'));
+  return`<div class="meta" style="margin-top:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span style="font-size:15px;color:#f0fdff">Jarvis risponde ai clienti</span><button class="btn ${a.acceso?'':'vuoto'}" id="waAuto" aria-pressed="${a.acceso?'true':'false'}" data-acceso="${a.acceso?'1':''}" ${a.guasto?'disabled':''}>${a.acceso?'Acceso':'Spento'}</button></div>
+    <p style="font-size:13px;color:var(--mute);margin-top:6px" id="waAutoFrase">${esc(stato)}</p>
+    ${a.guasto?'':`<p style="font-size:13px;color:var(--mute);margin-top:4px">Oggi: risposte ${a.risposte_oggi||0}, bozze ${a.bozze_oggi||0}. Spesa del mese: ${esc(String(a.spesa_mese||0))} su ${esc(String(a.tetto_mese||0))} dollari.</p>
+    <p style="font-size:13px;color:var(--mute);margin-top:4px">${a.prova?`Numero di prova attivo (${esc(a.prova_finale)}) fino alle ${esc(a.prova_fino)}.`:'Vuoi provare dal tuo numero personale? Scrivilo qui: conta come cliente per due ore.'}</p>
+    <div style="display:flex;gap:8px;margin-top:6px"><input id="waProvaNumero" inputmode="tel" autocomplete="off" placeholder="Il tuo numero" aria-label="Il tuo numero per la prova" style="flex:1;min-width:0"><button class="btn vuoto" id="waProva">Prova</button></div>`}</div>`}
+function legaAuto(){
+  const b=$('waAuto');if(b)b.onclick=async()=>{b.disabled=true;const r=await api('/centralino/whatsapp/auto',{acceso:!b.dataset.acceso});b.disabled=false;if(r.ok)waSistema();else $('waAutoFrase').textContent=r.d.errore||'Non è riuscito.'};
+  const p=$('waProva');if(p)p.onclick=async()=>{p.disabled=true;const r=await api('/centralino/whatsapp/auto-prova',{numero:$('waProvaNumero').value});p.disabled=false;if(r.ok)waSistema();else $('waAutoFrase').textContent=r.d.errore||'Numero non valido.'};
+}
 async function waSistema(){
   const z=$('waSistema');if(!z)return;
   const r=await api('/centralino/whatsapp.json');
   if(!r.ok||!$('waSistema'))return;const st=r.d.stato||{};
+  const pn=$('waProvaNumero'),pnv=pn?pn.value:'',pnf=pn&&document.activeElement===pn;
   const zz=$('waSistema');const inCorso=S.waCodice&&S.waCodice.scade>Date.now()&&!st.attivo;
   const righe=[];
   if(st.attivo&&st.collegato_dal)righe.push('Collegato dal '+esc(waOra(st.collegato_dal)));
@@ -750,12 +762,14 @@ async function waSistema(){
   zz.innerHTML=`<div class="meta" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span style="font-size:15px;color:#f0fdff">${esc(st.frase)}</span><span class="pill ${st.parola==='acceso'?'acceso':(st.parola==='scollegato'||st.parola==='bloccato'?'spento':'altro')}">${esc(st.parola)}</span></div>
     <ul class="wa-passi">${(st.passi||[]).map(p=>`<li class="${p.ok?'ok':''}">${esc(p.testo)}${p.ok?'':`<small>${esc(p.manca)}</small>`}</li>`).join('')}</ul>
     ${righe.length?`<p style="font-size:13px;color:var(--mute);margin-top:6px">${righe.join('<br>')}</p>`:''}
-    <p style="font-size:13px;color:var(--mute);margin-top:6px">L'app e le chat restano sul tuo telefono. Jarvis non risponde mai da solo.</p>
+    <p style="font-size:13px;color:var(--mute);margin-top:6px">L'app e le chat restano sul tuo telefono. </p>${waAutoHtml(r.d.auto||{})}
     <div class="tasti" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${st.attivo?'':`<button class="btn" id="waCollega">Collega WhatsApp</button>`}<button class="btn vuoto" id="waApri">Le chat</button>${st.attivo?`<button class="btn vuoto" id="waScollega">Scollega</button>`:''}</div>
     <div id="waZonaCodice">${inCorso&&S.waCodice.codice?waCodiceHtml(S.waCodice.codice):''}</div>
     <div id="waEsito" style="margin-top:8px;font-size:14px;color:#bfe9f7" role="status">${S.waEsito}</div>
     ${st.attivo?'':`<p style="font-size:12.5px;color:var(--mute);margin-top:8px">Il codice non va? <button class="btn vuoto" id="waQr" style="padding:4px 10px">Usa il QR da un altro schermo</button></p><div id="waZonaQr"></div>`}`;
   $('waApri').onclick=()=>apriWa('');
+  legaAuto();
+  const pn2=$('waProvaNumero');if(pn2&&pnv){pn2.value=pnv;if(pnf)pn2.focus()}
   const legaCopia=()=>{const b=$('waCopiaCodice');if(b)b.onclick=async()=>{try{await navigator.clipboard.writeText($('waCodice').dataset.codice);b.textContent='Copiato'}catch(e){b.textContent='Copialo a mano'}setTimeout(()=>b.textContent='Copia il codice',1800)}};
   legaCopia();waConto();
   const cl=$('waCollega');if(cl)cl.onclick=async()=>{cl.disabled=true;$('waEsito').textContent='Chiedo il codice a WhatsApp…';const c=await api('/centralino/whatsapp/collega',{modo:'codice'});cl.disabled=false;
