@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Rilievo · preventivi per giardinieri e artigiani dalla foto dall'alto</title>
+<title>Rilievo App · preventivi per giardinieri e artigiani dalla foto dall'alto</title>
 <meta name="description" content="Scrivi l'indirizzo del cliente: Rilievo misura il giardino dalla foto dall'alto e prepara il preventivo coi tuoi prezzi. Lo mandi con un link, il cliente lo accetta dal telefono. Gratis per provare.">
 <link rel="canonical" href="https://rilievoapp.it/">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Rilievo App","alternateName":["Rilievo","rilievoapp"],"url":"https://rilievoapp.it/"},{"@type":"SoftwareApplication","name":"Rilievo App","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"it","url":"https://rilievoapp.it/","description":"App per i preventivi di giardinieri e artigiani: misura il terreno dalla foto dall'alto e prepara il preventivo coi tuoi prezzi."}]}</script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Rilievo">
 <meta property="og:title" content="Rilievo · preventivi dalla foto dall'alto">
@@ -1277,7 +1278,11 @@ nav .gruppo{text-transform:none;letter-spacing:.02em;font-size:12px;margin:14px 
   try{
     var q = location.search, ls = localStorage;
     var forza = /[?&]sito=1/.test(q);
-    var app = /[?&](da|app|codice)=/.test(q) || location.hash.length > 1 ||
+    /* Andrea, 1/11/2026: «non possono avere accesso libero». Chi e' nuovo entra solo col
+       suo link (?da=). ?app=1 vale soltanto nei collaudi, mai su rilievoapp.it; un
+       #qualcosa non apre piu' niente (/privacy portava dentro l'app chiunque). */
+    var collaudo = /^(127\.0\.0\.1|localhost|collaudo\.local|)$/.test(location.hostname);
+    var app = /[?&]da=[^&#]/.test(q) || (collaudo && /[?&]app=/.test(q)) ||
               (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
     if(!app) for(var i = 0; i < ls.length; i++){ if(/^rilievo/.test(ls.key(i))){ app = true; break; } }
     sito = forza || !app;
@@ -1354,7 +1359,7 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
   <div class="s-apre">
    <p class="s-eti">Preventivi per giardinieri e artigiani</p>
    <h1>Il preventivo pronto <em>prima</em> del sopralluogo.</h1>
-   <p class="s-sotto">Scrivi l'indirizzo del cliente. Rilievo misura il terreno dalla foto dall'alto e prepara il preventivo coi tuoi prezzi. Lo mandi con un link, il cliente lo accetta dal telefono.</p>
+   <p class="s-sotto">Rilievo è l'app per i preventivi di giardinieri e artigiani. Scrivi l'indirizzo del cliente: Rilievo misura il terreno dalla foto dall'alto e prepara il preventivo coi tuoi prezzi. Lo mandi con un link, il cliente lo accetta dal telefono.</p>
    <div class="s-tasti">
     <a class="s-tasto" href="mailto:info@rilievoapp.it?subject=Vorrei%20provare%20Rilievo&amp;body=Ciao%2C%20faccio%20il%20...%20a%20...%20e%20vorrei%20provare%20Rilievo.">Chiedi di provarla</a>
     <a class="s-link" href="https://www.tiktok.com/@rilievo_app" rel="noopener">Guardala su TikTok</a>
@@ -1425,6 +1430,11 @@ document.getElementById('s-torna').addEventListener('click', function(e){
   var sito = document.getElementById('sito');
   [].forEach.call(sito.children, function(c){ c.hidden = c.id === 's-informativa'; });
   sito.scrollTop = 0;
+});
+/* il link /privacy nelle mail e nei messaggi: chi non ha l'app legge l'informativa nel sito */
+addEventListener('load', function(){
+  if(location.hash === '#privacy' && document.documentElement.classList.contains('vista-sito'))
+    document.getElementById('s-privacy').click();
 });
 </script>
 
@@ -1709,7 +1719,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-01 11:34';
+const COSTRUITA = '2026-11-01 13:28';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
