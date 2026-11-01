@@ -1,0 +1,47 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#010611"><title>Guida: WhatsApp nel Centralino</title><style>
+@font-face{font-family:Oxanium;src:url(/centralino/caratteri/oxanium.ttf) format("truetype");font-weight:200 800;font-display:swap}
+@font-face{font-family:"IBM Plex Sans Condensed";src:url(/centralino/caratteri/plex-400.ttf) format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"IBM Plex Sans Condensed";src:url(/centralino/caratteri/plex-500.ttf) format("truetype");font-weight:500;font-display:swap}
+*{box-sizing:border-box}body{margin:0 auto;max-width:640px;padding:22px 18px calc(40px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#010611,#04223f) fixed;color:#dff7ff;font:17px/1.45 "IBM Plex Sans Condensed",system-ui,sans-serif}
+h1,h2{font-family:Oxanium,sans-serif;font-weight:500;color:#f0fdff;text-shadow:0 0 12px #22c8ff}h1{font-size:26px;letter-spacing:.06em;margin:0 0 10px}
+h2{font-size:19px;letter-spacing:.08em;text-transform:uppercase;margin:30px 0 8px;padding-top:12px;border-top:1px solid rgba(34,200,255,.35)}h3{font-size:17px;margin:18px 0 4px;color:#a8f1ff;font-weight:500}
+ol,ul{padding-left:24px;margin:8px 0}li{margin:7px 0}p{margin:8px 0}a{color:#7fe7ff}b{color:#fff;font-weight:500}
+code{font:14px ui-monospace,monospace;background:rgba(1,6,17,.75);border:1px solid rgba(34,200,255,.35);padding:1px 5px;overflow-wrap:anywhere}
+#ultimo-passo{color:#ffb070;text-shadow:0 0 12px #ff8a2b;border-top-color:#ff8a2b}
+</style></head><body><h1>WhatsApp nel Centralino</h1>
+<p>Alla fine leggi e rispondi al numero nuovo da qui, con la notifica sul telefono. Gratis fino a 1.000 risposte al mese. Niente parte senza il tuo tocco.</p>
+<p>Sono due parti. La prima non cambia niente per i clienti: il numero resta sull'app. La seconda è quella breve, dove il numero passa a Meta. <b>Non fare la seconda finché la prima non è tutta verde.</b></p>
+<h2>Da sapere prima</h2>
+<ul>
+<li><b>Partita IVA.</b> Per cominciare non serve. Il portafoglio aziendale di Meta si crea senza, e la verifica dell'azienda non è obbligatoria per partire. Senza verifica hai due limiti: 2 numeri, e 250 persone al giorno a cui scrivere per primo. A te non pesano: le risposte entro le 24 ore non contano. La verifica vuole documenti dell'azienda: oggi non la puoi fare. Meta non scrive da nessuna parte che un privato sia escluso, ma nemmeno che sia ammesso. Se un giorno te la chiede, ne parliamo: potresti dover aprire la partita IVA prima del previsto.</li>
+<li><b>Il nome.</b> Scegli «Rilievo». Meta può rivederlo più avanti. Niente nomi di persona o parole generiche.</li>
+<li><b>Cosa non si può fare.</b> Scrivere per primo a qualcuno, o a chi non ti scrive da più di 24 ore, costa un modello a pagamento. L'app te lo dice e non ci prova. Puoi chiamare o aspettare che riscriva.</li>
+<li><b>Soldi.</b> Non aggiungere nessun metodo di pagamento. Senza, Meta non può addebitarti niente: dopo 1.000 risposte nel mese smette solo di consegnare. L'app si ferma prima, a 950.</li>
+<li><b>Le chat.</b> Passando a Meta perdi le chat che hai oggi sull'app, e il numero non si può più usare con l'app.</li>
+</ul>
+<h2>Parte 1: preparare, col numero ancora sull'app</h2>
+<p>Tempo: una ventina di minuti, dal computer se puoi. Se una schermata è diversa da come la descrivo, segui il senso e scrivimi cosa vedi.</p>
+<ol>
+<li><b>Entra su Meta per sviluppatori.</b> Apri <a href="https://developers.facebook.com/async/registration/" target="_blank" rel="noopener">la registrazione</a> con il tuo account Facebook e segui i passi. Se non hai Facebook, ne serve uno. Il codice di conferma te lo chiede Meta: non scriverlo a nessuno, nemmeno a me.</li>
+<li><b>Crea l'app.</b> Apri <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">le tue app</a>, tocca <b>Create App</b>. Nome: <code>Centralino</code>. Mail: la tua di lavoro. Scegli <b>Connect with customers through WhatsApp</b>, poi <b>Next</b>. Quando chiede il portafoglio (*business portfolio*), creane uno nuovo chiamato <code>Rilievo</code>. Poi <b>Create app</b>.</li>
+<li><b>Apri WhatsApp nell'app.</b> Tocca <b>Start using the API</b>. Se chiede un account WhatsApp, tocca <b>Create a WhatsApp Business account</b> e dagli il nome <code>Rilievo</code>. Non aggiungere il tuo numero: per ora usi quello di test che Meta ti dà da sé.</li>
+<li><b>Collega il gancio.</b> Vai in <b>Configuration</b> (nel menu a sinistra, sotto WhatsApp). In <a href="https://rilievoapp.it/centralino#sistema" target="_blank" rel="noopener">Sistema del Centralino</a>, sezione WhatsApp, in fondo trovi i due valori con il tasto Copia. Il primo va in <b>Callback URL</b>, il secondo in <b>Verify token</b>. Tocca <b>Verify and save</b>. Poi sotto, in <b>Webhook fields</b>, accendi <b>messages</b> (*Subscribe*).</li>
+<li><b>Copia la chiave segreta dell'app.</b> Vai in <b>App settings &gt; Basic</b>. Accanto ad <b>App secret</b> tocca <b>Show</b>, poi copiala. Tienila per il punto 7.</li>
+<li><b>Crea la chiave di accesso.</b> Apri <a href="https://business.facebook.com/latest/settings" target="_blank" rel="noopener">le impostazioni aziendali</a>, poi <b>Users &gt; System users</b>, <b>Add</b>. Nome: <code>centralino</code>, ruolo <b>Admin</b>. Poi <b>Assign assets</b>: scegli l'app <code>Centralino</code> con <b>Full control</b>, e l'account WhatsApp <code>Rilievo</code> con <b>Full control</b>. Poi <b>Generate token</b>: app <code>Centralino</code>, scadenza <b>Never</b>, e spunta <b>solo</b> <code>whatsapp_business_messaging</code> e <code>whatsapp_business_management</code>. Copia la chiave: Meta la mostra una volta sola.</li>
+<li><b>Incolla le due chiavi su Render.</b> Apri <a href="https://dashboard.render.com/web/srv-dahhku15efls73bvrgp0/env" target="_blank" rel="noopener">le variabili del server</a>, <b>Edit</b>, <b>Add Environment Variable</b>. Nome <code>CENTRALINO_WA_TOKEN</code>, valore la chiave del punto 6. Nome <code>CENTRALINO_WA_SEGRETO</code>, valore la chiave del punto 5. <b>Save, rebuild and deploy</b>. Il server riparte in un paio di minuti. Le chiavi stanno solo lì: mai in chat, mai in mail.</li>
+<li><b>Controlla.</b> In <a href="https://rilievoapp.it/centralino#sistema" target="_blank" rel="noopener">Sistema</a> tocca <b>Controlla la strada</b>. Le prime righe devono avere la spunta. Quella del gancio la prende con il punto dopo.</li>
+<li><b>Prova vera con il numero di test.</b> Torna in <b>API Setup</b> su Meta. In <b>To</b> metti il tuo numero personale (ti chiede un codice per confermarlo), poi <b>Send message</b>: ti arriva un messaggio di prova da un numero americano. Rispondigli «prova». Entro un minuto deve suonare la notifica e la chat deve comparire nel Centralino. Rispondi da lì. Deve dirti «consegnato» e arrivarti davvero.</li>
+</ol>
+<p><b>Se il punto 9 funziona, è provato quasi tutto.</b> Scrivimi «strada provata» e controllo anche io. Se non funziona, fermati lì: non hai perso niente e il numero è ancora al suo posto.</p>
+<h2 id="ultimo-passo">Parte 2: l'ultimo passo</h2>
+<p>Tempo: pochi minuti, ma non farlo se hai solo cinque minuti: Meta può far aspettare fra il punto c e il d. Fallo quando i clienti di solito non scrivono. Tutti di fila, in quest'ordine.</p>
+<ul>
+<li><b>(a) Segnati che le chat si perdono.</b> Se ce n'è una che ti serve, aprila e fai uno screenshot adesso.</li>
+<li><b>(b) Togli la verifica in due passaggi, se c'è.</b> App WhatsApp Business &gt; Impostazioni &gt; Account &gt; Verifica in due passaggi &gt; Disattiva.</li>
+<li><b>(c) Cancella l'account dall'app.</b> Impostazioni &gt; Account &gt; Elimina account. Scrivi il numero e conferma. Da qui il numero è spento.</li>
+<li><b>(d) Aggiungi il numero su Meta.</b> Apri <a href="https://business.facebook.com/latest/whatsapp_manager/phone_numbers" target="_blank" rel="noopener">i numeri in WhatsApp Manager</a>, <b>Add phone number</b>. Nome visualizzato <code>Rilievo</code>, categoria quella che più si avvicina, poi il numero, poi SMS. Metti il codice che arriva sul telefono. Se dice che è ancora in uso, aspetta 10 minuti e riprova.</li>
+<li><b>(e) Tocca «Attiva il numero».</b> In <a href="https://rilievoapp.it/centralino#sistema" target="_blank" rel="noopener">Sistema</a>. Il PIN e tutto il resto li fa il server. Se c'è un errore te lo spiega in italiano.</li>
+<li><b>(f) Fatti scrivere da un altro telefono.</b> Deve suonare la notifica. Rispondi dal Centralino. Quando vedi «consegnato», in Sistema compare <b>acceso</b>. Fino ad allora c'è scritto <b>non provato</b>, ed è giusto così.</li>
+</ul>
+<p><b>Se qualcosa si blocca al punto d o e:</b> il numero non è perso. Riapri WhatsApp Business, rimetti il numero, conferma con l'SMS: torna come prima, senza le vecchie chat. Prima scrivimi: spesso basta aspettare un po'.</p></body></html>

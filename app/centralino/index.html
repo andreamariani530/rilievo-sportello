@@ -252,6 +252,26 @@
   .metri .chip{font:inherit;letter-spacing:inherit;color:var(--ice);background:rgba(34,200,255,.1);border:1px solid var(--line);padding:3px 7px;cursor:pointer;text-transform:uppercase;min-height:26px}
   .metri .chip:active{background:rgba(34,200,255,.3)}
 
+  /* WhatsApp */
+  .wa-riga{cursor:pointer}
+  .wa-riga h3{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .wa-riga .quanti{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--red);color:#fff;font:700 12px/20px Oxanium,sans-serif;text-align:center}
+  .wa-riga p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bolla .sotto{display:block;margin-top:4px;font:10px var(--mono);letter-spacing:.06em;color:var(--mute);text-align:right}
+  .bolla .sotto.errore{color:var(--red);white-space:normal;text-align:left}
+  .bolla .sotto.letto{color:var(--ok)}
+  .bolla img,.bolla video{display:block;max-width:100%;max-height:320px;margin-bottom:4px;border:1px solid var(--line)}
+  .bolla audio{display:block;width:240px;max-width:100%;margin-bottom:4px}
+  .bolla a{color:#a8f1ff}
+  .wa-finestra{font:11px var(--mono);letter-spacing:.06em;color:var(--ok);padding:8px 2px 6px}
+  .wa-finestra.poca{color:var(--hot)} .wa-finestra.chiusa{color:var(--red);font:13px/1.35 "IBM Plex Sans Condensed",sans-serif;letter-spacing:0}
+  .wa-bozza{font:11px var(--mono);color:var(--hot);padding-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  #waTesto{width:100%;min-height:62px;max-height:160px;padding:10px;background:#04152a;color:#e8f8ff;border:1px solid #1f5f86;border-radius:8px;font:16px "IBM Plex Sans Condensed",sans-serif;resize:vertical}
+  .wa-manda{display:flex;gap:8px;margin-top:8px}.wa-manda .btn{flex:1}
+  .wa-passi{list-style:none;margin:8px 0 0;padding:0}.wa-passi li{font-size:14px;color:#bfe9f7;padding:3px 0 3px 24px;position:relative}
+  .wa-passi li::before{content:"○";position:absolute;left:4px;color:var(--mute)}.wa-passi li.ok::before{content:"✓";color:var(--ok)}
+  .wa-passi li small{display:block;color:var(--mute);font-size:12.5px}
+
   /* pannelli Agenda e TikTok */
   .grandi{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
   .grande{position:relative;padding:10px 12px;border:1px solid var(--line);background:rgba(4,34,63,.45);clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)}
@@ -466,7 +486,7 @@ function mostra(){
   $('telemetria').innerHTML=[
     ['Link aperti 24h',String(t.aperture24),barre(Math.min(t.aperture24,6),6,'#ff2f4a'),'contatti'],
     ['Messaggi nuovi',String(t.messaggi_nuovi),spark(t.serie),'messaggi'],
-    ['Lavori ok',t.lavori,barre(t.lavori_tot?Math.round(6*t.lavori_ok/t.lavori_tot):0,6,'#3dffb0'),'sistema'],
+    (st.whatsapp&&st.whatsapp.conversazioni)?['WhatsApp',String(st.whatsapp.non_letti),`<i>${st.whatsapp.bozze?(st.whatsapp.bozze===1?'1 bozza pronta':st.whatsapp.bozze+' bozze pronte'):(st.whatsapp.non_letti?'da leggere':'tutto letto')}</i>`,'whatsapp']:['Lavori ok',t.lavori,barre(t.lavori_tot?Math.round(6*t.lavori_ok/t.lavori_tot):0,6,'#3dffb0'),'sistema'],
     ['Agenda',prossimo?(prossimo.ora||'oggi'):'libero',`<i>${esc(prossimo?((ag.oggi||[]).includes(prossimo)?'':'domani · ')+prossimo.titolo:(ag.aggiornata?'niente oggi e domani':'in arrivo'))}</i>`,'agenda'],
     ['TikTok follower',tu.follower!=null?String(tu.follower):'—',`<i>${delta(td.follower)||esc(tk.ora?'letto '+tk.ora.slice(-5):'primo giro in arrivo')}</i>`,'tiktok'],
     ['TikTok visual.',tu.visualizzazioni!=null?Number(tu.visualizzazioni).toLocaleString('it-IT'):'—',sett.some(v=>v)?spark(sett):`<i>${delta(td.visualizzazioni)}</i>`,'tiktok']
@@ -475,7 +495,7 @@ function mostra(){
   const nMsg=(st.eventi||[]).filter(e=>e.stato==='nuovo'&&e.livello!=='calm').length,nDec=(st.decisioni||[]).filter(d=>d.stato==='attesa').length,nCon=(st.contatti||[]).filter(c=>c.nuovo).length;
   $('bMsg').textContent=nMsg||'';$('bDec').textContent=nDec||'';$('bCon').textContent=nCon||'';
   const scrive=document.activeElement&&$('corpo').contains(document.activeElement)&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-  if(S.sez!=='oggi'&&S.sez!=='chat'&&!scrive)apri(S.sez,true);
+  if(S.sez!=='oggi'&&S.sez!=='chat'&&S.sez!=='whatsapp'&&!scrive)apri(S.sez,true);
 }
 function tastiDi(x,grande){
   if(x.genere==='decisione'&&(x.stato==='attesa'||!x.stato))return`<button data-dec="${x.id}" data-r="si">${esc(x.si||'Sì')}</button><button data-dec="${x.id}" data-r="no">${esc(x.no||'No')}</button>`;
@@ -498,15 +518,15 @@ document.addEventListener('click',async e=>{
   if(b.dataset.claude!==undefined){apriClaude();return}
   b.disabled=true;
   if(b.dataset.ev)await api('/centralino/evento/'+b.dataset.ev,{stato:b.dataset.s});
-  if(b.dataset.dec)await api('/centralino/decisione/'+b.dataset.dec,{risposta:b.dataset.r});
+  if(b.dataset.dec){const rd=await api('/centralino/decisione/'+b.dataset.dec,{risposta:b.dataset.r});const x=rd.d&&rd.d.wa_esito;if(x&&(x.errore||x.testo))alert(x.errore||x.testo)}
   if(b.dataset.con)await api('/centralino/contatto/'+b.dataset.con,{visto:true});
   aggiorna();
 });
-function apriLink(u){if(/^(tel|sms|mailto):/.test(u))location.href=u;else window.open(u,'_blank','noopener')}
+function apriLink(u){if(/^\/centralino#/.test(u)){vaiA(u);return}if(/^(tel|sms|mailto):/.test(u))location.href=u;else window.open(u,'_blank','noopener')}
 function apriClaude(){const t=Date.now();location.href='claude://';setTimeout(()=>{if(!document.hidden&&Date.now()-t<2500)window.open('https://claude.ai/new','_blank','noopener')},1200)}
 
 /* ---------- i fogli: Messaggi, Decisioni, Contatti, Sistema, Chat ---------- */
-const TITOLI={messaggi:'Messaggi',decisioni:'Decisioni',contatti:'Contatti',sistema:'Sistema',chat:'Claude',agenda:'Agenda',tiktok:'TikTok'};
+const TITOLI={messaggi:'Messaggi',decisioni:'Decisioni',contatti:'Contatti',sistema:'Sistema',chat:'Claude',agenda:'Agenda',tiktok:'TikTok',whatsapp:'WhatsApp'};
 function voceEvento(e){
   return`<div class="voce ${e.livello}${e.stato!=='nuovo'&&e.stato!=='attesa'?' spenta':''}" data-id="${esc(e.id)}"><div class="meta"><span>${esc(e.nome_fonte)} · ${esc(PAROLA[e.livello])}</span><span>${esc(e.giorno)} ${esc(e.ora)}</span></div>
     <h3>${esc(e.titolo)}</h3>${e.testo?`<p>${esc(e.testo)}</p>`:''}${(e.stato==='nuovo'||e.stato==='attesa')?`<div class="tasti">${tastiDi(e).replace(/<button /g,'<button class="btn" ').replace(/data-s="visto"/,'data-s="visto" style="background:transparent"')}</div>`:(e.link?`<div class="tasti"><button class="btn vuoto" data-apri="${esc(e.link)}">Apri</button></div>`:'')}</div>`;
@@ -515,21 +535,22 @@ function apri(sez,soloContenuto){
   S.sez=sez;document.querySelectorAll('nav [data-sez]').forEach(a=>a.classList.toggle('qui',a.dataset.sez===sez));
   if(sez==='oggi'){$('foglio').classList.remove('aperto');return}
   $('titoloFoglio').textContent=TITOLI[sez];$('foglio').classList.add('aperto');
-  const st=S.st||{};const corpo=$('corpo');let h='';$('piede').innerHTML='';
+  const st=S.st||{};const corpo=$('corpo');let h='';if(sez!=='whatsapp')$('piede').innerHTML='';
   if(sez==='messaggi'){
     const tutti=st.eventi||[],el=S.filtro==='nuovi'?tutti.filter(e=>e.stato==='nuovo'):tutti;
-    h=`<div class="filtri"><button data-f="nuovi" aria-pressed="${S.filtro==='nuovi'}">Da vedere</button><button data-f="tutti" aria-pressed="${S.filtro==='tutti'}">Tutti</button></div>`;
+    h=`<div class="filtri"><button data-f="nuovi" aria-pressed="${S.filtro==='nuovi'}">Da vedere</button><button data-f="tutti" aria-pressed="${S.filtro==='tutti'}">Tutti</button><button id="vaiWa">WhatsApp${st.whatsapp&&st.whatsapp.non_letti?' · '+st.whatsapp.non_letti:''}</button></div>`;
     h+=el.map(voceEvento).join('')||'<div class="vuoto-elenco">Niente da vedere</div>';
   }
   if(sez==='decisioni'){
     const d=st.decisioni||[],att=d.filter(x=>x.stato==='attesa'),fatte=d.filter(x=>x.stato!=='attesa');
     h=att.map(x=>voceEvento(Object.assign({},x,{livello:'need'}))).join('')||'<div class="vuoto-elenco">Nessuna decisione in attesa</div>';
-    if(fatte.length)h+=`<div class="titoletto">Già decise</div>`+fatte.slice(0,20).map(x=>voceEvento(Object.assign({},x,{livello:'calm',titolo:x.titolo+' → '+(x.stato==='si'?(x.si||'Sì'):(x.no||'No'))}))).join('');
+    if(fatte.length)h+=`<div class="titoletto">Già decise</div>`+fatte.slice(0,20).map(x=>voceEvento(Object.assign({},x,{livello:'calm',titolo:x.titolo+' → '+(x.stato==='superata'?'superata':(x.stato==='si'?(x.si||'Sì'):(x.no||'No')))}))).join('');
   }
   if(sez==='contatti'){
     h=(st.contatti||[]).map(c=>`<div class="voce ${c.nuovo?'urgent':''}${c.aperture||c.rilievi?'':' spenta'}"><div class="meta"><span>${esc(c.codice)}</span><span>${esc(c.ultima?c.ultima.slice(8,10)+'/'+c.ultima.slice(5,7)+' '+c.ultima.slice(11,16):'mai aperto')}</span></div>
       <h3>${esc(c.ditta)}</h3><p>${c.aperture} aperture · ${c.rilievi} rilievi${c.fin_dove?' · '+esc(c.fin_dove):''}${c.perche?'\nsi era fermato perché '+esc(c.perche):''}</p>${c.nuovo?`<div class="tasti"><button class="btn" data-con="${esc(c.codice)}">Visto</button></div>`:''}</div>`).join('')||'<div class="vuoto-elenco">Nessun contatto</div>';
   }
+  if(sez==='whatsapp'){$('titoloFoglio').textContent=S.wa&&S.waConv?S.waConv.nome:TITOLI.whatsapp;h=waHtml();waPiede()}
   if(sez==='sistema')h=sistema(st);
   if(sez==='agenda')h=agendaHtml(st);
   if(sez==='tiktok')h=tiktokHtml(st);
@@ -541,6 +562,8 @@ function apri(sez,soloContenuto){
   }
   if(!soloContenuto||sez!=='chat'){const y=corpo.scrollTop;corpo.innerHTML=h;if(soloContenuto)corpo.scrollTop=y;else corpo.scrollTop=sez==='chat'?corpo.scrollHeight:0}
   corpo.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.filtro=b.dataset.f;apri('messaggi',true)});
+  const vw=$('vaiWa');if(vw)vw.onclick=()=>apriWa('');
+  if(sez==='whatsapp'){waMedia();if(!soloContenuto)waAggiorna()}
   if(sez==='sistema')legaSistema();
   if(sez==='agenda')legaAgenda();
 }
@@ -552,6 +575,7 @@ function sistema(st){
   const n=st.notifiche||{};
   let h=`<div class="titoletto">Notifiche</div><p style="font-size:14px;color:#bfe9f7" id="statoNotifiche">${esc(testoNotifiche(n))}</p>
      <div class="tasti" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="accendiNotifiche">Accendi le notifiche</button><button class="btn vuoto" id="provaNotifica">Mandami una prova</button></div>`;
+  h+=`<div class="titoletto">WhatsApp</div><div id="waSistema"><p style="font-size:14px;color:#bfe9f7">Guardo come sta…</p></div>`;
   h+=`<div class="titoletto">Tasto Azione</div><p style="font-size:14px;color:#bfe9f7">Premi il tasto Azione, parli, ${esc(st.assistente||'Jarvis')} ti risponde a voce. Va anche a schermo bloccato. Si fa una volta in Comandi Rapidi:</p>
      <ol class="passi"><li>Comandi Rapidi > <b>+</b> > nome <b>Jarvis</b>.</li><li>Azione <b>Detta testo</b> (lingua italiano).</li><li>Azione <b>Ottieni contenuto dell'URL</b>: incolla l'indirizzo, metodo <b>POST</b>, intestazione <b>X-Jarvis</b> con la chiave, corpo <b>File</b> = Testo dettato.</li><li>Azione <b>Leggi testo</b> (voce italiana).</li><li>Impostazioni > Tasto Azione > <b>Comando rapido</b> > Jarvis.</li></ol>
      <div class="valore"><code id="jarvisUrl">…</code><button class="btn vuoto" data-copia="jarvisUrl">Copia</button></div>
@@ -586,6 +610,7 @@ function testoNotifiche(n){
   return'Spente. Tocca «Accendi le notifiche» e rispondi «Consenti».'+(tel?' (Altri telefoni iscritti: '+tel+')':'');
 }
 function legaSistema(){
+  waSistema();
   const an=$('accendiNotifiche');if(an)an.onclick=()=>accendiNotifiche();
   const pn=$('provaNotifica');if(pn)pn.onclick=async()=>{pn.disabled=true;const st=t=>$('statoNotifiche').textContent=t;
     st('Mando la prova…');let r=await api('/centralino/push/prova',{});
@@ -618,12 +643,116 @@ function legaSistema(){
     $('provaVoce').onclick=()=>{try{localStorage.setItem('centralino-voce',sv.value)}catch(e){}parla('Buonasera Andrea. Sono Jarvis. Oggi è tutto tranquillo, ti avviso io se qualcuno ti cerca.')}}
   const x=$('esci');if(x)x.onclick=async()=>{await api('/centralino/esci',{});try{localStorage.removeItem('centralino-gettone')}catch(e){}S.g='';porta(true)};
 }
-$('chiudi').onclick=()=>{apri('oggi');history.replaceState(null,'','#')};
+$('chiudi').onclick=()=>{if(S.sez==='whatsapp'&&S.wa){apriWa('');return}apri('oggi');history.replaceState(null,'','#')};
 document.querySelectorAll('nav [data-sez]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();apri(a.dataset.sez)}));
 $('vaiSistema').onclick=()=>apri('sistema');$('vaiSistema').onkeydown=e=>{if(e.key==='Enter')apri('sistema')};
 $('coda').onclick=()=>apri('messaggi');
 $('telemetria').addEventListener('click',e=>{const t=e.target.closest('[data-vai]');if(t)apri(t.dataset.vai)});
 $('vaiPlancia').addEventListener('click',e=>{e.stopPropagation();plancia(!S.plancia)});
+
+/* ---------- WhatsApp ---------- */
+Object.assign(S,{wa:'',waConv:null,waLista:null,waTesto:{},waFirma:'',blob:{},waEsito:''});
+function apriWa(wa){S.wa=wa||'';S.waConv=null;S.waFirma='';apri('whatsapp')}
+function waHtml(){
+  if(!S.wa){
+    const l=S.waLista;if(!l)return'<div class="vuoto-elenco">Carico…</div>';
+    const st=l.stato||{};
+    const testa=st.parola!=='acceso'?`<p style="font-size:13px;color:var(--mute);margin:0 0 10px">${esc(st.frase||'')}</p>`:'';
+    return testa+((l.conversazioni||[]).map(c=>`<div class="voce wa-riga ${c.non_letti?'urgent':''}" data-wa="${esc(c.wa)}" role="button" tabindex="0"><div class="meta"><span>${esc(c.finestra>0?c.finestra_testo:'finestra chiusa')}</span><span>${esc(c.giorno)} ${esc(c.ora)}</span></div>
+      <h3><span>${esc(c.nome)}</span>${c.non_letti?`<span class="quanti">${c.non_letti}</span>`:''}</h3><p>${c.bozza?'<b style="color:var(--hot)">bozza pronta · </b>':''}${c.dir==='out'?'tu: ':''}${esc(c.anteprima)}</p></div>`).join('')||'<div class="vuoto-elenco">Ancora nessun messaggio</div>');
+  }
+  const c=S.waConv;if(!c)return'<div class="vuoto-elenco">Carico…</div>';
+  const sotto=m=>{if(m.dir==='in')return`<span class="sotto">${esc(m.giorno)} ${esc(m.ora)}</span>`;
+    if(m.stato==='errore')return`<span class="sotto errore">${esc(m.ora)} · non consegnato: ${esc(m.errore||'')}</span>`;
+    return`<span class="sotto ${m.stato==='letto'?'letto':''}">${esc(m.giorno)} ${esc(m.ora)} · ${esc(m.stato||'')}</span>`};
+  const media=m=>{const x=m.media;if(!x)return'';
+    if(x.stato==='pronto')return`<div data-media="${esc(x.chiave)}" data-mime="${esc(x.mime||'')}" data-nome="${esc(x.nome||'')}"></div>`;
+    if(x.stato==='da scaricare'||x.stato==='scarico')return`<div style="font:11px var(--mono);color:var(--mute)">scarico il file…</div>`;
+    return`<div style="font:12px var(--mono);color:var(--hot)">${esc(x.motivo||'File non disponibile.')}${x.stato==='troppo grande'?'':` <button class="btn vuoto" data-wariprova="${esc(m.id)}">Riprova</button>`}</div>`};
+  return`<div class="chat">`+(c.messaggi||[]).map(m=>`<div class="bolla ${m.dir==='in'?'lui':'io'}">${media(m)}${esc(m.testo)}${sotto(m)}</div>`).join('')+`</div>`;
+}
+function waPiede(){
+  const p=$('piede');if(!S.wa){p.innerHTML='';return}
+  const c=S.waConv;if(!c){p.innerHTML='';return}
+  const ora=p.dataset.wa===c.wa&&p.dataset.chiusa===String(c.finestra<=0)&&$('waTesto');
+  const riga=c.finestra>0?`<div class="wa-finestra ${c.finestra<7200?'poca':''}" id="waFin">${esc(c.finestra_testo)} · gratis</div>`:'';
+  if(ora){const f=$('waFin');if(f){f.textContent=c.finestra_testo+' · gratis';f.className='wa-finestra '+(c.finestra<7200?'poca':'')}$('waBozzaZona').innerHTML=waBozzaHtml(c);legaBozza(c);return}
+  p.dataset.wa=c.wa;p.dataset.chiusa=String(c.finestra<=0);
+  if(c.finestra<=0){p.innerHTML=`<div class="wa-finestra chiusa">Sono passate più di 24 ore dal suo ultimo messaggio. Da qui non parte niente: servirebbe un modello a pagamento, e io non ci provo. Puoi chiamare, o aspettare che riscriva.</div><div class="wa-manda"><a class="btn" href="tel:+${esc(c.wa)}" style="text-align:center">Chiama</a><button class="btn vuoto" id="waCancella">Cancella la chat</button></div>`}
+  else{
+    p.innerHTML=`${riga}<div id="waBozzaZona">${waBozzaHtml(c)}</div><textarea id="waTesto" placeholder="Scrivi la risposta…"></textarea><div class="wa-manda"><button class="btn" id="waManda">Manda</button><button class="btn vuoto" id="waCancella" style="flex:0 0 auto">Elimina chat</button></div><div id="waEsitoInvio" style="font:12px var(--mono);color:var(--ok);padding-top:6px;min-height:18px" role="status"></div>`;
+    const t=$('waTesto');t.value=S.waTesto[c.wa]||c.testo_bozza||'';t.oninput=()=>{S.waTesto[c.wa]=t.value};
+    legaBozza(c);
+    $('waManda').onclick=()=>waManda();
+  }
+  const ca=$('waCancella');if(ca)ca.onclick=async()=>{if(!confirm('Cancello questa conversazione e i suoi file dal server? Non si recupera.'))return;await api('/centralino/whatsapp/cancella',{wa:c.wa});delete S.waTesto[c.wa];p.dataset.wa='';apriWa('')};
+}
+function waBozzaHtml(c){return c.testo_bozza?`<div class="wa-bozza"><span>Bozza di Jarvis: controllala. Parte solo se tocchi Manda.</span><button class="btn vuoto" id="waScarta">Scarta</button></div>`:''}
+function legaBozza(c){const b=$('waScarta');if(b)b.onclick=async()=>{const t=$('waTesto');if(t&&t.value===c.testo_bozza){t.value='';S.waTesto[c.wa]=''}await api('/centralino/whatsapp/scarta',{wa:c.wa});waAggiorna()}}
+async function waManda(){
+  const c=S.waConv,t=$('waTesto'),b=$('waManda'),es=$('waEsitoInvio');if(!c||!t)return;const testo=t.value.trim();if(!testo)return;
+  b.disabled=true;b.textContent='Mando…';es.textContent='';es.style.color='var(--ok)';
+  const cid=S.waCid||(S.waCid=Date.now().toString(36)+Math.random().toString(36).slice(2,8));
+  const r=await api('/centralino/whatsapp/invia',{wa:c.wa,testo,cid});
+  b.disabled=false;b.textContent='Manda';
+  if(r.ok){S.waCid='';t.value='';S.waTesto[c.wa]='';es.textContent=r.d.gia?'Era già partito.':('Partito alle '+((r.d.messaggio||{}).ora||'')+'. Guarda se arriva «consegnato».');S.waFirma='';await waAggiorna()}
+  else{es.style.color='var(--red)';es.textContent=r.d.errore||'Non è partito.';if(r.status!==0)S.waCid=''}
+}
+async function waAggiorna(){
+  if(S.sez!=='whatsapp')return;
+  const qui=S.wa;const r=await api(qui?'/centralino/whatsapp/conv/'+qui:'/centralino/whatsapp.json');
+  if(!r.ok||S.sez!=='whatsapp'||S.wa!==qui)return;
+  if(qui)S.waConv=r.d;else S.waLista=r.d;
+  const firma=JSON.stringify(qui?[r.d.messaggi,r.d.testo_bozza]:[r.d.conversazioni,r.d.stato&&r.d.stato.frase]);
+  waPiede();
+  if(qui)$('titoloFoglio').textContent=r.d.nome;
+  if(firma===S.waFirma)return;S.waFirma=firma;
+  const corpo=$('corpo');corpo.innerHTML=waHtml();waMedia();
+  if(qui){corpo.scrollTop=corpo.scrollHeight;if(r.d.non_letti){await api('/centralino/whatsapp/letto',{wa:qui});aggiorna(true)}}
+}
+setInterval(()=>{if(!document.hidden&&S.sez==='whatsapp')waAggiorna()},8000);
+$('corpo').addEventListener('click',async e=>{
+  const riga=e.target.closest('[data-wa]');if(riga){apriWa(riga.dataset.wa);return}
+  const rp=e.target.closest('[data-wariprova]');if(rp&&S.wa){rp.disabled=true;await api('/centralino/whatsapp/riprova',{wa:S.wa,id:rp.dataset.wariprova});S.waFirma='';setTimeout(waAggiorna,1500)}
+});
+async function waBlob(k){
+  if(S.blob[k])return S.blob[k];
+  const h={'X-Centralino-App':'1'};if(S.g)h['X-Centralino']=S.g;
+  const r=await fetch('/centralino/whatsapp/media/'+k,{headers:h,credentials:'same-origin'});if(!r.ok)throw 0;
+  return S.blob[k]=URL.createObjectURL(await r.blob());
+}
+function waMedia(){
+  document.querySelectorAll('#corpo [data-media]').forEach(async z=>{
+    const k=z.dataset.media,mime=(z.dataset.mime||'').split(';')[0],nome=z.dataset.nome||'';
+    try{const u=await waBlob(k);
+      if(/^image\//.test(mime))z.innerHTML=`<img alt="Foto ricevuta" src="${u}">`;
+      else if(/^audio\//.test(mime)){z.innerHTML=`<audio controls preload="metadata" src="${u}"></audio><a href="${u}" download="vocale.ogg" style="font:11px var(--mono)">scarica il vocale</a>`}
+      else if(/^video\//.test(mime))z.innerHTML=`<video controls playsinline preload="metadata" src="${u}"></video>`;
+      else z.innerHTML=`<a href="${u}" download="${esc(nome||'documento')}">Apri il documento${nome?': '+esc(nome):''}</a>`;
+    }catch(e){z.textContent='Il file non si apre adesso.'}
+  });
+}
+async function waSistema(){
+  const z=$('waSistema');if(!z)return;
+  const [r,imp]=await Promise.all([api('/centralino/whatsapp.json'),api('/centralino/whatsapp/impostazioni')]);
+  if(!r.ok||!$('waSistema'))return;const st=r.d.stato||{};
+  const zz=$('waSistema');
+  zz.innerHTML=`<div class="meta" style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;color:#f0fdff">${esc(st.frase)}</span><span class="pill ${st.parola==='acceso'?'acceso':(st.parola==='spento'?'spento':'altro')}">${esc(st.parola)}</span></div>
+    <ul class="wa-passi">${(st.passi||[]).map(p=>`<li class="${p.ok?'ok':''}">${esc(p.testo)}${p.ok?'':`<small>${esc(p.manca)}</small>`}</li>`).join('')}</ul>
+    <p style="font-size:13px;color:var(--mute);margin-top:6px">${st.numero?'Numero '+esc(st.numero)+(st.nome?' · '+esc(st.nome):'')+'<br>':''}Risposte questo mese: ${st.risposte_mese} (mi fermo a ${st.tetto_mese}: da 1.000 in su Meta si fa pagare)${st.a_pagamento?'<br><b style="color:var(--red)">Meta ne ha contate '+st.a_pagamento+' a pagamento.</b>':''}<br>File salvati: ${st.media_mb} MB su ${st.tetto_media_mb}</p>
+    <div class="tasti" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn vuoto" id="waControlla">Controlla la strada</button><button class="btn" id="waAttiva"${st.pronto?'':' disabled'}>${st.attivo?'Attiva di nuovo':'Attiva il numero'}</button><button class="btn vuoto" id="waApri">Le chat</button></div>
+    <div id="waEsito" style="margin-top:8px;font-size:14px;color:#bfe9f7" role="status">${S.waEsito}</div>
+    <p style="font-size:13px;margin-top:8px"><a style="color:#a8f1ff" href="/centralino/guida-whatsapp" target="_blank" rel="noopener">Apri la guida passo passo</a></p>
+    ${imp.ok?`<p style="font-size:12.5px;color:var(--mute);margin-top:6px">Da incollare su Meta, in Webhook:</p><div class="valore"><code id="waGancio">${esc(imp.d.gancio)}</code><button class="btn vuoto" data-wacopia="waGancio">Copia</button></div><div class="valore"><code id="waParola">${esc(imp.d.verifica)}</code><button class="btn vuoto" data-wacopia="waParola">Copia</button></div>`:''}`;
+  zz.querySelectorAll('[data-wacopia]').forEach(b=>b.onclick=async()=>{const t=$(b.dataset.wacopia).textContent;try{await navigator.clipboard.writeText(t)}catch(e){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();document.execCommand('copy');x.remove()}b.textContent='Copiato';setTimeout(()=>b.textContent='Copia',1800)});
+  $('waApri').onclick=()=>apriWa('');
+  $('waControlla').onclick=async()=>{const b=$('waControlla');b.disabled=true;$('waEsito').textContent='Controllo…';const c=await api('/centralino/whatsapp/controlla',{});
+    S.waEsito=(c.d.righe||[]).map(x=>(x.ok?'✓ ':'✗ ')+esc(x.testo)).join('<br>');$('waEsito').innerHTML=S.waEsito;b.disabled=false};
+  const attiva=async id=>{const b=$('waAttiva');b.disabled=true;$('waEsito').textContent='Registro il numero su Meta…';const c=await api('/centralino/whatsapp/attiva',{numero_id:id||''});
+    if(c.d.scelte){$('waEsito').innerHTML='Su Meta ci sono più numeri. Quale?<br>'+c.d.scelte.map(x=>`<button class="btn vuoto" data-num="${esc(x.id)}" style="margin:4px 4px 0 0">${esc(x.numero)} ${esc(x.nome||'')}</button>`).join('');$('waEsito').querySelectorAll('[data-num]').forEach(n=>n.onclick=()=>attiva(n.dataset.num));b.disabled=false;return}
+    S.waEsito=esc(c.ok?c.d.frase:(c.d.errore||'Non è riuscito.'));$('waEsito').innerHTML=(c.ok?'':'✗ ')+S.waEsito;b.disabled=false;if(c.ok)aggiorna(true)};
+  $('waAttiva').onclick=()=>{if(!confirm('Hai già tolto il numero dall\'app e messo il codice SMS su Meta? Se no, annulla.'))return;attiva('')};
+}
 
 /* ---------- Agenda ---------- */
 function agendaHtml(st){
@@ -674,7 +803,7 @@ function tiktokHtml(st){
 /* ---------- Claude ---------- */
 function chatHtml(){
   if(!S.storia.length)return`<div class="bolla lui">Ciao Andrea. Chiedimi cosa c'è di nuovo, chi sta usando Rilievo, o dimmi cosa deve fare il braccio destro.</div>`;
-  return S.storia.map(m=>`<div class="bolla ${m.ruolo==='persona'?'io':(m.ruolo==='nota'?'nota':'lui')}">${esc(m.testo)}</div>`).join('');
+  return S.storia.map((m,i)=>`<div class="bolla ${m.ruolo==='persona'?'io':(m.ruolo==='nota'?'nota':'lui')}">${esc(m.testo)}${m.proposta?`<div class="tasti" style="margin-top:8px"><button class="btn" data-prop="si" data-i="${i}">Sì, manda</button><button class="btn vuoto" data-prop="no" data-i="${i}">No</button></div>`:''}</div>`).join('');
 }
 async function chiedi(t,aVoce){
   if(S.sez!=='chat')apri('chat');
@@ -683,6 +812,7 @@ async function chiedi(t,aVoce){
   const r=await api('/centralino/chiedi',{domanda:t,storia});
   S.storia.pop();
   if(r.ok){S.storia.push({ruolo:'assistente',testo:r.d.risposta});
+    if(r.d.wa_proposta)S.storia.push({ruolo:'nota',testo:'WhatsApp a '+r.d.wa_proposta.a+': «'+r.d.wa_proposta.testo+'»',proposta:true});
     if(r.d.richiesta)S.storia.push({ruolo:'nota',testo:'Ho passato la richiesta al braccio destro: «'+r.d.richiesta.testo+'»'});
     if(aVoce)parla(r.d.risposta)}
   else S.storia.push({ruolo:'nota',testo:r.d.errore||'Claude non risponde.'});
@@ -782,10 +912,16 @@ function accendiNotifiche(){
 }
 function vaiA(u){
   const h=String(u||'').split('#')[1]||'';if(!h){apri('oggi');return}
+  const mw=h.match(/^wa=(\d{5,20})$/);if(mw){apriWa(mw[1]);return}
   const m=h.match(/^evento=([0-9a-f]{12})$/);
   if(m){S.filtro='tutti';apri('messaggi');setTimeout(()=>{const v=document.querySelector(`#corpo [data-id="${m[1]}"]`);if(v){v.scrollIntoView({block:'center'});v.classList.add('lampo')}},200);return}
   if(TITOLI[h])apri(h);
 }
+
+document.addEventListener('click',async e=>{const b=e.target.closest('button[data-prop]');if(!b)return;
+  const m=S.storia[+b.dataset.i];if(m)m.proposta=false;rinfrescaChat();
+  const r=await api('/centralino/whatsapp/proposta',{si:b.dataset.prop==='si'});
+  S.storia.push({ruolo:'assistente',testo:r.d.risposta||r.d.errore||'Non è partito.'});rinfrescaChat()});
 
 /* ---------- plancia: schermo acceso, aggiornamento continuo ---------- */
 let blocco=null,giroPlancia=null;
