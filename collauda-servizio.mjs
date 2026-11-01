@@ -33,7 +33,7 @@ function ambiente(opz = {}) {
 		}
 	}
 	const cartella = mkdtempSync(join(tmpdir(), 'wa-prova-'))
-	const s = creaServizio({ chiave: CHIAVE, chiaveCifra: CIFRA, cartella, numero: '390000000', centralino, creaMotore, nuoveCreds, BufferJSON, qrSvg: () => '<svg/>', ritardoCopia: 5, pausaInvio: opz.pausa ?? 0, tetto: opz.tetto ?? 3, tentativiOra: opz.tentativi ?? 5, attesa: opz.attesa ?? (() => 30), attesaCoda: () => 10, attesaAvvio: () => 10 })
+	const s = creaServizio({ chiave: CHIAVE, chiaveCifra: CIFRA, cartella, numero: '390000000', ...opz.servizio, centralino, creaMotore, nuoveCreds, BufferJSON, qrSvg: () => '<svg/>', ritardoCopia: 5, pausaInvio: opz.pausa ?? 0, tetto: opz.tetto ?? 3, tentativiOra: opz.tentativi ?? 5, attesa: opz.attesa ?? (() => 30), attesaCoda: () => 10, attesaAvvio: () => 10 })
 	const chiama = (metodo, percorso, corpo, k = CHIAVE) => s.gestisci(metodo, percorso, async () => corpo || {}, k)
 	return { c, m, s, chiama, cartella }
 }
@@ -41,6 +41,7 @@ const collegato = async (a) => {
 	await a.s.avvia()
 	await a.chiama('POST', '/collega', {})
 	a.m.sess.creds.registered = true
+	a.m.sess.creds.account = {}
 	a.m.avvisa('aperto', {})
 }
 
@@ -65,6 +66,7 @@ console.log('Collegamento col codice')
 	const [, d2] = await a.chiama('POST', '/collega', {})
 	prova('secondo tocco, stesso codice ancora valido', d2.codice === 'ABCD1234' && a.m.chiesti === 1)
 	a.m.sess.creds.registered = true
+	a.m.sess.creds.account = {}
 	a.m.avvisa('chiuso', { codice: 515 })
 	await finche(() => a.s.pubblico().stato === 'collegato')
 	prova('dopo l\'abbinamento si riconnette una volta e risulta collegato', a.s.pubblico().stato === 'collegato' && a.s.pubblico().collegato_dal)
@@ -201,6 +203,25 @@ console.log('La sessione sopravvive al riavvio')
 	prova('sessione vuota: coerente dopo il riavvio', e.c.gen === 1)
 	const nuovo = ambiente({ centralino: { dati: e.c.dati, gen: e.c.gen } }); await nuovo.s.avvia()
 	prova('collegamento a meta\' non riparte da solo', nuovo.m.aperti === 0 && nuovo.s.pubblico().stato === 'da_collegare')
+}
+
+console.log('Il telefono rifiuta il codice')
+{
+	const a = ambiente(); await a.s.avvia()
+	const [, primo] = await a.chiama('POST', '/collega', {})
+	prova('mostra il codice', primo.codice === 'ABCD1234' && a.m.chiesti === 1)
+	a.m.sess.creds.registered = true // il telefono ha risposto, ma pair-success non arriva
+	prova('non risulta collegato', a.s.pubblico().registrato === false && a.s.pubblico().stato === 'in_collegamento')
+	a.s._v.creds = null // come dopo la scadenza del tempo
+	const [, secondo] = await a.chiama('POST', '/collega', {})
+	prova('riottiene un codice, non riprende una sessione a meta\'', !secondo.riconnetto)
+	const b = ambiente({ servizio: { durataCodice: 20 } }); await b.s.avvia()
+	await b.chiama('POST', '/collega', {})
+	b.m.sess.creds.registered = true
+	await dorme(60)
+	prova('allo scadere torna da collegare, con un motivo', b.s.pubblico().stato === 'da_collegare' && /nuovo/.test(b.s.pubblico().motivo))
+	const [, terzo] = await b.chiama('POST', '/collega', {})
+	prova('dopo la scadenza da\' un codice nuovo', terzo.codice === 'ABCD1234' && b.m.chiesti === 2)
 }
 
 console.log(`\n${ok} passati, ${ko} falliti`)

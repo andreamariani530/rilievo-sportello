@@ -107,7 +107,12 @@ export function creaMotore({ sessione, numero, avvisa, attesaQR = 45000 }) {
 			generateHighQualityLinkPreview: false,
 			getMessage: async (k) => contenutiInviati.get(k.id)
 		})
-		sock.ev.on('creds.update', (u) => { Object.assign(sessione.creds, u); sessione.cambiata() })
+		sock.ev.on('creds.update', (u) => {
+			if (u.registered && !u.account && !sessione.creds.account) console.log('il telefono ha risposto al codice')
+			if (u.account) console.log('collegamento confermato da WhatsApp')
+			Object.assign(sessione.creds, u)
+			sessione.cambiata()
+		})
 		// WhatsApp manda alcuni stati come <status>: senza conferma chiude la connessione ogni 50 minuti (#2858)
 		sock.ws.on('CB:status', (n) => { sock.sendMessageAck(n).catch(() => {}) })
 		sock.ev.on('connection.update', async (u) => {

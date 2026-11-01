@@ -45,6 +45,8 @@ export function creaServizio(o) {
 	let timerRiprova = null
 	let tentativi = 0
 	let codiceAttivo = null
+	let timerCodice = null
+	const durataCodice = o.durataCodice ?? 170000
 	let qrAttivo = null
 	let inviiInCorso = 0
 	let codaInvii = Promise.resolve()
@@ -131,11 +133,15 @@ export function creaServizio(o) {
 		return {
 			stato: v.stato, motivo: v.motivo, da_quando: v.da_quando, collegato_dal: v.collegato_dal, ultimo_messaggio: v.ultimo_messaggio,
 			ultimo_telefono: v.ultimo_telefono, ultimo_aperto: v.ultimo_aperto, oggi: o2.n, tetto, in_coda: codaEventi.length + codaFile.length,
-			registrato: !!v.creds?.registered, codice_attivo: !!(codiceAttivo && codiceAttivo.scade > Date.now())
+			registrato: abbinato(), codice_attivo: !!(codiceAttivo && codiceAttivo.scade > Date.now())
 		}
 	}
 
 	// --- la connessione
+
+	// «registered» diventa vero appena il telefono risponde al codice, anche se poi lo rifiuta.
+	// Il collegamento e' vero solo dopo pair-success, che porta con se' «account».
+	const abbinato = () => !!v.creds?.registered && !!v.creds?.account
 
 	function avvisiMotore(tipo, d) {
 		if (tipo === 'aperto') {
@@ -173,7 +179,7 @@ export function creaServizio(o) {
 		console.log('connessione chiusa, codice', codice)
 		motore = null
 		if (fermo) return
-		const registrato = !!v.creds?.registered
+		const registrato = abbinato()
 		if (codice === USCITE.RIAVVIA) {
 			connetti().catch(() => {})
 			return
@@ -217,7 +223,7 @@ export function creaServizio(o) {
 
 	async function collega(modo) {
 		if (fermo) return [409, { errore: 'Il servizio si sta riavviando. Riprova fra un minuto.' }]
-		if (v.creds?.registered) {
+		if (abbinato()) {
 			if (v.stato === 'collegato') return [200, { gia: true, frase: 'È già collegato.' }]
 			if (v.stato === 'bloccato') return [409, { errore: 'WhatsApp rifiuta questo numero. Controlla sul telefono prima di riprovare.' }]
 			tentativi = 0
@@ -244,7 +250,14 @@ export function creaServizio(o) {
 		if (modo === 'qr') return [200, { qr_svg: qrSvg ? qrSvg(qr) : '', scade: Date.now() + 55000 }]
 		try {
 			const codice = await motore.chiedi_codice()
-			codiceAttivo = { codice, scade: Date.now() + 170000 }
+			codiceAttivo = { codice, scade: Date.now() + durataCodice }
+			clearTimeout(timerCodice)
+			timerCodice = setTimeout(() => {
+				if (abbinato()) return
+				console.log('codice scaduto senza collegamento')
+				motore?.chiudi()
+				dimentica('da_collegare', 'Il codice è scaduto o il telefono non l\'ha accettato. Chiedine uno nuovo.')
+			}, durataCodice)
 			return [200, { codice, scade: codiceAttivo.scade }]
 		} catch {
 			motore?.chiudi()
@@ -254,7 +267,7 @@ export function creaServizio(o) {
 	}
 
 	async function scollega() {
-		if (!v.creds?.registered) return [200, { gia: true }]
+		if (!abbinato()) return [200, { gia: true }]
 		await motore?.esci()
 		dimentica('da_collegare', 'Scollegato da te.')
 		return [200, { scollegato: true }]
@@ -359,7 +372,7 @@ export function creaServizio(o) {
 	}
 
 	async function provaVia() {
-		if (v.creds?.registered || motore) return [409, { errore: 'Prova possibile solo da scollegato.' }]
+		if (abbinato() || motore) return [409, { errore: 'Prova possibile solo da scollegato.' }]
 		const provvisorie = { creds: nuoveCreds(), chiavi: {}, cambiata() {}, ricorda() {} }
 		const esito = await new Promise((risolvi) => {
 			const t = setTimeout(() => risolvi(false), 45000)
@@ -402,7 +415,7 @@ export function creaServizio(o) {
 			for (const e of codaEventi) if (e.genere === 'messaggio') visti.add(e.voce.id)
 			svuota()
 		}
-		if (v.creds?.registered) {
+		if (abbinato()) {
 			if (v.stato === 'bloccato') return centralino.mandaStato(pubblico()).catch(() => {})
 			cambiaStato('in_collegamento', 'Riprendo la sessione.')
 			await connetti().catch(() => chiusa(0))
