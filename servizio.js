@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { join } from 'node:path'
 import { gunzipSync, gzipSync } from 'node:zlib'
 
-const ORIGINI = new Set(['app', 'decisione', 'voce'])
+const ORIGINI = new Set(['app', 'decisione', 'voce', 'jarvis'])
 const USCITE = { LOGGED_OUT: 401, BLOCCATO: 403, SOSTITUITO: 440, RIAVVIA: 515 }
 const MAX_CODA = 300
 const uguale = (a, b) => { const x = createHash('sha256').update(String(a)).digest(); const y = createHash('sha256').update(String(b)).digest(); return timingSafeEqual(x, y) }
