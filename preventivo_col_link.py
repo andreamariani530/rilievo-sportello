@@ -520,6 +520,8 @@ def stili_dell_app(app_html):
     m = p.stat().st_mtime
     if _stili_cache["mtime"] != m:
         t = p.read_text(encoding="utf-8", errors="replace")
-        testa = t.split("<script", 1)[0]
+        # fino a </head>, non al primo <script>: dal 1/11/2026 c'e' lo script dei dati per
+        # Google prima degli stili, e il preventivo del cliente usciva senza stile
+        testa = t.split("</head>", 1)[0]
         _stili_cache.update(mtime=m, testo="".join(re.findall(r"<style\b[^>]*>.*?</style>", testa, re.S)))
     return _stili_cache["testo"]

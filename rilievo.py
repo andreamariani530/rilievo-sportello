@@ -2881,6 +2881,9 @@ STATICI = {
 # alla misura di ogni telefono, fatte da fai-avvio-iphone.mjs
 for _f in sorted(APP.glob("avvio-*.png")):
     STATICI["/" + _f.name] = (_f.name, "image/png")
+# le schermate della presentazione sul sito: stanno fuori dalla pagina, che pesa gia' 3,4 MB
+for _f in sorted((APP / "sito").glob("*.webp")):
+    STATICI["/sito/" + _f.name] = ("sito/" + _f.name, "image/webp")
 
 
 def fic_pagina_scelta(gettone, ditte):
@@ -3597,7 +3600,7 @@ def servizio(porta=8787, pubblico=False):
                 dati = (APP / nome).read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", tipo)
-                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Cache-Control", "public, max-age=604800" if tipo == "image/webp" else "no-cache")
                 self.send_header("Content-Length", str(len(dati)))
                 self.end_headers()
                 self.wfile.write(dati)

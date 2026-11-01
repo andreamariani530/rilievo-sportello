@@ -1309,7 +1309,7 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
   text-align:left;-webkit-font-smoothing:antialiased}
 #sito *{box-sizing:border-box;margin:0;padding:0}
 #sito [hidden]{display:none!important}
-#sito .s-pag{max-width:880px;margin:0 auto;padding:0 26px}
+#sito .s-pag{max-width:1000px;margin:0 auto;padding:0 26px}
 #sito .s-testa{display:flex;align-items:center;justify-content:space-between;padding:26px 0 0}
 #sito .s-marchio{display:flex;align-items:center;gap:12px;font-family:'Cormorant',Georgia,serif;font-size:27px;letter-spacing:.02em;color:#1B1917;text-decoration:none}
 #sito .s-marchio i{display:grid;place-items:center;width:38px;height:38px;border:1px solid #4F6B54;border-radius:50%;
@@ -1355,6 +1355,17 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
 #sito .s-fine{padding:80px 0 40px;text-align:left}
 #sito .s-piede{padding:34px 0 50px;display:flex;flex-wrap:wrap;gap:10px 26px;font-family:'Jost',system-ui,sans-serif;font-size:13px;color:#8A8377}
 #sito .s-piede a{color:#8A8377;text-decoration:none;border-bottom:1px solid #E2DCD0}
+#sito .s-apre{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:56px;align-items:center}
+#sito .s-tel{width:300px;padding:10px;background:#1B1917;border-radius:46px;box-shadow:0 30px 70px rgba(31,42,36,.2);justify-self:center}
+#sito .s-schermo{position:relative;padding-top:28px;background:#FAF7F0;border-radius:36px;overflow:hidden}
+#sito .s-schermo::before{content:"";position:absolute;top:9px;left:50%;width:84px;height:15px;margin-left:-42px;border-radius:9px;background:#1B1917}
+#sito .s-schermo img{display:block;width:100%;height:auto}
+#sito .s-presenta>h2{margin-bottom:14px}
+#sito .s-mostra{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:56px;align-items:center;padding:64px 0;border-bottom:1px solid #E2DCD0}
+#sito .s-mostra:last-child{border-bottom:0;padding-bottom:0}
+#sito .s-mostra:nth-of-type(even) .s-dice{order:2}
+#sito .s-mostra h3{font-family:'Cormorant',Georgia,serif;font-weight:500;font-size:clamp(30px,4.2vw,40px);line-height:1.12;color:#1B1917;margin-bottom:16px}
+#sito .s-dice>p:not(.s-eti):not(.s-nota){font-size:20px;color:#4A453E;max-width:28em}
 #sito .s-informativa{padding-top:60px;padding-bottom:60px}
 #sito .s-testo-privacy h3{font-family:'Cormorant',Georgia,serif;font-weight:600;font-size:24px;margin:30px 0 8px}
 #sito .s-testo-privacy p{margin:0 0 12px;color:#4A453E;font-size:18px}
@@ -1366,6 +1377,13 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
   #sito section{padding:54px 0}
   #sito .s-sotto{font-size:19px}
   #sito .s-righe li{flex-direction:column;gap:4px}
+}
+@media (max-width:820px){
+  #sito .s-apre,#sito .s-mostra{grid-template-columns:minmax(0,1fr);gap:38px}
+  #sito .s-mostra{padding:50px 0}
+  #sito .s-mostra:nth-of-type(even) .s-dice{order:0}
+  #sito .s-tel{width:min(280px,76vw);border-radius:42px}
+  #sito .s-schermo{border-radius:33px}
 }
 </style>
 </head>
@@ -1379,40 +1397,47 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
   </header>
 
   <div class="s-apre">
-   <p class="s-eti">Preventivi per giardinieri e artigiani</p>
-   <h1>Il preventivo pronto <em>prima</em> del sopralluogo.</h1>
-   <p class="s-sotto">Rilievo è l'app per i preventivi di giardinieri e artigiani. Scrivi l'indirizzo del cliente: Rilievo misura il terreno dalla foto dall'alto e prepara il preventivo coi tuoi prezzi. Lo mandi con un link, il cliente lo accetta dal telefono.</p>
-   <div class="s-tasti">
-    <a class="s-tasto" href="#s-chiedi" id="s-vai-chiedi">Chiedi di provarla</a>
-    <a class="s-link" href="https://www.tiktok.com/@rilievo_app" rel="noopener">Guardala su TikTok</a>
+   <div class="s-apre-testo">
+    <p class="s-eti">Preventivi per giardinieri e artigiani</p>
+    <h1>Il tuo ufficio, <em>dove vuoi</em>.</h1>
+    <p class="s-sotto">Misuri il giardino dall'indirizzo, fai il preventivo coi tuoi prezzi e il cliente lo accetta dal telefono. Clienti, documenti e fatture stanno tutti lì, sul telefono o sul computer.</p>
+    <div class="s-tasti">
+     <a class="s-tasto" href="#s-chiedi" id="s-vai-chiedi">Chiedi di provarla</a>
+     <a class="s-link" href="https://www.tiktok.com/@rilievo_app" rel="noopener">Guardala su TikTok</a>
+    </div>
+    <p class="s-nota">La stiamo provando con pochi artigiani alla volta. Gratis, finché è in prova.</p>
    </div>
-   <p class="s-nota">La stiamo provando con pochi artigiani alla volta. Gratis, finché è in prova.</p>
+   <div class="s-tel"><div class="s-schermo"><img src="/sito/casa.webp" alt="La schermata iniziale di Rilievo con preventivi, incassi e lavoro del mese" width="780" height="1688" loading="lazy" decoding="async"></div></div>
   </div>
 
-  <section>
-   <p class="s-eti">Come funziona</p>
-   <h2>Tre passi, dal telefono o dal computer.</h2>
-   <div class="s-passi">
-    <div class="s-passo"><b>1</b><h3>L'indirizzo</h3><p>Scrivi dove abita il cliente. Rilievo trova la casa e il terreno.</p></div>
-    <div class="s-passo"><b>2</b><h3>La misura</h3><p>I metri quadri e le siepi escono dalla foto dall'alto. Niente metro, niente giro a vuoto.</p></div>
-    <div class="s-passo"><b>3</b><h3>Il preventivo</h3><p>Le voci e i prezzi sono i tuoi. Lo mandi con un link e il cliente risponde con un tocco.</p></div>
-   </div>
-  </section>
-
-  <section>
-   <p class="s-eti">Il tuo ufficio, dove vuoi</p>
-   <h2>Tutto il lavoro in un posto solo.</h2>
-   <ul class="s-righe">
-    <li><span>Clienti</span>Chi ti ha chiesto cosa, e quando.</li>
-    <li><span>Preventivi</span>Fatti in pochi minuti, belli da mandare.</li>
-    <li><span>Risposte</span>Il cliente accetta dal telefono, tu lo vedi subito.</li>
-    <li><span>Fatture</span>Dal preventivo accettato alla fattura, senza riscrivere niente.</li>
-   </ul>
-  </section>
-
-  <section>
-   <p class="s-eti">Per chi</p>
-   <p class="s-mestieri">Nata per i <em>giardinieri</em>. Va bene anche per elettricisti, idraulici, imbianchini, piastrellisti, muratori, serramentisti e disinfestatori.</p>
+  <section class="s-presenta">
+   <p class="s-eti">Cosa fa</p>
+   <h2>Dall'indirizzo alla fattura, schermata per schermata.</h2>
+   <p class="s-nota">Sono schermate vere dell'app, con una ditta di esempio: nomi e numeri sono finti.</p>
+   <article class="s-mostra">
+    <div class="s-dice"><p class="s-eti">La misura</p><h3>Misura il giardino dalla foto dall'alto</h3><p>Scrivi l'indirizzo del cliente. In meno di un minuto hai la foto dall'alto, il lotto preso dal catasto e i metri quadri. Il prato lo segni col dito.</p><p class="s-nota">Una misura per partire: la correggi quando vuoi.</p></div>
+    <div class="s-tel"><div class="s-schermo"><img src="/sito/misura.webp" alt="Schermata di Rilievo: foto dall'alto di un giardino col prato segnato e i metri quadri del lotto" width="780" height="1688" loading="lazy" decoding="async"></div></div>
+   </article>
+   <article class="s-mostra">
+    <div class="s-dice"><p class="s-eti">Il preventivo</p><h3>Preventivi coi tuoi prezzi</h3><p>Le voci vengono dal tuo listino. Cambi una quantità o togli una voce e il totale si rifà da solo, anche davanti al cliente.</p></div>
+    <div class="s-tel"><div class="s-schermo"><img src="/sito/preventivo.webp" alt="Schermata di Rilievo: un preventivo con le voci, le quantità e i prezzi" width="780" height="1688" loading="lazy" decoding="async"></div></div>
+   </article>
+   <article class="s-mostra">
+    <div class="s-dice"><p class="s-eti">La risposta</p><h3>Il cliente accetta dal telefono</h3><p>Gli mandi un link. Lo apre senza installare niente, scrive il nome e preme «Accetto». Tu lo vedi nell'app. Se vuole cambiare qualcosa, te lo scrive da lì.</p></div>
+    <div class="s-tel"><div class="s-schermo"><img src="/sito/accetta.webp" alt="La pagina che vede il cliente: scrive il nome e accetta il preventivo" width="780" height="1688" loading="lazy" decoding="async"></div></div>
+   </article>
+   <article class="s-mostra">
+    <div class="s-dice"><p class="s-eti">Clienti e documenti</p><h3>Tutto il lavoro in un posto solo</h3><p>Di ogni cliente vedi i preventivi, i documenti e quanto ti deve ancora. Lo ritrovi in un attimo, dal telefono in cantiere o dal computer in ufficio.</p></div>
+    <div class="s-tel"><div class="s-schermo"><img src="/sito/clienti.webp" alt="Schermata di Rilievo: la scheda di un cliente con preventivi, lavori presi e quanto deve ancora" width="780" height="1688" loading="lazy" decoding="async"></div></div>
+   </article>
+   <article class="s-mostra">
+    <div class="s-dice"><p class="s-eti">La fattura</p><h3>La fattura elettronica dal lavoro finito</h3><p>Le righe le prende dal preventivo, senza riscrivere niente. Scarichi il file e lo carichi sul sito dell'Agenzia delle Entrate, o lo dai al commercialista.</p><p class="s-nota">L'invio diretto da Rilievo è ancora in prova.</p></div>
+    <div class="s-tel"><div class="s-schermo"><img src="/sito/fattura.webp" alt="Schermata di Rilievo: la fattura di un lavoro finito, con imponibile, IVA e totale" width="780" height="1688" loading="lazy" decoding="async"></div></div>
+   </article>
+   <article class="s-mostra">
+    <div class="s-dice"><p class="s-eti">I mestieri</p><h3>Un'app per i preventivi di giardinieri e artigiani</h3><p>Nata per i giardinieri. Va bene anche per elettricisti, idraulici, termoidraulici, imbianchini, piastrellisti, muratori, serramentisti e disinfestatori. Ogni mestiere parte col suo listino, con prezzi da correggere coi tuoi.</p></div>
+    <div class="s-tel"><div class="s-schermo"><img src="/sito/mestieri.webp" alt="Schermata di Rilievo: la scelta del mestiere alla prima apertura" width="780" height="1688" loading="lazy" decoding="async"></div></div>
+   </article>
   </section>
 
   <div class="s-fine" id="s-chiedi">
@@ -1792,7 +1817,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-01 13:54';
+const COSTRUITA = '2026-11-01 15:52';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
