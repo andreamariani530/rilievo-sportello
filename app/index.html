@@ -372,6 +372,18 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
 .foglio .piede{margin-top:30px;padding-top:14px;border-top:1px solid var(--filetto);
   font-size:13.5px;color:var(--tenue)}
 
+/* chi apre Rilievo dentro TikTok: quello che salva li' puo' sparire (1/11/2026) */
+.striscia-tiktok{position:fixed;left:0;right:0;top:0;z-index:90;background:var(--inchiostro);color:var(--carta);
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;font-size:16px;line-height:1.35;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.striscia-tiktok p{margin:0 0 10px}
+.striscia-tiktok .tasti{display:flex;gap:10px;align-items:center}
+.striscia-tiktok button{font:inherit;font-size:15px;min-height:40px;padding:8px 14px;border:1px solid var(--carta);cursor:pointer}
+.striscia-tiktok .copia{background:var(--carta);color:var(--inchiostro)}
+.striscia-tiktok .chiudi{background:none;color:var(--carta)}
+.striscia-tiktok .indirizzo{margin:10px 0 0;font-size:14px;word-break:break-all;-webkit-user-select:all;user-select:all}
+html.dentro-tiktok body{padding-top:var(--alto-tiktok,0px)}
+html.dentro-tiktok .velo-porta{padding-top:calc(40px + var(--alto-tiktok,0px))}
+
 /* avviso a comparsa */
 .avviso{position:fixed;left:50%;bottom:34px;transform:translate(-50%,12px);background:var(--inchiostro);
   color:var(--carta);padding:13px 22px;font-size:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);
@@ -1697,7 +1709,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-01 03:22';
+const COSTRUITA = '2026-11-01 11:34';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -6025,6 +6037,63 @@ function daMio(){
 function col(){
   const c = codiceMio(), d = daMio();
   return (c ? 'codice=' + encodeURIComponent(c) + '&' : '') + (d ? 'da=' + d + '&' : '');
+}
+/* ===== CHI APRE RILIEVO DENTRO TIKTOK =====
+   Andrea, 1/11/2026: si' all'avviso. Dei 14 che hanno aperto Rilievo 8 vengono da TikTok,
+   e dentro TikTok l'icona sul telefono non si puo' mettere e quello che salvi puo' sparire.
+   Solo chi e' nel browser interno di TikTok vede la striscia; «Chiudi» vale finche' non
+   riapre. Sul sito no: li' non si salva niente. Non manda niente al server. */
+const eDentroTiktok = u => /musical_ly|BytedanceWebview|ByteLocale|TikTok|trill_/i.test(u || '');
+function linkDaAprireFuori(){
+  const u = new URL(location.href);
+  u.hash = '';
+  if(!u.searchParams.get('da') && daMio()) u.searchParams.set('da', daMio());
+  if(!/[?&](da|app|codice)=/.test(u.search)) u.searchParams.set('app', '1');
+  return u.href;
+}
+function copiaSenzaPermesso(t){
+  try{
+    const a = document.createElement('textarea');
+    a.value = t; a.setAttribute('readonly', ''); a.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(a); a.select(); a.setSelectionRange(0, t.length);
+    const ok = document.execCommand('copy'); a.remove(); return ok;
+  }catch(e){ return false; }
+}
+function mostraStrisciaTiktok(){
+  const radice = document.documentElement;
+  if(typeof navigator === 'undefined' || !eDentroTiktok(navigator.userAgent) || giaInstallata() || radice.classList.contains('vista-sito')) return;
+  try{ if(sessionStorage.getItem('striscia-tiktok-chiusa')) return; }catch(e){}
+  const s = document.createElement('div');
+  s.className = 'striscia-tiktok'; s.id = 'striscia-tiktok';
+  s.innerHTML = '<p>Sei dentro TikTok: quello che salvi qui può sparire. Tocca i tre puntini in alto e scegli Apri nel browser</p>' +
+    '<div class="tasti"><button type="button" class="copia">Copia il link</button><button type="button" class="chiudi">Chiudi</button></div>';
+  const misura = () => radice.style.setProperty('--alto-tiktok', s.offsetHeight + 'px');
+  const fatto = () => avvisa('Link copiato: incollalo nel browser.');
+  const aMano = t => {
+    if(!copiaSenzaPermesso(t) ){
+      if(!s.querySelector('.indirizzo')){
+        const r = document.createElement('p'); r.className = 'indirizzo'; r.textContent = t; s.appendChild(r); misura();
+      }
+      avvisa('Tieni premuto sul link per copiarlo.');
+    } else fatto();
+  };
+  s.querySelector('.copia').onclick = () => {
+    const t = linkDaAprireFuori();
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(fatto, () => aMano(t));
+    else aMano(t);
+  };
+  s.querySelector('.chiudi').onclick = () => {
+    try{ sessionStorage.setItem('striscia-tiktok-chiusa', '1'); }catch(e){}
+    s.remove(); radice.classList.remove('dentro-tiktok'); radice.style.removeProperty('--alto-tiktok');
+  };
+  document.body.appendChild(s);
+  radice.classList.add('dentro-tiktok');
+  misura();
+  window.addEventListener('resize', misura);
+}
+if(typeof document !== 'undefined'){
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mostraStrisciaTiktok);
+  else mostraStrisciaTiktok();
 }
 /* ===== I PASSI DI CHI ARRIVA DAL LINK =====
    Andrea, 16/10/2026: «non voglio essere invasivo ma abbiamo bisogno di dati veri». 8 ditte

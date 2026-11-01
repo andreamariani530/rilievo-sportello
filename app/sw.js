@@ -12,9 +12,9 @@
  * VERSIONE la scrive costruisci.py: cambia quando cambia l'app, e il telefono si
  * accorge da solo che c'e' una copia nuova da tenere.
  */
-const VERSIONE = '7ae56a2f56af';
+const VERSIONE = 'c5d356b1433c';
 /* quando e' stata costruita l'app: la pagina la confronta con la sua (cercaVersioneNuova) */
-const COSTRUITA = '2026-11-01 03:22';
+const COSTRUITA = '2026-11-01 11:34';
 const CASSETTO = 'rilievo-app';
 const FILE = ['./', 'manifest.webmanifest', 'icona-192.png', 'icona-512.png', 'icona-180.png'];
 
