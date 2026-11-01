@@ -658,13 +658,13 @@ function waHtml(){
     const l=S.waLista;if(!l)return'<div class="vuoto-elenco">Carico…</div>';
     const st=l.stato||{};
     const testa=st.parola!=='acceso'?`<p style="font-size:13px;color:var(--mute);margin:0 0 10px">${esc(st.frase||'')}</p>`:'';
-    return testa+((l.conversazioni||[]).map(c=>`<div class="voce wa-riga ${c.non_letti?'urgent':''}" data-wa="${esc(c.wa)}" role="button" tabindex="0"><div class="meta"><span>${esc(c.finestra>0?c.finestra_testo:'finestra chiusa')}</span><span>${esc(c.giorno)} ${esc(c.ora)}</span></div>
+    return testa+((l.conversazioni||[]).map(c=>`<div class="voce wa-riga ${c.non_letti?'urgent':''}" data-wa="${esc(c.wa)}" role="button" tabindex="0"><div class="meta"><span>${esc(c.finestra_testo)}</span><span>${esc(c.giorno)} ${esc(c.ora)}</span></div>
       <h3><span>${esc(c.nome)}</span>${c.non_letti?`<span class="quanti">${c.non_letti}</span>`:''}</h3><p>${c.bozza?'<b style="color:var(--hot)">bozza pronta · </b>':''}${c.dir==='out'?'tu: ':''}${esc(c.anteprima)}</p></div>`).join('')||'<div class="vuoto-elenco">Ancora nessun messaggio</div>');
   }
   const c=S.waConv;if(!c)return'<div class="vuoto-elenco">Carico…</div>';
   const sotto=m=>{if(m.dir==='in')return`<span class="sotto">${esc(m.giorno)} ${esc(m.ora)}</span>`;
     if(m.stato==='errore')return`<span class="sotto errore">${esc(m.ora)} · non consegnato: ${esc(m.errore||'')}</span>`;
-    return`<span class="sotto ${m.stato==='letto'?'letto':''}">${esc(m.giorno)} ${esc(m.ora)} · ${esc(m.stato||'')}</span>`};
+    return`<span class="sotto ${m.stato==='letto'?'letto':''}">${esc(m.giorno)} ${esc(m.ora)} · ${m.da==='telefono'?'inviato da te dal telefono':esc(m.stato||'')}</span>`};
   const media=m=>{const x=m.media;if(!x)return'';
     if(x.stato==='pronto')return`<div data-media="${esc(x.chiave)}" data-mime="${esc(x.mime||'')}" data-nome="${esc(x.nome||'')}"></div>`;
     if(x.stato==='da scaricare'||x.stato==='scarico')return`<div style="font:11px var(--mono);color:var(--mute)">scarico il file…</div>`;
@@ -674,13 +674,12 @@ function waHtml(){
 function waPiede(){
   const p=$('piede');if(!S.wa){p.innerHTML='';return}
   const c=S.waConv;if(!c){p.innerHTML='';return}
-  const ora=p.dataset.wa===c.wa&&p.dataset.chiusa===String(c.finestra<=0)&&$('waTesto');
-  const riga=c.finestra>0?`<div class="wa-finestra ${c.finestra<7200?'poca':''}" id="waFin">${esc(c.finestra_testo)} · gratis</div>`:'';
-  if(ora){const f=$('waFin');if(f){f.textContent=c.finestra_testo+' · gratis';f.className='wa-finestra '+(c.finestra<7200?'poca':'')}$('waBozzaZona').innerHTML=waBozzaHtml(c);legaBozza(c);return}
-  p.dataset.wa=c.wa;p.dataset.chiusa=String(c.finestra<=0);
-  if(c.finestra<=0){p.innerHTML=`<div class="wa-finestra chiusa">Sono passate più di 24 ore dal suo ultimo messaggio. Da qui non parte niente: servirebbe un modello a pagamento, e io non ci provo. Puoi chiamare, o aspettare che riscriva.</div><div class="wa-manda"><a class="btn" href="tel:+${esc(c.wa)}" style="text-align:center">Chiama</a><button class="btn vuoto" id="waCancella">Cancella la chat</button></div>`}
-  else{
-    p.innerHTML=`${riga}<div id="waBozzaZona">${waBozzaHtml(c)}</div><textarea id="waTesto" placeholder="Scrivi la risposta…"></textarea><div class="wa-manda"><button class="btn" id="waManda">Manda</button><button class="btn vuoto" id="waCancella" style="flex:0 0 auto">Elimina chat</button></div><div id="waEsitoInvio" style="font:12px var(--mono);color:var(--ok);padding-top:6px;min-height:18px" role="status"></div>`;
+  const ora=p.dataset.wa===c.wa&&$('waTesto');
+  const cl='wa-finestra '+(c.poca?'poca':'');
+  if(ora){const f=$('waFin');if(f){f.textContent=c.finestra_testo;f.className=cl}$('waBozzaZona').innerHTML=waBozzaHtml(c);legaBozza(c);return}
+  p.dataset.wa=c.wa;
+  {
+    p.innerHTML=`<div class="${cl}" id="waFin">${esc(c.finestra_testo)}</div><div id="waBozzaZona">${waBozzaHtml(c)}</div><textarea id="waTesto" placeholder="Scrivi la risposta…"></textarea><div class="wa-manda"><button class="btn" id="waManda">Manda</button><button class="btn vuoto" id="waCancella" style="flex:0 0 auto">Elimina chat</button></div><div id="waEsitoInvio" style="font:12px var(--mono);color:var(--ok);padding-top:6px;min-height:18px" role="status"></div>`;
     const t=$('waTesto');t.value=S.waTesto[c.wa]||c.testo_bozza||'';t.oninput=()=>{S.waTesto[c.wa]=t.value};
     legaBozza(c);
     $('waManda').onclick=()=>waManda();
@@ -732,27 +731,46 @@ function waMedia(){
     }catch(e){z.textContent='Il file non si apre adesso.'}
   });
 }
+function waOra(s){if(!s)return'';const d=new Date(s);return d.toLocaleDateString('it-IT',{day:'numeric',month:'numeric'})+' alle '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}
+function waCodiceHtml(codice){const c=String(codice||'');const belle=c.length===8?c.slice(0,4)+'-'+c.slice(4):c;
+  return`<div class="voce need" style="margin-top:10px"><div style="font:600 34px/1.2 var(--mono);letter-spacing:.08em;color:#f0fdff;text-align:center" id="waCodice" data-codice="${esc(c)}">${esc(belle)}</div>
+    <p style="font-size:13px;color:var(--mute);text-align:center;margin:2px 0 10px" id="waScade"></p>
+    <div class="tasti" style="display:flex;justify-content:center"><button class="btn vuoto" id="waCopiaCodice">Copia il codice</button></div>
+    <ol style="font-size:14px;color:#bfe9f7;padding-left:20px;margin:12px 0 0;line-height:1.5"><li>Apri <b>WhatsApp Business</b></li><li><b>Impostazioni</b> &gt; <b>Dispositivi collegati</b></li><li><b>Collega un dispositivo</b></li><li>Sotto la fotocamera tocca <b>Collega con numero di telefono</b></li><li>Scrivi questo codice</li></ol></div>`}
 async function waSistema(){
   const z=$('waSistema');if(!z)return;
-  const [r,imp]=await Promise.all([api('/centralino/whatsapp.json'),api('/centralino/whatsapp/impostazioni')]);
+  const r=await api('/centralino/whatsapp.json');
   if(!r.ok||!$('waSistema'))return;const st=r.d.stato||{};
-  const zz=$('waSistema');
-  zz.innerHTML=`<div class="meta" style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;color:#f0fdff">${esc(st.frase)}</span><span class="pill ${st.parola==='acceso'?'acceso':(st.parola==='spento'?'spento':'altro')}">${esc(st.parola)}</span></div>
+  const zz=$('waSistema');const inCorso=S.waCodice&&S.waCodice.scade>Date.now()&&!st.attivo;
+  const righe=[];
+  if(st.attivo&&st.collegato_dal)righe.push('Collegato dal '+esc(waOra(st.collegato_dal)));
+  if(!st.attivo&&st.da_quando&&st.registrato)righe.push('Scollegato dal '+esc(waOra(st.da_quando)));
+  if(st.ultimo_messaggio)righe.push('Ultimo messaggio: '+esc(waOra(st.ultimo_messaggio)));
+  if(st.tetto)righe.push('Partiti da qui oggi: '+st.oggi+' su '+st.tetto);
+  zz.innerHTML=`<div class="meta" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span style="font-size:15px;color:#f0fdff">${esc(st.frase)}</span><span class="pill ${st.parola==='acceso'?'acceso':(st.parola==='scollegato'||st.parola==='bloccato'?'spento':'altro')}">${esc(st.parola)}</span></div>
     <ul class="wa-passi">${(st.passi||[]).map(p=>`<li class="${p.ok?'ok':''}">${esc(p.testo)}${p.ok?'':`<small>${esc(p.manca)}</small>`}</li>`).join('')}</ul>
-    <p style="font-size:13px;color:var(--mute);margin-top:6px">${st.numero?'Numero '+esc(st.numero)+(st.nome?' · '+esc(st.nome):'')+'<br>':''}Risposte questo mese: ${st.risposte_mese} (mi fermo a ${st.tetto_mese}: da 1.000 in su Meta si fa pagare)${st.a_pagamento?'<br><b style="color:var(--red)">Meta ne ha contate '+st.a_pagamento+' a pagamento.</b>':''}<br>File salvati: ${st.media_mb} MB su ${st.tetto_media_mb}</p>
-    <div class="tasti" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn vuoto" id="waControlla">Controlla la strada</button><button class="btn" id="waAttiva"${st.pronto?'':' disabled'}>${st.attivo?'Attiva di nuovo':'Attiva il numero'}</button><button class="btn vuoto" id="waApri">Le chat</button></div>
+    ${righe.length?`<p style="font-size:13px;color:var(--mute);margin-top:6px">${righe.join('<br>')}</p>`:''}
+    <p style="font-size:13px;color:var(--mute);margin-top:6px">L'app e le chat restano sul tuo telefono. Jarvis non risponde mai da solo.</p>
+    <div class="tasti" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${st.attivo?'':`<button class="btn" id="waCollega">Collega WhatsApp</button>`}<button class="btn vuoto" id="waApri">Le chat</button>${st.attivo?`<button class="btn vuoto" id="waScollega">Scollega</button>`:''}</div>
+    <div id="waZonaCodice">${inCorso&&S.waCodice.codice?waCodiceHtml(S.waCodice.codice):''}</div>
     <div id="waEsito" style="margin-top:8px;font-size:14px;color:#bfe9f7" role="status">${S.waEsito}</div>
-    <p style="font-size:13px;margin-top:8px"><a style="color:#a8f1ff" href="/centralino/guida-whatsapp" target="_blank" rel="noopener">Apri la guida passo passo</a></p>
-    ${imp.ok?`<p style="font-size:12.5px;color:var(--mute);margin-top:6px">Da incollare su Meta, in Webhook:</p><div class="valore"><code id="waGancio">${esc(imp.d.gancio)}</code><button class="btn vuoto" data-wacopia="waGancio">Copia</button></div><div class="valore"><code id="waParola">${esc(imp.d.verifica)}</code><button class="btn vuoto" data-wacopia="waParola">Copia</button></div>`:''}`;
-  zz.querySelectorAll('[data-wacopia]').forEach(b=>b.onclick=async()=>{const t=$(b.dataset.wacopia).textContent;try{await navigator.clipboard.writeText(t)}catch(e){const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();document.execCommand('copy');x.remove()}b.textContent='Copiato';setTimeout(()=>b.textContent='Copia',1800)});
+    ${st.attivo?'':`<p style="font-size:12.5px;color:var(--mute);margin-top:8px">Il codice non va? <button class="btn vuoto" id="waQr" style="padding:4px 10px">Usa il QR da un altro schermo</button></p><div id="waZonaQr"></div>`}`;
   $('waApri').onclick=()=>apriWa('');
-  $('waControlla').onclick=async()=>{const b=$('waControlla');b.disabled=true;$('waEsito').textContent='Controllo…';const c=await api('/centralino/whatsapp/controlla',{});
-    S.waEsito=(c.d.righe||[]).map(x=>(x.ok?'✓ ':'✗ ')+esc(x.testo)).join('<br>');$('waEsito').innerHTML=S.waEsito;b.disabled=false};
-  const attiva=async id=>{const b=$('waAttiva');b.disabled=true;$('waEsito').textContent='Registro il numero su Meta…';const c=await api('/centralino/whatsapp/attiva',{numero_id:id||''});
-    if(c.d.scelte){$('waEsito').innerHTML='Su Meta ci sono più numeri. Quale?<br>'+c.d.scelte.map(x=>`<button class="btn vuoto" data-num="${esc(x.id)}" style="margin:4px 4px 0 0">${esc(x.numero)} ${esc(x.nome||'')}</button>`).join('');$('waEsito').querySelectorAll('[data-num]').forEach(n=>n.onclick=()=>attiva(n.dataset.num));b.disabled=false;return}
-    S.waEsito=esc(c.ok?c.d.frase:(c.d.errore||'Non è riuscito.'));$('waEsito').innerHTML=(c.ok?'':'✗ ')+S.waEsito;b.disabled=false;if(c.ok)aggiorna(true)};
-  $('waAttiva').onclick=()=>{if(!confirm('Hai già tolto il numero dall\'app e messo il codice SMS su Meta? Se no, annulla.'))return;attiva('')};
+  const legaCopia=()=>{const b=$('waCopiaCodice');if(b)b.onclick=async()=>{try{await navigator.clipboard.writeText($('waCodice').dataset.codice);b.textContent='Copiato'}catch(e){b.textContent='Copialo a mano'}setTimeout(()=>b.textContent='Copia il codice',1800)}};
+  legaCopia();waConto();
+  const cl=$('waCollega');if(cl)cl.onclick=async()=>{cl.disabled=true;$('waEsito').textContent='Chiedo il codice a WhatsApp…';const c=await api('/centralino/whatsapp/collega',{modo:'codice'});cl.disabled=false;
+    if(c.ok&&c.d.codice){S.waCodice={codice:c.d.codice,scade:c.d.scade};S.waEsito='';$('waEsito').textContent='';$('waZonaCodice').innerHTML=waCodiceHtml(c.d.codice);legaCopia();waConto();return}
+    S.waEsito=esc(c.d.frase||c.d.errore||'Non è riuscito.');$('waEsito').innerHTML=S.waEsito;if(c.ok)aggiorna(true)};
+  const q=$('waQr');if(q)q.onclick=async()=>{q.disabled=true;$('waEsito').textContent='Chiedo il QR a WhatsApp…';const c=await api('/centralino/whatsapp/collega',{modo:'qr'});q.disabled=false;
+    if(c.ok&&c.d.qr_svg){$('waEsito').textContent='';$('waZonaQr').innerHTML=`<p style="font-size:13px;color:#bfe9f7">Apri questa pagina su un altro schermo e inquadralo da <b>Dispositivi collegati</b>. Dura un minuto.</p><div style="background:#fff;padding:10px;max-width:300px;margin-top:6px">${c.d.qr_svg}</div>`;return}
+    $('waEsito').textContent=c.d.frase||c.d.errore||'Non è riuscito.'};
+  const sc=$('waScollega');if(sc)sc.onclick=async()=>{if(!confirm('Scollego Jarvis dal tuo WhatsApp? L\'app e le chat sul telefono non cambiano.'))return;sc.disabled=true;const c=await api('/centralino/whatsapp/scollega',{});S.waEsito=esc(c.ok?'Scollegato.':(c.d.errore||'Non è riuscito.'));S.waCodice=null;aggiorna(true);waSistema()};
 }
+function waConto(){const e=$('waScade');if(!e||!S.waCodice)return;clearTimeout(S.waTimer);const s=Math.round((S.waCodice.scade-Date.now())/1000);
+  if(s<=0){S.waCodice=null;waSistema();return}
+  e.textContent='Vale ancora '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+  S.waTimer=setTimeout(()=>{if(s%5===0)waControllaCollegato();waConto()},1000)}
+async function waControllaCollegato(){const r=await api('/centralino/whatsapp.json');if(r.ok&&(r.d.stato||{}).attivo){S.waCodice=null;S.waEsito='Collegato.';aggiorna(true);waSistema()}}
 
 /* ---------- Agenda ---------- */
 function agendaHtml(st){

@@ -8,8 +8,9 @@
  "fuso": "Europe/Rome",
  "silenzio": {"da": "23:30", "a": "07:00"},
  "voce": {"servizio": "elevenlabs", "voice_id": "UnOINkXZ3yK4vVg3Iayj", "nome": "Beatrice", "tetto_caratteri_mese": 50000},
+ "whatsapp_servizio": "https://whatsapp-jarvis-zzk3.onrender.com",
  "notifiche": {"contatto_vapid": "mailto:info@rilievoapp.it", "tetto_giorno": 80},
- "fonti": {"rilievo": true, "posta": true, "fiverr": true, "tiktok": true, "calendario": true, "whatsapp": false, "instagram": false, "fatture": true},
+ "fonti": {"rilievo": true, "posta": true, "fiverr": true, "tiktok": true, "calendario": true, "whatsapp": true, "instagram": false, "fatture": true},
  "collegamenti": [["Knowlee", "https://os-6d0fa8.knowlee.ai"], ["Claude", ""], ["Gmail", "https://mail.google.com/mail/u/0/#inbox"],
                   ["Render", "https://dashboard.render.com/web/srv-dahhku15efls73bvrgp0"], ["TikTok", "https://www.tiktok.com/tiktokstudio"], ["Rilievo", "/"]]
 }
