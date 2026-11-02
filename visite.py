@@ -118,6 +118,12 @@ def dispositivo(ua):
     return "telefono" if re.search(r"Mobile|Android|iPhone|iPad", ua or "") else "computer"
 
 
+def dentro_tiktok(ua):
+    """Solo si'/no: la stringa del browser non si salva. Serve a capire se chi non ritrova
+    il lavoro lo aveva fatto dentro TikTok (Andrea, 1/11/2026)."""
+    return bool(re.search(r"musical_ly|BytedanceWebview|ByteLocale|TikTok|trill_", ua or "", re.I))
+
+
 def segna(codice, pagina, cosa, ua=""):
     """cosa: "apertura" (ha aperto il link) o "rilievo" (ha chiesto un rilievo).
     Torna True se la visita e' stata segnata. Non alza mai: l'app non deve accorgersene."""
@@ -128,7 +134,7 @@ def segna(codice, pagina, cosa, ua=""):
         elenco = da_chi()
         ora = datetime.datetime.now(ZoneInfo("Europe/Rome"))
         riga = {"codice": c, "ora": ora.strftime("%Y-%m-%d %H:%M:%S"), "pagina": str(pagina)[:30],
-                "cosa": cosa, "da": dispositivo(ua)}
+                "cosa": cosa, "da": dispositivo(ua), "tiktok": dentro_tiktok(ua)}
         with _lucchetto:
             visti = _carica_visti()
             if c not in elenco and not any(k == c for k, _ in visti) and \
@@ -182,7 +188,7 @@ def segna_passo(codice, passo, dove="", secondi=None, ua=""):
             s = None
         ora = datetime.datetime.now(ZoneInfo("Europe/Rome"))
         riga = {"codice": c, "ora": ora.strftime("%Y-%m-%d %H:%M:%S"), "cosa": "passo", "passo": passo,
-                "da": dispositivo(ua)}
+                "da": dispositivo(ua), "tiktok": dentro_tiktok(ua)}
         if dove:
             riga["dove"] = dove
         if s is not None:
@@ -259,6 +265,9 @@ def riassunto():
                 x.setdefault("perche", []).append(PERCHE.get(r.get("dove"), r.get("dove")))
             if p == "uscita":
                 x["ultima_uscita"] = {k: r[k] for k in ("ora", "dove", "s") if k in r}
+        if "tiktok" in r:
+            k = "dentro_tiktok" if r["tiktok"] else "fuori_tiktok"
+            x[k] = x.get(k, 0) + 1
         if r.get("da") and r["da"] not in x["da"]:
             x["da"].append(r["da"])
     fuori = []

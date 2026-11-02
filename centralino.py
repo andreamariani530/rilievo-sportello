@@ -246,10 +246,14 @@ def eventi(n=200):
 
 # ------------------------------------------------------------------ decisioni e richieste
 
-def nuova_decisione(titolo, testo="", link="", fonte="knowlee", chiave="", si="Sì", no="No"):
+def nuova_decisione(titolo, testo="", link="", fonte="knowlee", chiave="", si="Sì", no="No", tiktok=None):
     d = {"id": secrets.token_hex(6), "quando": adesso_iso(), "fonte": fonte if fonte in FONTI else "knowlee",
          "titolo": _txt(titolo, 200) or "(senza titolo)", "testo": _txt(testo, 2000), "link": _link_buono(link),
          "si": _txt(si, 24) or "Sì", "no": _txt(no, 24) or "No", "stato": "attesa", "chiave": _txt(chiave, 160)}
+    if isinstance(tiktok, dict) and _txt(tiktok.get("testo"), 2000):
+        # una risposta TikTok proposta: Andrea la rilegge, la cambia se vuole e la manda da qui
+        d["tt"] = {"tipo": "messaggio" if tiktok.get("tipo") == "messaggio" else "commento", "chi": _txt(tiktok.get("chi"), 80),
+                   "scritto": _txt(tiktok.get("scritto"), 1000), "testo": _txt(tiktok.get("testo"), 2000)}
     with _l:
         tutte = _leggi("decisioni.json", [])
         if d["chiave"]:
@@ -277,7 +281,7 @@ def chiudi_decisione(did, motivo=""):
     return False
 
 
-def rispondi_decisione(did, risposta):
+def rispondi_decisione(did, risposta, testo=""):
     if risposta not in ("si", "no"):
         return None
     with _l:
@@ -286,22 +290,35 @@ def rispondi_decisione(did, risposta):
             if d["id"] == did and d["stato"] == "attesa":
                 d["stato"] = risposta
                 d["risposta_quando"] = adesso_iso()
+                if d.get("tt") and risposta == "si":
+                    d["tt"]["mandato"] = _txt(testo, 2000) or d["tt"]["testo"]
                 _scrivi("decisioni.json", tutte)
                 break
         else:
             return None
     if d.get("wa_bozza"):               # una bozza WhatsApp: il tocco e' il via, non serve il braccio destro
         return dict(d, wa_esito=_wa_da_decisione(d, risposta))
+    if d.get("tt"):                     # la risposta la scrive su TikTok il suo lavoro, non il braccio destro
+        if risposta == "si":
+            tt = d["tt"]
+            nuova_richiesta("Rispondi su TikTok a %s: %s" % (tt["chi"], tt["mandato"]), da="decisione", tipo=TIPO_TIKTOK, rif=did,
+                            chiave_dec=d.get("chiave", ""), tiktok=dict(tt, testo=tt["mandato"], link=d.get("link", "")))
+        return d
     nuova_richiesta("Risposta di Andrea a «%s»: %s" % (d["titolo"], d["si"] if risposta == "si" else d["no"]),
                     da="decisione", tipo="decisione", rif=did, chiave_dec=d.get("chiave", ""))
     return d
 
 
-def nuova_richiesta(testo, da="andrea", tipo="richiesta", rif="", chiave_dec=""):
+TIPO_TIKTOK = "tiktok-risposta"
+
+
+def nuova_richiesta(testo, da="andrea", tipo="richiesta", rif="", chiave_dec="", tiktok=None):
     r = {"id": secrets.token_hex(6), "quando": adesso_iso(), "testo": _txt(testo, 2000), "da": da,
          "tipo": tipo, "rif": rif, "stato": "nuova", "esito": ""}
     if chiave_dec:
         r["chiave_decisione"] = chiave_dec
+    if tiktok:
+        r["tiktok"] = tiktok
     if not r["testo"]:
         return None
     with _l:
@@ -327,7 +344,12 @@ def aggiorna_richiesta(rid, stato, esito="", livello="calm"):
                 break
         else:
             return None
-    if esito and stato in ("fatta", "no"):
+    if esito and r.get("tipo") == TIPO_TIKTOK and stato in ("fatta", "no"):
+        tt = r.get("tiktok") or {}
+        aggiungi("tiktok", ("Risposta mandata a %s" if stato == "fatta" else "Risposta NON mandata a %s") % tt.get("chi", ""),
+                 "%s\n\nRisposta: %s" % (_txt(esito, 800), tt.get("testo", "")), livello="calm" if stato == "fatta" else "need",
+                 tipo="esito", link=tt.get("link", ""), chiave="esito:" + rid, avvisa=stato != "fatta")
+    elif esito and stato in ("fatta", "no"):
         aggiungi("braccio", "Braccio destro: " + _txt(esito, 160),
                  "Hai chiesto: «%s»\n\n%s" % (_txt(r["testo"], 300), _txt(esito, 1500)),
                  livello=livello if livello in LIVELLI else "calm", tipo="esito", chiave="esito:" + rid,
@@ -335,9 +357,11 @@ def aggiorna_richiesta(rid, stato, esito="", livello="calm"):
     return r
 
 
-def richieste(stato=None):
+def richieste(stato=None, tipo=None):
+    """Senza tipo non torna le risposte TikTok: quelle le prende solo il lavoro di TikTok."""
     tutte = _leggi("richieste.json", [])
-    return [r for r in tutte if not stato or r["stato"] == stato]
+    return [r for r in tutte if (not stato or r["stato"] == stato)
+            and (r.get("tipo") == tipo if tipo else r.get("tipo") != TIPO_TIKTOK)]
 
 
 def segna_giro(nota="", lavori_ok=None, lavori_tot=None):
@@ -732,7 +756,7 @@ def _corto(x):
             "livello": x.get("livello", "calm"), "titolo": x.get("titolo", ""), "testo": x.get("testo", ""),
             "link": x.get("link", ""), "stato": x.get("stato", ""), "quando": x.get("aggiornato") or x.get("quando"),
             "ora": q.strftime("%H:%M") if q else "", "giorno": q.strftime("%d/%m") if q else "",
-            "si": x.get("si", ""), "no": x.get("no", "")}
+            "si": x.get("si", ""), "no": x.get("no", ""), **({"tt": x["tt"]} if x.get("tt") else {})}
 
 
 def riepilogo_a_voce(cose):
@@ -3388,7 +3412,7 @@ def _get(h, p, q):
         if not _ponte(h):
             _risposta(h, 401, {"errore": "Serve la chiave del ponte."})
             return
-        _risposta(h, 200, {"richieste": richieste(g("stato") or None)[:100]})
+        _risposta(h, 200, {"richieste": richieste(g("stato") or None, g("tipo") or None)[:100]})
         return
     if p == "/centralino/api/voce-da-preparare":
         if not _ponte(h):
@@ -3451,11 +3475,16 @@ def _post(h, p, q):
             return
         if p == "/centralino/api/decisioni":
             dec, nuovo = nuova_decisione(d.get("titolo"), d.get("testo"), d.get("link"), d.get("fonte") or "knowlee",
-                                         d.get("chiave"), d.get("si") or "Sì", d.get("no") or "No")
+                                         d.get("chiave"), d.get("si") or "Sì", d.get("no") or "No", d.get("tiktok"))
             _risposta(h, 200, {"id": dec["id"], "nuovo": nuovo})
             return
         if p == "/centralino/api/decisioni/chiudi":
             _risposta(h, 200, {"chiusa": chiudi_decisione(d.get("id"), d.get("motivo"))})
+            return
+        m = re.fullmatch(r"/centralino/api/eventi/([0-9a-f]{12})", p)
+        if m:
+            e = segna_evento(m.group(1), d.get("stato") or "fatto")
+            _risposta(h, 200 if e else 404, e or {"errore": "Non trovato."})
             return
         if p == "/centralino/api/tiktok":
             _risposta(h, 200, tiktok_istantanea(d))
@@ -3629,7 +3658,7 @@ def _post(h, p, q):
         return
     m = re.fullmatch(r"/centralino/decisione/([0-9a-f]{12})", p)
     if m:
-        x = rispondi_decisione(m.group(1), d.get("risposta"))
+        x = rispondi_decisione(m.group(1), d.get("risposta"), d.get("testo"))
         _risposta(h, 200 if x else 404, x or {"errore": "Già decisa o non trovata."})
         return
     m = re.fullmatch(r"/centralino/contatto/([a-z0-9-]{2,30})", p)

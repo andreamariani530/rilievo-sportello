@@ -507,6 +507,8 @@ body.porta-aperta{overflow:hidden}
 .foglio-perche{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:95;
   max-width:460px;margin:0 auto;background:var(--carta,#faf7f0);border:1px solid rgba(27,25,23,.14);border-radius:18px;
   padding:18px 18px 12px;box-shadow:0 12px 40px rgba(27,25,23,.18)}
+/* in alto: in basso coprirebbe «Consegnalo al cliente» */
+#foglio-accesso{top:calc(12px + var(--alto-tiktok,0px) + env(safe-area-inset-top));bottom:auto}
 .titolo-perche{font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;line-height:1.2;margin:0 0 4px}
 .sotto-perche{font-size:14.5px;color:var(--tenue,#6b665e);margin:0 0 12px}
 .risposte-perche{display:flex;flex-wrap:wrap;gap:8px}
@@ -1264,6 +1266,22 @@ nav .gruppo{text-transform:none;letter-spacing:.02em;font-size:12px;margin:14px 
 .piano.per-te{border-color:var(--accento);box-shadow:none}
 .piano .per-te-segno{border-radius:999px}
 .conto-squadra button{border-radius:12px;border-color:var(--filetto2)}
+/* 1/11: si legge al sole. Cifre alte dappertutto (lo zero non deve sembrare una o), grigio piu' scuro,
+   testi di servizio mai sotto gli 11 px. Il verde dei tasti resta quello scelto da Andrea il 15/10. */
+body{font-feature-settings:"liga" 1,"lnum" 1}
+:root{--tenue:#655f55}
+.testata-casa,.casa{--casa-muto:#655f55}
+.legenda,.piano .per-te-segno{font-size:11px;letter-spacing:.08em}
+.lbl{font-size:11.5px;letter-spacing:.16em}
+.tag{font-size:11px;letter-spacing:.06em}
+.guida .passo{font-size:11px;letter-spacing:.16em;color:var(--tenue)}
+.casa-riquadri .etichetta,.casa-ditta .etichetta-ditta,.riga-numeri .numero .lbl{font-size:11px;letter-spacing:.12em}
+.casa-riquadri .sub,.ditta-riga em{font-size:13px}
+.casa-riquadri .legenda-casa{font-size:12px}
+.casa-domande button,.filtri button{font-size:13.5px}
+.barra-sotto a{font-size:11px;letter-spacing:0}
+th,.tavola .didascalia,.foto .didascalia,.foglio .foto-doc figcaption,.facoltativa,.interruttore .stato{font-size:11px;letter-spacing:.1em}
+.foglio .lbl{font-size:10px;letter-spacing:.22em}
 </style>
 <!-- IL SITO (Andrea, 31/10/2026: «cosi' apre gia' l'app, non il nostro sito»).
      Chi arriva su rilievoapp.it da Google o scrivendo l'indirizzo vede prima la
@@ -1817,7 +1835,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-01 21:02';
+const COSTRUITA = '2026-11-02 10:21';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3519,6 +3537,7 @@ function generaPreventivo(idSopralluogo){
   };
   S.preventivi.unshift(p);
   passo('preventivo');
+  invitoAccesso();
   s.preventivo = p.id; s.stato = statoSopralluogo(s);
   salva();
   avvisa(frasePronto(d) + raccontoRighe(d));
@@ -4040,6 +4059,7 @@ function schedaPreventivo(id, idCliente){
       if(cl){ const g = giardinoDelCliente(cl.id); if(g) nuovo.rilievo = g.id; }
       S.preventivi.unshift(nuovo);
       passo('preventivo');
+      invitoAccesso();
       location.hash = '#preventivo/' + nuovo.id;
     },
     elimina: p ? () => {
@@ -6271,6 +6291,28 @@ function domandaPerche(){
     passo('perche', b.dataset.r); f.remove(); avvisa('Grazie. Ne terremo conto.');
   });
   f.querySelector('.lascia-perche').onclick = () => f.remove();
+}
+/* Dopo il primo preventivo, una volta sola, a chi lavora con la sua ditta e non ha l'accesso:
+   4 persone su 6 riaprendo il link non hanno ritrovato il lavoro (Andrea, 1/11/2026).
+   Non blocca niente: il preventivo si puo' mandare anche col foglio aperto. */
+function invitoAccesso(){
+  setTimeout(() => {
+    if(!suaDitta() || statoCopia().gettone || document.querySelector('.foglio-perche')) return;
+    const m = memoriaPassi(); if(m.invito) return;
+    m.invito = true; ricordaPassi(m);
+    const f = document.createElement('div');
+    f.className = 'foglio-perche'; f.id = 'foglio-accesso';
+    f.setAttribute('role', 'dialog');
+    f.innerHTML = `<p class="titolo-perche">Non perdere questo preventivo</p>
+      <p class="sotto-perche">Per ora &egrave; solo qui. Con la mail e una password lo ritrovi anche riaprendo il link da un&rsquo;altra parte.</p>
+      <div class="risposte-perche"><button type="button" class="risposta-perche" id="invito-crea">Crea l&rsquo;accesso</button>
+      <button type="button" class="risposta-perche" id="invito-entra">Ho gi&agrave; un accesso</button></div>
+      <button type="button" class="lascia-perche">Non ora</button>`;
+    document.body.appendChild(f);
+    f.querySelector('#invito-crea').onclick = () => { f.remove(); schedaCreaAccesso(); };
+    f.querySelector('#invito-entra').onclick = () => { f.remove(); schedaEntra(); };
+    f.querySelector('.lascia-perche').onclick = () => f.remove();
+  }, 1200);
 }
 function permesso(){
   try{ const p = JSON.parse(localStorage.getItem(CHIAVE_PERMESSO) || 'null');
@@ -14966,7 +15008,8 @@ function testoPrivacy(){
     <h3>Se arrivi dal link che ti abbiamo mandato</h3>
     <p>Il link che ti abbiamo scritto porta un codice corto della tua ditta. Con quel codice segniamo sul nostro
       server quando apri Rilievo e quali passi fai: per esempio &laquo;ha scelto il mestiere&raquo;, &laquo;ha provato una
-      misura&raquo;, &laquo;ha fatto un preventivo&raquo;, la pagina dove eri quando hai chiuso e dopo quanti secondi.
+      misura&raquo;, &laquo;ha fatto un preventivo&raquo;, la pagina dove eri quando hai chiuso e dopo quanti secondi. Segniamo anche se usi un telefono o un computer
+      e se hai aperto il link dentro TikTok oppure no, nient&rsquo;altro del tuo browser.
       Se una volta ti fermi a met&agrave;, la volta dopo ti chiediamo con un tocco cosa non andava, e puoi non rispondere.
       Non segniamo indirizzi, nomi, cifre, quello che scrivi n&eacute; l&rsquo;indirizzo di rete. Serve solo a capire dove
       l&rsquo;app non &egrave; chiara. Chi apre Rilievo senza quel link non manda niente. Per farlo cancellare basta una mail.</p>

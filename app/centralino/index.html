@@ -200,6 +200,9 @@
   .voce h3{margin-top:4px;font:500 16px/1.3 "IBM Plex Sans Condensed",sans-serif;color:#f0fdff}
   .voce p{margin-top:4px;font-size:14px;line-height:1.4;color:#bfe9f7;white-space:pre-line}
   .voce .tasti{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .voce .tt-eti{display:block;margin-top:10px;font:10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c,var(--cyan))}
+  .voce textarea{margin-top:5px}
+  .voce .tt-nota{font-size:12px;opacity:.8}
   .btn{font:500 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:10px 12px;cursor:pointer;color:#fff;text-decoration:none;display:inline-block;
     background:color-mix(in srgb,var(--c,var(--cyan)) 22%,transparent);border:1px solid var(--c,var(--cyan));clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
   .btn.vuoto{background:transparent;color:var(--ice);border-color:var(--line)}
@@ -389,7 +392,7 @@
 const $=id=>document.getElementById(id);
 const fermo=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const S={g:'',st:null,sez:'oggi',filtro:'nuovi',storia:[],voce:false};
+const S={g:'',st:null,sez:'oggi',filtro:'nuovi',storia:[],voce:false,ttTesto:{}};
 try{S.g=localStorage.getItem('centralino-gettone')||''}catch(e){}
 
 /* ---------- parlare col server ---------- */
@@ -498,6 +501,8 @@ function mostra(){
   if(S.sez!=='oggi'&&S.sez!=='chat'&&S.sez!=='whatsapp'&&!scrive)apri(S.sez,true);
 }
 function tastiDi(x,grande){
+  if(x.genere==='decisione'&&x.tt&&x.stato==='attesa'&&grande)return`<button data-apri="/centralino#decisioni">Rispondi</button>`;
+  if(x.tt&&x.stato==='attesa')return`<button data-dec="${x.id}" data-r="si">Manda</button>${x.link?`<button data-tt-copia="${x.id}" data-apri="${esc(x.link)}">Copia e apri</button>`:''}<button data-dec="${x.id}" data-r="no">Lascia stare</button>`;
   if(x.genere==='decisione'&&(x.stato==='attesa'||!x.stato))return`<button data-dec="${x.id}" data-r="si">${esc(x.si||'Sì')}</button><button data-dec="${x.id}" data-r="no">${esc(x.no||'No')}</button>`;
   const apri=x.link?`<button data-apri="${esc(x.link)}">Apri</button>`:'';
   return apri+`<button data-ev="${x.id}" data-s="fatto">Fatto</button>`+(apri?'':`<button data-ev="${x.id}" data-s="visto">Visto</button>`);
@@ -514,22 +519,32 @@ setInterval(aggiorna,30000);document.addEventListener('visibilitychange',()=>{if
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button[data-ev],button[data-dec],button[data-apri],button[data-con],a[data-claude]');if(!b)return;
   e.preventDefault();
+  if(b.dataset.ttCopia)ttCopia($('tt-'+b.dataset.ttCopia).value);
   if(b.dataset.apri){apriLink(b.dataset.apri);return}
   if(b.dataset.claude!==undefined){apriClaude();return}
   b.disabled=true;
+  const tt=b.dataset.dec&&b.dataset.r==='si'&&$('tt-'+b.dataset.dec);
   if(b.dataset.ev)await api('/centralino/evento/'+b.dataset.ev,{stato:b.dataset.s});
-  if(b.dataset.dec){const rd=await api('/centralino/decisione/'+b.dataset.dec,{risposta:b.dataset.r});const x=rd.d&&rd.d.wa_esito;if(x&&(x.errore||x.testo))alert(x.errore||x.testo)}
+  if(b.dataset.dec){const rd=await api('/centralino/decisione/'+b.dataset.dec,{risposta:b.dataset.r,testo:tt?tt.value:''});const x=rd.d&&rd.d.wa_esito;if(x&&(x.errore||x.testo))alert(x.errore||x.testo)}
   if(b.dataset.con)await api('/centralino/contatto/'+b.dataset.con,{visto:true});
   aggiorna();
 });
+function ttCopia(t){const a=()=>{const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();document.execCommand('copy');x.remove()};try{navigator.clipboard.writeText(t).catch(a)}catch(e){a()}}
+document.addEventListener('input',e=>{if(/^tt-/.test(e.target.id||''))S.ttTesto[e.target.id]=e.target.value});
 function apriLink(u){if(/^\/centralino#/.test(u)){vaiA(u);return}if(/^(tel|sms|mailto):/.test(u))location.href=u;else window.open(u,'_blank','noopener')}
 function apriClaude(){const t=Date.now();location.href='claude://';setTimeout(()=>{if(!document.hidden&&Date.now()-t<2500)window.open('https://claude.ai/new','_blank','noopener')},1200)}
 
 /* ---------- i fogli: Messaggi, Decisioni, Contatti, Sistema, Chat ---------- */
 const TITOLI={messaggi:'Messaggi',decisioni:'Decisioni',contatti:'Contatti',sistema:'Sistema',chat:'Claude',agenda:'Agenda',tiktok:'TikTok',whatsapp:'WhatsApp'};
+function ttHtml(e){
+  if(!e.tt)return'';
+  if(e.stato!=='attesa')return e.tt.mandato?`<p>Risposta: ${esc(e.tt.mandato)}</p>`:'';
+  const id='tt-'+e.id,v=S.ttTesto[id]!=null?S.ttTesto[id]:e.tt.testo;
+  return`<label class="tt-eti" for="${id}">La risposta, puoi cambiarla</label><textarea id="${id}" rows="4">${esc(v)}</textarea><p class="tt-nota">Manda: la scrivo io su TikTok al prossimo controllo, entro 20 minuti. Dall'1 alle 8 aspetta le 8.</p>`;
+}
 function voceEvento(e){
   return`<div class="voce ${e.livello}${e.stato!=='nuovo'&&e.stato!=='attesa'?' spenta':''}" data-id="${esc(e.id)}"><div class="meta"><span>${esc(e.nome_fonte)} · ${esc(PAROLA[e.livello])}</span><span>${esc(e.giorno)} ${esc(e.ora)}</span></div>
-    <h3>${esc(e.titolo)}</h3>${e.testo?`<p>${esc(e.testo)}</p>`:''}${(e.stato==='nuovo'||e.stato==='attesa')?`<div class="tasti">${tastiDi(e).replace(/<button /g,'<button class="btn" ').replace(/data-s="visto"/,'data-s="visto" style="background:transparent"')}</div>`:(e.link?`<div class="tasti"><button class="btn vuoto" data-apri="${esc(e.link)}">Apri</button></div>`:'')}</div>`;
+    <h3>${esc(e.titolo)}</h3>${e.testo?`<p>${esc(e.testo)}</p>`:''}${ttHtml(e)}${(e.stato==='nuovo'||e.stato==='attesa')?`<div class="tasti">${tastiDi(e).replace(/<button /g,'<button class="btn" ').replace(/data-s="visto"/,'data-s="visto" style="background:transparent"')}</div>`:(e.link?`<div class="tasti"><button class="btn vuoto" data-apri="${esc(e.link)}">Apri</button></div>`:'')}</div>`;
 }
 function apri(sez,soloContenuto){
   S.sez=sez;document.querySelectorAll('nav [data-sez]').forEach(a=>a.classList.toggle('qui',a.dataset.sez===sez));
