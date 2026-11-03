@@ -1835,7 +1835,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-03 03:00';
+const COSTRUITA = '2026-11-03 02:16';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -6266,6 +6266,9 @@ function segnaUscita(){
    quattro risposte da toccare, una volta sola. Niente da scrivere. */
 function preparaPassi(){
   if(!daMio()) return;
+  /* chi riapre rilievoapp.it vede il sito, e dietro l'app parte lo stesso: la domanda si
+     apriva sotto il sito, nessuno la vedeva e valeva gia' come fatta (2 novembre 2026) */
+  if(document.documentElement.classList.contains('vista-sito')) return;
   const m = memoriaPassi();
   const chiedi = m.visite >= 1 && !m.preventivo && !m.chiesto;
   m.visite = (m.visite || 0) + 1; ricordaPassi(m);
@@ -9285,6 +9288,19 @@ function numeroDetto(w){
 /* le parole che contano i pezzi di una cosa sola: un numero davanti a loro e' un conto */
 const PEZZI_DI_UNA_COSA = new Set(['lato','lati','pezzo','pezzi','tratto','tratti','parte','parti',
   'fila','file','filare','filari','spezzone','spezzoni']);
+const NUMERO_CIVICO = new Set(['numero','civico','nr','num']);
+const VIA_DETTA = new Set(['via','viale','piazza','piazzale','corso','vicolo']);
+const NON_NOME_DI_VIA = new Set(['e','ed','con','poi','il','la','le','lo','i','gli','l','un','una','uno']);
+/* "porto VIA dodici sacchi", "butta via le foglie": qui "via" non e' una strada */
+const VIA_VERBO = /^(port|butt|togl|tolg|tagli|mand|and|vad|scapp|caric)/;
+function civicoDetto(tok, i){
+  if(NUMERO_CIVICO.has(tok[i - 1] || '')) return true;
+  for(let j = i - 2; j >= 0 && j >= i - 5; j--){
+    if(NON_NOME_DI_VIA.has(tok[j]) || numeroDetto(tok[j]) != null) return false;
+    if(VIA_DETTA.has(tok[j])) return !VIA_VERBO.test(tok[j - 1] || '');
+  }
+  return false;
+}
 function numeriDetti(tok){
   /* l'unita' detta subito dopo il numero, col suo fattore: "due ettari" e' mq per 10000 */
   const misuraDopo = i => {
@@ -9414,6 +9430,10 @@ function numeriDetti(tok){
     const m = misuraDopo(i);
     const n = {v: v * (m ? m.f : 1), u: m ? m.u : null, i, f: m ? m.f : 1};
     if(n.u === null && contaCose(i)) n.conteggio = true;
+    /* "sta in via Roma DODICI il prato e' trecento metri quadri e la siepe venti metri"
+       (2 novembre 2026): il civico sembrava la misura del prato, i trecento metri quadri
+       passavano alla siepe e sparivano, e il prato usciva da 12 mq invece che da 300. */
+    if(n.u === null && !n.conteggio && civicoDetto(tok, i)) return;
     if(SOLDI.has(cosaDopo(i))) n.prezzo = true;
     if(TEMPO.has(cosaDopo(i)) && n.u !== 'ore') n.tempo = true;
     if(diAltezza(i)) n.altezza = true;
@@ -9432,6 +9452,10 @@ function numeriDetti(tok){
   const lato = n => {
     if(CM.has(tok[n.i + 1] || '')) return n.v / 100;
     if(n.u === 'm') return n.v;
+    /* "il prato VENTI PER TRENTA" (2 novembre 2026): il venti restava in metri e il trenta
+       diventava centimetri, e seicento metri quadri uscivano da 6. In giardino nessuno
+       misura in centimetri senza dirlo: i lati sono metri. */
+    if(inGiardino()) return n.v;
     return n.v >= 30 ? n.v / 100 : n.v;
   };
   tok.forEach((w, i) => {
@@ -9622,6 +9646,8 @@ const sembraVerbo = w => (/(are|ire|iamo|amo|ano)$/.test(w) && w.length >= 6) ||
                          (/(ato|ata|ati|uto|uta)$/.test(w) && w.length >= 7);
 const SEMINA_DETTA = new Set(['semina','seminare','seminato','seminata','seminiamo','semenza',
   'semente','rotolo','rotoli','zolla','zolle']);
+const inGiardino = () => CONCETTI_IN_USO.some(c => c.chiavi.includes('semina'));
+const PIANTE_BASSE = new Set(['rose','rosa','roseto','roseti','rosai','rosaio','ortensia','ortensie','lavanda']);
 const TRATTAMENTO_DETTO = new Set(['trattamento','trattamenti','trattare','antiparassitario',
   'antiparassitari','insetticida','insetticidi','fungicida','fungicidi','anticrittogamico',
   'anticrittogamici','endoterapia','irrorazione','irrorare']);
@@ -9655,6 +9681,11 @@ function scegliVoce(tok, voci){
   if(meglio && CONCETTI_IN_USO.some(c => c.chiavi.includes('semina'))){
     const sue = meglio.x.parole || [];
     if(tok.some(w => SEMINA_DETTA.has(w) && !sue.some(p => somiglia(w, p.p)))) return null;
+    /* "potatura di otto ROSE" (2 novembre 2026): senza una voce loro nel listino sceglievano
+       la potatura di alberi ad alto fusto, e otto rose si pagavano come otto alberi. Meglio
+       una lavorazione nuova, che chiede il prezzo una volta. */
+    if(meglio.x.tipo.k === 'pezzi' && tok.some(w => PIANTE_BASSE.has(w) && !sue.some(p => somiglia(w, p.p))) &&
+       !tok.some(w => /^alber/.test(w))) return null;
     /* "TRATTAMENTO ANTIPARASSITARIO a 6 piante" (1 novembre 2026): senza una voce dei
        trattamenti nel listino, le piante sceglievano la potatura, e un trattamento si
        pagava come sei potature di alberi ad alto fusto. Se nel pezzo non c'e' una parola
@@ -9730,6 +9761,8 @@ function quantitaPer(tipo, numeri){
    Se dentro un pezzo di frase c'e' una parola di rifiuto, quella lavorazione non entra
    nel preventivo. Eccezione: "non so", "non sono sicuro", "non ricordo" sono dubbi su
    una misura, non lavori rifiutati, e non devono cancellare niente.                     */
+const PEZZI_IMPIANTO = new Set(['irrigatore','irrigatori','zona','zone','ugello','ugelli','testina',
+  'testine','gocciolatore','gocciolatori','settore','settori']);
 const NIENTE = new Set(['non','niente','nessun','nessuna','nessuno','nulla','senza','no']);
 const DUBBIO_NON = new Set(['so','saprei','sapre','ricordo','sono','sicuro','sicura','saprebbe','ho']);
 /* "il citofono NON FUNZIONA va cambiato", "il salvavita non regge": e' il guasto da
@@ -10225,8 +10258,8 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
          SEMINA del prato": la semina e il trattamento non sono a listino, ma sono un
          lavoro, non un pezzo della siepe. Finivano dentro la siepe e sparivano dal
          preventivo (1 novembre 2026). Fanno un gruppo loro, che chiede il prezzo. */
-      const lavoroNuovo = !p.voce && ultimo && ultimo.voce && CONCETTI_IN_USO.some(c => c.chiavi.includes('semina')) &&
-        p.tok.some(w => TRATTAMENTO_DETTO.has(w) || SEMINA_DETTA.has(w)) && !!lavorazioneFuoriListino(p.tok);
+      const lavoroNuovo = !p.voce && ultimo && (ultimo.voce || daSolo(ultimo)) && CONCETTI_IN_USO.some(c => c.chiavi.includes('semina')) &&
+        p.tok.some(w => TRATTAMENTO_DETTO.has(w) || SEMINA_DETTA.has(w) || PIANTE_BASSE.has(w)) && !!lavorazioneFuoriListino(p.tok);
       if(!p.voce){
         if(ultimo && !lavoroNuovo) ultimo.tok = ultimo.tok.concat(p.tok);
         else gruppi.push({voce:null, tok:p.tok.slice()});
@@ -10287,7 +10320,11 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
       return k > 0 && /^(la|il|lo|una|un|l)$/.test(g.tok[k - 1]);
     };
     conVoce.forEach((g, iG) => {
-      const numeri = numeriCheContano(g.tok, g.voce, numeriDetti(g.tok));
+      /* "controllo irrigazione OTTO IRRIGATORI" (2 novembre 2026): gli irrigatori dicono
+         com'e' fatto l'impianto, il controllo a intervento resta uno. Prima erano otto
+         interventi, cioe' il preventivo otto volte piu' caro. */
+      const numeri = numeriCheContano(g.tok, g.voce, numeriDetti(g.tok)).filter(n =>
+        !(PEZZI_IMPIANTO.has(g.tok[n.i + 1]) && /intervent|corpo/.test(String(g.voce.v.u || ''))));
       /* "bagno tre per due ... il rivestimento ALTO DUE METRI": il due e' l'altezza a cui
          arriva il rivestimento, non i metri quadri. Usciva una riga da 2 mq invece che da
          20 (trovato il 4 ottobre 2026 nella frase d'esempio del piastrellista). Se la voce
@@ -10351,6 +10388,28 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
         gia.q = Number((elenco ? p[0] : somma).toPrecision(12));
       }
     });
+    /* "SFALCIO E CONCIMAZIONE di quattrocento metri quadri" (2 novembre 2026): il prato e'
+       uno, e la misura vale per tutti e due. Lo sfalcio restava a 100 mq con «metti la
+       misura», e chi non lo guardava mandava un preventivo con un quarto del prato. Solo
+       fra lavori sul prato: "prato 300 mq e l'aiuola" non da' 300 mq all'aiuola. */
+    if(inGiardino()){
+      const sulPrato = g => g.voce.tipo.k === 'mq' &&
+        /(^|[^a-z])(sfalci|tagli|concim|fertiliz|arieg|diserb|scarific|trasemin|prato|erba)/.test(senzaAccenti(String(g.voce.v.nome || '').toLowerCase()));
+      const conLaE = (a, b) => b.tok[0] === 'e' || b.tok[0] === 'ed' || a.tok[a.tok.length - 1] === 'e';
+      const prende = (g, da) => {
+        g.grezza = da.grezza;
+        const t = trovate.find(x => x.voce === g.voce.v.id && x.dubbio);
+        if(t){ t.q = Number((da.grezza / g.voce.tipo.per).toPrecision(12)); delete t.dubbio; parti.set(g.voce.v.id, [t.q]); }
+      };
+      for(let i = conVoce.length - 2; i >= 0; i--){
+        const a = conVoce[i], b = conVoce[i + 1];
+        if(a.grezza == null && b.grezza != null && sulPrato(a) && sulPrato(b) && (conLaE(a, b) || a.tok.length <= 2)) prende(a, b);
+      }
+      for(let i = 1; i < conVoce.length; i++){
+        const a = conVoce[i - 1], b = conVoce[i];
+        if(b.grezza == null && a.grezza != null && sulPrato(a) && sulPrato(b) && conLaE(a, b)) prende(b, a);
+      }
+    }
   });
   mettiLeStanze(trovate, conStanze.stanze, listino);
   return trovate;
