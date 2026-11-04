@@ -703,7 +703,7 @@ def stato():
     tk_q = _da_iso((_leggi("tiktok.json", []) or [{}])[-1].get("quando"))
     tk_vivo = bool(tk_q) and (time.time() - tk_q.timestamp()) < 3 * 3600
     attive = [True, True, ponte_vivo or bool(chiave_di("ponte")),
-              wa_acceso(), tk_vivo]
+              wa_stato()["attivo"], tk_vivo]
     attive[0] = ponte_vivo
     # serie per i piccoli grafici: eventi per ora nelle ultime 9 ore
     serie = []
