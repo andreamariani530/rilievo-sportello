@@ -453,8 +453,11 @@ def _attivita(codice, passo, dove="", avvisa=True):
                     e["aggiornato"] = adesso.strftime("%Y-%m-%dT%H:%M:%SZ")
                     e["testo"] = (e.get("testo", "") + "\n%s %s" % (ora, frase)).strip()[-1500:]
                     if uscito:
+                        # 6/11/2026: solo uscite, nessun passo vero -> niente da decidere
+                        fatto = any(r.strip() and not r.strip().endswith(PASSI_PAROLE["uscita"])
+                                    for r in e["testo"].split("\n"))
                         e["titolo"] = "%s ha usato Rilievo" % ditta
-                        e["livello"] = "calm" if prova else "need"
+                        e["livello"] = "calm" if (prova or not fatto) else "need"
                     else:
                         e["titolo"] = "%s sta usando Rilievo adesso" % ditta
                         e["livello"] = "calm" if prova else "urgent"
@@ -463,8 +466,11 @@ def _attivita(codice, passo, dove="", avvisa=True):
                     _scrivi("eventi.json", tutti)
                     return
                 break
+    # Un'uscita da sola, senza un'apertura ne' un passo prima (5/11/2026, 7 secondi alle
+    # 18:14), non e' qualcuno che ha usato Rilievo: resta un evento calmo, non una cosa
+    # che aspetta Andrea. Prima Jarvis stava per dire «C'e' una cosa che aspetta te».
     ev, _ = aggiungi("rilievo", ("%s sta usando Rilievo adesso" if not uscito else "%s ha usato Rilievo") % ditta,
-                     "%s %s" % (ora, frase), livello="calm" if prova else ("need" if uscito else "urgent"),
+                     "%s %s" % (ora, frase), livello="calm" if (prova or uscito) else "urgent",
                      tipo="sessione", chiave="sessione:%s:%s" % (c, adesso.strftime("%Y%m%d%H%M%S")),
                      avvisa=False)
     with _l:
