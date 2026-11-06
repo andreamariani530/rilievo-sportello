@@ -1484,7 +1484,9 @@ _CARTELLA_FOTO_IA = pathlib.Path(
     (os.environ.get("RILIEVO_FOTO_MIGLIORATE") or "").strip()
     # dentro il disco del server (RILIEVO_ARCHIVIO=/var/data/rilievo su Render): fuori
     # dal disco le foto sparirebbero a ogni riavvio e si ripagherebbero
-    or ((pathlib.Path(os.environ["RILIEVO_ARCHIVIO"]) / "foto-migliorate")
+    # .strip(): su Render la variabile finisce con un a capo (6/11/2026, Permission
+    # denied su '/var/data/rilievo\n'); archivio.py la pulisce allo stesso modo
+    or ((pathlib.Path(os.environ["RILIEVO_ARCHIVIO"].strip()) / "foto-migliorate")
         if (os.environ.get("RILIEVO_ARCHIVIO") or "").strip()
         else "/tmp/rilievo-foto-migliorate"))
 _FOTO_IA_IN_CORSO = {}
