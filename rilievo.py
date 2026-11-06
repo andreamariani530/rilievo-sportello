@@ -1467,6 +1467,139 @@ def _foto_dalla_regione(y0, x0, y1, x1, lati, fonte):
     return img
 
 
+# ------------------------------------------------- la foto migliorata con l'IA
+
+# Andrea, 6/11/2026 notte: «ce l'abbiamo fatta davvero». La foto Esri sgranata passa
+# dal modello d'immagini di Google e torna nitida, con case, piscine e auto al loro
+# posto (prove su sei posti in App preventivi artigiani/valutazioni/). La misura NON
+# usa mai questa foto: i metri vengono dal catasto e il verde si conta sulla foto vera.
+# La foto bella serve solo a chi guarda, e arriva dopo: il rilievo esce subito con la
+# foto di sempre, l'app chiede /foto-migliorata/<chiave> finche' e' pronta e la scambia.
+# Senza chiave, o se Google non risponde, non cambia niente: resta la foto di sempre.
+MODELLO_FOTO_IA = os.environ.get("RILIEVO_MODELLO_FOTO") or "gemini-3-pro-image"
+ATTESA_FOTO_IA = 90
+LATO_FOTO_IA = 1024
+FIRMA_FOTO_IA = "immagine migliorata con IA"
+_CARTELLA_FOTO_IA = pathlib.Path(
+    (os.environ.get("RILIEVO_FOTO_MIGLIORATE") or "").strip()
+    # dentro il disco del server (RILIEVO_ARCHIVIO=/var/data/rilievo su Render): fuori
+    # dal disco le foto sparirebbero a ogni riavvio e si ripagherebbero
+    or ((pathlib.Path(os.environ["RILIEVO_ARCHIVIO"]) / "foto-migliorate")
+        if (os.environ.get("RILIEVO_ARCHIVIO") or "").strip()
+        else "/tmp/rilievo-foto-migliorate"))
+_FOTO_IA_IN_CORSO = {}
+
+PROMPT_FOTO_IA = (
+    "This is a low resolution aerial orthophoto seen straight from above. "
+    "Restore it as a sharp, high resolution, photorealistic aerial photograph. "
+    "Keep every building, roof shape, road, road marking, car, tree, pool, fence and garden "
+    "exactly in the same position, size and shape. Do not add, remove or move any object. "
+    "Keep the same top-down view and the same framing. No text, no labels, no borders.")
+
+
+def _chiave_foto_ia():
+    k = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if not k:
+        f = pathlib.Path.home() / ".config" / "rilievo" / "gemini.key"
+        if f.exists():
+            k = f.read_text().strip()
+    return k
+
+
+def foto_ia_accesa():
+    return bool(_chiave_foto_ia())
+
+
+def chiave_foto_ia(y0, x0, y1, x1, lati, nome_fonte):
+    """La stessa finestra di terreno da la' stessa chiave: una casa si paga una volta."""
+    import hashlib
+    testo = "%.7f|%.7f|%.7f|%.7f|%d|%s|%s" % (y0, x0, y1, x1, lati, nome_fonte, MODELLO_FOTO_IA)
+    return hashlib.sha256(testo.encode()).hexdigest()[:32]
+
+
+def _file_foto_ia(chiave):
+    return _CARTELLA_FOTO_IA / (chiave + ".jpg")
+
+
+def _migliora_adesso(foto):
+    """Una chiamata a Google. Torna la foto nitida della stessa misura, o alza."""
+    chiave = _chiave_foto_ia()
+    if not chiave:
+        raise RuntimeError("manca la chiave Gemini")
+    entrata = foto.convert("RGB").copy()
+    entrata.thumbnail((1536, 1536), Image.LANCZOS)
+    buf = io.BytesIO()
+    entrata.save(buf, "JPEG", quality=92)
+    corpo = {
+        "contents": [{"parts": [
+            {"text": PROMPT_FOTO_IA},
+            {"inline_data": {"mime_type": "image/jpeg",
+                             "data": base64.b64encode(buf.getvalue()).decode()}}]}],
+        "generationConfig": {"responseModalities": ["IMAGE"],
+                             "imageConfig": {"aspectRatio": "1:1", "imageSize": "1K"}},
+    }
+    req = urllib.request.Request(
+        "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % MODELLO_FOTO_IA,
+        data=json.dumps(corpo).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": chiave})
+    with urllib.request.urlopen(req, timeout=ATTESA_FOTO_IA) as r:
+        d = json.load(r)
+    for c in d.get("candidates", []):
+        for parte in c.get("content", {}).get("parts", []):
+            dati = (parte.get("inlineData") or parte.get("inline_data") or {}).get("data")
+            if dati:
+                bella = Image.open(io.BytesIO(base64.b64decode(dati))).convert("RGB")
+                # stessa finestra di terreno, ma non si butta il dettaglio nuovo:
+                # l'app disegna in frazioni della foto, quindi conta solo che resti
+                # quadrata come quella di partenza
+                lato = max(foto.size[0], min(LATO_FOTO_IA, bella.size[0]))
+                return bella.resize((lato, round(lato * foto.size[1] / foto.size[0])), Image.LANCZOS)
+    raise RuntimeError("Google non ha mandato la foto")
+
+
+def _lavora_foto_ia(chiave, foto, nome_fonte):
+    try:
+        bella = firma_fonte(_migliora_adesso(foto), nome_fonte + "  ·  " + FIRMA_FOTO_IA)
+        _CARTELLA_FOTO_IA.mkdir(parents=True, exist_ok=True)
+        provvisorio = _file_foto_ia(chiave).with_suffix(".tmp")
+        bella.save(provvisorio, "JPEG", quality=88, optimize=True)
+        provvisorio.replace(_file_foto_ia(chiave))
+        print("     foto migliorata con IA:", chiave)
+    except Exception as e:                             # noqa: BLE001
+        print("     la foto migliorata non e' arrivata:", e)
+    finally:
+        _FOTO_IA_IN_CORSO.pop(chiave, None)
+
+
+def avvia_foto_ia(foto, y0, x0, y1, x1, nome_fonte):
+    """Fa partire la foto migliorata in sottofondo e torna subito la sua chiave.
+
+    Torna "" quando la funzione e' spenta (nessuna chiave): l'app allora non chiede
+    niente e resta tutto come prima.
+    """
+    if not foto_ia_accesa() or foto is None:
+        return ""
+    chiave = chiave_foto_ia(y0, x0, y1, x1, foto.size[0], nome_fonte)
+    if _file_foto_ia(chiave).exists() or chiave in _FOTO_IA_IN_CORSO:
+        return chiave
+    _FOTO_IA_IN_CORSO[chiave] = time.time()
+    threading.Thread(target=_lavora_foto_ia, args=(chiave, foto.copy(), nome_fonte),
+                     daemon=True).start()
+    return chiave
+
+
+def stato_foto_ia(chiave):
+    """("pronta", foto in base64) | ("in corso", "") | ("mancante", "")."""
+    if not re.fullmatch(r"[0-9a-f]{32}", chiave or ""):
+        return "mancante", ""
+    f = _file_foto_ia(chiave)
+    if f.exists():
+        return "pronta", "data:image/jpeg;base64," + base64.b64encode(f.read_bytes()).decode()
+    if chiave in _FOTO_IA_IN_CORSO:
+        return "in corso", ""
+    return "mancante", ""
+
+
 def foto_dall_alto(y0, x0, y1, x1, lati, quale=""):
     """La foto migliore per questo riquadro, e il nome di chi l'ha fatta.
 
@@ -1660,6 +1793,8 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None, foto_da=""):
     # le tessere scaricate sono le stesse, quindi non costa un giro di rete in piu'
     lati_foto = max(lati, quanti_pixel_foto(lato))
     foto_fine, nome_fonte = foto_dall_alto(y0, x0, y1, x1, lati_foto, foto_da)
+    # la foto nitida parte subito, in sottofondo, mentre qui si contano i metri
+    chiave_ia = avvia_foto_ia(foto_fine, y0, x0, y1, x1, nome_fonte)
     foto = foto_fine if lati_foto == lati else foto_fine.resize((lati, lati), Image.LANCZOS)
 
     # quanto vale un pixel, in metri e in metri quadri
@@ -1824,6 +1959,8 @@ def misura(semi, riquadri, lati=None, lato_m=None, confini=None, foto_da=""):
         # la foto pulita e il confine come punti: servono per ricalcare il lotto
         # e spostarlo finche' non sta sul giardino vero
         "foto_pulita": foto_fine,
+        # la stessa foto pulita, nitida, che arriva dopo (vedi avvia_foto_ia)
+        "foto_migliore": chiave_ia,
         # il confine vero del catasto quando c'e', se no il bordo della macchia
         "contorno": (contorno_dal_confine(confini_buoni, y0, x0, y1, x1)
                      or contorno_punti(dentro, lati)),
@@ -2314,6 +2451,7 @@ def rilievo_senza_riferimenti(p, lato_m=None, indirizzo="", cap="", foto_da=""):
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
         "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
+        "foto_migliore": m.get("foto_migliore", ""),
         "contorno": m.get("contorno") or [],
         "contorni_verde": m.get("contorni_verde") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
@@ -2471,6 +2609,7 @@ def _rilievo(indirizzo, lato_m, cap, foto_da, visto):
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
         "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
+        "foto_migliore": m.get("foto_migliore", ""),
         "contorno": m.get("contorno") or [],
         "contorni_verde": m.get("contorni_verde") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
@@ -2638,6 +2777,7 @@ def rilievo_da_punti(punti, indirizzo="", lato_m=None, foto_da=""):
         # spostabili: i confini del catasto non combaciano col satellite, e cosi'
         # si ricalcano e si tirano al posto giusto
         "foto_pulita": in_base64(m["foto_pulita"]) if m.get("foto_pulita") else "",
+        "foto_migliore": m.get("foto_migliore", ""),
         "contorno": m.get("contorno") or [],
         "contorni_verde": m.get("contorni_verde") or [],
         "preparato": time.strftime("%Y-%m-%d %H:%M"),
@@ -3503,6 +3643,13 @@ def servizio(porta=8787, pubblico=False):
                 self.end_headers()
                 return
             # il sito: «Ho gia' un codice» e la pagina dove Andrea decide (1/11/2026)
+            # la foto pulita migliorata con l'IA: l'app la chiede finche' e' pronta
+            m = re.fullmatch(r"/foto-migliorata/([0-9a-f]{32})", u.path)
+            if m:
+                stato, foto = stato_foto_ia(m.group(1))
+                self._manda({"pronta": 200, "in corso": 202}.get(stato, 404),
+                            {"stato": stato, "foto": foto})
+                return
             if u.path == "/ingresso/codice":
                 c = visite.codice_pulito((q.get("c") or [""])[0].lower())
                 self._manda(200, {"valido": bool(c and c in visite.da_chi()), "codice": c or ""})

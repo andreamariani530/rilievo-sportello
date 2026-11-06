@@ -1835,7 +1835,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-05 02:12';
+const COSTRUITA = '2026-11-06 01:20';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -6021,6 +6021,7 @@ function rilievoHtml(ril, s, r){
         ${zone.length || (haConfine(ril) && ril.confine) ? `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">${ril.confine ? svgConfine(ril, 2.4) : ''}${svgZone(ril, null, 2.4)}</svg>` : ''}
       </div>` : ''}
       <div class="didascalia">${esc(ril.fonte || 'Misure prese a mano')}</div>
+      ${ril.foto_migliore ? `<div class="didascalia foto-in-arrivo" style="color:var(--accento)">Sto rendendo la foto più nitida: pochi secondi</div>` : ''}
     </div>
     <div class="misure">
       ${ril.da_disegnare && !zone.length ? `<div style="grid-column:1/-1">
@@ -7024,8 +7025,63 @@ function usaRilievo(idSopralluogo, d){
     });
     if(!salva()) avvisa('Salvato solo per adesso: la memoria del telefono è piena.');
   }
+  if(d.foto_migliore) aspettaFotoMigliore(id, d.foto_migliore);
   vai();
 }
+
+/* La foto migliorata con l'IA (Andrea, 6/11/2026: «ce l'abbiamo fatta davvero»).
+   Il servizio manda subito il rilievo con la foto di sempre e intanto chiede a Google
+   la stessa foto nitida. Qui la si chiede ogni pochi secondi, per al massimo due
+   minuti; quando arriva prende il posto della foto pulita, anche sulle immagini gia'
+   sullo schermo, senza ridisegnare la pagina (chi sta scrivendo non perde niente).
+   La misura non cambia: i metri vengono dal catasto, non dalla foto. Se la foto bella
+   non arriva resta quella di sempre, e nessuno se ne accorge. */
+function aspettaFotoMigliore(id, chiave, giro){
+  giro = giro || 0;
+  if(!chiave || giro > 30) return;
+  setTimeout(() => {
+    const ril = S && S.rilievi && S.rilievi[id];
+    if(!ril || ril.foto_migliore !== chiave) return;
+    fetch(SPORTELLO_RILIEVO + '/foto-migliorata/' + chiave + '?' + col())
+      .then(r => r.status === 200 ? r.json() : (r.status === 202 ? null : Promise.reject(r.status)))
+      .then(f => {
+        if(!f){ aspettaFotoMigliore(id, chiave, giro + 1); return; }
+        const ril2 = S && S.rilievi && S.rilievi[id];
+        if(!ril2 || !fotoSicura(f.foto)) return;
+        const vecchia = ril2.foto_pulita;
+        ril2.foto_pulita = f.foto;
+        if(ril2.fonte_foto && ril2.fonte_foto.indexOf('migliorata') < 0)
+          ril2.fonte_foto += ' · immagine migliorata con IA';
+        delete ril2.foto_migliore;
+        if(!salva()){ ril2.foto_pulita = vecchia; salva(); return; }
+        if(vecchia) document.querySelectorAll('img').forEach(im => {
+          if(im.getAttribute('src') === vecchia) im.setAttribute('src', f.foto);
+        });
+        document.querySelectorAll('.foto-in-arrivo').forEach(e => e.remove());
+      })
+      .catch(e => { if(e === 404) { const r3 = S && S.rilievi && S.rilievi[id];
+                                    if(r3){ delete r3.foto_migliore; salva(); }
+                                    document.querySelectorAll('.foto-in-arrivo').forEach(x => x.remove()); }
+                    else if(giro < 30) aspettaFotoMigliore(id, chiave, giro + 1); });
+  }, giro ? 4000 : 8000);
+}
+/* Prima di fare il PDF o il link per il cliente si aspetta la foto nitida, al massimo
+   25 secondi (Andrea, 6/11/2026: «la prima cosa che si vede conta»). Se non arriva
+   si va avanti con la foto di sempre: il preventivo non resta mai bloccato. */
+async function attendiFotoMigliori(ms){
+  const fine = Date.now() + (ms || 25000);
+  while(Date.now() < fine && S && S.rilievi &&
+        Object.keys(S.rilievi).some(k => S.rilievi[k] && S.rilievi[k].foto_migliore))
+    await new Promise(r => setTimeout(r, 500));
+}
+/* chi chiude l'app mentre la foto si prepara la ritrova alla riapertura */
+addEventListener('load', () => setTimeout(() => {
+  if(!S || !S.rilievi) return;
+  Object.keys(S.rilievi).forEach(k => {
+    const r = S.rilievi[k];
+    if(r && r.foto_migliore) aspettaFotoMigliore(k, r.foto_migliore, 1);
+  });
+}, 3000));
 
 /* si correggono tutti i numeri, e si cancella. Quello che scrive lui vince
    sul catasto: davanti al cliente non c'e' tempo di discutere con la mappa. */
@@ -13823,7 +13879,7 @@ function pagineDa(tela, tagli){
   }
   return pagine;
 }
-function pdfPreventivo(id){ return pdfDaCorpo(PAGINE.documento.corpo(id)); }
+async function pdfPreventivo(id){ await attendiFotoMigliori(); return pdfDaCorpo(PAGINE.documento.corpo(id)); }
 /* html2canvas non conosce object-fit: la foto sulla voce (72x72) e quelle del posto
    (alte 120) le stirava dentro il riquadro, e nel PDF un tondo diventava un ovale.
    Sullo schermo erano giuste. Prima della fotografia ogni foto ritagliata viene
@@ -15957,6 +16013,7 @@ async function preparaLink(id){
   const p = prev(id); if(!p) return;
   const b = document.getElementById('btn-link');
   if(b){ b.disabled = true; b.textContent = 'Preparo il link…'; }
+  await attendiFotoMigliori();
   const corpo = corpoPerLink(id), firma = firmaCorpo(corpo);
   try{
     /* stesso preventivo di prima: stesso link. Cambiato: il vecchio si ritira */
