@@ -1787,7 +1787,8 @@ async function avvia(){
   preparaInstallazione();
   ascoltaIlTiro();
   vai();
-  if(primaVolta()) apriPorta();
+  if(senzaAccesso()) apriMuro();
+  else if(primaVolta()) apriPorta();
   preparaPassi();          /* solo chi arriva col link della ditta: un segno per passo */
   togliAvvio();            /* la R si ingrandisce e sfuma: l'app e' gia' sotto */
   privacyDalLink();
@@ -1865,7 +1866,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-07 18:15';
+const COSTRUITA = '2026-11-07 20:17';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -2161,8 +2162,56 @@ function primaVolta(){
 }
 function segnaScelta(quale){ try{ localStorage.setItem(CHIAVE_SCELTA, quale); }catch(e){} }
 function chiudiPorta(){
-  const p = document.querySelector('.velo-porta'); if(p) p.remove();
-  document.body.classList.remove('porta-aperta');
+  const p = document.querySelector('.velo-porta:not(.velo-muro)'); if(p) p.remove();
+  if(!document.querySelector('.velo-muro')) document.body.classList.remove('porta-aperta');
+}
+/* Andrea, 7/11/2026: «chi apre il link d'ora in poi deve inserire mail e password». Prima
+   l'accesso era facoltativo: rilievo, preventivo, PDF col logo e link al cliente si facevano
+   senza dire chi sei, e quando Rilievo diventa a pagamento non c'era nessuno a cui chiederlo.
+   Il muro viene prima della porta e sta sotto alle schede: chi chiude «Crea l'accesso» torna
+   qui, non nell'app. I collaudi (segno rilievo-collaudo) passano, tranne quelli del muro (?muro=1). */
+function senzaAccesso(){
+  if(statoCopia().gettone) return false;
+  try{ if(localStorage.getItem('rilievo-collaudo') && !/[?&]muro=1/.test(location.search)) return false; }catch(e){}
+  return true;
+}
+function chiudiMuro(){
+  const m = document.querySelector('.velo-muro'); if(m) m.remove();
+  if(!document.querySelector('.velo-porta')) document.body.classList.remove('porta-aperta');
+}
+function apriMuro(){
+  if(document.querySelector('.velo-muro')) return;
+  const velo = document.createElement('div');
+  velo.className = 'velo-porta velo-muro';
+  velo.innerHTML = `
+    <div class="porta">
+      <div class="porta-marchio">
+        <div class="nome">Rilievo</div>
+        <div class="lbl">Il tuo accesso</div>
+      </div>
+      <p class="porta-testo">Per cominciare, la tua mail e una password. Ci vuole un minuto.
+        Cos&igrave; il lavoro resta tuo: lo ritrovi su ogni telefono e sul computer, anche se cambi telefono.</p>
+      <div class="azioni" style="justify-content:center;flex-direction:column;align-items:stretch;max-width:360px;margin:0 auto 14px">
+        <button class="bottone" id="muro-crea" style="justify-content:center">Crea l&rsquo;accesso</button>
+        <button class="bottone tenue" id="muro-entra" style="justify-content:center">Ho gi&agrave; un accesso</button>
+      </div>
+      <p class="porta-piede">La mail serve solo a farti entrare e a rimettere la password se la dimentichi.
+        <a href="#privacy" onclick="apriPrivacy();return false">Come trattiamo i dati</a></p>
+    </div>`;
+  document.body.appendChild(velo);
+  document.body.classList.add('porta-aperta');
+  passo('muro');
+  /* chi tocca ha gia' risposto con le mani: la domanda «perche' ti sei fermato» se ne va */
+  const via = () => { const f = document.querySelector('.foglio-perche'); if(f) f.remove(); };
+  velo.querySelector('#muro-crea').onclick  = () => { via(); schedaCreaAccesso(); };
+  velo.querySelector('#muro-entra').onclick = () => { via(); schedaEntra(); };
+}
+/* appena entrato: via il muro, e chi e' nuovo sceglie da dove partire */
+function dopoAccesso(){
+  if(!document.querySelector('.velo-muro')) return;
+  passo('accesso');
+  chiudiMuro();
+  if(primaVolta()) apriPorta();
 }
 function apriPorta(){
   /* il link mandato a un artigiano di un altro mestiere (/?da=codice&m=elettricista) apre la
@@ -2204,14 +2253,11 @@ function apriPorta(){
           <div class="lbl">Subito</div>
           <h3>Provala con la tua ditta</h3>
           <p>L&rsquo;app parte pulita, col listino del tuo mestiere e un giro di prova gi&agrave;
-             pronto. Nome e logo della ditta li metti adesso o quando vuoi: niente partita IVA,
-             niente iscrizione.</p>
+             pronto. Nome e logo della ditta li metti adesso o quando vuoi: niente partita IVA.</p>
           <span class="porta-via">Comincio &rarr;</span>
         </button>
       </div>
-      <p class="porta-piede" style="margin-bottom:6px">Hai gi&agrave; Rilievo su un altro telefono?
-        <a href="#" onclick="schedaEntra();return false">Entra con la tua mail</a></p>
-      <p class="porta-piede">Quello che scrivi resta su questo dispositivo e, se scegli una password, in una
+      <p class="porta-piede">Quello che scrivi resta su questo dispositivo e in una
         copia sul nostro server in Europa, che non guardiamo. Cos&igrave; ritrovi tutto anche cambiando telefono.
         <a href="#privacy" onclick="apriPrivacy();return false">Come trattiamo i dati</a></p>
     </div>`;
@@ -6299,6 +6345,7 @@ function passo(p, dove){
 }
 /* dove sta quando chiude: la porta, una scheda aperta, oppure la pagina (#oggi, #sopralluogo/..) */
 function doveSono(){
+  if(document.querySelector('.velo-muro')) return document.querySelector('.velo-scheda') ? 'muro-scheda' : 'muro';
   if(document.querySelector('.velo-porta')) return document.querySelector('.velo-scheda') ? 'porta-scheda' : 'porta';
   const pagina = (location.hash.slice(1).split('/')[0] || 'oggi');
   return (document.querySelector('.velo-scheda') ? 'scheda-' : '') + pagina;
@@ -6327,6 +6374,8 @@ const RISPOSTE_PERCHE = [['tempo', 'Non avevo tempo'], ['capito', 'Non ho capito
                          ['fiducia', 'Non mi fidavo'], ['fa_per_me', 'Non fa per me']];
 function domandaPerche(){
   if(document.querySelector('.foglio-perche')) return;
+  /* 7/11/2026: copriva mail e password di chi tornava al muro. Con una scheda aperta aspetta */
+  if(document.querySelector('.velo-scheda')){ setTimeout(domandaPerche, 3000); return; }
   const m = memoriaPassi(); m.chiesto = true; ricordaPassi(m);
   const f = document.createElement('div');
   f.className = 'foglio-perche';
@@ -16108,7 +16157,7 @@ PAGINE.piani = {
     <div class="gratis-oggi" id="gratis-oggi"><div class="grande">Oggi è gratis.</div>
       <p>Tutto è aperto: niente carta, niente da pagare. Quando partono i pagamenti te lo dico prima, e decidi tu.</p></div>
     <div class="spiega"><p>Questi saranno i piani: tre, senza vincoli, in base al lavoro che fai.</p>
-      ${giorniProva() !== null ? `<p style="margin-top:8px">${giorniProva() > 0 ? 'La tua prova gratuita di 30 giorni: <b>' + (giorniProva() === 1 ? 'oggi è l’ultimo giorno' : 'mancano ' + giorniProva() + ' giorni') + '</b>.' : 'La tua prova gratuita è finita: per ora Rilievo resta aperto lo stesso.'}</p>` : ''}</div>
+      <!-- 7/11/2026 Andrea: niente conto alla rovescia dei 30 giorni, sembra un pagamento in arrivo -->
     <div class="piani">
       ${tessera('preventivi')}
       ${tessera('pro')}
@@ -16165,7 +16214,7 @@ function testoPrivacy(){
       <b>quali passi fai</b> nell&rsquo;app, per capire dove non &egrave; chiara.</p>
 
     <h3>Chi risponde dei dati</h3>
-    <p>Rilievo &egrave; in prova gratuita e lo costruisce Andrea Mariani, come persona privata.
+    <p>Per ora Rilievo &egrave; gratuito e lo costruisce Andrea Mariani, come persona privata.
       Per qualunque domanda sui dati: <a href="mailto:andreamariani530a@gmail.com">andreamariani530a@gmail.com</a>.</p>
 
     <h3>Cosa resta sul telefono, e la copia sul server</h3>
@@ -16594,6 +16643,7 @@ function copiaAccesa(){
 function fuoriDalServer(){
   segnaCopia({gettone: '', errore: 'Entra di nuovo con la tua mail e la tua password.'});
   aggiornaRiquadroCopia();
+  if(senzaAccesso()) apriMuro();
 }
 let copiaTimer = null, copiaInViaggio = false, copiaDiNuovo = false;
 function copiaFraPoco(){
@@ -16690,11 +16740,13 @@ async function prendiLavoro(sostituisci){
 async function creaAccesso(mail, password){
   let r;
   try{ r = await chiamaServer('/accesso/registra', {mail, password, da: telefonoCheSalva()}); }
-  catch(e){ avvisa('Il tuo lavoro è salvato su questo telefono. L’accesso lo crei da Impostazioni quando torna la rete.'); return false; }
+  catch(e){ avvisa(senzaAccesso() ? 'Per creare l’accesso serve la rete. Riprova appena c’è campo.'
+                                    : 'Il tuo lavoro è salvato su questo telefono. L’accesso lo crei da Impostazioni quando torna la rete.'); return false; }
   if(r.stato === 409){ avvisa(r.d.errore); schedaEntra(mail); return false; }
-  if(!r.ok){ avvisa(r.d.errore || 'L’accesso non si è creato. Riprova da Impostazioni.'); return false; }
+  if(!r.ok){ avvisa(r.d.errore || 'L’accesso non si è creato. Riprova.'); return false; }
   segnaCopia({mail: r.d.mail, gettone: r.d.gettone, versione: 0, impronta: '', conflitto: null, errore: '', spenta: false,
               creato: Math.floor(Date.now() / 1000)});
+  dopoAccesso();
   return prendiLavoro();
 }
 async function entraConMail(mail, password){
@@ -16703,6 +16755,7 @@ async function entraConMail(mail, password){
   catch(e){ avvisa(nonRaggiungo); return false; }
   if(!r.ok){ avvisa(r.d.errore || 'Non sono riuscito a farti entrare.'); schedaEntra(mail); return false; }
   segnaCopia({mail: r.d.mail, gettone: r.d.gettone, impronta: '', conflitto: null, errore: '', spenta: false});
+  dopoAccesso();
   return prendiLavoro();
 }
 function schedaEntra(mail){
@@ -16724,7 +16777,8 @@ function schedaCreaAccesso(mail){
   scheda({
     titolo: 'Il tuo accesso',
     sotto: 'Con la mail e una password ritrovi tutto il tuo lavoro anche su un altro telefono. Se la password la dimentichi, te ne facciamo scegliere una nuova con una mail.',
-    valori: {mail: mail || statoCopia().mail || (S && S.azienda && S.azienda.mail) || ''},
+    /* la mail della ditta solo se e' la sua: al muro c'e' ancora l'esempio (info@giardiniconti.it) */
+    valori: {mail: mail || statoCopia().mail || (suaDitta() && S && S.azienda && S.azienda.mail) || ''},
     campi: [{k:'mail', l:'La tua mail', t:'mail', p:'mario@rossimario.it'},
             {k:'password', l:'Scegli una password', t:'password', p:'Almeno 8 caratteri', nuova: true}],
     controlla: d => !mailBuona(d.mail) ? 'Scrivi la mail per intero, per esempio mario@rossimario.it.'
@@ -16768,16 +16822,18 @@ function schedaNuovaPassword(r){
       catch(e){ avvisa(nonRaggiungo); return; }
       if(!x.ok){ avvisa(x.d.errore || 'La password non è cambiata.'); return; }
       segnaCopia({mail: x.d.mail, gettone: x.d.gettone, impronta: '', conflitto: null, errore: '', spenta: false});
+      dopoAccesso();
       await prendiLavoro();
     }
   });
 }
 function esciDaQui(){
-  chiedi('Esci da questo telefono? Il lavoro resta qui e sul server, ma da adesso non si salva più fuori finché non rientri.', async () => {
+  chiedi('Esci da questo telefono? Il lavoro resta sul server: per usare Rilievo qui dovrai rientrare con la mail e la password.', async () => {
     const c = statoCopia();
     try{ await chiamaServer('/accesso/esci', {mail: c.mail, gettone: c.gettone}); }catch(e){}
     segnaCopia({gettone: '', errore: ''}); vai();
-    avvisa('Uscito. Per rientrare: Impostazioni, «Entra con la tua mail».');
+    if(senzaAccesso()) apriMuro();
+    else avvisa('Uscito. Per rientrare: Impostazioni, «Entra con la tua mail».');
   }, 'Sì, esci');
 }
 function riquadroCopia(){
@@ -16789,7 +16845,6 @@ function riquadroCopia(){
       ${dentro ? `<p style="font-size:16px;color:var(--soft)">Il tuo lavoro si salva da solo anche fuori dal telefono. Se cambi telefono,
            entri con la mail e la password e ritrovi tutto.</p>
            <div class="riga-tot"><span>Entrato come</span><span><b>${esc(c.mail || '')}</b></span></div>
-           ${rigaProva()}
            <div class="riga-tot"><span>Ultima copia</span><span id="copia-quando">${c.spenta ? 'spenta' : c.conflitto ? 'ferma: scegli quale tenere'
              : c.ultima ? esc(quandoOra(c.ultima)) : (c.errore ? esc(c.errore) : 'fra pochi secondi')}</span></div>`
         : `<p style="font-size:16px;color:var(--soft)">${c.errore ? esc(c.errore) + ' '
@@ -16921,14 +16976,18 @@ function rigaPromemoria(p){
   return '';
 }
 /* la prova gratuita: trenta giorni dal giorno dell'accesso. Niente si blocca: i pagamenti non ci sono */
+const MOSTRA_PROVA = false;
 function giorniProva(){
   const c = statoCopia();
   if(!c.creato) return null;
   return 30 - Math.floor((Date.now() - c.creato * 1000) / 864e5);
 }
+/* 7/11/2026 Andrea: «la storia dei 30 giorni non la voglio»: chi si registra non deve pensare
+   che fra 30 giorni parta un pagamento, e non vendiamo ancora niente. La riga non si mostra piu';
+   giorniProva resta per quando i pagamenti ci saranno. */
 function rigaProva(){
   const g = giorniProva();
-  if(g === null) return '';
+  if(g === null || !MOSTRA_PROVA) return '';
   /* «finita» da sola stonava con «Oggi è gratis» due riquadri sopra (6 novembre 2026): il
      primo a leggerla sara' l'elettricista, verso il 13/11. Si dice che Rilievo resta aperto. */
   return `<div class="riga-tot" id="riga-prova"><span>Prova gratuita</span><span><b>${g > 1 ? 'mancano ' + g + ' giorni' : g === 1 ? 'ultimo giorno' : 'finita, Rilievo resta aperto'}</b></span></div>`;

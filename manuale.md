@@ -269,8 +269,8 @@ Si apre una ditta alla volta: chi non ha ancora il codice della ditta tocca
   «IBAN per i bonifici» e «Il conto è intestato a» (se è vuoto vale il nome della ditta):
   con l'IBAN il cliente vede come pagarti. L'IBAN si controlla da solo: se una cifra è
   sbagliata l'app lo dice.
-- **Il tuo accesso:** «Crea il tuo accesso» con mail e password. Il lavoro si copia da
-  solo sul server e lo ritrovi su un altro telefono con «Entra con la tua mail».
+- **Il tuo accesso:** obbligatorio, si crea all'apertura con mail e password. Il lavoro si
+  copia sul server e lo ritrovi su un altro telefono con «Ho già un accesso».
   «Password dimenticata?» manda una mail per cambiarla. «Esci da questo telefono».
   Se due telefoni hanno lavoro diverso l'app chiede quale tenere: 
   «Prendi il lavoro dell’altro telefono» o «Tieni quello di questo telefono».

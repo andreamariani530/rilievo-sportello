@@ -58,7 +58,7 @@ def chi_entra(mail, nuovo):
     ora = datetime.datetime.now(ZoneInfo("Europe/Rome")).strftime("%d/%m alle %H:%M")  # Render gira in UTC
     if nuovo:
         titolo = "Nuovo iscritto a Rilievo: " + mail
-        testo = "%s si è iscritto a Rilievo il %s. Da oggi partono i suoi 30 giorni di prova." % (mail, ora)
+        testo = "%s si è iscritto a Rilievo il %s." % (mail, ora)
     else:
         titolo = "Rientrato in Rilievo: " + mail
         testo = "%s è rientrato con mail e password il %s (telefono nuovo, o era uscito)." % (mail, ora)

@@ -158,7 +158,8 @@ def segna(codice, pagina, cosa, ua=""):
 
 
 # i passi, nell'ordine in cui li fa chi arriva: serve a dire «fin dove e' arrivato»
-PASSI = ["porta", "mestiere", "demo", "comincio", "salta", "dati", "dentro", "sopralluogo",
+# «muro» e «accesso» dal 7/11/2026: mail e password prima della porta (Andrea)
+PASSI = ["muro", "accesso", "porta", "mestiere", "demo", "comincio", "salta", "dati", "dentro", "sopralluogo",
          "misura", "misura_no", "preventivo", "consegna"]
 ALTRI = {"uscita", "perche"}
 PERCHE = {"tempo": "non aveva tempo", "capito": "non ha capito a cosa serve",

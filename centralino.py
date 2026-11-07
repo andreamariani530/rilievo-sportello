@@ -526,7 +526,7 @@ def aggancia(visite=None, avvisi=None, richieste_dal_link=None, fattureincloud=N
             r = vero_entra(mail, nuovo)
             if nuovo:
                 _sicuro(aggiungi, "rilievo", "Nuovo iscritto a Rilievo: %s" % mail,
-                        "Si è iscritto adesso. Partono i suoi 30 giorni di prova.", livello="urgent",
+                        "Si è iscritto adesso.", livello="urgent",
                         tipo="iscrizione", avvisa=False)
             else:
                 _sicuro(aggiungi, "rilievo", "Rientrato in Rilievo: %s" % mail,
