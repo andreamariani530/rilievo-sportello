@@ -670,6 +670,10 @@ def canali():
          "spiega": "Jarvis legge con la voce di Beatrice (ElevenLabs). Se manca la chiave o finiscono i caratteri del mese, usa la voce del telefono.",
          "serve": "" if voce_accesa() else "La chiave ElevenLabs su Render (ELEVENLABS_API_KEY).",
          "nota": "%d caratteri usati questo mese su %d" % (_leggi("voce-%s.json" % time.strftime("%Y-%m", time.gmtime()), {}).get("caratteri", 0), TETTO_VOCE)},
+        {"nome": "Conversazione con Jarvis", "fonte": "voce", "stato": "acceso" if conv_accesa() else "spento",
+         "spiega": "Tocchi il cerchio e parli: Beatrice risponde subito e si puo' interrompere. Legge il Centralino, mette le carte a schermo e prepara le bozze; niente parte senza il tuo tocco.",
+         "serve": "" if conv_accesa() else "La chiave ElevenLabs su Render (ELEVENLABS_API_KEY). L'agente si crea da solo al primo uso.",
+         "nota": "%(minuti)s minuti usati questo mese su %(tetto)d" % conv_stato()},
         {"nome": "Render (il server)", "fonte": "render", "stato": "acceso",
          "spiega": "Se stai leggendo questa pagina, il server risponde.",
          "serve": "", "nota": "versione %s · acceso da %s" % (VERSIONE, ("%.0f ore" % su_da) if su_da >= 1 else "meno di un'ora")},
@@ -735,6 +739,7 @@ def stato():
         "voce": riepilogo_a_voce(cose),
         "voce_server": voce_pronta(),
         "voce_beatrice": voce_registrata(riepilogo_a_voce(cose)) is not None,
+        "conversazione": conv_stato(),
         "agenda": agenda(),
         "tiktok": tiktok_riassunto(),
         "whatsapp": wa_riassunto(),
@@ -1058,7 +1063,7 @@ def chiedi(domanda, storia=None, da="claude"):
 # ------------------------------------------------------------------ la voce (ElevenLabs, con la voce del telefono come riserva)
 
 VOCE_ID = (os.environ.get("CENTRALINO_VOCE_ID") or (CONFIG.get("voce") or {}).get("voice_id") or "UnOINkXZ3yK4vVg3Iayj").strip()
-TETTO_VOCE = int((CONFIG.get("voce") or {}).get("tetto_caratteri_mese") or 50000)   # poi torna la voce del telefono
+TETTO_VOCE = int((CONFIG.get("voce") or {}).get("tetto_caratteri_mese") or 10000)   # poi torna la voce del telefono (10.000 dal 6/11: i crediti servono alla conversazione)
 
 
 def voce_accesa():
@@ -1172,6 +1177,203 @@ def voce(testo):
         _scrivi(nome, conti)
         _salva_voce(testo, audio)
     return 200, audio
+
+
+# ------------------------------------------------------------------ la conversazione a voce con Jarvis (ElevenLabs Agents, dal 6/11/2026)
+#
+# Andrea tocca il cerchio e parla; Beatrice risponde subito e si puo' interrompere.
+# Il server crea UNA volta l'agente «Jarvis» sul conto ElevenLabs di Andrea (chiave ELEVENLABS_API_KEY,
+# solo su Render), ne salva l'id nella cartella del Centralino e per ogni conversazione chiede un
+# link firmato (signed URL): l'agente e' privato e la chiave non arriva mai al telefono.
+# Gli strumenti dell'agente sono «client tools»: li esegue la pagina, che ha gia' l'accesso.
+# Nessuno strumento manda messaggi: le bozze compaiono a schermo e partono solo col tocco di Andrea.
+# Tetto di minuti al mese contato qui, a ogni conversazione aperta.
+
+CONV_CONF = CONFIG.get("conversazione") or {}
+CONV_URL = (os.environ.get("CENTRALINO_ELEVENLABS_URL") or "https://api.elevenlabs.io").rstrip("/")
+CONV_TETTO_MINUTI = int(os.environ.get("CENTRALINO_CONV_TETTO_MINUTI") or CONV_CONF.get("tetto_minuti_mese") or 40)
+CONV_DURATA_MAX = int(CONV_CONF.get("durata_massima_secondi") or 300)
+CONV_FILE_AGENTE = "conversazione-agente.json"
+
+CONV_PROMPT = """Sei {assistente}, l'assistente personale di {proprietario}. Parli in italiano e gli dai del tu.
+Rispondi corto: una o due frasi, tono calmo e diretto, niente elenchi letti ad alta voce.
+Prima di dire cosa succede usa gli strumenti: leggi_situazione per il quadro, leggi_messaggi per WhatsApp e posta. Non inventare mai.
+Quando nomini un messaggio, una decisione, un contatto o un appuntamento, chiama mostra_carta con il suo id: cosi' compare sullo schermo di {proprietario}.
+Non mandi mai niente da solo. Per scrivere a qualcuno usi prepara_whatsapp: la bozza compare a schermo, gliela leggi e gli chiedi se va bene. Parte solo quando lui tocca Manda.
+Per una decisione chiedi sempre conferma a voce prima, poi usi rispondi_decisione: anche li' l'ultima parola e' un tocco di {proprietario} sullo schermo.
+Se uno strumento risponde con un errore, dillo in parole semplici. Se non sai, dillo."""
+
+CONV_STRUMENTI = [
+    {"name": "leggi_situazione", "description": "Legge cosa aspetta Andrea adesso: la cosa principale, le decisioni in attesa, i contatti caldi che stanno usando Rilievo, l'agenda di oggi e domani, quanti messaggi nuovi. Da usare all'inizio e quando chiede novita'.",
+     "parameters": {"type": "object", "properties": {}, "required": []}},
+    {"name": "leggi_messaggi", "description": "Legge i messaggi recenti: le chat WhatsApp (nome, ultimo messaggio, non letti) oppure la posta e Fiverr arrivati al Centralino.",
+     "parameters": {"type": "object", "required": ["canale"], "properties": {
+         "canale": {"type": "string", "enum": ["whatsapp", "posta", "tutti"], "description": "Quale canale leggere"},
+         "quanti": {"type": "integer", "description": "Quanti messaggi al massimo, di solito 5"}}}},
+    {"name": "mostra_carta", "description": "Mette sullo schermo di Andrea la carta della cosa di cui stai parlando, cosi' la puo' toccare per rispondere o aprirla. Usala ogni volta che nomini una cosa precisa.",
+     "parameters": {"type": "object", "required": ["tipo", "id"], "properties": {
+         "tipo": {"type": "string", "enum": ["decisione", "messaggio", "whatsapp", "contatto", "appuntamento"], "description": "Che cosa e'"},
+         "id": {"type": "string", "description": "L'id avuto da leggi_situazione o leggi_messaggi"}}}},
+    {"name": "rispondi_decisione", "description": "Prepara la risposta a una decisione in attesa, dopo che Andrea l'ha detta a voce. Non decide da sola: la carta compare con il tasto Conferma e conta solo il suo tocco.",
+     "parameters": {"type": "object", "required": ["id", "risposta"], "properties": {
+         "id": {"type": "string", "description": "L'id della decisione"},
+         "risposta": {"type": "string", "enum": ["si", "no"], "description": "La risposta detta da Andrea"}}}},
+    {"name": "prepara_whatsapp", "description": "Prepara una risposta WhatsApp per una chat che esiste gia'. Non manda niente: la bozza compare a schermo con il tasto Manda e parte solo se Andrea lo tocca.",
+     "parameters": {"type": "object", "required": ["a", "testo"], "properties": {
+         "a": {"type": "string", "description": "Il nome della persona o della ditta, oppure l'id della chat"},
+         "testo": {"type": "string", "description": "Il testo del messaggio, corto e cordiale"}}}},
+    {"name": "apri_sezione", "description": "Apre una sezione del Centralino sullo schermo.",
+     "parameters": {"type": "object", "required": ["sezione"], "properties": {
+         "sezione": {"type": "string", "enum": ["oggi", "messaggi", "decisioni", "contatti", "agenda", "whatsapp", "sistema"], "description": "Quale sezione"}}}},
+]
+
+
+def conv_accesa():
+    return _env("ELEVENLABS_API_KEY")
+
+
+def _conv_mese():
+    return "conversazione-%s.json" % time.strftime("%Y-%m", time.gmtime())
+
+
+def _conv_conti():
+    """I secondi del mese: quelli chiusi piu' quelli delle conversazioni ancora aperte (riservati per intero)."""
+    c = _leggi(_conv_mese(), {})
+    c.setdefault("secondi", 0)
+    c.setdefault("aperte", {})
+    adesso = time.time()
+    for k, a in list(c["aperte"].items()):
+        if adesso - a.get("inizio", 0) > CONV_DURATA_MAX + 120:        # mai chiusa dalla pagina: conta tutta
+            c["secondi"] += CONV_DURATA_MAX
+            c["n"] = c.get("n", 0) + 1
+            del c["aperte"][k]
+    return c
+
+
+def _conv_usati(c):
+    adesso = time.time()
+    return c["secondi"] + sum(min(CONV_DURATA_MAX, max(0, adesso - a.get("inizio", adesso))) for a in c["aperte"].values())
+
+
+def conv_stato():
+    with _l:
+        c = _conv_conti()
+    return {"accesa": conv_accesa(), "minuti": round(_conv_usati(c) / 60, 1), "tetto": CONV_TETTO_MINUTI,
+            "conversazioni": c.get("n", 0) + len(c["aperte"]), "agente": bool(_leggi(CONV_FILE_AGENTE, {}).get("agent_id"))}
+
+
+def _conv_api(metodo, percorso, corpo=None, secondi=30):
+    """Una chiamata a ElevenLabs con la chiave del server. Torna (codice, dict). Mai la chiave nei log."""
+    chiave = (os.environ.get("ELEVENLABS_API_KEY") or "").strip()
+    req = urllib.request.Request(CONV_URL + percorso, method=metodo,
+                                 data=json.dumps(corpo).encode() if corpo is not None else None,
+                                 headers={"xi-api-key": chiave, "content-type": "application/json", "accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=secondi) as r:
+            return r.status, json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        corpo_err = e.read()[:300]
+        print("  centralino conversazione: ElevenLabs %s %s %s" % (e.code, percorso.split("?")[0], corpo_err.decode("utf-8", "replace").replace(chiave, "***") if chiave else ""), flush=True)
+        return e.code, {}
+    except Exception as e:              # noqa: BLE001
+        print("  centralino conversazione:", type(e).__name__, flush=True)
+        return 0, {}
+
+
+def _conv_definizione():
+    """Come deve essere l'agente. L'impronta dice se va rifatto (cambiano prompt, voce o strumenti)."""
+    prompt = CONV_PROMPT.format(assistente=ASSISTENTE, proprietario=PROPRIETARIO)
+    agente = {"first_message": CONV_CONF.get("prima_frase") or "Dimmi, %s." % PROPRIETARIO, "language": "it",
+              "prompt": {"prompt": prompt, "llm": CONV_CONF.get("llm") or "gemini-2.5-flash"}}
+    tts = {"voice_id": VOCE_ID, "model_id": CONV_CONF.get("modello_voce") or "eleven_flash_v2_5"}
+    eventi = ["conversation_initiation_metadata", "audio", "interruption", "user_transcript", "agent_response",
+              "agent_response_correction", "client_tool_call", "ping", "vad_score"]
+    impronta = hashlib.sha256(json.dumps([agente, tts, CONV_STRUMENTI, CONV_DURATA_MAX], sort_keys=True).encode()).hexdigest()[:16]
+    return agente, tts, eventi, impronta
+
+
+def _conv_crea_agente():
+    """Crea gli strumenti e l'agente sul conto di ElevenLabs. Torna il dict salvato o None."""
+    agente, tts, eventi, impronta = _conv_definizione()
+    ids = []
+    for t in CONV_STRUMENTI:
+        cfg = dict(t, type="client", expects_response=True, response_timeout_secs=10)
+        codice, r = _conv_api("POST", "/v1/convai/tools", {"tool_config": cfg})
+        if codice != 200 or not r.get("id"):
+            return None
+        ids.append(r["id"])
+    agente = json.loads(json.dumps(agente))
+    agente["prompt"]["tool_ids"] = ids
+    corpo = {"name": "%s · Centralino di %s" % (ASSISTENTE, PROPRIETARIO),
+             "conversation_config": {"agent": agente, "tts": tts,
+                                     "conversation": {"max_duration_seconds": CONV_DURATA_MAX, "client_events": eventi}},
+             "platform_settings": {"auth": {"enable_auth": True}}}
+    codice, r = _conv_api("POST", "/v1/convai/agents/create", corpo)
+    if codice != 200 or not r.get("agent_id"):
+        return None
+    vecchio = _leggi(CONV_FILE_AGENTE, {})
+    salvato = {"agent_id": r["agent_id"], "tool_ids": ids, "impronta": impronta, "creato": adesso_iso(),
+               "vecchi": (vecchio.get("vecchi") or []) + ([vecchio["agent_id"]] if vecchio.get("agent_id") else [])}
+    _scrivi(CONV_FILE_AGENTE, salvato)
+    print("  centralino conversazione: agente creato", flush=True)
+    return salvato
+
+
+_conv_lucchetto = threading.Lock()
+
+
+def _conv_agente(rifai=False):
+    """L'agente da usare: quello salvato se l'impronta e' la stessa, altrimenti uno nuovo (una volta)."""
+    with _conv_lucchetto:
+        a = _leggi(CONV_FILE_AGENTE, {})
+        if a.get("agent_id") and not rifai and a.get("impronta") == _conv_definizione()[3]:
+            return a
+        return _conv_crea_agente()
+
+
+def conversazione_apri():
+    """Per la pagina: un link firmato per parlare con Jarvis. Torna (codice, dict)."""
+    if not conv_accesa():
+        return 503, {"errore": "La conversazione a voce non e' accesa: manca la chiave ElevenLabs sul server. Ti leggo io cosa c'e'.",
+                     "ripiego": True}
+    with _l:
+        c = _conv_conti()
+        usati = _conv_usati(c)
+        _scrivi(_conv_mese(), c)
+    restano = CONV_TETTO_MINUTI * 60 - usati
+    if restano < 30:
+        return 429, {"errore": "Questo mese abbiamo gia' parlato %d minuti su %d. La conversazione torna il primo del mese; intanto ti leggo io cosa c'e'."
+                     % (round(usati / 60), CONV_TETTO_MINUTI), "ripiego": True}
+    a = _conv_agente()
+    if not a:
+        return 503, {"errore": "ElevenLabs non ha creato l'agente. Riprova fra poco; intanto ti leggo io cosa c'e'.", "ripiego": True}
+    codice, r = _conv_api("GET", "/v1/convai/conversation/get-signed-url?agent_id=" + urllib.parse.quote(a["agent_id"]))
+    if codice == 404:                   # l'agente e' stato cancellato dal pannello: se ne fa uno nuovo, una volta
+        a = _conv_agente(rifai=True)
+        codice, r = _conv_api("GET", "/v1/convai/conversation/get-signed-url?agent_id=" + urllib.parse.quote(a["agent_id"])) if a else (0, {})
+    link = r.get("signed_url") or ""
+    if codice != 200 or not link.startswith("wss://"):
+        return 503, {"errore": "ElevenLabs non risponde adesso. Ti leggo io cosa c'e'.", "ripiego": True}
+    cid = secrets.token_hex(8)
+    with _l:
+        c = _conv_conti()
+        c["aperte"][cid] = {"inizio": time.time()}
+        _scrivi(_conv_mese(), c)
+    return 200, {"link": link, "id": cid, "restano_secondi": int(min(restano, CONV_DURATA_MAX)),
+                 "minuti": round(usati / 60, 1), "tetto": CONV_TETTO_MINUTI}
+
+
+def conversazione_chiudi(cid):
+    """La pagina dice che la conversazione e' finita: si contano i secondi misurati dal server."""
+    cid = _txt(cid, 40)
+    with _l:
+        c = _conv_conti()
+        a = c["aperte"].pop(cid, None)
+        if a:
+            c["secondi"] += int(min(CONV_DURATA_MAX, max(1, time.time() - a["inizio"])))
+            c["n"] = c.get("n", 0) + 1
+        _scrivi(_conv_mese(), c)
+    return {"chiusa": bool(a), "minuti": round(c["secondi"] / 60, 1), "tetto": CONV_TETTO_MINUTI}
 
 
 # ------------------------------------------------------------------ le notifiche dell'app (Web Push, iPhone dalla 16.4)
@@ -3117,6 +3319,390 @@ def widget_png(misura="grande", pieno=True):
     return dati
 
 
+def _prossimo_appuntamento():
+    ag = agenda()
+    for e in ag["oggi"]:
+        if not e["passato"]:
+            return ((e["ora"] + "  ") if e["ora"] else "OGGI  ") + e["titolo"]
+    if ag["domani"]:
+        e = ag["domani"][0]
+        return "DOMANI " + ((e["ora"] + "  ") if e["ora"] else " ") + e["titolo"]
+    return ""
+
+
+def dati_blocco():
+    """Il poco che serve alla schermata di blocco e ai widget piccoli."""
+    st = stato()
+    p = st.get("principale") or {}
+    return {"livello": st["livello"], "numero": st["numero"], "etichetta": st["etichetta"],
+            "fonte": p.get("nome_fonte", ""), "titolo": p.get("titolo", ""), "ora": p.get("ora", ""),
+            "prossimo": _prossimo_appuntamento(),
+            "messaggi_nuovi": st["telemetria"]["messaggi_nuovi"],
+            "aggiornato": datetime.datetime.now(ROMA).strftime("%H:%M")}
+
+
+def _spaziato(d, xy, testo, font, fill, passo=0.18, anchor="l"):
+    """Testo con le lettere distanziate, come le etichette dell'app."""
+    x, y = xy
+    px = font.size * passo
+    largo = sum(d.textlength(c, font=font) for c in testo) + px * max(0, len(testo) - 1)
+    if anchor == "m":
+        x -= largo / 2
+    elif anchor == "r":
+        x -= largo
+    for c in testo:
+        d.text((x, y), c, font=font, fill=fill, anchor="lm")
+        x += d.textlength(c, font=font) + px
+    return largo
+
+
+# ------------------------------------------------------------------ la mappa del cervello di Knowlee (per la rete neurale)
+
+TIPI_RETE = {"Project": "progetto", "Insight": "appunto", "Document": "documento", "Decision": "decisione",
+             "Event": "evento", "Milestone": "traguardo", "Folder": "cartella", "Content": "contenuto",
+             "Pricing": "prezzi", "Person": "persona", "Organization": "azienda", "Product": "prodotto",
+             "Topic": "argomento", "Task": "attivita'", "Goal": "obiettivo", "Signal": "segnale"}
+
+
+def _disponi(n, fili, seme=6112026):
+    """Posizioni fra 0 e 1. Il cervello di Knowlee e' fatto a stelle (un progetto e i suoi appunti):
+    i centri si dispongono in cerchio, ognuno coi suoi elementi attorno a spirale, come i dendriti;
+    chi appartiene a piu' centri sta in mezzo a loro. Si fa una volta, quando arriva la mappa."""
+    import random
+    rnd = random.Random(seme)
+    vicini = [[] for _ in range(n)]
+    for i, j in fili:
+        vicini[i].append(j)
+        vicini[j].append(i)
+    grado = [len(v) for v in vicini]
+    centri = sorted([i for i in range(n) if grado[i] >= 4], key=lambda i: -grado[i])
+    pos = [None] * n
+    for k, c in enumerate(centri):
+        if len(centri) == 1:
+            pos[c] = [.5, .5]
+        else:
+            a = 2 * math.pi * k / len(centri) + .4
+            pos[c] = [.5 + .33 * math.cos(a), .5 + .33 * math.sin(a)]
+    giro = {c: 0 for c in centri}
+    for i in sorted(range(n), key=lambda i: -grado[i]):
+        if pos[i] is not None:
+            continue
+        miei = [c for c in vicini[i] if c in giro]
+        if len(miei) == 1:
+            c = miei[0]
+            k = giro[c]
+            giro[c] += 1
+            r = .04 + .15 * ((k + 1) / max(1, grado[c])) ** .5
+            a = k * 2.39996 + rnd.random() * .3
+            pos[i] = [pos[c][0] + r * math.cos(a), pos[c][1] + r * math.sin(a)]
+        elif miei:
+            pos[i] = [sum(pos[c][0] for c in miei) / len(miei) + (rnd.random() - .5) * .06,
+                      sum(pos[c][1] for c in miei) / len(miei) + (rnd.random() - .5) * .06]
+        else:
+            pos[i] = [rnd.random(), rnd.random()]
+    return [[round(min(1, max(0, p[0])), 4), round(min(1, max(0, p[1])), 4)] for p in pos]
+
+
+def rete_salva(d):
+    nodi, fili = [], []
+    for x in (d.get("nodi") or [])[:400]:
+        if isinstance(x, dict):
+            nodi.append({"t": TIPI_RETE.get(_txt(x.get("t"), 40), "appunto"), "nome": _txt(x.get("nome"), 90) or "?"})
+    visti = set()
+    for f in (d.get("fili") or [])[:900]:
+        try:
+            i, j = int(f[0]), int(f[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if 0 <= i < len(nodi) and 0 <= j < len(nodi) and i != j and (min(i, j), max(i, j)) not in visti:
+            visti.add((min(i, j), max(i, j)))
+            fili.append([i, j])
+    pos = _disponi(len(nodi), fili)
+    grado = [0] * len(nodi)
+    for i, j in fili:
+        grado[i] += 1
+        grado[j] += 1
+    for n, p, g in zip(nodi, pos, grado):
+        n["x"], n["y"], n["g"] = p[0], p[1], g
+    conti = {}
+    for n in nodi:
+        conti[n["t"]] = conti.get(n["t"], 0) + 1
+    with _l:
+        _scrivi("rete.json", {"aggiornata": adesso_iso(), "nodi": nodi, "fili": fili, "conti": conti})
+    _cache_png.clear()
+    return {"nodi": len(nodi), "fili": len(fili)}
+
+
+def _rete_neurale(w, h, col, centro, raggio, ancore, seme=6112026):
+    """Una rete di neuroni luminosi: nodi sparsi legati ai vicini, piu' fitta attorno al reattore,
+    con le fonti accese (ancore) che mandano i loro fili verso il cuore. Torna uno strato RGBA."""
+    import random
+    from PIL import Image, ImageDraw, ImageFilter
+    rnd = random.Random(seme)
+    cx, cy = centro
+    nodi = []
+    vera = _leggi("rete.json", {})
+    fili_veri = []
+    if vera.get("nodi"):
+        # la forma del cervello di Knowlee, senza nomi: sopra il pannello, fuori dal cuore
+        for n in vera["nodi"]:
+            x = cx + (n["x"] - .5) * (w - 120)
+            y = cy + (n["y"] - .5) * 2 * (1400 if n["y"] < .5 else 470)
+            dx, dy = x - cx, y - cy
+            dist = math.hypot(dx, dy) or 1
+            if dist < raggio * .66:
+                x, y = cx + dx / dist * raggio * (.66 + rnd.random() * .1), cy + dy / dist * raggio * (.66 + rnd.random() * .1)
+            nodi.append((x, y, .55 if y < 900 else 1.0))
+        fili_veri = [tuple(f) for f in vera.get("fili", [])]
+    while not vera.get("nodi") and len(nodi) < 150:
+        x, y = rnd.random() * w, 120 + rnd.random() * (h - 240)
+        dist = math.hypot(x - cx, y - cy)
+        if dist < raggio * .62 or 2130 < y < 2690 or 920 < y < 1030:
+            continue                                  # il cuore, il pannello, i riquadri e la testata restano puliti
+        if y < 900 and rnd.random() < .55:
+            continue                                  # sotto l'ora dell'iPhone la rete e' piu' rada
+        if dist > raggio * 1.5 and rnd.random() < .35:
+            continue
+        if all(math.hypot(x - a, y - b) > 70 for a, b, _ in nodi):
+            nodi.append((x, y, .55 if y < 900 else 1.0))
+    strato = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(strato, "RGBA")
+    blu = COLORI["calm"]
+    fili = set(fili_veri)
+    for i, j in fili_veri:
+        dist = math.hypot(nodi[j][0] - nodi[i][0], nodi[j][1] - nodi[i][1])
+        d.line([nodi[i][:2], nodi[j][:2]], fill=blu + (max(40, int((170 - dist * .15) * min(nodi[i][2], nodi[j][2]))),), width=2)
+    for i, (x, y, f) in enumerate(nodi):
+        for j in sorted(range(len(nodi)), key=lambda j: math.hypot(nodi[j][0] - x, nodi[j][1] - y))[1:4]:
+            dist = math.hypot(nodi[j][0] - x, nodi[j][1] - y)
+            if dist > 330 or (min(i, j), max(i, j)) in fili:
+                continue
+            fili.add((min(i, j), max(i, j)))
+            forza = .3 if fili_veri else 1
+            d.line([(x, y), nodi[j][:2]], fill=blu + (max(16, int((150 - dist * .3) * min(f, nodi[j][2]) * forza)),), width=2)
+    # le fonti accese: fili verso i neuroni vicini e da li' verso il cuore
+    for ax, ay, tono in ancore:
+        c = col if tono == "caldo" else blu
+        for n in sorted(nodi, key=lambda n: math.hypot(n[0] - ax, n[1] - ay))[:4]:
+            d.line([(ax, ay), n[:2]], fill=c + (170,), width=2)
+            d.line([n[:2], (cx + (n[0] - cx) * .78, cy + (n[1] - cy) * .78)], fill=c + (90,), width=2)
+    # i neuroni, e qualche impulso acceso lungo i fili
+    for x, y, f in nodi:
+        r = 4 + rnd.random() * 4
+        d.ellipse([x - r, y - r, x + r, y + r], fill=GHIACCIO + (int(200 * f),))
+        d.ellipse([x - r * 2.4, y - r * 2.4, x + r * 2.4, y + r * 2.4], outline=blu + (int(90 * f),), width=1)
+    lista = sorted(fili)
+    for k in range(min(26, len(lista))):
+        i, j = lista[rnd.randrange(len(lista))]
+        t = rnd.random()
+        x, y = nodi[i][0] + (nodi[j][0] - nodi[i][0]) * t, nodi[i][1] + (nodi[j][1] - nodi[i][1]) * t
+        d.ellipse([x - 5, y - 5, x + 5, y + 5], fill=(col if k % 4 == 0 else (240, 253, 255)) + (255,))
+    return Image.alpha_composite(strato.filter(ImageFilter.GaussianBlur(6)), strato)
+
+
+
+def blocco_png(pieno=True, w=1320, h=2868):
+    """La schermata di blocco viva, nello stile del Centralino. In alto resta libero per l'ora dell'iPhone,
+    in basso agli angoli per torcia e fotocamera."""
+    import random
+    from PIL import Image, ImageDraw, ImageFilter
+    st = stato() if pieno else None
+    d0 = dati_blocco() if pieno else {"livello": "calm", "numero": 0, "etichetta": "", "fonte": "", "titolo": "",
+                                      "ora": "", "prossimo": "", "messaggi_nuovi": 0,
+                                      "aggiornato": datetime.datetime.now(ROMA).strftime("%H:%M")}
+    tele = (st or {}).get("telemetria") or {}
+    fonti = (st or {}).get("fonti") or [{"nome": n, "attiva": True} for n in SPICCHI]
+    spicchio = (st or {}).get("spicchio", 1)
+    chiave = ("blocco", pieno, json.dumps([d0, tele, fonti, spicchio], sort_keys=True, default=str))
+    if chiave in _cache_png:
+        return _cache_png[chiave]
+    liv = d0["livello"]
+    col = COLORI[liv]
+    blu = COLORI["calm"]
+    bianco = (240, 253, 255)
+    rnd = random.Random(6112026)
+    mono = lambda px: _font("mono.ttf", px)
+
+    im = _fondo(w, h, liv, .55).convert("RGBA")
+    d = ImageDraw.Draw(im, "RGBA")
+    for _ in range(240):
+        x, y, r = rnd.random() * w, rnd.random() * h, rnd.random() * 2.6 + .5
+        d.ellipse([x - r, y - r, x + r, y + r], fill=GHIACCIO + (int(40 + rnd.random() * 110),))
+
+    # la rete neurale sotto tutto: le fonti accese mandano i fili al cuore
+    cx, cy, R = w // 2, 1630, 445
+    ancore = []
+    for i, f in enumerate(fonti):
+        if f["attiva"]:
+            a = math.radians(i * 72 + 36)
+            ancore.append((cx + (R + 6) * math.sin(a), cy - (R + 6) * math.cos(a),
+                           "caldo" if liv != "calm" and i == spicchio else "freddo"))
+    im.alpha_composite(_rete_neurale(w, h, col, (cx, cy), R, ancore))
+
+    # tutto il disegno luminoso va su uno strato a parte, poi gli si da' il bagliore
+    hud = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    g = ImageDraw.Draw(hud, "RGBA")
+    _cornice(g, w, h, 3)
+
+    # i righelli ai lati, coi numeri
+    for i, y in enumerate(range(980, 2560, 22)):
+        lungo = i % 5 == 0
+        for x0, x1 in ((22, 22 + (30 if lungo else 14)), (w - 22, w - 22 - (30 if lungo else 14))):
+            g.line([(x0, y), (x1, y)], fill=blu + (170 if lungo else 80,), width=2)
+        if i % 10 == 5:
+            g.text((64, y), "%.1f" % (1 + (i * 7 % 9) / 10), font=mono(24), fill=blu + (150,), anchor="lm")
+            g.text((w - 64, y), "%.1f" % (3 + (i * 3 % 7)), font=mono(24), fill=blu + (150,), anchor="rm")
+
+    # la testata sotto l'ora: fonti accese a sinistra, server e Knowlee a destra
+    yT = 960
+    accese = sum(1 for f in fonti if f["attiva"])
+    _spaziato(g, (70, yT), "FONTI", mono(28), GHIACCIO + (200,))
+    g.rectangle([210, yT - 5, 210 + 200 * accese / 5, yT + 5], fill=blu + (230,))
+    g.line([(210, yT), (410, yT)], fill=blu + (70,), width=2)
+    g.text((430, yT), "%d/5" % accese, font=mono(28), fill=bianco + (230,), anchor="lm")
+    for i, (n, ok) in enumerate((("SRV", True), ("KNW", bool(fonti[2]["attiva"])))):
+        y = yT + i * 50
+        verde = (64, 230, 140)
+        _spaziato(g, (w - 470, y), n, mono(28), GHIACCIO + (200,))
+        g.rectangle([w - 380, y - 5, w - 380 + (230 if ok else 60), y + 5], fill=(verde if ok else COLORI["urgent"]) + (230,))
+        g.text((w - 70, y), "OK" if ok else "--", font=mono(28), fill=bianco + (230,), anchor="rm")
+
+    # il reattore: scala dei gradi, anelli fitti, le cinque fonti
+    def pol(r, a):
+        a = math.radians(a)
+        return cx + r * math.sin(a), cy - r * math.cos(a)
+    def arco(r, a, b, larg, fill):
+        g.arc([cx - r, cy - r, cx + r, cy + r], a - 90, b - 90, fill=fill, width=larg)
+    for a in range(0, 360, 2):
+        lungo = a % 10 == 0
+        g.line([pol(R, a), pol(R - (22 if lungo else 10), a)], fill=blu + (190 if lungo else 90,), width=2)
+        if a % 20 == 0:
+            g.text(pol(R - 48, a), "%03d" % a, font=mono(20), fill=blu + (150,), anchor="mm")
+    g.ellipse([cx - R, cy - R, cx + R, cy + R], outline=blu + (90,), width=2)
+    for i in range(72):
+        if i % 9 != 4:
+            arco(R - 82, i * 5, i * 5 + 3, 2, blu + (120,))
+    # le fonti: arco spesso acceso o spento; quella che chiama prende il colore del momento
+    for i, f in enumerate(fonti):
+        a0, a1 = i * 72 + 5, (i + 1) * 72 - 5
+        c = col if (liv != "calm" and i == spicchio) else blu
+        if f["attiva"]:
+            arco(R - 110, a0, a1, 16, c + (235,))
+        else:
+            a = a0
+            while a < a1:
+                arco(R - 110, a, min(a + 1.5, a1), 16, c + (70,))
+                a += 4
+        arco(R - 130, a0, a1, 2, c + (140,))
+    for i in range(24):
+        arco(R - 145, i * 15, i * 15 + 9, 4, blu + (110,))
+    # il cuore, quello di sempre
+    lato = 2 * (R - 150)
+    core = disegna_reattore(lato, liv, spicchio, [1 if f["attiva"] else 0 for f in fonti],
+                            ("!" if liv == "urgent" else str(d0["numero"])) if pieno and liv != "calm" else None,
+                            d0["etichetta"] if pieno and liv != "calm" else None)
+    # i nomi delle fonti fuori dal cerchio, con la loro linea
+    for i, f in enumerate(fonti):
+        a = i * 72 + 36
+        x0, y0 = pol(R + 6, a)
+        x1, y1 = pol(R + 60, a)
+        c = col if (liv != "calm" and i == spicchio) else GHIACCIO
+        g.line([(x0, y0), (x1, y1)], fill=c + (170,), width=2)
+        g.ellipse([x0 - 5, y0 - 5, x0 + 5, y0 + 5], fill=c + (230,))
+        # le due in alto sopra la linea, le due ai lati sotto, quella in basso a destra della linea
+        stato_f = "ATTIVA" if f["attiva"] else "SPENTA"
+        if i == 2:
+            tx, ty, an = x1 + 36, y1 - 20, "l"
+        else:
+            tx, ty, an = min(max(x1, 175), w - 175), (y1 - 52 if y1 < cy else y1 + 34), "m"
+        _spaziato(g, (tx, ty), f["nome"], mono(26), c + (235,), anchor=an)
+        largo = sum(g.textlength(ch, font=mono(18)) for ch in stato_f) + 18 * .18 * (len(stato_f) - 1)
+        sx = tx + 22 if an == "l" else tx + 12 - largo / 2
+        _spaziato(g, (sx, ty + 32), stato_f, mono(18), c + (150,))
+        bx = sx - 16
+        if f["attiva"]:
+            g.ellipse([bx - 6, ty + 26, bx + 6, ty + 38], fill=c + (220,))
+        else:
+            g.ellipse([bx - 6, ty + 26, bx + 6, ty + 38], outline=c + (170,), width=2)
+    # puntini luminosi sugli anelli
+    for a in (38, 61, 214):
+        x, y = pol(R - 110, a)
+        g.ellipse([x - 7, y - 7, x + 7, y + 7], fill=bianco + (255,))
+
+    # il pannello inclinato: cosa ti aspetta
+    y0, y1 = 2170, 2470
+    sp = [(60, y1), (100, y0), (w - 100, y0), (w - 60, y1)]
+    c = col if liv != "calm" else blu
+    velo = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ImageDraw.Draw(velo).polygon(sp, fill=c + (46,))
+    hud.alpha_composite(velo)
+    g = ImageDraw.Draw(hud, "RGBA")
+    g.line(sp + [sp[0]], fill=c + (220,), width=3)
+    if not pieno:
+        testa, titolo = "JARVIS", "Il Centralino di Andrea."
+    elif d0["titolo"]:
+        testa = (d0["etichetta"] + " · " + (d0["fonte"] or "")).upper()
+        titolo = d0["titolo"]
+    else:
+        testa, titolo = "TUTTO TRANQUILLO", "Niente ti aspetta. Sistemi online."
+    _spaziato(g, (130, y0 + 46), testa, mono(28), c + (255,))
+    if d0.get("ora"):
+        _spaziato(g, (w - 130, y0 + 46), d0["ora"], mono(28), c + (255,), anchor="r")
+    grande = _font("plex-500.ttf", 54)
+    for i, t in enumerate(_a_capo(g, titolo, grande, w - 280, 2)):
+        g.text((130, y0 + 100 + i * 66), t, font=grande, fill=bianco + (255,))
+    prossimo = d0["prossimo"] if pieno else ""
+    riga = _a_capo(g, ("PROSSIMO  " + prossimo) if prossimo else "AGENDA LIBERA", mono(26), w - 280, 1)
+    g.text((130, y1 - 30), riga[0] if riga else "", font=mono(26), fill=GHIACCIO + (210,), anchor="lm")
+
+    # i quattro riquadri coi numeri
+    serie = tele.get("serie") or [0] * 9
+    caselle = [("LINK APERTI 24H", str(tele.get("aperture24", 0) if pieno else "—")),
+               ("MESSAGGI NUOVI", str(d0["messaggi_nuovi"]) if pieno else "—"),
+               ("LAVORI OK", tele.get("lavori", "—") if pieno else "—"),
+               ("ULTIMO GIRO", tele.get("ultimo_giro", "—") if pieno else "—")]
+    lc, gap, yc = (w - 120 - 3 * 18) / 4, 18, 2510
+    for i, (et, val) in enumerate(caselle):
+        x = 60 + i * (lc + gap)
+        g.rectangle([x, yc, x + lc, yc + 150], outline=blu + (150,), width=2)
+        g.line([(x, yc), (x + 26, yc)], fill=blu + (255,), width=5)
+        g.text((x + 18, yc + 30), et, font=mono(17), fill=GHIACCIO + (190,), anchor="lm")
+        g.text((x + 18, yc + 82), val, font=_font("oxanium.ttf", 46, 500), fill=bianco + (255,), anchor="lm")
+        if i == 2 and tele.get("lavori_tot"):
+            ok, tot = tele.get("lavori_ok") or 0, tele["lavori_tot"]
+            for j in range(tot):
+                bx = x + 18 + j * ((lc - 36) / tot)
+                g.rectangle([bx, yc + 118, bx + (lc - 36) / tot - 3, yc + 136],
+                            fill=((64, 230, 140) if j < ok else blu) + (230 if j < ok else 60,))
+        else:
+            m = max(serie) or 1
+            pts = [(x + 18 + j * (lc - 36) / (len(serie) - 1), yc + 134 - 20 * (v / m)) for j, v in enumerate(serie)]
+            g.line(pts, fill=blu + (200,), width=2)
+
+    # l'onda e il piede
+    pts = [(80 + x, 2716 + 7 * math.sin(x / 37.0) * math.sin(x / 113.0)) for x in range(0, w - 160, 4)]
+    g.line(pts, fill=(255, 138, 43, 220), width=3)
+    piede = "JARVIS · AGGIORNATO " + d0["aggiornato"]
+    _spaziato(g, (w / 2, 2780), piede, mono(24), blu + (200,), anchor="m")
+
+    # bagliore: lo strato sfocato sotto, poi lo strato nitido; il cuore sopra
+    im.alpha_composite(hud.filter(ImageFilter.GaussianBlur(9)))
+    im.alpha_composite(hud)
+    im.alpha_composite(core, (cx - lato // 2, cy - lato // 2))
+    righe = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    dr = ImageDraw.Draw(righe)
+    for y in range(0, h, 4):
+        dr.line([(0, y), (w, y)], fill=(0, 0, 0, 34))
+    im.alpha_composite(righe)
+    buf = io.BytesIO()
+    im.convert("RGB").save(buf, "PNG", optimize=True)
+    dati = buf.getvalue()
+    if len(_cache_png) > 30:
+        _cache_png.clear()
+    _cache_png[chiave] = dati
+    return dati
+
+
 def icona_png(lato=180):
     from PIL import Image
     im = _fondo(lato, lato, "calm", .5).convert("RGBA")
@@ -3177,21 +3763,45 @@ def ImageChops_mul(a, b):
 
 def script_widget(base, gettone):
     return """// Centralino di Andrea, widget per l'app gratuita Scriptable.
-// Mostra il reattore col colore del momento; al tocco apre il Centralino.
+// Home: il reattore col colore del momento. Schermata di blocco: testo vero, leggibile.
+// Al tocco apre il Centralino.
 const BASE = %s;
 const CHIAVE = %s;
-const misura = config.widgetFamily === "small" ? "piccolo"
-  : (config.widgetFamily || "").startsWith("accessory") ? "blocco" : "grande";
+const fam = config.widgetFamily || "";
 const w = new ListWidget();
-w.backgroundColor = new Color("#010611");
-w.setPadding(0, 0, 0, 0);
-try {
-  const r = new Request(BASE + "/centralino/widget.png?misura=" + misura + "&k=" + encodeURIComponent(CHIAVE) + "&t=" + Date.now());
-  const img = await r.loadImage();
-  w.backgroundImage = img;
-} catch (e) {
-  const t = w.addText("Centralino: niente rete");
-  t.textColor = new Color("#a8f1ff");
+if (fam.startsWith("accessory")) {
+  try {
+    const d = await new Request(BASE + "/centralino/widget.json?k=" + encodeURIComponent(CHIAVE) + "&t=" + Date.now()).loadJSON();
+    const n = d.livello === "calm" ? 0 : d.numero;
+    if (fam === "accessoryCircular") {
+      w.addAccessoryWidgetBackground = true;
+      const t = w.addText(n ? String(n) : "✓");
+      t.font = Font.boldRoundedSystemFont(24); t.centerAlignText();
+      const s = w.addText("JARVIS");
+      s.font = Font.semiboldSystemFont(8); s.centerAlignText();
+    } else if (fam === "accessoryInline") {
+      w.addText(n ? "Jarvis · " + n + " " + d.etichetta : "Jarvis · tutto tranquillo");
+    } else {
+      const a = w.addText(n ? "JARVIS · " + n + " " + d.etichetta.toUpperCase() : "JARVIS · TUTTO TRANQUILLO");
+      a.font = Font.boldSystemFont(12); a.lineLimit = 1;
+      const b = w.addText(d.titolo || "Niente ti aspetta.");
+      b.font = Font.mediumSystemFont(13); b.lineLimit = 2;
+      if (d.prossimo) { const c = w.addText(d.prossimo); c.font = Font.systemFont(11); c.lineLimit = 1; c.textOpacity = 0.8; }
+    }
+  } catch (e) {
+    w.addText("Jarvis: niente rete");
+  }
+} else {
+  const misura = fam === "small" ? "piccolo" : "grande";
+  w.backgroundColor = new Color("#010611");
+  w.setPadding(0, 0, 0, 0);
+  try {
+    const r = new Request(BASE + "/centralino/widget.png?misura=" + misura + "&k=" + encodeURIComponent(CHIAVE) + "&t=" + Date.now());
+    w.backgroundImage = await r.loadImage();
+  } catch (e) {
+    const t = w.addText("Centralino: niente rete");
+    t.textColor = new Color("#a8f1ff");
+  }
 }
 w.url = BASE + "/centralino";
 w.refreshAfterDate = new Date(Date.now() + 5 * 60 * 1000);
@@ -3340,6 +3950,29 @@ def _get(h, p, q):
         st["richieste"] = richieste()[:40]
         st["canali"] = canali()
         _risposta(h, 200, st)
+        return
+    if p == "/centralino/blocco.png":
+        pieno = sessione(g("k"), ("app", "widget")) is not None or _dentro(h)
+        _risposta(h, 200, blocco_png(pieno), "image/png")
+        return
+    if p == "/centralino/rete.json":
+        if not _dentro(h):
+            _risposta(h, 401, {"errore": "Serve l'accesso.", "fuori": True})
+            return
+        _risposta(h, 200, _leggi("rete.json", {"nodi": [], "fili": []}))
+        return
+    if p == "/centralino/blocco-link":
+        if not _dentro(h):
+            _risposta(h, 401, {"errore": "Serve l'accesso."})
+            return
+        _risposta(h, 200, _base(h) + "/centralino/blocco.png?k=" + nuova_sessione("widget", "comandi rapidi"),
+                  "text/plain; charset=utf-8")
+        return
+    if p == "/centralino/widget.json":
+        if sessione(g("k"), ("app", "widget")) is None and not _dentro(h):
+            _risposta(h, 401, {"errore": "Serve l'accesso.", "fuori": True})
+            return
+        _risposta(h, 200, dati_blocco())
         return
     if p == "/centralino/widget.png":
         k = g("k")
@@ -3494,6 +4127,9 @@ def _post(h, p, q):
             return
         if p == "/centralino/api/tiktok":
             _risposta(h, 200, tiktok_istantanea(d))
+            return
+        if p == "/centralino/api/rete":
+            _risposta(h, 200, rete_salva(d))
             return
         if p == "/centralino/api/agenda":
             _risposta(h, 200, agenda_salva(d))
@@ -3652,6 +4288,13 @@ def _post(h, p, q):
             return
         codice, r = chiedi(d.get("domanda"), d.get("storia"))
         _risposta(h, codice, r)
+        return
+    if p == "/centralino/conversazione":
+        codice, r = conversazione_apri()
+        _risposta(h, codice, r)
+        return
+    if p == "/centralino/conversazione/fine":
+        _risposta(h, 200, conversazione_chiudi(d.get("id")))
         return
     if p == "/centralino/voce":
         codice, r = voce(d.get("testo"))

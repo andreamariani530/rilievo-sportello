@@ -180,6 +180,19 @@ main{flex:1;min-width:0;display:flex;flex-direction:column}
 .qta span{min-width:34px;text-align:center;font-family:'Jost',sans-serif;font-size:13px}
 .voce .tot{font-family:'Cormorant',serif;font-size:22px;min-width:88px;text-align:right}
 .voce.spenta{opacity:.38}
+/* materiali da comprare e fornitori, sotto il preventivo (6/11/2026) */
+.materiali{margin-top:22px;border-top:1px solid var(--filetto);padding-top:14px}
+.voce.materiale{padding:11px 0}
+.voce.materiale .nome{font-size:19px;line-height:1.2}
+.voce.materiale .det{font-size:13.5px;line-height:1.45}
+.voce.materiale .qta span{min-width:74px;padding:0 4px;white-space:nowrap}
+.dove-comprare .nome-forn{font-family:'Cormorant',serif;font-size:22px;line-height:1.2}
+.dove-comprare .nome-forn.piccolo{font-size:19px}
+.dove-comprare .det{font-size:14px;color:var(--tenue)}
+.fornitore-primo{padding:12px 14px;border:1px solid var(--filetto2);background:var(--bianco)}
+.fornitore-altro{padding:10px 0;border-bottom:1px solid var(--filetto)}
+.altri-forn{margin-top:10px}
+.altri-forn summary{cursor:pointer;font-size:14.5px;color:var(--soft);padding:8px 0;min-height:44px;display:flex;align-items:center}
 .interr{width:38px;height:22px;border-radius:11px;background:var(--filetto2);position:relative;cursor:pointer;flex:0 0 38px}
 .interr.on{background:var(--accento-chiaro)}
 .interr:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;
@@ -1237,6 +1250,23 @@ nav .gruppo{text-transform:none;letter-spacing:.02em;font-size:12px;margin:14px 
 .chat .msg.io{border-radius:14px 14px 4px 14px;background:var(--lavato)}
 .chat .esempi button{border-radius:10px;font-family:'Jost',sans-serif;font-size:13px;background:#fff}
 .chat .scrivi textarea{border-radius:14px;background:#fff}
+/* «Chiedi» nella barra in basso, come le altre pagine ma nel suo verde (6/11/2026) */
+.barra-sotto .chiedi.in-barra{position:static;transform:none;opacity:1;pointer-events:auto;box-shadow:none;
+  background:none;color:var(--accento);flex-direction:column;align-items:center;gap:3px;padding:3px 0;min-width:52px;
+  border-radius:0;font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0;text-transform:none}
+.barra-sotto .chiedi.in-barra svg{width:22px;height:22px;stroke-width:1.6}
+.barra-sotto .chiedi.in-barra:hover{background:none;color:var(--inchiostro)}
+body.in-casa .barra-sotto .chiedi.in-barra{display:flex}
+.barra-sotto a{min-width:52px}
+/* il documento: «Consegnalo al cliente» grande, il resto in piccolo sotto (6/11/2026) */
+.azioni-doc{display:grid;gap:8px;width:100%;max-width:520px}
+.consegna-grande{width:100%;min-height:54px;font-size:17px;justify-content:center;text-align:center}
+.consegna-sotto{margin:0;font-size:14.5px;color:var(--soft);line-height:1.4}
+.azioni-piccole{gap:0 18px;margin-top:2px}
+.tasto-testo{display:inline-flex;align-items:center;background:none;border:0;padding:10px 0;min-height:44px;font-family:'Jost',sans-serif;font-size:14px;
+  color:var(--inchiostro);text-decoration:underline;text-decoration-color:var(--filetto2);text-underline-offset:4px;cursor:pointer}
+.tasto-testo:hover{text-decoration-color:var(--accento)}
+.coda-sopralluogo{margin:10px 0 4px}
 .tasto-avviso{border-radius:999px}
 .nastro{border-radius:10px 0 0 0}
 
@@ -1835,7 +1865,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-07 02:32';
+const COSTRUITA = '2026-11-07 18:15';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -5961,26 +5991,36 @@ function vaiADettare(){
   const fermo = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   e.scrollIntoView({behavior: fermo ? 'auto' : 'smooth', block: 'center'});
 }
-function intestazioneSopralluogo(s, r){
-  return `<div style="margin-bottom:18px">
+function intestazioneSopralluogo(s, r, compatta){
+  /* compatta: sopra la foto dall'alto. Prima la foto partiva a circa 630 px su 844, sotto
+     quattro file di tasti e il racconto del cliente. Ora i tasti stanno in una riga sola,
+     e racconto e agenda scendono sotto la foto (si' di Andrea del 5/11/2026, punto 5 del 1/11). */
+  const fissa = !s.quando && !s.preventivo ? `<button class="bottone piccolo" id="fissa-giorno-sopralluogo"
+        onclick="fissaSopralluogo('${s.richiesta && richiesta(s.richiesta) ? s.richiesta : s.id}')">Fissa il giorno</button>` : '';
+  /* Sul telefono il microfono sta sotto la foto e le misure, a quasi tre schermate
+     dal titolo: chi arriva dal cliente per raccontare il lavoro non lo trovava.
+     Finche' non ha dettato niente, il tasto lo porta giu' in un tocco (4 ottobre 2026). */
+  const vai = tastoNaviga(s.luogo, 'Portami là') +
+    (!s.testo ? `<button class="bottone piccolo" id="vai-a-dettare" onclick="vaiADettare()">Detta il lavoro ↓</button>` : '');
+  return `<div style="margin-bottom:${compatta ? 12 : 18}px">
     <div class="lbl" style="margin-bottom:6px">${s.quando === S.oggi ? 'In programma oggi'
       : (s.quando ? dataLunga(s.quando) : 'Data da fissare')}${s.quando && oraBuona(s.ora) ? ' alle ' + oraBella(s.ora) : ''}</div>
     <div style="font-family:'Cormorant',serif;font-size:26px">${esc(s.luogo)}</div>
     ${/* «Data da fissare» era solo una scritta: per mettere il giorno bisognava capire
          che stava dentro «Modifica». Ora il giorno si fissa da qui, come in Oggi
          (limatura del 10 ottobre 2026). Col preventivo gia' fatto non serve piu'. */
-      !s.quando && !s.preventivo ? `<div class="azioni" style="margin-top:8px"><button class="bottone piccolo" id="fissa-giorno-sopralluogo"
-        onclick="fissaSopralluogo('${s.richiesta && richiesta(s.richiesta) ? s.richiesta : s.id}')">Fissa il giorno</button></div>` : ''}
-    ${tastoNaviga(s.luogo, 'Portami là') || !s.testo ? `<div class="azioni" style="margin-top:8px">${tastoNaviga(s.luogo, 'Portami là')}${
-      /* Sul telefono il microfono sta sotto la foto e le misure, a quasi tre schermate
-         dal titolo: chi arriva dal cliente per raccontare il lavoro non lo trovava.
-         Finche' non ha dettato niente, il tasto lo porta giu' in un tocco (4 ottobre 2026). */
-      !s.testo ? `<button class="bottone piccolo" id="vai-a-dettare" onclick="vaiADettare()">Detta il lavoro ↓</button>` : ''}</div>` : ''}
-    ${r ? `<p style="color:var(--soft);margin-top:6px;max-width:62ch">${esc(r.cosa)}</p>` : ''}
+      compatta ? (fissa || vai ? `<div class="azioni" style="margin-top:8px">${fissa}${vai}</div>` : '')
+      : (fissa ? `<div class="azioni" style="margin-top:8px">${fissa}</div>` : '') +
+        (vai ? `<div class="azioni" style="margin-top:8px">${vai}</div>` : '')}
+    ${compatta ? '' : codaSopralluogo(s, r)}
+  </div>`;
+}
+/* il racconto del cliente e il promemoria in agenda: sotto il titolo, o sotto la foto */
+function codaSopralluogo(s, r){
+  return `${r ? `<p style="color:var(--soft);margin-top:6px;max-width:62ch">${esc(r.cosa)}</p>` : ''}
     ${/* il promemoria in agenda serve finche' l'appuntamento deve ancora arrivare:
          passata la data, con il preventivo gia' uscito, non c'e' piu' niente da segnarsi */
-      (!s.preventivo || !(s.quando && s.quando < S.oggi)) ? calendarioHtml('sopralluogo', s.id) : ''}
-  </div>`;
+      (!s.preventivo || !(s.quando && s.quando < S.oggi)) ? calendarioHtml('sopralluogo', s.id) : ''}`;
 }
 /* la proposta del rilievo dall'indirizzo: piena e in cima per il giardiniere, leggera e
    in fondo per chi lavora dentro casa (4 ottobre 2026) */
@@ -6005,20 +6045,15 @@ function rilievoHtml(ril, s, r){
   const verde = typeof ril.verde_mq === 'number';
   const lato = latoFoto(ril), zone = lato ? zoneDi(ril) : [];
   return `<div class="riquadro">
-    ${intestazioneSopralluogo(s, r)}
+    ${intestazioneSopralluogo(s, r, true)}
     <div class="foto-testa" style="align-items:baseline">
-      <div class="lbl" style="margin-bottom:12px">${ril.a_mano ? 'Rilievo scritto a mano'
+      <div class="lbl" style="margin-bottom:10px">${ril.a_mano ? 'Rilievo scritto a mano'
         : ril.da_disegnare ? "Foto dall'alto: il giardino lo segni tu"
         : "Rilievo preparato dall'indirizzo, prima di partire"}</div>
       ${/* Prima erano tre simboli (matita, freccia tonda, freccia in su) larghi un
            polpastrello a meta': sul telefono non c'e' il cartellino che spiega, e nessuno
-           sapeva cosa facessero. Adesso dicono cosa fanno. Il terzo, «carica un altro
-           rilievo», caricava un file del vecchio rilievo fatto sul Mac: resta dove il
-           rilievo non c'e' ancora (4 ottobre 2026). */ ''}
-    </div>
-    <div class="azioni" style="margin:-4px 0 14px">
-      <button class="bottone vuoto piccolo" onclick="schedaRilievo('${s.id}')">Correggi le misure</button>
-      <button class="bottone vuoto piccolo" onclick="preparaRilievo('${s.id}', true)">Rifallo dall'indirizzo</button>
+           sapeva cosa facessero. Adesso dicono cosa fanno. Dal 6/11/2026 stanno sotto le
+           misure, che sono quello che correggono: sopra spingevano giu' la foto. */ ''}
     </div>
     <div class="rilievo-due">
     <div class="tavola">
@@ -6044,6 +6079,11 @@ function rilievoHtml(ril, s, r){
       <div><div class="val">${mq(misuraConfine(ril).m)} <small style="font-size:15px">m</small></div><div class="lbl">Perimetro della proprietà</div></div>` : ''}`}
     </div>
     </div>
+    <div class="azioni" style="margin:14px 0 4px">
+      <button class="bottone vuoto piccolo" onclick="schedaRilievo('${s.id}')">Correggi le misure</button>
+      <button class="bottone vuoto piccolo" onclick="preparaRilievo('${s.id}', true)">Rifallo dall'indirizzo</button>
+    </div>
+    <div class="coda-sopralluogo">${codaSopralluogo(s, r)}</div>
     ${!ril.a_mano && lato ? `<div class="particelle-riga">
       <p>${ril.da_disegnare
           ? 'La foto mostra ' + cifra(Math.round(ril.lato_m || 0), 0) + ' metri da un bordo all\'altro. Se il giardino non ci sta tutto, allargala.'
@@ -11644,7 +11684,8 @@ function confermaFattura(id){
     const daFic = ficCollegato() ? `<button type="button" class="via via-fattura${S.azienda.fattura_via === 'fic' ? ' prima' : ''}" id="via-fic"
         onclick="chiudiScheda();inviaFatturaFic('${p.id}')">
         <span class="nome-via">Mandala dal tuo Fatture in Cloud</span>
-        <span>Parte dal tuo account, con la tua numerazione${ficStato.ditta ? ' (' + esc(ficStato.ditta) + ')' : ''}.</span>
+        <span>${rimandabileFic(f) ? 'Rimandi la n. ' + esc(f.numero) + ' dal tuo account, corretta, con lo stesso numero e la stessa data'
+          : 'Parte dal tuo account, con la tua numerazione'}${ficStato.ditta ? ' (' + esc(ficStato.ditta) + ')' : ''}.</span>
         ${ficStato.prova ? '<span class="di-prova">Di prova · non mandata allo Stato</span>' : ''}
       </button>` : '';
     const vieInOrdine = S.azienda.fattura_via === 'fic' && daFic ? daFic + conRilievo + colFile
@@ -11870,30 +11911,47 @@ function inviaFatturaFic(id){
   const p = prev(id), c = statoCopia();
   if(!p || fatturaInViaggio[id]) return Promise.resolve(false);
   if(!c.gettone){ avvisa('Per mandarla da Fatture in Cloud entra prima con la tua mail.'); return Promise.resolve(false); }
-  /* nessun numero di Rilievo: lo da' Fatture in Cloud quando la crea */
-  const f = p.fattura = {via: 'fic', numero: '', data: S.oggi, prova: !!ficStato.prova, stato: 'da_mandare'};
+  /* nessun numero di Rilievo: lo da' Fatture in Cloud quando la crea.
+     Tornata indietro (o creata e mai partita): si corregge e si rimanda LA STESSA, col suo
+     numero e la sua data, invece di crearne un'altra (6/11/2026). Una fattura scartata dallo
+     SdI non e' emessa, e va rimandata corretta con lo stesso numero. */
+  const vecchia = rimandabileFic(p.fattura) ? p.fattura : null;
+  const prima = vecchia ? Object.assign({}, vecchia) : null;
+  const f = p.fattura = vecchia || {via: 'fic', numero: '', data: S.oggi, prova: !!ficStato.prova, stato: 'da_mandare'};
+  if(vecchia){ delete f.file; f.stato = 'da_mandare'; }
   S.azienda.fattura_via = 'fic';
   salva();
   fatturaInViaggio[id] = true;
   vaiRestandoQui(); mostraFattura();
   const fine = testo => { delete fatturaInViaggio[id]; salva(); vaiRestandoQui(); mostraFattura(); if(testo) avvisa(testo); };
-  return Promise.resolve().then(() => chiamaServer('/fic/manda', {mail: c.mail, gettone: c.gettone, fattura: datiPerFic(p, f)}))
+  /* non e' partita: se la fattura c'e' gia' nel suo Fatture in Cloud la si tiene (col suo
+     numero), cosi' il prossimo tentativo rimanda quella e non ne crea una seconda */
+  const nonPartita = d => {
+    if(prima) p.fattura = prima;
+    else if(d && d.id) p.fattura = {via: 'fic', fic_id: d.id, numero: String(d.numero || d.id), data: f.data, prova: !!d.prova, stato: 'da_mandare'};
+    else p.fattura = null;
+  };
+  const corpo = Object.assign(datiPerFic(p, f), vecchia && vecchia.fic_id ? {rifai: vecchia.fic_id} : {});
+  return Promise.resolve().then(() => chiamaServer('/fic/manda', {mail: c.mail, gettone: c.gettone, fattura: corpo}))
     .then(({ok, stato, d}) => {
       if(ok && d && d.id){
         f.fic_id = d.id; f.numero = String(d.numero || d.id); f.file = 'fic:' + d.id;
         f.prova = !!d.prova; f.stato = 'inviata'; f.inviata = istante();
-        fine('Fattura n. ' + f.numero + ' partita dal tuo Fatture in Cloud. Fra poco sai se è arrivata.');
+        delete f.codice; delete f.motivo;
+        fine('Fattura n. ' + f.numero + (d.rimandata ? ' corretta e rimandata' : ' partita') + ' dal tuo Fatture in Cloud. Fra poco sai se è arrivata.');
         seguiFattura(id);
         return true;
       }
       if(stato === 401) fuoriDalServer();
       if(d && (d.scaduto || d.non_collegato)) segnaFic({collegato: false, ditta: '', scaduto: !!d.scaduto});
-      p.fattura = null;
+      nonPartita(d);
       fine((d && d.errore) || 'Adesso Fatture in Cloud non risponde. La fattura non è partita: riprova fra poco.');
       return false;
     })
-    .catch(() => { p.fattura = null; fine('Non c\'è rete: la fattura non è partita. Riprova appena c\'è campo.'); return false; });
+    .catch(() => { nonPartita(null); fine('Non c\'è rete: la fattura non è partita. Riprova appena c\'è campo.'); return false; });
 }
+/* la fattura di Fatture in Cloud che si rimanda invece di crearne un'altra */
+const rimandabileFic = f => !!(f && fatturaDaFic(f) && f.fic_id && (f.stato === 'scartata' || f.stato === 'da_mandare'));
 /* «Solo controllo» (5 ottobre 2026): per chi prova il collegamento, mai per l'artigiano.
    Fatture in Cloud crea la fattura e la controlla, ma non la manda allo Stato; il preventivo non cambia. */
 function controllaFatturaFic(id){
@@ -12083,7 +12141,7 @@ function bloccoFattura(p){
   } else if(f.stato === 'scartata'){
     const m = motivoScarto(f);
     corpo = testa('Tornata indietro') + (fatturaDaFic(f) && f.motivo
-      ? `<p id="motivo-fic">Non è passata. Fatture in Cloud dice: «${esc(String(f.motivo).replace(/[.\s]+$/, ''))}». Correggi e rimandala.</p>`
+      ? `<p id="motivo-fic">Non è passata. Fatture in Cloud dice: «${esc(String(f.motivo).replace(/[.\s]+$/, ''))}». Correggi e rimandala, il numero resta lo stesso.</p>`
       : `<p>Non è passata: ${esc(m.testo)}. Correggi e rimandala, il numero resta lo stesso.</p>`) + `
       <div class="azioni-fattura">
         ${m.chi ? `<button class="bottone" id="btn-correggi-fattura" onclick="correggiFattura('${p.id}')">${m.chi === 'ditta' ? 'Correggi i tuoi dati' : 'Correggi i dati del cliente'}</button>` : ''}
@@ -13176,6 +13234,7 @@ PAGINE.preventivo = {
         </div>
 
         <div id="tempo-lavoro" style="margin-top:12px;border-top:1px solid var(--filetto);padding-top:8px">${tempoHtml(p)}</div>
+        ${materialiHtml(p)}
 
         <label style="display:block;margin-top:24px">
           <span class="lbl" style="display:block;margin-bottom:6px">Note per il cliente</span>
@@ -13392,6 +13451,588 @@ function calcola(id){
   const i = document.getElementById('righe-iva'); if(i) i.innerHTML = righeIvaHtml(c, 'riga-iva');
   const g = document.getElementById('riga-totale'); if(g) g.innerHTML = '<b>' + euro(c.totale) + '</b>';
   const tl = document.getElementById('tempo-lavoro'); if(tl) tl.innerHTML = tempoHtml(p);
+  /* i materiali seguono i metri: cambia una quantita' e cambia la lista (6/11/2026) */
+  disegnaMateriali(id);
+}
+
+/* ===== MATERIALI DA COMPRARE =====
+   Rilievo conosce i metri di ogni voce: da li' esce da sola la lista di quello che
+   l'artigiano deve comprare, con lo scarto, in sacchi, secchi, scatole e matasse.
+   Si'di Andrea del 5/11/2026 («lista dei materiali dai metri»). Regole:
+   - consumi tipici e generici, senza marchi (la fonte di ognuno sta in
+     consumi-materiali.md accanto al pacchetto); sono un punto di partenza;
+   - ogni quantita' si cambia sul posto, ogni riga si toglie o si aggiunge, e quello che
+     scrive lui non viene mai rifatto da un ricalcolo;
+   - la lista e' per l'artigiano e per il suo fornitore: al cliente non va. */
+
+/* il catalogo: nome generico, unita' di conto, confezione in cui si compra, e cosa vende
+   chi la tiene (serve a scegliere il fornitore giusto). conf null = si compra a misura. */
+const CATALOGO_MATERIALI = {
+  'piastrelle':        {nome:'Piastrelle', u:'mq', conf:1.44, uno:'scatola', tanti:'scatole', da:'da 1,44 mq', cat:'edilizia'},
+  'adesivo':           {nome:'Adesivo cementizio per piastrelle', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'adesivo-forte':     {nome:'Adesivo cementizio deformabile, per esterni e grandi lastre', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'stucco-fughe':      {nome:'Stucco per fughe', u:'kg', conf:5, uno:'sacco', tanti:'sacchi', da:'da 5 kg', cat:'edilizia'},
+  'crocette':          {nome:'Distanziatori per piastrelle', u:'pz', conf:200, uno:'busta', tanti:'buste', da:'da 200', cat:'edilizia'},
+  'cemento':           {nome:'Cemento', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'sabbia':            {nome:'Sabbia', u:'mc', conf:null, cat:'edilizia'},
+  'ghiaia':            {nome:'Ghiaia', u:'mc', conf:null, cat:'edilizia'},
+  'autolivellante':    {nome:'Lisciatura autolivellante', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'impermeabilizzante':{nome:'Impermeabilizzante cementizio bicomponente', u:'kg', conf:20, uno:'confezione', tanti:'confezioni', da:'da 20 kg', cat:'edilizia'},
+  'guaina-liquida':    {nome:'Guaina liquida', u:'kg', conf:20, uno:'secchio', tanti:'secchi', da:'da 20 kg', cat:'edilizia'},
+  'battiscopa':        {nome:'Battiscopa', u:'m', conf:null, cat:'edilizia'},
+  'colla-cartuccia':   {nome:'Adesivo di montaggio in cartuccia', u:'pz', conf:1, uno:'cartuccia', tanti:'cartucce', cat:'ferramenta'},
+  'silicone':          {nome:'Silicone', u:'pz', conf:1, uno:'cartuccia', tanti:'cartucce', da:'da 300 ml', cat:'ferramenta'},
+  'sacchi-macerie':    {nome:'Sacchi per macerie', u:'pz', conf:1, uno:'sacco', tanti:'sacchi', cat:'edilizia'},
+  'forati':            {nome:'Mattoni forati 8×25×50', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'edilizia'},
+  'malta':             {nome:'Malta premiscelata', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'intonaco':          {nome:'Intonaco premiscelato a calce e cemento', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'intonaco-esterno':  {nome:'Intonaco premiscelato per esterni', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'gesso':             {nome:'Intonaco a gesso', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'rasante':           {nome:'Rasante in polvere', u:'kg', conf:20, uno:'sacco', tanti:'sacchi', da:'da 20 kg', cat:'edilizia'},
+  'lastre':            {nome:'Lastre di cartongesso 120×200', u:'pz', conf:1, uno:'lastra', tanti:'lastre', cat:'edilizia'},
+  'montanti':          {nome:'Profili montanti per cartongesso', u:'m', conf:3, uno:'barra', tanti:'barre', da:'da 3 m', cat:'edilizia'},
+  'guide':             {nome:'Profili guida per cartongesso', u:'m', conf:3, uno:'barra', tanti:'barre', da:'da 3 m', cat:'edilizia'},
+  'pendini':           {nome:'Ganci e pendini per controsoffitto', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'edilizia'},
+  'viti-cartongesso':  {nome:'Viti per cartongesso', u:'pz', conf:1000, uno:'scatola', tanti:'scatole', da:'da 1.000', cat:'ferramenta'},
+  'stucco-cartongesso':{nome:'Stucco per giunti di cartongesso', u:'kg', conf:5, uno:'sacco', tanti:'sacchi', da:'da 5 kg', cat:'edilizia'},
+  'nastro-giunti':     {nome:'Nastro per giunti', u:'m', conf:75, uno:'rotolo', tanti:'rotoli', da:'da 75 m', cat:'edilizia'},
+  'pannelli-eps':      {nome:'Pannelli isolanti in EPS da 10 cm, 100×50', u:'pz', conf:1, uno:'pannello', tanti:'pannelli', cat:'edilizia'},
+  'collante-cappotto': {nome:'Collante e rasante per cappotto', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'edilizia'},
+  'tasselli-cappotto': {nome:'Tasselli per cappotto', u:'pz', conf:250, uno:'scatola', tanti:'scatole', da:'da 250', cat:'edilizia'},
+  'rete-vetro':        {nome:'Rete in fibra di vetro', u:'mq', conf:50, uno:'rotolo', tanti:'rotoli', da:'da 50 mq', cat:'edilizia'},
+  'pittura-int':       {nome:'Idropittura per interni', u:'l', conf:14, uno:'secchio', tanti:'secchi', da:'da 14 litri', cat:'colori'},
+  'pittura-lav':       {nome:'Idropittura lavabile', u:'l', conf:14, uno:'secchio', tanti:'secchi', da:'da 14 litri', cat:'colori'},
+  'pittura-est':       {nome:'Pittura per esterni', u:'l', conf:14, uno:'secchio', tanti:'secchi', da:'da 14 litri', cat:'colori'},
+  'fissativo':         {nome:'Fissativo isolante concentrato', u:'l', conf:5, uno:'tanica', tanti:'taniche', da:'da 5 litri', cat:'colori'},
+  'stucco-pasta':      {nome:'Stucco in pasta', u:'kg', conf:5, uno:'secchiello', tanti:'secchielli', da:'da 5 kg', cat:'colori'},
+  'carta-abrasiva':    {nome:'Carta abrasiva', u:'pz', conf:1, uno:'foglio', tanti:'fogli', cat:'colori'},
+  'antimuffa':         {nome:'Risanante antimuffa', u:'l', conf:1, uno:'flacone', tanti:'flaconi', da:'da 1 litro', cat:'colori'},
+  'smalto':            {nome:'Smalto all’acqua', u:'l', conf:0.75, uno:'barattolo', tanti:'barattoli', da:'da 0,75 litri', cat:'colori'},
+  'nastro-carta':      {nome:'Nastro di carta', u:'pz', conf:1, uno:'rotolo', tanti:'rotoli', cat:'colori'},
+  'teli':              {nome:'Teli di protezione 4×4 m', u:'pz', conf:1, uno:'telo', tanti:'teli', cat:'colori'},
+  'cavo-15':           {nome:'Cavo unipolare 1,5 mmq', u:'m', conf:100, uno:'matassa', tanti:'matasse', da:'da 100 m', cat:'elettrico'},
+  'cavo-25':           {nome:'Cavo unipolare 2,5 mmq', u:'m', conf:100, uno:'matassa', tanti:'matasse', da:'da 100 m', cat:'elettrico'},
+  'cavo-6':            {nome:'Cavo unipolare 6 mmq', u:'m', conf:100, uno:'matassa', tanti:'matasse', da:'da 100 m', cat:'elettrico'},
+  'cavo-16gv':         {nome:'Cavo giallo-verde 16 mmq', u:'m', conf:null, cat:'elettrico'},
+  'cavo-citofono':     {nome:'Cavo per citofono', u:'m', conf:null, cat:'elettrico'},
+  'coassiale':         {nome:'Cavo coassiale TV', u:'m', conf:null, cat:'elettrico'},
+  'cat6':              {nome:'Cavo di rete categoria 6', u:'m', conf:null, cat:'elettrico'},
+  'corrugato':         {nome:'Tubo corrugato da 20 mm', u:'m', conf:50, uno:'rotolo', tanti:'rotoli', da:'da 50 m', cat:'elettrico'},
+  'scatole-503':       {nome:'Scatole da incasso a 3 posti', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'placche':           {nome:'Placche a 3 posti', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'frutti-int':        {nome:'Interruttori', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'deviatori':         {nome:'Deviatori', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'prese':             {nome:'Prese 10/16 A', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'presa-tv':          {nome:'Prese TV', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'presa-dati':        {nome:'Prese di rete', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'canalina':          {nome:'Canalina in PVC', u:'m', conf:2, uno:'barra', tanti:'barre', da:'da 2 m', cat:'elettrico'},
+  'centralino':        {nome:'Centralino da 12 moduli', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'magnetotermico':    {nome:'Interruttori magnetotermici', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'differenziale':     {nome:'Interruttori differenziali', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'morsetti':          {nome:'Morsetti a leva', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'picchetto':         {nome:'Picchetti di terra', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'elettrico'},
+  'multistrato':       {nome:'Tubo multistrato da 16 mm', u:'m', conf:null, cat:'idraulico'},
+  'raccordi':          {nome:'Raccordi a pressare', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'idraulico'},
+  'pvc-scarico':       {nome:'Tubo di scarico in PVC', u:'m', conf:2, uno:'barra', tanti:'barre', da:'da 2 m', cat:'idraulico'},
+  'curve-pvc':         {nome:'Curve per lo scarico', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'idraulico'},
+  'rubinetti-arresto': {nome:'Rubinetti di arresto', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'idraulico'},
+  'flessibili':        {nome:'Flessibili di collegamento', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'idraulico'},
+  'kit-fumi':          {nome:'Kit di scarico fumi', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'idraulico'},
+  'valvola-detentore': {nome:'Valvola e detentore per radiatore', u:'pz', conf:1, uno:'coppia', tanti:'coppie', cat:'idraulico'},
+  'staffe-radiatore':  {nome:'Staffe per radiatore', u:'pz', conf:1, uno:'coppia', tanti:'coppie', cat:'idraulico'},
+  'rame':              {nome:'Tubo in rame isolato per clima, coppia', u:'m', conf:null, cat:'idraulico'},
+  'nastro-clima':      {nome:'Nastro per linee del clima', u:'pz', conf:1, uno:'rotolo', tanti:'rotoli', cat:'idraulico'},
+  'staffe-clima':      {nome:'Staffe per unità esterna', u:'pz', conf:1, uno:'coppia', tanti:'coppie', cat:'idraulico'},
+  'cavo-clima':        {nome:'Cavo di collegamento 4×1,5 mmq', u:'m', conf:null, cat:'elettrico'},
+  'tubo-condensa':     {nome:'Tubo per lo scarico condensa', u:'m', conf:null, cat:'idraulico'},
+  'canalina-clima':    {nome:'Canalina copritubo', u:'m', conf:2, uno:'barra', tanti:'barre', da:'da 2 m', cat:'idraulico'},
+  'schiuma':           {nome:'Schiuma poliuretanica', u:'pz', conf:1, uno:'bombola', tanti:'bombole', da:'da 750 ml', cat:'ferramenta'},
+  'viti-telaio':       {nome:'Viti per telaio', u:'pz', conf:50, uno:'scatola', tanti:'scatole', da:'da 50', cat:'ferramenta'},
+  'seme-prato':        {nome:'Seme per prato', u:'kg', conf:5, uno:'sacco', tanti:'sacchi', da:'da 5 kg', cat:'giardino'},
+  'prato-rotoli':      {nome:'Prato in rotoli', u:'mq', conf:1, uno:'rotolo', tanti:'rotoli', da:'da 1 mq', cat:'giardino'},
+  'terriccio':         {nome:'Terriccio', u:'l', conf:70, uno:'sacco', tanti:'sacchi', da:'da 70 litri', cat:'giardino'},
+  'concime':           {nome:'Concime granulare', u:'kg', conf:25, uno:'sacco', tanti:'sacchi', da:'da 25 kg', cat:'giardino'},
+  'corteccia':         {nome:'Corteccia per pacciamatura', u:'l', conf:70, uno:'sacco', tanti:'sacchi', da:'da 70 litri', cat:'giardino'},
+  'insetticida':       {nome:'Insetticida concentrato per zanzare', u:'l', conf:1, uno:'flacone', tanti:'flaconi', da:'da 1 litro', cat:'giardino'},
+  'antiparassitario':  {nome:'Antiparassitario concentrato', u:'l', conf:1, uno:'flacone', tanti:'flaconi', da:'da 1 litro', cat:'giardino'},
+  'larvicida':         {nome:'Pastiglie antilarvali', u:'pz', conf:1, uno:'pastiglia', tanti:'pastiglie', cat:'giardino'},
+  'erogatori':         {nome:'Erogatori di esca', u:'pz', conf:1, uno:'pezzo', tanti:'pezzi', cat:'ferramenta'},
+  'esca':              {nome:'Esca in blocchetti', u:'kg', conf:1, uno:'secchiello', tanti:'secchielli', da:'da 1 kg', cat:'ferramenta'}
+};
+
+/* i consumi: per ogni lavoro, quanto materiale va per ogni metro quadro, metro, pezzo
+   o metro cubo della voce. voci = id del listino; parole = nome di una voce nuova
+   (si prova nell'ordine, quindi le piu' precise stanno prima); k = come si misura la
+   voce; usa = [materiale, consumo per unita', scarto in %]; senza = se nel preventivo
+   c'e' gia' una voce cosi', questa regola non conta (la posa delle finestre). */
+const CONSUMI_MATERIALI = [
+  /* piastrellista */
+  {voci:['pi-grande'], k:'mq', parole:/grande formato|grandi lastre/, usa:[['piastrelle',1,10],['adesivo-forte',6],['stucco-fughe',0.3]]},
+  {voci:['pi-rivestimento'], k:'mq', parole:/rivestiment/, usa:[['piastrelle',1,10],['adesivo',3.5],['stucco-fughe',0.4],['crocette',10]]},
+  {voci:['pi-esterno'], k:'mq', parole:/terrazz|pavimento esterno|balcon/, usa:[['piastrelle',1,10],['adesivo-forte',5],['stucco-fughe',0.6],['crocette',8]]},
+  {voci:['pi-fughe'], k:'mq', parole:/fughe/, usa:[['stucco-fughe',0.5]]},
+  {voci:['pi-demolizione','pi-rimozione','mu-dempav','mu-demriv'], k:'mq', parole:/demoli|rimozione (del )?(pavimento|rivestimento)|togliere (le )?piastrelle/, usa:[['sacchi-macerie',1.5]]},
+  {voci:['pi-pavimento','pi-gres'], k:'mq', parole:/pavimento|piastrell|\bgres\b|ceramica|cotto|klinker/, usa:[['piastrelle',1,10],['adesivo',4],['stucco-fughe',0.5],['crocette',8]]},
+  {voci:['pi-massetto','mu-massetto'], k:'mq', parole:/massetto/, usa:[['cemento',15],['sabbia',0.055]]},
+  {voci:['pi-autolivellante'], k:'mq', parole:/autolivellant/, usa:[['autolivellante',4.8]]},
+  {voci:['pi-guaina'], k:'mq', parole:/impermeabilizz.*(bagno|doccia|cementiz)/, usa:[['impermeabilizzante',3.4]]},
+  {voci:['pi-battiscopa'], k:'m', parole:/battiscopa|zoccolino in (legno|ceramica|gres)/, usa:[['battiscopa',1,10],['colla-cartuccia',0.125]]},
+  {voci:['pi-silicone','se-silicone'], k:'m', parole:/silicon|sigillatura/, usa:[['silicone',0.1]]},
+  {voci:['pi-soglie','se-davanzale'], k:'m', parole:/davanzal|soglie|soglia/, usa:[['malta',8],['silicone',0.3]]},
+  /* muratore */
+  {voci:['mu-demtramezzo','mu-apertura'], k:'mq', parole:/demolizione (di un )?tramezz|abbattere (un )?(muro|tramezzo)|apertura vano/, usa:[['sacchi-macerie',4]]},
+  {voci:['mu-tramezzo','mu-chiusura'], k:'mq', parole:/tramezz|forati|chiusura (del )?vano|muro in mattoni/, usa:[['forati',8,5],['malta',20]]},
+  {voci:['mu-gesso','mu-gessosoff'], k:'mq', parole:/intonaco a gesso/, usa:[['gesso',10]]},
+  {voci:['mu-intesterno'], k:'mq', parole:/intonaco (esterno|per esterni|della facciata)/, usa:[['intonaco-esterno',21]]},
+  {voci:['mu-intonaco','mu-ripresa'], k:'mq', parole:/intonac/, usa:[['intonaco',21]]},
+  {voci:['mu-rasatura','im-rasatura'], k:'mq', parole:/rasatur|rasare/, usa:[['rasante',2]]},
+  {voci:['mu-traccia','el-traccia'], k:'m', parole:/tracc/, usa:[['malta',1.5]]},
+  {voci:['mu-controparete'], k:'mq', parole:/controparet/, usa:[['lastre',0.4167,10],['montanti',2],['guide',0.8],['viti-cartongesso',15],['stucco-cartongesso',0.4],['nastro-giunti',1.5]]},
+  {voci:['mu-controsoffitto'], k:'mq', parole:/controsoffitt/, usa:[['lastre',0.4167,10],['montanti',3],['guide',0.8],['pendini',1.2],['viti-cartongesso',15],['stucco-cartongesso',0.4],['nastro-giunti',1.5]]},
+  {voci:['mu-cartongesso'], k:'mq', parole:/cartongesso/, usa:[['lastre',0.8333,10],['montanti',2],['guide',0.8],['viti-cartongesso',30],['stucco-cartongesso',0.8],['nastro-giunti',3]]},
+  {voci:['mu-cappotto'], k:'mq', parole:/cappotto/, usa:[['pannelli-eps',2,5],['collante-cappotto',8],['tasselli-cappotto',6],['rete-vetro',1.1]]},
+  {voci:['mu-guaina'], k:'mq', parole:/guaina/, usa:[['guaina-liquida',2.5]]},
+  /* imbianchino */
+  {voci:['im-lavabile'], k:'mq', parole:/lavabile/, usa:[['pittura-lav',0.2],['nastro-carta',0.04],['teli',0.04]]},
+  {voci:['im-facciata'], k:'mq', parole:/facciat|pittura (per )?esterni/, usa:[['pittura-est',0.25],['fissativo',0.025]]},
+  {voci:['im-pareti','im-soffitti'], k:'mq', parole:/tinteggiat|imbianc|pittur|tinteggiare/, usa:[['pittura-int',0.2],['nastro-carta',0.04],['teli',0.04]]},
+  {voci:['im-fissativo'], k:'mq', parole:/fissativ/, usa:[['fissativo',0.025]]},
+  {voci:['im-stuccatura'], k:'mq', parole:/stuccatur|carteggiat/, usa:[['stucco-pasta',0.3],['carta-abrasiva',0.1]]},
+  {voci:['im-antimuffa'], k:'mq', parole:/muffa/, usa:[['antimuffa',0.1]]},
+  {voci:['im-ringhiere'], k:'mq', parole:/ringhier|cancell|inferriat/, usa:[['smalto',0.17]]},
+  {voci:['im-termosifoni'], k:'mq', parole:/termosifon/, usa:[['smalto',0.17]]},
+  {voci:['im-porta'], k:'pz', parole:/verniciatura (della |di una )?port/, usa:[['smalto',0.7]]},
+  {voci:['im-zoccolino'], k:'m', parole:/zoccolino a vernice/, usa:[['smalto',0.02]]},
+  /* elettricista */
+  {voci:['el-deviato'], k:'pz', parole:/deviat/, usa:[['corrugato',12],['cavo-15',40],['scatole-503',2],['deviatori',2],['placche',2]]},
+  {voci:['el-luce'], k:'pz', parole:/punto luce/, usa:[['corrugato',8],['cavo-15',24],['scatole-503',1],['frutti-int',1],['placche',1]]},
+  {voci:['el-presa'], k:'pz', parole:/punto presa|\bprese?\b/, usa:[['corrugato',8],['cavo-25',24],['scatole-503',1],['prese',1],['placche',1]]},
+  {voci:['el-tv'], k:'pz', parole:/\btv\b|antenna/, usa:[['corrugato',10],['coassiale',10],['scatole-503',1],['presa-tv',1],['placche',1]]},
+  {voci:['el-dati'], k:'pz', parole:/rete dati|presa (di )?rete/, usa:[['corrugato',15],['cat6',15],['scatole-503',1],['presa-dati',1],['placche',1]]},
+  {voci:['el-linea'], k:'m', parole:/dorsale/, usa:[['corrugato',1,10],['cavo-25',3,10]]},
+  {voci:['el-canalina'], k:'m', parole:/canalina in pvc/, usa:[['canalina',1,10]]},
+  {voci:['el-quadro'], k:'pz', parole:/quadro elettrico/, usa:[['centralino',1]]},
+  {voci:['el-frutto'], k:'pz', parole:/frutto e placca/, usa:[['frutti-int',1],['placche',1]]},
+  {voci:['el-lampadario'], k:'pz', parole:/lampadari|plafonier/, usa:[['morsetti',3]]},
+  {voci:['el-clima'], k:'pz', parole:/punto climatizz/, usa:[['corrugato',10],['cavo-25',30],['scatole-503',1]]},
+  {voci:['el-dedicata'], k:'pz', parole:/linea dedicata|induzione/, usa:[['corrugato',15],['cavo-6',45],['magnetotermico',1]]},
+  {voci:['el-colonnina'], k:'pz', parole:/colonnin|wallbox|ricarica (dell')?auto/, usa:[['corrugato',20],['cavo-6',60],['magnetotermico',1],['differenziale',1]]},
+  {voci:['el-terra'], k:'pz', parole:/messa a terra|picchett/, usa:[['picchetto',1],['cavo-16gv',10]]},
+  {voci:['el-citofono'], k:'pz', parole:/citofon/, usa:[['cavo-citofono',20]]},
+  {voci:['el-impianto'], k:'mq', parole:/impianto elettrico/, usa:[['corrugato',4],['cavo-15',6],['cavo-25',6],['scatole-503',0.5],['placche',0.5]]},
+  /* idraulico e termoidraulico */
+  {voci:['id-lavabo','id-bidet','id-wc','id-doccia','id-lavello','id-lavatrice'], k:'pz', parole:/attacco/, usa:[['multistrato',10,10],['raccordi',4],['pvc-scarico',3],['curve-pvc',2],['rubinetti-arresto',2]]},
+  {voci:['id-acqua'], k:'pz', parole:/punto acqua/, usa:[['multistrato',5,10],['raccordi',2]]},
+  {voci:['id-tubo'], k:'m', parole:/multistrato/, usa:[['multistrato',1,10],['raccordi',0.5]]},
+  {voci:['te-condensa'], k:'m', parole:/condensa/, usa:[['tubo-condensa',1,10]]},
+  {voci:['id-scarico'], k:'m', parole:/scarico/, usa:[['pvc-scarico',1,10],['curve-pvc',0.5]]},
+  {voci:['id-piatto'], k:'pz', parole:/piatto doccia/, usa:[['silicone',1],['malta',25]]},
+  {voci:['id-sanitario'], k:'pz', parole:/sanitari|boiler|scaldabagno/, usa:[['silicone',1],['flessibili',2]]},
+  {voci:['id-rubinetto'], k:'pz', parole:/rubinett|miscelator/, usa:[['flessibili',2]]},
+  {voci:['id-caldaia','te-caldaia24','te-caldaia30','te-sostcaldaia'], k:'pz', parole:/^(?!.*manutenzion).*caldaia/, usa:[['kit-fumi',1],['rubinetti-arresto',3],['raccordi',6]]},
+  {voci:['id-radiatore'], k:'pz', parole:/radiator|termosifon/, usa:[['valvola-detentore',1],['staffe-radiatore',1]]},
+  {voci:['te-radiatore'], k:'pz', parole:/elementi? (di )?radiator/, usa:[['valvola-detentore',0.125],['staffe-radiatore',0.125]]},
+  {voci:['te-trial'], k:'pz', parole:/trial/, usa:[['staffe-clima',1],['cavo-clima',15],['silicone',1]]},
+  {voci:['te-dual'], k:'pz', parole:/dual/, usa:[['staffe-clima',1],['cavo-clima',10],['silicone',1]]},
+  {voci:['te-mono25','te-mono35','te-posaclima'], k:'pz', parole:/climatizzator|condizionator|monosplit/, usa:[['staffe-clima',1],['cavo-clima',5],['silicone',1]]},
+  {voci:['te-rame'], k:'m', parole:/rame|linea frigorifer/, usa:[['rame',1,10],['nastro-clima',0.2]]},
+  {voci:['te-canalina'], k:'m', parole:/copritubo/, usa:[['canalina-clima',1,10]]},
+  /* serramentista: i materiali della posa stanno sulla posa; se la posa non c'e',
+     sulle finestre a metro quadro (una finestra e' circa un metro quadro e mezzo) */
+  {voci:['se-posa1','se-posa2'], k:'pz', parole:/posa (di una )?finestr/, usa:[['schiuma',0.5],['silicone',1],['viti-telaio',8]]},
+  {voci:['se-posapf','se-posasc'], k:'pz', parole:/posa (di una )?portafinestr/, usa:[['schiuma',1],['silicone',1.5],['viti-telaio',10]]},
+  {voci:['se-pvc2','se-pvc1','se-fissa','se-pf','se-scorrevole','se-legno'], k:'mq', senza:/^se-posa/, parole:/finestr/, usa:[['schiuma',0.35],['silicone',0.7],['viti-telaio',5]]},
+  {voci:['se-porta','se-controtelaio','mu-controtelaio'], k:'pz', parole:/porta interna|controtelaio/, usa:[['schiuma',1]]},
+  {voci:['se-blindata'], k:'mq', parole:/blindat/, usa:[['schiuma',0.5]]},
+  /* giardiniere */
+  {voci:['con'], k:'mq', parole:/concim/, usa:[['concime',0.03]]},
+  {voci:['aiu'], k:'mq', parole:/aiuol/, usa:[['terriccio',100],['corteccia',50]]},
+  {voci:[], k:'mq', parole:/rotol|tappeto erboso|prato pronto/, usa:[['prato-rotoli',1,5],['terriccio',20],['concime',0.03]]},
+  {voci:[], k:'mq', parole:/semin|prato nuovo|nuovo prato|rigenerazion/, usa:[['seme-prato',0.035],['terriccio',10],['concime',0.03]]},
+  {voci:[], k:'m', parole:/siepe nuova|nuova siepe/, usa:[['terriccio',20],['corteccia',10]]},
+  {voci:[], k:'pz', parole:/messa a dimora|piantumazion|piantare/, usa:[['terriccio',20],['concime',0.1]]},
+  /* disinfestatore */
+  {voci:['di-zanzare'], k:'mq', parole:/zanzar/, usa:[['insetticida',0.0005]]},
+  {voci:['di-piante'], k:'mq', parole:/antiparassitari/, usa:[['antiparassitario',0.0005]]},
+  {voci:['di-larvicida'], k:'pz', parole:/larv|tombin/, usa:[['larvicida',1]]},
+  {voci:['di-erogatore'], k:'pz', parole:/erogator/, usa:[['erogatori',1],['esca',0.2]]},
+  {voci:['di-derat'], k:'pz', parole:/derattizz/, usa:[['erogatori',4],['esca',0.8]]},
+  /* per tutti: il getto di calcestruzzo detto a metri cubi */
+  {voci:[], k:'mc', parole:/calcestruzz|getto|cemento|plinto|fondazion|soletta/, usa:[['cemento',300],['sabbia',0.45],['ghiaia',0.85]]}
+];
+
+const NOMI_CAT = {edilizia:'materiali edili', colori:'colori e vernici', ferramenta:'ferramenta',
+  elettrico:'materiale elettrico', idraulico:'materiale idraulico', giardino:'giardinaggio'};
+
+/* la misura vera di una riga, nella sua unita': 26 «ogni 100 mq» sono 2.600 mq. Una
+   riga spenta, facoltativa, a corpo, a ore o senza misura non porta materiali. */
+function misuraPerMateriali(r){
+  if(!r || !r.on || r.facoltativa || r.daMisurare || aCorpo(r) || !(r.q > 0)) return null;
+  const u = senzaAccenti(String(r.u || '').toLowerCase());
+  const volte = volteRiga(r);
+  if(/cub|\bm3\b|\bmc\b/.test(u)) return {k:'mc', n:r.q * volte};
+  const t = tipoUnita(r.u);
+  if(t.k === 'mq') return {k:'mq', n:r.q * t.per * volte};
+  if(t.k === 'm') return {k:'m', n:r.q * volte};
+  if(t.k === 'ore') return null;
+  return {k:'pz', n:r.q * volte};
+}
+function regolaMateriali(r, misura){
+  const perId = CONSUMI_MATERIALI.find(x => x.voci.indexOf(r.v) >= 0);
+  if(perId) return perId.k === misura.k ? perId : null;
+  const nome = senzaAccenti(String(r.nome || '').toLowerCase());
+  return CONSUMI_MATERIALI.find(x => x.k === misura.k && x.parole && x.parole.test(nome)) || null;
+}
+function misuraScritta(n, u){
+  const t = {mq:' mq', m:' m', mc:' m³', kg:' kg', l:' litri', pz:''}[u] || '';
+  if(u === 'l' && n < 1) return cifra(Math.round(n * 1000)) + ' ml';
+  if(u === 'kg' && n < 1) return cifra(Math.round(n * 1000)) + ' g';
+  return cifra(Math.round(n * 100) / 100) + t;
+}
+/* la lista calcolata dalle righe, prima delle correzioni dell'artigiano */
+function materialiCalcolati(p){
+  const acc = {}, ordine = [];
+  const ids = p.righe.filter(r => r.on).map(r => r.v || '');
+  p.righe.forEach(r => {
+    const misura = misuraPerMateriali(r); if(!misura) return;
+    const regola = regolaMateriali(r, misura); if(!regola) return;
+    if(regola.senza && ids.some(id => regola.senza.test(id))) return;
+    regola.usa.forEach(([chiave, consumo, scarto]) => {
+      const m = CATALOGO_MATERIALI[chiave]; if(!m) return;
+      const base = misura.n * consumo * (1 + (scarto || 0) / 100);
+      if(!acc[chiave]){ acc[chiave] = {chiave, base:0, fonti:[]}; ordine.push(chiave); }
+      acc[chiave].base += base;
+      acc[chiave].fonti.push({nome:r.nome, misura, consumo, scarto:scarto || 0});
+    });
+  });
+  return ordine.map(chiave => {
+    const x = acc[chiave], m = CATALOGO_MATERIALI[chiave];
+    const base = Math.round(x.base * 1000) / 1000;
+    const q = m.conf ? Math.max(1, Math.ceil(base / m.conf - 1e-9))
+      : (m.u === 'mc' ? Math.max(0.1, Math.ceil(base * 10 - 1e-9) / 10) : Math.max(1, Math.ceil(base - 1e-9)));
+    return Object.assign({}, m, {chiave, base, q, fonti:x.fonti});
+  });
+}
+function statoMateriali(p){
+  if(!p.materiali || typeof p.materiali !== 'object') p.materiali = {};
+  const m = p.materiali;
+  if(!m.cambi || typeof m.cambi !== 'object') m.cambi = {};
+  if(!Array.isArray(m.tolti)) m.tolti = [];
+  if(!Array.isArray(m.aggiunti)) m.aggiunti = [];
+  return m;
+}
+/* la lista come la vede lui: calcolata, meno le righe tolte, con i suoi numeri */
+function listaMateriali(p){
+  const st = p.materiali || {};
+  const cambi = st.cambi || {}, tolti = st.tolti || [];
+  const fuori = materialiCalcolati(p).filter(x => tolti.indexOf(x.chiave) < 0).map(x => {
+    const suo = typeof cambi[x.chiave] === 'number' && cambi[x.chiave] > 0 ? cambi[x.chiave] : null;
+    return Object.assign(x, {calcolato:x.q, q: suo !== null ? suo : x.q, suo: suo !== null && suo !== x.q});
+  });
+  (st.aggiunti || []).forEach(a => fuori.push({chiave:a.id, nome:a.nome, q:a.q, conf:null, u:'', come:a.come || '', aMano:true, cat:a.cat || ''}));
+  return fuori;
+}
+function quantitaMateriale(x){
+  if(x.aMano) return cifra(x.q) + (x.come ? ' ' + x.come : '');
+  if(x.conf) return cifra(x.q) + ' ' + (x.q === 1 ? x.uno : x.tanti);
+  return misuraScritta(x.q, x.u);
+}
+function dettaglioMateriale(x){
+  if(x.aMano) return 'aggiunto da te';
+  const fonti = x.fonti.map(o => (o.misura.k === 'pz' ? 'per ' + cifra(o.misura.n) : 'per ' + misuraScritta(o.misura.n, o.misura.k)) +
+    ' di ' + String(o.nome || '').toLowerCase());
+  const tot = x.conf && x.u !== 'pz' ? misuraScritta(x.base, x.u) + ' in tutto'
+    : x.conf > 1 ? cifra(Math.ceil(x.base - 1e-9)) + ' pezzi in tutto' : '';
+  const scarto = x.fonti.some(o => o.scarto) ? ' con lo scarto' : '';
+  const sfuso = x.u === 'l' && x.base >= 1000 ? ' (' + cifra(Math.round(x.base / 100) / 10) + ' m³: conviene sfuso)' : '';
+  return [x.conf && x.da ? x.da : '', (tot || (x.fonti.some(o => o.scarto) ? 'scarto compreso' : '')) + (tot ? scarto : '') + sfuso, fonti.join('; ')]
+    .filter(Boolean).join(' · ');
+}
+function materialiHtml(p){
+  if(!p || !p.righe.length) return '';
+  const lista = listaMateriali(p);
+  const st = p.materiali || {};
+  const tolti = (st.tolti || []).length;
+  return `<div class="materiali" id="materiali">
+    <div class="lbl" style="margin-bottom:4px">Materiali da comprare</div>
+    <p class="aiuto-voci" style="margin-top:0">${lista.length
+      ? 'Calcolati dai metri delle voci, con lo scarto. Cambia i numeri come ti servono: la lista è tua, al cliente non va.'
+      : 'Per queste voci non so calcolare i materiali da solo. Aggiungili tu e mandali al fornitore da qui.'}</p>
+    <div id="lista-materiali">${lista.map(x => `
+      <div class="voce materiale" id="mat-${esc(x.chiave)}" data-chiave="${esc(x.chiave)}">
+        <div class="sotto-voce">
+          <div class="nome modificabile" onclick="schedaMateriale('${p.id}','${esc(x.chiave)}')">${esc(x.nome)}</div>
+          <div class="det">${esc(dettaglioMateriale(x))}</div>
+          ${x.suo ? `<div class="det" style="color:var(--accento)" onclick="rimettiCalcolo('${p.id}','${esc(x.chiave)}')">Il tuo numero. Dai metri ne vengono ${esc(quantitaMateriale(Object.assign({}, x, {q:x.calcolato})))}: tocca qui per rimetterlo.</div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="qta"><button onclick="qtaMateriale('${p.id}','${esc(x.chiave)}',-1)" aria-label="Uno in meno">−</button><span class="q-mat">${esc(quantitaMateriale(x))}</span><button onclick="qtaMateriale('${p.id}','${esc(x.chiave)}',1)" aria-label="Uno in più">+</button></div>
+          ${comandi([{t:'Togli dalla lista', i:CESTINO, f:`togliMateriale('${p.id}','${esc(x.chiave)}')`}])}
+        </div>
+      </div>`).join('')}</div>
+    <div class="azioni" style="margin-top:12px">
+      <button class="bottone vuoto piccolo" id="agg-materiale" onclick="aggiungiMateriale('${p.id}')">+ Aggiungi un materiale</button>
+      ${tolti ? `<button class="tasto-testo" id="rimetti-tolti" onclick="rimettiMateriali('${p.id}')">Rimetti ${tolti === 1 ? 'quello tolto' : 'i ' + tolti + ' tolti'}</button>` : ''}
+    </div>
+    ${lista.length ? `<div id="dove-comprare">${doveComprareHtml(p, lista)}</div>` : ''}
+  </div>`;
+}
+function disegnaMateriali(id){
+  const e = document.getElementById('materiali'); if(!e) return;
+  const p = prev(id); if(!p) return;
+  const aperto = document.getElementById('in-zona');
+  const dentro = aperto ? aperto.innerHTML : '';
+  e.outerHTML = materialiHtml(p) || '<div id="materiali"></div>';
+  const z = document.getElementById('in-zona'); if(z && dentro) z.innerHTML = dentro;
+}
+function rigaMateriale(p, chiave){ return listaMateriali(p).find(x => x.chiave === chiave); }
+function qtaMateriale(id, chiave, d){
+  const p = prev(id); const st = statoMateriali(p);
+  const x = rigaMateriale(p, chiave); if(!x) return;
+  const passo = !x.aMano && !x.conf && x.u === 'mc' ? 0.1 : 1;
+  const q = Math.round((x.q + d * passo) * 100) / 100;
+  if(q <= 0){ avvisa('Meno di così no. Se non ti serve, toccala col cestino.'); return; }
+  if(x.aMano){ const a = st.aggiunti.find(y => y.id === chiave); if(a) a.q = q; }
+  else st.cambi[chiave] = q;
+  salva(); disegnaMateriali(id);
+}
+function rimettiCalcolo(id, chiave){
+  const p = prev(id); const st = statoMateriali(p);
+  delete st.cambi[chiave]; salva(); disegnaMateriali(id);
+}
+function togliMateriale(id, chiave){
+  const p = prev(id); const st = statoMateriali(p);
+  if(st.aggiunti.some(a => a.id === chiave)) st.aggiunti = st.aggiunti.filter(a => a.id !== chiave);
+  else if(st.tolti.indexOf(chiave) < 0) st.tolti.push(chiave);
+  salva(); disegnaMateriali(id);
+  avvisa('Tolto dalla lista.');
+}
+function rimettiMateriali(id){
+  const p = prev(id); statoMateriali(p).tolti = []; salva(); disegnaMateriali(id);
+}
+function schedaMateriale(id, chiave){
+  const p = prev(id); const x = rigaMateriale(p, chiave); if(!x) return;
+  scheda({
+    titolo: x.nome,
+    sotto: x.aMano ? 'Aggiunto da te.' : 'Rilievo ne calcola ' + quantitaMateriale(Object.assign({}, x, {q:x.calcolato})) + '. Scrivi quanti ne compri tu.',
+    valori: {q:x.q, nome:x.nome},
+    campi: [
+      {k:'q', l: x.aMano ? 'Quanti' : 'Quanti' + (x.conf ? ' (' + x.tanti + (x.da ? ' ' + x.da : '') + ')' : ' (' + ({mq:'mq', m:'metri', mc:'m³', kg:'kg', l:'litri'}[x.u] || 'pezzi') + ')'), t:'numero'}
+    ].concat(x.aMano ? [{k:'nome', l:'Materiale'}] : []),
+    controlla: d => !(d.q > 0) ? 'Scrivi un numero maggiore di zero.' : null,
+    salva: d => {
+      const st = statoMateriali(p);
+      if(x.aMano){ const a = st.aggiunti.find(y => y.id === chiave); if(a){ a.q = d.q; if(d.nome) a.nome = d.nome; } }
+      else st.cambi[chiave] = d.q;
+    }
+  });
+}
+function aggiungiMateriale(id){
+  const p = prev(id);
+  scheda({
+    titolo: 'Un materiale in più',
+    sotto: 'Quello che la lista non sa: entra fra i materiali di questo lavoro e va al fornitore con gli altri.',
+    valori: {q:1, come:'pezzi'},
+    campi: [
+      {k:'nome', l:'Materiale', p:'Per esempio: profilo in alluminio per gradini'},
+      {k:'q', l:'Quanti', t:'numero', m:true},
+      {k:'come', l:'Come si conta', m:true, p:'pezzi, sacchi, metri'}
+    ],
+    controlla: d => !d.nome ? 'Scrivi che materiale è.' : !(d.q > 0) ? 'Scrivi quanti, in cifre.' : null,
+    salva: d => { statoMateriali(p).aggiunti.push({id:'a' + Date.now().toString(36), nome:d.nome, q:d.q, come:d.come || ''}); },
+    messaggio: 'Aggiunto alla lista dei materiali.'
+  });
+}
+/* la lista come la manda al fornitore: niente prezzi, niente cliente, solo il paese */
+function testoListaMateriali(p, lista){
+  const dove = luogoDelLavoro(p);
+  const paese = dove ? String(dove).split(',').slice(-1)[0].trim() : '';
+  return ['Buongiorno, mi servono questi materiali' + (paese ? ' per un lavoro a ' + paese : '') + ':', '']
+    .concat(lista.map(x => '- ' + x.nome + ': ' + quantitaMateriale(x) + (x.conf && x.da && !x.aMano ? ' ' + x.da : '')))
+    .concat(['', 'Grazie, ' + ((S.azienda && S.azienda.nome) || '')]).join('\n');
+}
+function copiaListaMateriali(id){
+  const p = prev(id); const t = testoListaMateriali(p, listaMateriali(p));
+  const fatto = () => avvisa('Lista copiata: incollala nel messaggio al fornitore.');
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(fatto, () => avvisa('Non riesco a copiarla: usa «Manda la lista».'));
+  else avvisa('Non riesco a copiarla: usa «Manda la lista».');
+}
+function linkListaWhatsapp(p, tel){
+  const t = testoListaMateriali(p, listaMateriali(p));
+  const num = numeroWhatsapp(tel);
+  return 'https://wa.me/' + (num || '') + '?text=' + encodeURIComponent(t);
+}
+function numeroWhatsapp(tel){
+  let n = String(tel || '').replace(/[^\d+]/g, '');
+  if(!n) return '';
+  if(n.indexOf('+') === 0) n = n.slice(1);
+  else if(n.indexOf('00') === 0) n = n.slice(2);
+  else n = '39' + n;
+  return n;
+}
+
+/* ===== I MIEI FORNITORI E QUELLI IN ZONA =====
+   Idea di Andrea del 1/10/2026: nessun confronto prezzi (i suoi prezzi non sono quelli
+   pubblici), ma il fornitore piu' vicino al CANTIERE, non alla sede. Prima i suoi, salvati
+   una volta; se non ne ha, i rivenditori in zona da OpenStreetMap, con un tocco per
+   tenerli. Google Places resta fuori finche' non ci sono incassi (vuole la carta). */
+const CAT_FORNITORE = [['tutto','Un po\' di tutto'], ['edilizia','Materiali edili'], ['colori','Colori e vernici'],
+  ['ferramenta','Ferramenta'], ['elettrico','Materiale elettrico'], ['idraulico','Materiale idraulico'], ['giardino','Giardinaggio e garden']];
+const nomeCatFornitore = c => (CAT_FORNITORE.find(x => x[0] === c) || [0, ''])[1];
+function fornitori(){ if(!Array.isArray(S.fornitori)) S.fornitori = []; return S.fornitori; }
+function luogoDelLavoro(p){
+  const s = p.sopralluogo ? sopr(p.sopralluogo) : S.sopralluoghi.find(x => x.preventivo === p.id);
+  const c = p.cliente ? cliente(p.cliente) : null;
+  return (s && s.luogo) || (c && (c.luogo || c.indirizzo)) || '';
+}
+function puntoDelLavoro(p){
+  const g = giardinoDelPreventivo(p);
+  if(g && g.ril && typeof g.ril.lat === 'number' && typeof g.ril.lon === 'number') return {lat:g.ril.lat, lon:g.ril.lon};
+  if(p.dove && typeof p.dove.lat === 'number' && p.dove.testo === luogoDelLavoro(p)) return {lat:p.dove.lat, lon:p.dove.lon};
+  return null;
+}
+function kmFra(a, b){
+  const r = Math.PI / 180, dy = (b.lat - a.lat) * 111.32, dx = (b.lon - a.lon) * 111.32 * Math.cos((a.lat + b.lat) / 2 * r);
+  return Math.sqrt(dx * dx + dy * dy);
+}
+const kmScritti = km => km < 1 ? Math.round(km * 1000 / 50) * 50 + ' m' : cifra(Math.round(km * 10) / 10, km < 10 && Math.round(km * 10) % 10 ? 1 : 0) + ' km';
+/* il fornitore suo piu' vicino al cantiere, fra quelli che vendono quello che serve */
+function fornitoriPerLavoro(p, lista){
+  const punto = puntoDelLavoro(p);
+  const servono = new Set(lista.map(x => x.cat).filter(Boolean));
+  const tutti = fornitori().map(f => Object.assign({}, f, {
+    km: punto && typeof f.lat === 'number' ? kmFra(punto, f) : null,
+    adatto: !f.vende || f.vende === 'tutto' || servono.has(f.vende)
+  }));
+  tutti.sort((a, b) => (b.adatto - a.adatto) || ((a.km === null ? 1e9 : a.km) - (b.km === null ? 1e9 : b.km)));
+  return {punto, tutti};
+}
+function tastiFornitore(p, f, primo){
+  return `<div class="azioni" style="margin-top:8px">
+    <a class="bottone ${primo ? '' : 'vuoto '}piccolo" id="${primo ? 'manda-lista' : ''}" href="${esc(linkListaWhatsapp(p, f.tel))}" target="_blank" rel="noopener">Manda la lista</a>
+    ${f.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(f.tel).replace(/[^\d+]/g, ''))}">Chiama</a>` : ''}
+    ${tastoNaviga(f.indirizzo || (typeof f.lat === 'number' ? f.lat + ',' + f.lon : ''), 'Portami lì')}
+  </div>`;
+}
+function doveComprareHtml(p, lista){
+  const {punto, tutti} = fornitoriPerLavoro(p, lista);
+  const primo = tutti[0];
+  return `<div class="dove-comprare">
+    <div class="lbl" style="margin:18px 0 6px">Dove li compri</div>
+    ${primo ? `<div class="fornitore-primo">
+        <div class="nome-forn">${esc(primo.nome)}</div>
+        <div class="det">${esc([primo.vende && primo.vende !== 'tutto' ? nomeCatFornitore(primo.vende) : '',
+          primo.km !== null ? 'a ' + kmScritti(primo.km) + ' dal cantiere' : (primo.indirizzo || ''),
+          !primo.adatto ? 'non vende tutto quello che serve' : ''].filter(Boolean).join(' · '))}</div>
+        ${tastiFornitore(p, primo, true)}
+      </div>
+      ${tutti.length > 1 ? `<details class="altri-forn"><summary>Gli altri tuoi fornitori (${tutti.length - 1})</summary>
+        ${tutti.slice(1).map(f => `<div class="fornitore-altro"><div class="nome-forn piccolo">${esc(f.nome)}</div>
+          <div class="det">${esc([nomeCatFornitore(f.vende), f.km !== null ? 'a ' + kmScritti(f.km) : ''].filter(Boolean).join(' · '))}</div>
+          ${tastiFornitore(p, f, false)}</div>`).join('')}</details>` : ''}`
+      : `<p class="aiuto-voci" style="margin-top:0">Non hai ancora fornitori salvati. Mettine uno e la lista gli arriva con un tocco, oppure guarda chi vende in zona.</p>`}
+    <div class="azioni" style="margin-top:10px">
+      ${primo ? '' : `<a class="bottone piccolo" id="manda-lista" href="${esc(linkListaWhatsapp(p, ''))}" target="_blank" rel="noopener">Manda la lista</a>`}
+      <button class="bottone vuoto piccolo" id="copia-lista" onclick="copiaListaMateriali('${p.id}')">Copia la lista</button>
+      <button class="bottone vuoto piccolo" id="agg-fornitore" onclick="schedaFornitore(null,'${p.id}')">+ Un tuo fornitore</button>
+      <button class="bottone vuoto piccolo" id="cerca-in-zona" onclick="cercaInZona('${p.id}')">Chi vende in zona</button>
+    </div>
+    <div id="in-zona"></div>
+  </div>`;
+}
+/* dove sta un indirizzo scritto: lo chiede al servizio, che sa gia' trovare i paesini */
+function puntoDaIndirizzo(testo){
+  return fetch(SPORTELLO_RILIEVO + '/indirizzi?' + col() + 'cerca=' + encodeURIComponent(testo), {mode:'cors'})
+    .then(r => r.json()).then(j => {
+      const s = (j && j.suggerimenti || []).find(x => typeof x.lat === 'number');
+      return s ? {lat:s.lat, lon:s.lon} : null;
+    }).catch(() => null);
+}
+const nomiZona = {edilizia:'Materiali edili', colori:'Colori', ferramenta:'Ferramenta e fai da te', elettrico:'Materiale elettrico', idraulico:'Idraulica e bagno', giardino:'Garden'};
+async function cercaInZona(id){
+  const p = prev(id); const box = document.getElementById('in-zona'); if(!p || !box) return;
+  const dove = luogoDelLavoro(p);
+  let punto = puntoDelLavoro(p);
+  if(!punto && !dove){ box.innerHTML = '<p class="aiuto-voci">Questo lavoro non ha ancora un indirizzo: mettilo nel sopralluogo e cerco i rivenditori lì intorno.</p>'; return; }
+  box.innerHTML = '<p class="aiuto-voci" id="zona-cerco">Cerco i rivenditori intorno al cantiere…</p>';
+  const lista = listaMateriali(p);
+  const cat = Array.from(new Set(lista.map(x => x.cat).filter(Boolean))).join(',');
+  let j = null;
+  try{
+    const q = punto ? 'lat=' + punto.lat.toFixed(6) + '&lon=' + punto.lon.toFixed(6) : 'indirizzo=' + encodeURIComponent(dove);
+    const r = await fetch(SPORTELLO_RILIEVO + '/fornitori-vicini?' + col() + q + '&cosa=' + encodeURIComponent(cat), {mode:'cors'});
+    j = await r.json();
+  }catch(e){ j = null; }
+  const b2 = document.getElementById('in-zona'); if(!b2) return;
+  if(j && j.centro && typeof j.centro.lat === 'number' && !punto){ p.dove = {lat:j.centro.lat, lon:j.centro.lon, testo:dove}; salva(); }
+  const negozi = (j && j.negozi) || [];
+  if(!negozi.length){
+    b2.innerHTML = `<p class="aiuto-voci" id="zona-vuota">${j && j.messaggio ? esc(j.messaggio)
+      : 'Adesso non riesco a vedere i negozi della zona. Riprova fra poco, o salva il tuo fornitore: poi la lista gli arriva con un tocco.'}</p>`;
+    return;
+  }
+  zonaTrovata[id] = negozi;
+  b2.innerHTML = `<div class="lbl" style="margin:14px 0 4px">In zona, entro ${esc(cifra(j.km || 10))} km dal cantiere</div>
+    <p class="aiuto-voci" style="margin-top:0">Da OpenStreetMap, la mappa libera: orari e telefoni a volte mancano. Tocca «Tienilo» per metterlo fra i tuoi.</p>
+    ${negozi.slice(0, 8).map((n, k) => `<div class="fornitore-altro in-zona" id="zona-${k}">
+      <div class="nome-forn piccolo">${esc(n.nome || nomiZona[n.cat] || 'Rivenditore')}</div>
+      <div class="det">${esc([nomiZona[n.cat] || '', 'a ' + kmScritti(n.km), n.indirizzo || ''].filter(Boolean).join(' · '))}</div>
+      <div class="azioni" style="margin-top:6px">
+        <button class="bottone vuoto piccolo" onclick="tieniFornitore('${p.id}',${k})">Tienilo</button>
+        ${n.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(n.tel).replace(/[^\d+]/g, ''))}">Chiama</a>` : ''}
+        ${tastoNaviga(n.indirizzo ? n.indirizzo : n.lat + ',' + n.lon, 'Portami lì')}
+      </div></div>`).join('')}`;
+}
+const zonaTrovata = {};
+function tieniFornitore(id, k){
+  const n = (zonaTrovata[id] || [])[k]; if(!n) return;
+  if(fornitori().some(f => f.nome === n.nome && Math.abs((f.lat || 0) - n.lat) < 0.0005)){ avvisa('Ce l\'hai già fra i tuoi.'); return; }
+  fornitori().push({id:'f' + Date.now().toString(36), nome:n.nome || nomiZona[n.cat] || 'Rivenditore', tel:n.tel || '',
+    indirizzo:n.indirizzo || '', vende:n.cat || 'tutto', lat:n.lat, lon:n.lon, da:'zona'});
+  salva(); disegnaMateriali(id);
+  avvisa('Salvato fra i tuoi fornitori. Telefono e cosa vende li correggi in Impostazioni.');
+}
+function schedaFornitore(fid, idPrev){
+  const f = fid ? fornitori().find(x => x.id === fid) : null;
+  scheda({
+    titolo: f ? f.nome : 'Un tuo fornitore',
+    sotto: 'Lo salvi una volta. Dalla lista dei materiali Rilievo ti propone quello più vicino al cantiere.',
+    valori: f ? {nome:f.nome, tel:f.tel, indirizzo:f.indirizzo, vende:f.vende || 'tutto'} : {vende:'tutto'},
+    campi: [
+      {k:'nome', l:'Nome', p:'Per esempio: Edilizia Rossi'},
+      {k:'tel', l:'Telefono o WhatsApp', t:'tel', p:'333 123 4567'},
+      {k:'indirizzo', l:'Indirizzo', p:'Via Emilia 120, Lodi'},
+      {k:'vende', l:'Cosa vende', t:'scelta', opzioni:CAT_FORNITORE}
+    ],
+    controlla: d => !d.nome ? 'Scrivi il nome del fornitore.' : null,
+    testoBottoneElimina:'Toglilo', testoElimina:'Vuoi togliere questo fornitore? I preventivi restano come sono.', testoSiElimina:'Sì, toglilo',
+    avvisoElimina:'Fornitore tolto.',
+    elimina: f ? () => { S.fornitori = fornitori().filter(x => x.id !== f.id); } : null,
+    salva: d => {
+      const x = f || {id:'f' + Date.now().toString(36)};
+      const nuovoIndirizzo = !f || f.indirizzo !== d.indirizzo;
+      Object.assign(x, {nome:d.nome, tel:d.tel, indirizzo:d.indirizzo, vende:d.vende});
+      if(!f) fornitori().push(x);
+      if(nuovoIndirizzo){ delete x.lat; delete x.lon; }
+      if(nuovoIndirizzo && d.indirizzo) puntoDaIndirizzo(d.indirizzo).then(pt => {
+        if(!pt) return;
+        x.lat = pt.lat; x.lon = pt.lon; salva();
+        if(idPrev) disegnaMateriali(idPrev);
+      });
+    },
+    messaggio: f ? 'Fornitore aggiornato.' : 'Fornitore salvato.'
+  });
+}
+function riquadroFornitori(){
+  const tutti = fornitori();
+  return `<div class="riquadro" id="riquadro-fornitori">
+    <div class="lbl" style="margin-bottom:12px">I tuoi fornitori</div>
+    ${tutti.length ? tutti.map(f => `<div class="riga-tot cliccabile" onclick="schedaFornitore('${f.id}')" style="cursor:pointer">
+        <span>${esc(f.nome)}<br><span style="color:var(--tenue);font-size:14px">${esc([nomeCatFornitore(f.vende), f.indirizzo].filter(Boolean).join(' · '))}</span></span>
+        <span style="color:var(--accento)">${esc(f.tel || 'cambia')} ›</span></div>`).join('')
+      : '<p style="font-size:16px;color:var(--soft)">Salva i negozi dove compri. Dalla lista dei materiali di ogni preventivo ti propongo il più vicino al cantiere, e la lista gli arriva con un tocco.</p>'}
+    <div class="azioni" style="margin-top:14px"><button class="bottone vuoto" id="agg-fornitore-imp" onclick="schedaFornitore(null)">+ Aggiungi un fornitore</button></div>
+  </div>`;
 }
 
 /* ===== LISTINO ===== */
@@ -13848,17 +14489,28 @@ PAGINE.documento = {
   testata(id){
     const p = prev(id); if(!p) throw 0;
     return {occhiello:'Documento n. ' + esc(p.numero), titolo:'Preventivo',
-      destra:`<div class="azioni">
-        <a class="torna" href="#documenti" onclick="return indietro('#documenti')" style="margin:0">← Indietro</a>
-        <a class="bottone vuoto piccolo" href="#preventivo/${p.id}">Modificalo</a>
-        ${p.stato === 'bozza' || p.stato === 'inviato'
-          ? `<button class="bottone vuoto piccolo" onclick="apriFirma('${p.id}')">Fallo firmare</button>` : ''}
-        ${logoSicuro(S.azienda.logo) ? '' : `<button class="bottone vuoto piccolo" onclick="document.getElementById('scelta-logo-subito').click()">Metti il tuo logo</button>
-          <input type="file" id="scelta-logo-subito" accept="image/*" style="display:none" onchange="caricaLogo(this,'subito')">`}
-        <button class="bottone piccolo" onclick="schedaPdf('${p.id}')">Manda il PDF</button>
-        <button class="bottone vuoto piccolo" onclick="window.print()">Stampa o salva in PDF</button>
+      /* Un tasto grande per consegnarlo, gli altri piccoli sotto. Prima erano cinque tasti
+         uguali e «Manda il PDF» era uno dei tanti; in piu' non segnava la consegna: il
+         preventivo restava in bozza e nei numeri le consegne erano zero (si' di Andrea del
+         5/11/2026, punto 4 del 1/11). In bozza ora apre «Come glielo consegni?», che ha
+         dentro anche il PDF, il link e WhatsApp. */
+      destra:`<div class="azioni-doc">
+        ${p.stato === 'bozza'
+          ? `<button class="bottone consegna-grande" id="consegna-doc" onclick="consegnaPreventivo('${p.id}')">Consegnalo al cliente</button>
+             <p class="consegna-sotto">Link, PDF o WhatsApp: scegli tu. Poi lo ritrovi fra quelli che aspettano risposta.</p>`
+          : `<button class="bottone consegna-grande" id="consegna-doc" onclick="schedaPdf('${p.id}')">Manda il PDF</button>`}
+        <div class="azioni azioni-piccole">
+          <a class="torna" href="#documenti" onclick="return indietro('#documenti')" style="margin:0">← Indietro</a>
+          <a class="tasto-testo" href="#preventivo/${p.id}">Modificalo</a>
+          ${p.stato === 'bozza' || p.stato === 'inviato'
+            ? `<button class="tasto-testo" onclick="apriFirma('${p.id}')">Fallo firmare</button>` : ''}
+          ${logoSicuro(S.azienda.logo) ? '' : `<button class="tasto-testo" onclick="document.getElementById('scelta-logo-subito').click()">Metti il tuo logo</button>
+            <input type="file" id="scelta-logo-subito" accept="image/*" style="display:none" onchange="caricaLogo(this,'subito')">`}
+          <button class="tasto-testo" onclick="window.print()">Stampa o salva in PDF</button>
+        </div>
       </div>`};
   },
+
   corpo(id){
     const p = prev(id), c = conti(p), a = S.azienda, cl = p.cliente ? cliente(p.cliente) : null;
     const righe = p.righe.filter(r => r.on && !r.facoltativa);
@@ -15688,6 +16340,7 @@ PAGINE.impostazioni = {
         ${riquadroFic()}
         ${riquadroCopia()}
         ${riquadroPromemoria()}
+        ${riquadroFornitori()}
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il tuo lavoro, in un file</div>
           <p style="font-size:16px;color:var(--soft)">Quello che fai resta su questo dispositivo, anche se chiudi la pagina (<a href="#privacy" style="color:var(--accento)">come trattiamo i dati</a>). Il file serve a portartelo via: su un altro telefono, sul computer, o per mandarcelo se c'è un problema da sistemare.</p>
@@ -15764,11 +16417,24 @@ function preparaChat(){
   b.setAttribute('aria-label', 'Chiedi all\'assistente');
   b.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12.6" r="3.9"/><path d="M5 12.2a7 7 0 0 1 14 0"/><rect x="3.7" y="11.6" width="2.5" height="4.3" rx="1.15"/><rect x="17.8" y="11.6" width="2.5" height="4.3" rx="1.15"/><path d="M19.05 15.9c0 2.1-1.9 3.5-4.4 3.5h-1.1"/><path d="M10.6 11.9v.01M13.4 11.9v.01M10.8 14.1c.75.55 1.65.55 2.4 0"/></svg>Chiedi';
   b.onclick = apriChat;
-  document.body.appendChild(b);
+  /* Sul telefono «Chiedi» sta nella barra in basso, accanto alle pagine: prima galleggiava
+     sopra prezzi del listino, righe dei lavori e foto. Cosi' non copre niente e non sparisce
+     (si' di Andrea del 5/11/2026, punto 3 del 1/11). Sul computer resta dov'era. */
+  const barra = document.getElementById('barra-sotto');
+  const stretto = typeof matchMedia === 'function' ? matchMedia('(max-width:900px)') : null;
+  const metti = () => {
+    if(barra && stretto && stretto.matches){
+      b.classList.add('in-barra'); b.classList.remove('scansato');
+      barra.insertBefore(b, barra.querySelector('a[data-p="altro"]'));
+    } else { b.classList.remove('in-barra'); document.body.appendChild(b); }
+  };
+  metti();
+  if(stretto && stretto.addEventListener) stretto.addEventListener('change', metti);
   /* giu' = si scansa; su, o in fondo alla pagina (dove c'e' gia' lo spazio libero) = torna */
   let ultimo = window.scrollY || 0;
   window.addEventListener('scroll', () => {
     const y = window.scrollY || 0, fondo = document.documentElement.scrollHeight - window.innerHeight - y < 90;
+    if(b.classList.contains('in-barra')){ ultimo = y; return; }
     if(fondo || y < 60 || y < ultimo - 6) b.classList.remove('scansato');
     else if(y > ultimo + 6) b.classList.add('scansato');
     ultimo = y;

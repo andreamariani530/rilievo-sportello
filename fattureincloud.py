@@ -56,6 +56,9 @@ STATI = {
     "missing": "da_mandare", "not_sent": "da_mandare",
 }
 METODI = {"MP01", "MP02", "MP05", "MP08", "MP12"}   # contanti, assegno, bonifico, carta, RIBA
+SOGLIA_BOLLO = 77.47          # sopra (non uguale) la fattura senza IVA vuole il bollo da 2 euro
+# la fattura tornata indietro (o creata e mai partita) si corregge e si rimanda: stesso numero
+DA_RIMANDARE = {"rejected", "discarded", "error", "manual_rejected", "not_sent", "missing"}
 
 
 class Scaduto(Exception):
@@ -67,7 +70,13 @@ class NonCollegato(Exception):
 
 
 class Rifiutata(Exception):
-    """La fattura non parte: il motivo e' detto in chiaro, per l'artigiano."""
+    """La fattura non parte: il motivo e' detto in chiaro, per l'artigiano.
+    Se la fattura c'e' gia' nel suo Fatture in Cloud (creata ma non partita), porta con se'
+    id e numero: l'app li tiene, e il rinvio usa quella invece di crearne un'altra."""
+
+    def __init__(self, testo, fic_id=None, numero=""):
+        super().__init__(testo)
+        self.fic_id, self.numero = fic_id, numero
 
 
 class NonRisponde(Exception):
@@ -128,6 +137,10 @@ class Finto:
       - codice destinatario «VERIFI0»: il loro controllo del file trova un errore;
       - revoca(refresh): l'artigiano ha tolto l'app dal suo lato.
     Un permesso lungo usato una volta non vale piu', come nel vero.
+    Dal 6/11/2026: la numerazione e' quella di un registro (per ditta e per anno,
+    l'ultima che c'e' piu' uno: una bozza cancellata non lascia buchi), il totale da
+    pagare fa l'IVA aliquota per aliquota e, con bollo_al_cliente, ci somma il bollo;
+    una fattura tornata indietro si corregge (PUT) e si rimanda col suo numero.
     """
 
     def __init__(self):
@@ -147,6 +160,39 @@ class Finto:
             {"id": 66, "value": 0, "description": "Escluso art. 15", "ei_type": "1", "is_disabled": False},
         ]
         self.durata = 86400
+        self.bollo_al_cliente = False   # come la ditta ha impostato il bollo: a carico del cliente o no
+        self.invii = []                 # (id, numero) di ogni e_invoice/send: un doppione si vede
+        self.ultimo_id = 9000
+
+    def _prossimo_numero(self, cid, data):
+        anno = str(data or "")[:4]
+        usati = [int(d["number"]) for d in self.documenti.values()
+                 if d.get("_cid") == cid and str(d.get("date") or "")[:4] == anno and isinstance(d.get("number"), int)]
+        return max(usati, default=0) + 1
+
+    def _totali(self, d):
+        aliquote = {v["id"]: float(v["value"]) for v in self.codici_iva}
+        basi = {}
+        for r in d.get("items_list") or []:
+            vid = (r.get("vat") or {}).get("id")
+            basi[vid] = basi.get(vid, 0) + float(r.get("qty", 1)) * float(r.get("net_price", 0))
+        netto = round(sum(basi.values()), 2)
+        iva = round(sum(round(b * aliquote.get(k, 0) / 100, 2) for k, b in basi.items()), 2)
+        bollo = float(d.get("stamp_duty") or 0)
+        dovuto = round(netto + iva + (bollo if self.bollo_al_cliente else 0), 2)
+        return {"amount_net": netto, "amount_vat": iva, "amount_due": dovuto, "stamp_duty": bollo}
+
+    def _controlla(self, d):
+        """I controlli che il vero fa quando crea o modifica: rata = totale da pagare, dati, aliquote."""
+        if d.get("items_list") and d.get("payments_list"):
+            if abs(sum(float(x.get("amount", 0)) for x in d["payments_list"]) - self._totali(d)["amount_due"]) > 0.005:
+                return {"error": {"message": "Il totale dei pagamenti non corrisponde al totale da pagare."}}
+        validi = {v["id"] for v in self.codici_iva}
+        if d.get("type") != "invoice" or not d.get("items_list") or not (d.get("entity") or {}).get("name"):
+            return {"error": {"message": "Dati mancanti"}}
+        if any((r.get("vat") or {}).get("id") not in validi for r in d["items_list"]):
+            return {"error": {"message": "Aliquota IVA non valida"}}
+        return None
 
     # il passaggio dal sito di Fatture in Cloud: l'artigiano ha detto si'
     def autorizza(self):
@@ -203,27 +249,17 @@ class Finto:
         if resto == "/info/vat_types":
             return 200, {"data": copy.deepcopy(self.codici_iva)}
         if resto == "/issued_documents/totals" and metodo == "POST":
-            d = corpo.get("data") or {}
-            netto = sum(float(r.get("qty", 1)) * float(r.get("net_price", 0)) for r in d.get("items_list") or [])
-            dovuto = round(netto * 1.22 if any((r.get("vat") or {}).get("id") == 0 for r in d.get("items_list") or [])
-                           else netto, 2)
-            return 200, {"data": {"amount_net": round(netto, 2), "amount_due": dovuto,
-                                  "stamp_duty": d.get("stamp_duty", 0)}}
+            return 200, {"data": self._totali(corpo.get("data") or {})}
         if resto == "/issued_documents" and metodo == "POST":
             d = copy.deepcopy(corpo.get("data") or {})
-            if d.get("items_list") and d.get("payments_list"):
-                _, t = self._chiama("POST", "/c/%d/issued_documents/totals" % cid, {"data": d}, token)
-                if abs(sum(float(x.get("amount", 0)) for x in d["payments_list"]) - t["data"]["amount_due"]) > 0.005:
-                    return 422, {"error": {"message": "Il totale dei pagamenti non corrisponde al totale da pagare."}}
-            validi = {v["id"] for v in self.codici_iva}
-            if d.get("type") != "invoice" or not d.get("items_list") or not (d.get("entity") or {}).get("name"):
-                return 422, {"error": {"message": "Dati mancanti"}}
-            if any((r.get("vat") or {}).get("id") not in validi for r in d["items_list"]):
-                return 422, {"error": {"message": "Aliquota IVA non valida"}}
-            n = self.prossimo.get(cid, 1)
+            errore = self._controlla(d)
+            if errore:
+                return 422, errore
+            n = d.get("number") if isinstance(d.get("number"), int) else self._prossimo_numero(cid, d.get("date"))
             self.prossimo[cid] = n + 1
-            did = 9000 + len(self.documenti) + 1
-            d.update({"id": did, "number": n, "ei_status": "not_sent"})
+            self.ultimo_id += 1
+            did = self.ultimo_id
+            d.update({"id": did, "number": n, "ei_status": "not_sent", "_cid": cid})
             self.documenti[did] = d
             return 200, {"data": {"id": did, "number": n, "type": "invoice"}}
         m = re.fullmatch(r"/issued_documents/(\d+)(/e_invoice/(xml_verify|send|error_reason))?", resto)
@@ -235,6 +271,18 @@ class Finto:
         if cosa is None and metodo == "DELETE":
             self.documenti.pop(d["id"], None)
             return 200, {}
+        if cosa is None and metodo == "PUT":
+            # si modifica solo una fattura mai partita o tornata indietro, come nel vero
+            if d["ei_status"] not in ("not_sent", "missing", "rejected", "discarded", "error", "manual_rejected"):
+                return 422, {"error": {"message": "Il documento è già stato inviato e non si può modificare."}}
+            nuovo = copy.deepcopy(corpo.get("data") or {})
+            errore = self._controlla(nuovo)
+            if errore:
+                return 422, errore
+            nuovo.update({"id": d["id"], "number": nuovo.get("number", d["number"]), "ei_status": d["ei_status"],
+                          "_cid": d["_cid"]})
+            self.documenti[d["id"]] = nuovo
+            return 200, {"data": {"id": d["id"], "number": nuovo["number"], "type": "invoice"}}
         if cosa is None:
             if d["ei_status"] == "sent" and time.time() - d.get("_mandata", 0) > 2:
                 d["ei_status"] = "rejected" if brutta else "accepted"
@@ -245,6 +293,9 @@ class Finto:
                     "Il codice destinatario del cliente non è valido"]}}
             return 200, {"data": {"success": True}}
         if cosa == "send":
+            if d["ei_status"] in ("sent", "attempt", "pending", "processing", "accepted", "manual_accepted", "no_response"):
+                return 422, {"error": {"message": "La fattura elettronica è già stata inviata."}}
+            self.invii.append((d["id"], d["number"]))
             d["ei_status"], d["_mandata"] = "sent", time.time()
             return 200, {"data": {"name": "IT01641790702_%05d.xml" % d["id"], "date": time.strftime("%Y-%m-%d")}}
         if cosa == "error_reason":
@@ -659,9 +710,11 @@ def traduci(f, elenco):
     iban = re.sub(r"\s", "", str(pg.get("iban") or "")).upper()
     if metodo == "MP05" and re.fullmatch(r"IT\d{2}[A-Z]\d{10}[0-9A-Z]{12}", iban):
         doc["ei_data"]["bank_iban"] = iban
-    if forf and f.get("bollo"):
-        # il bollo da 2 euro: Fatture in Cloud lo somma a quello che il cliente deve pagare,
-        # quindi la rata deve contenerlo (da riprovare dal vivo col collaudo 10)
+    if forf and totale > SOGLIA_BOLLO:
+        # il bollo da 2 euro: lo decide la legge (forfettario, piu' di 77,47 euro), non il
+        # telefono, quindi si guarda qui il totale e non il «bollo» che manda l'app (6/11/2026).
+        # La rata qui lo contiene; poi _rata_giusta la allinea a quello che dice Fatture in
+        # Cloud, che lo somma o no secondo le impostazioni della ditta
         doc["stamp_duty"] = 2
         doc["payments_list"][0]["amount"] = round(totale + 2, 2)
     return doc
@@ -713,16 +766,63 @@ def _rata_giusta(account, doc):
     except (TypeError, ValueError):
         return doc
     nostro = doc["payments_list"][0]["amount"]
-    if abs(dovuto - nostro) > 2.005:          # piu' del bollo: qualcosa non torna, meglio fermarsi
+    # Si accetta solo il nostro totale, col bollo o senza (2 euro esatti), al centesimo. Fino al
+    # 6/11/2026 passava qualunque scarto fino a 2 euro anche senza bollo: un totale diverso da
+    # quello del preventivo e del PDF sarebbe partito senza che nessuno lo vedesse.
+    bollo = float(doc.get("stamp_duty") or 0)
+    ammessi = {round(nostro, 2), round(nostro - bollo, 2)}
+    if not any(abs(dovuto - x) <= 0.015 for x in ammessi):
         raise Rifiutata("Per Fatture in Cloud il totale è %s euro, per Rilievo %s: controlla le righe e riprova."
-                        % (("%.2f" % dovuto).replace(".", ","), ("%.2f" % nostro).replace(".", ",")))
+                        % (("%.2f" % dovuto).replace(".", ","), ("%.2f" % (nostro - bollo)).replace(".", ",")))
     doc["payments_list"][0]["amount"] = dovuto
     return doc
 
 
-def manda(account, f):
-    """Crea la fattura nel Fatture in Cloud dell'artigiano, la fa controllare, la manda."""
+def _da_rimandare(account, rifai):
+    """La fattura gia' nel suo Fatture in Cloud che si vuole rimandare: (id, numero, data) se si
+    puo' (tornata indietro, o creata e mai partita), None se non c'e' piu' (cancellata da lui).
+    Una fattura partita o consegnata non si rimanda: sarebbe un doppione allo SdI."""
+    try:
+        did = int(rifai)
+    except (TypeError, ValueError):
+        raise Rifiutata("Questa fattura non la trovo.")
+    codice, r = _con_permesso(account, "GET", "/issued_documents/%d?fieldset=detailed" % did)
+    if codice == 404:
+        return None
+    if codice != 200 or not isinstance(r.get("data"), dict):
+        raise NonRisponde("Fatture in Cloud non risponde (%s)." % codice)
+    d = r["data"]
+    numero = str(d.get("number") if d.get("number") is not None else "") + str(d.get("numeration") or "")
+    if str(d.get("ei_status") or "") not in DA_RIMANDARE:
+        raise Rifiutata("La fattura n. %s è già partita: non si manda una seconda volta. "
+                        "Guarda a che punto è nel tuo Fatture in Cloud." % (numero or did))
+    return did, d.get("number"), d.get("numeration"), str(d.get("date") or ""), numero
+
+
+def _crea_o_correggi(account, f, rifai):
+    """Crea la fattura nel suo Fatture in Cloud, oppure corregge quella tornata indietro
+    tenendo numero e data (6/11/2026). Torna (id, numero scritto, rimandata)."""
     doc = _rata_giusta(account, traduci(f, codici_iva(account)))
+    vecchia = _da_rimandare(account, rifai) if rifai not in (None, "", 0) else None
+    if vecchia:
+        did, numero, serie, data, num = vecchia
+        # la fattura scartata dallo SdI non e' emessa: si rimanda corretta con lo stesso
+        # numero e la stessa data (Agenzia delle Entrate, circolare 13/E del 2018)
+        if numero is not None:
+            doc["number"] = numero
+        if serie:
+            doc["numeration"] = serie
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", data):
+            doc["date"] = data
+            for p in doc["payments_list"]:
+                p["due_date"] = max(p["due_date"], data)
+        codice, r = _con_permesso(account, "PUT", "/issued_documents/%d" % did, {"data": doc})
+        if codice == 422:
+            raise Rifiutata("Fatture in Cloud non accetta la correzione: %s." % (_errore_loro(r) or "un dato non torna"),
+                            fic_id=did, numero=num)
+        if codice != 200:
+            raise NonRisponde("Fatture in Cloud non ha corretto la fattura (%s)." % codice)
+        return did, num, True
     codice, r = _con_permesso(account, "POST", "/issued_documents", {"data": doc})
     if codice == 422:
         raise Rifiutata("Fatture in Cloud non accetta la fattura: %s." % (_errore_loro(r) or "un dato non torna"))
@@ -730,19 +830,38 @@ def manda(account, f):
         raise NonRisponde("Fatture in Cloud non ha creato la fattura (%s)." % codice)
     did, numero = r["data"]["id"], r["data"].get("number")
     num = str(numero) + str(r["data"].get("numeration") or "") if numero is not None else ""
+    return did, num, False
+
+
+def manda(account, f, rifai=None):
+    """Crea la fattura nel Fatture in Cloud dell'artigiano, la fa controllare, la manda.
+    Con rifai (l'id di una fattura tornata indietro o mai partita) corregge quella e la
+    rimanda col suo numero, invece di crearne un'altra (6/11/2026). L'app lo manda dentro la
+    fattura (f["rifai"]): cosi' la strada /fic/manda e chi la avvolge (il Centralino) non cambiano."""
+    if rifai is None and isinstance(f, dict):
+        rifai = f.get("rifai")
+    did, num, rimandata = _crea_o_correggi(account, f, rifai)
     codice, v = _con_permesso(account, "GET", "/issued_documents/%d/e_invoice/xml_verify" % did)
     if codice != 200 or (v.get("data") or {}).get("success") is False:
+        motivo = _errore_loro(v) or "un dato non torna"
+        if rimandata:
+            # era gia' sua, col suo numero: resta li', si corregge e si riprova
+            raise Rifiutata("Il controllo di Fatture in Cloud ha trovato un errore: %s. Correggi e rimandala."
+                            % motivo, fic_id=did, numero=num)
         # il loro controllo ha trovato un errore: non si manda, e la bozza si toglie
         # perche' non resti nel suo Fatture in Cloud un numero mai partito
         _con_permesso(account, "DELETE", "/issued_documents/%d" % did)
-        raise Rifiutata("Il controllo di Fatture in Cloud ha trovato un errore: %s. Correggi e rimandala."
-                        % (_errore_loro(v) or "un dato non torna"))
+        raise Rifiutata("Il controllo di Fatture in Cloud ha trovato un errore: %s. Correggi e rimandala." % motivo)
     codice, s = _con_permesso(account, "POST", "/issued_documents/%d/e_invoice/send" % did, {"data": {}})
     if codice != 200:
         motivo = _errore_loro(s)
         raise Rifiutata("La fattura n. %s è nel tuo Fatture in Cloud ma non è partita%s. "
-                        "Puoi mandarla da lì, o riprovare." % (num or did, (": " + motivo) if motivo else ""))
-    return {"id": did, "numero": num, "stato": "inviata", "prova": prova()}
+                        "Puoi mandarla da lì, o riprovare: si rimanda la stessa, col suo numero."
+                        % (num or did, (": " + motivo) if motivo else ""), fic_id=did, numero=num)
+    fuori = {"id": did, "numero": num, "stato": "inviata", "prova": prova()}
+    if rimandata:
+        fuori["rimandata"] = True
+    return fuori
 
 
 def controlla(account, f):

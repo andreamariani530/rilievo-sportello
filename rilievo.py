@@ -153,6 +153,108 @@ def prendi(url, dati=None, tentativi=3, attesa=1.5, tempo=60):
     raise RuntimeError("Non risponde: %s (%s)" % (url.split("?")[0], ultimo))
 
 
+# ------------------------------------------------- i rivenditori vicino al cantiere
+
+# Dal 6/11/2026: dalla lista dei materiali «chi vende in zona». Versione gratis, coi dati
+# di OpenStreetMap (Overpass). Google Places li avrebbe piu' completi, ma vuole la carta
+# su Google Cloud: decisione parcheggiata finche' non ci sono incassi.
+OVERPASS = ("https://overpass-api.de/api/interpreter",
+            "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+            "https://overpass.kumi.systems/api/interpreter")
+NEGOZI_OSM = {"doityourself": "ferramenta", "hardware": "ferramenta", "paint": "colori",
+              "garden_centre": "giardino", "agrarian": "giardino", "building_materials": "edilizia",
+              "tiles": "edilizia", "flooring": "edilizia", "electrical": "elettrico",
+              "bathroom_furnishing": "idraulico", "trade": "edilizia"}
+_negozi_in_memoria = {}
+
+
+def _domanda_overpass(lat, lon, metri):
+    # un riquadro e non un cerchio: sui server pubblici il cerchio con l'elenco dei
+    # tipi di negozio impiegava piu' di un minuto, il riquadro 20-30 secondi (6/11/2026).
+    # Quelli negli angoli, oltre la distanza chiesta, si tolgono dopo.
+    dy = metri / 111320.0
+    dx = metri / (111320.0 * math.cos(math.radians(lat)))
+    riquadro = "(%.5f,%.5f,%.5f,%.5f)" % (lat - dy, lon - dx, lat + dy, lon + dx)
+    return ('[out:json][timeout:40];nw["shop"~"^(%s)$"]%s;out center tags 150;'
+            % ("|".join(NEGOZI_OSM), riquadro))
+
+
+def _chiedi_overpass(domanda, entro=55.0):
+    """Prova i server pubblici uno dopo l'altro, ma in tutto non oltre un minuto: chi
+    aspetta col telefono in mano merita una risposta, anche se e' «riprova fra poco»."""
+    ultimo, fine = None, time.time() + entro
+    for url in OVERPASS:
+        resto = fine - time.time()
+        if resto < 8:
+            break
+        try:
+            dati = urllib.parse.urlencode({"data": domanda}).encode()
+            richiesta = urllib.request.Request(url, data=dati, headers={"User-Agent": AGENTE})
+            with urllib.request.urlopen(richiesta, timeout=min(40.0, resto)) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except Exception as e:                      # noqa: BLE001
+            ultimo = e
+    raise RuntimeError("OpenStreetMap non risponde (%s)" % ultimo)
+
+
+def _negozio_osm(e, lat, lon):
+    t = e.get("tags") or {}
+    y = e.get("lat", (e.get("center") or {}).get("lat"))
+    x = e.get("lon", (e.get("center") or {}).get("lon"))
+    if y is None or x is None:
+        return None
+    cat = NEGOZI_OSM.get(t.get("shop", ""))
+    if not cat:
+        return None
+    via = " ".join(v for v in (t.get("addr:street", ""), t.get("addr:housenumber", "")) if v)
+    paese = t.get("addr:city", "") or t.get("addr:place", "")
+    return {"nome": (t.get("name") or t.get("brand") or "")[:80], "cat": cat,
+            "tel": (t.get("phone") or t.get("contact:phone") or "").split(";")[0].strip()[:40],
+            "indirizzo": ", ".join(v for v in (via, paese) if v)[:120],
+            "orari": (t.get("opening_hours") or "")[:80],
+            "lat": round(float(y), 6), "lon": round(float(x), 6),
+            "km": round(_distanza_km((lat, lon), (float(y), float(x))), 2)}
+
+
+def fornitori_vicini(lat, lon):
+    """I rivenditori entro 10 km dal cantiere, i piu' vicini prima; se sono meno di
+    tre si allarga a 20 km. Si tiene a mente per un giorno: lo stesso cantiere
+    chiesto due volte non disturba di nuovo OpenStreetMap."""
+    chiave = "%.3f,%.3f" % (lat, lon)
+    fermo = _negozi_in_memoria.get(chiave)
+    if fermo and time.time() - fermo[0] < 86400:
+        return fermo[1]
+    inizio = time.time()
+    for km in (10, 20):
+        if km == 20 and time.time() - inizio > 30:
+            break                                   # il secondo giro solo se il primo e' stato svelto
+        j = _chiedi_overpass(_domanda_overpass(lat, lon, km * 1000))
+        fatto = km
+        visti, negozi = set(), []
+        for e in j.get("elements") or []:
+            n = _negozio_osm(e, lat, lon)
+            if not n or n["km"] > km:
+                continue
+            firma = (n["nome"].lower(), round(n["lat"], 3), round(n["lon"], 3))
+            if firma in visti:
+                continue
+            visti.add(firma)
+            negozi.append(n)
+        # prima quelli con un nome: «Ferramenta» senza nome non si cerca al telefono
+        negozi.sort(key=lambda n: (not n["nome"], n["km"]))
+        if len(negozi) >= 3:
+            break
+    r = {"centro": {"lat": round(lat, 6), "lon": round(lon, 6)}, "km": fatto, "negozi": negozi[:20],
+         "fonte": "OpenStreetMap"}
+    if not negozi:
+        r["messaggio"] = ("Entro %d km dal cantiere la mappa libera non conosce rivenditori. "
+                          "Salva il tuo fornitore: poi la lista gli arriva con un tocco." % fatto)
+    if len(_negozi_in_memoria) > 500:
+        _negozi_in_memoria.clear()
+    _negozi_in_memoria[chiave] = (time.time(), r)
+    return r
+
+
 # ------------------------------------------------- dall'indirizzo al punto
 
 # i tipi di risultato di OpenStreetMap che sono una casa. Non una localita' o una
@@ -3455,7 +3557,8 @@ def servizio(porta=8787, pubblico=False):
                     return
                 if percorso == "/fic/manda":
                     r = fattureincloud.manda(conto, dentro.get("fattura"))
-                    print("  fattura da Fatture in Cloud n. %s%s" % (r.get("numero"), " (prova)" if prova else ""), flush=True)
+                    print("  fattura da Fatture in Cloud n. %s%s%s" % (r.get("numero"), " rimandata" if r.get("rimandata") else "",
+                                                                      " (prova)" if prova else ""), flush=True)
                     self._manda(200, r)
                     return
                 if percorso == "/fic/controlla":
@@ -3476,7 +3579,11 @@ def servizio(porta=8787, pubblico=False):
                 self._manda(409, {"errore": str(e), "non_collegato": True, "prova": prova})
                 return
             except fattureincloud.Rifiutata as e:
-                self._manda(400, {"errore": str(e), "prova": prova})
+                fuori = {"errore": str(e), "prova": prova}
+                if getattr(e, "fic_id", None):
+                    # la fattura c'e' nel suo Fatture in Cloud ma non e' partita: l'app la tiene
+                    fuori.update({"id": e.fic_id, "numero": e.numero or ""})
+                self._manda(400, fuori)
                 return
             except fattureincloud.NonRisponde as e:
                 print("     fatture in cloud:", str(e)[:120])
@@ -3827,7 +3934,8 @@ def servizio(porta=8787, pubblico=False):
 
             # da qui in giu' si spende: foto dall'alto, catasto, particelle. Se il
             # controllo e' acceso, senza un codice buono non si passa.
-            if u.path in ("/rilievo", "/foto", "/particelle", "/case-vicine", "/indirizzi"):
+            if u.path in ("/rilievo", "/foto", "/particelle", "/case-vicine", "/indirizzi",
+                          "/fornitori-vicini"):
                 ok, messaggio, _ = chi_entra(codice_chiesto())
                 if not ok:
                     self._manda(402, {"errore": messaggio, "codice_non_valido": True})
@@ -3881,6 +3989,33 @@ def servizio(porta=8787, pubblico=False):
                     print("     non riuscita:", e)
                     self._manda(502, {"errore": str(e),
                                       "suggerimenti": _suggerimenti_calmi(indirizzo, cap_chiesto())})
+                return
+            if u.path == "/fornitori-vicini":
+                # I rivenditori intorno al cantiere, da OpenStreetMap: edilizia,
+                # ferramenta, colori, garden, materiale elettrico e idraulico. Passa da
+                # qui e non dal telefono perche' i server di OpenStreetMap vogliono un
+                # nome che si presenta e reggono meglio poche domande ripetute (6/11/2026).
+                indirizzo = (q.get("indirizzo") or [""])[0].strip()[:200]
+                try:
+                    la = float((q.get("lat") or [""])[0])
+                    lo = float((q.get("lon") or [""])[0])
+                except ValueError:
+                    la = lo = None
+                if la is None and not indirizzo:
+                    self._manda(400, {"errore": "Servono il punto o l'indirizzo del lavoro.", "negozi": []})
+                    return
+                try:
+                    if la is None:
+                        p = punto_dall_indirizzo(indirizzo, cap_chiesto())
+                        la, lo = p["lat"], p["lon"]
+                    r = fornitori_vicini(la, lo)
+                    print("  fornitori vicini:", len(r["negozi"]))
+                    self._manda(200, r)
+                except Exception as e:              # noqa: BLE001
+                    print("     non riuscita:", e)
+                    self._manda(200, {"negozi": [], "messaggio":
+                        "Adesso la mappa dei negozi non risponde. Riprova fra poco, "
+                        "o salva il tuo fornitore: poi la lista gli arriva con un tocco."})
                 return
             if u.path == "/case-vicine":
                 # Le case intorno a un punto, per farne toccare una quando il civico

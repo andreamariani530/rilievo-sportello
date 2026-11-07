@@ -3,14 +3,69 @@
  "proprietario": "Andrea",
  "nome_completo": "Andrea Mariani",
  "assistente": "Jarvis",
- "mail_accesso": ["andreamariani530a@gmail.com", "andreamariani530@gmail.com"],
+ "mail_accesso": [
+  "andreamariani530a@gmail.com",
+  "andreamariani530@gmail.com"
+ ],
  "mail_codice": "andreamariani530a@gmail.com",
  "fuso": "Europe/Rome",
- "silenzio": {"da": "23:30", "a": "07:00"},
- "voce": {"servizio": "elevenlabs", "voice_id": "UnOINkXZ3yK4vVg3Iayj", "nome": "Beatrice", "tetto_caratteri_mese": 50000},
+ "silenzio": {
+  "da": "23:30",
+  "a": "07:00"
+ },
+ "voce": {
+  "servizio": "elevenlabs",
+  "voice_id": "UnOINkXZ3yK4vVg3Iayj",
+  "nome": "Beatrice",
+  "tetto_caratteri_mese": 10000
+ },
  "whatsapp_servizio": "https://whatsapp-jarvis-zzk3.onrender.com",
- "notifiche": {"contatto_vapid": "mailto:info@rilievoapp.it", "tetto_giorno": 80},
- "fonti": {"rilievo": true, "posta": true, "fiverr": true, "tiktok": true, "calendario": true, "whatsapp": true, "instagram": false, "fatture": true},
- "collegamenti": [["Knowlee", "https://os-6d0fa8.knowlee.ai"], ["Claude", ""], ["Gmail", "https://mail.google.com/mail/u/0/#inbox"],
-                  ["Render", "https://dashboard.render.com/web/srv-dahhku15efls73bvrgp0"], ["TikTok", "https://www.tiktok.com/tiktokstudio"], ["Rilievo", "/"]]
+ "notifiche": {
+  "contatto_vapid": "mailto:info@rilievoapp.it",
+  "tetto_giorno": 80
+ },
+ "fonti": {
+  "rilievo": true,
+  "posta": true,
+  "fiverr": true,
+  "tiktok": true,
+  "calendario": true,
+  "whatsapp": true,
+  "instagram": false,
+  "fatture": true
+ },
+ "collegamenti": [
+  [
+   "Knowlee",
+   "https://os-6d0fa8.knowlee.ai"
+  ],
+  [
+   "Claude",
+   ""
+  ],
+  [
+   "Gmail",
+   "https://mail.google.com/mail/u/0/#inbox"
+  ],
+  [
+   "Render",
+   "https://dashboard.render.com/web/srv-dahhku15efls73bvrgp0"
+  ],
+  [
+   "TikTok",
+   "https://www.tiktok.com/tiktokstudio"
+  ],
+  [
+   "Rilievo",
+   "/"
+  ]
+ ],
+ "conversazione": {
+  "_spiega": "Conversazione a voce con Jarvis (ElevenLabs Agents). Il tetto si conta sul server a ogni conversazione; la variabile CENTRALINO_CONV_TETTO_MINUTI su Render vince su questo numero.",
+  "tetto_minuti_mese": 40,
+  "durata_massima_secondi": 300,
+  "llm": "gemini-2.5-flash",
+  "modello_voce": "eleven_flash_v2_5",
+  "prima_frase": "Dimmi, Andrea."
+ }
 }

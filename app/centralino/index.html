@@ -200,9 +200,6 @@
   .voce h3{margin-top:4px;font:500 16px/1.3 "IBM Plex Sans Condensed",sans-serif;color:#f0fdff}
   .voce p{margin-top:4px;font-size:14px;line-height:1.4;color:#bfe9f7;white-space:pre-line}
   .voce .tasti{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
-  .voce .tt-eti{display:block;margin-top:10px;font:10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c,var(--cyan))}
-  .voce textarea{margin-top:5px}
-  .voce .tt-nota{font-size:12px;opacity:.8}
   .btn{font:500 11.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:10px 12px;cursor:pointer;color:#fff;text-decoration:none;display:inline-block;
     background:color-mix(in srgb,var(--c,var(--cyan)) 22%,transparent);border:1px solid var(--c,var(--cyan));clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
   .btn.vuoto{background:transparent;color:var(--ice);border-color:var(--line)}
@@ -308,6 +305,57 @@
     .plancia nav{display:none}
     .plancia .onda{height:22px}
   }
+  /* ===== conversazione a voce con Jarvis (6/11/2026): cerchio vivo, sottotitoli, carte ===== */
+  html.conv-ascolta body{--heat:#3dffb0} html.conv-parla body{--heat:#ffb547} html.conv-pensa body{--heat:#c9f6ff}
+  html.conv .reattore{transform:scale(calc(1 + var(--liv,0)*.07));transition:transform .08s linear}
+  @media (max-width:999px){html.conv .reattore{transform-origin:50% 0;transform:scale(calc(.74 + var(--liv,0)*.05))}}
+  html.conv .reattore::after{content:"";position:absolute;inset:14%;border-radius:50%;pointer-events:none;
+    box-shadow:0 0 calc(18px + var(--liv,0)*70px) calc(var(--liv,0)*16px) var(--heat),inset 0 0 calc(20px + var(--liv,0)*60px) var(--heat);opacity:calc(.35 + var(--liv,0)*.65)}
+  html.conv .cuore .num{font-size:30px;letter-spacing:.12em}
+  html.conv .proiezione,html.conv .telemetria,html.conv .registro{opacity:.14;filter:blur(1.5px);transition:opacity .5s,filter .5s;pointer-events:none}
+  .conv-strato{position:fixed;inset:0;z-index:6;pointer-events:none}
+  .sottotitoli{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 128px);max-height:13vh;overflow:hidden;
+    display:flex;flex-direction:column;justify-content:flex-end;gap:6px;opacity:0;transition:opacity .4s;
+    -webkit-mask-image:linear-gradient(transparent,#000 38%);mask-image:linear-gradient(transparent,#000 38%)}
+  html.conv .sottotitoli,.sottotitoli.resta{opacity:1}
+  .riga-sub{font:500 17px/1.32 "IBM Plex Sans Condensed",sans-serif;color:#eafcff;text-shadow:0 0 10px rgba(1,6,17,.95),0 0 2px #010611;animation:sale .35s ease-out}
+  .riga-sub b{display:block;font:400 9.5px/1.4 var(--mono);letter-spacing:.22em;color:var(--heat);text-shadow:0 0 8px var(--heat)}
+  .riga-sub.tu{color:#9fdcf0;font-size:15px}.riga-sub.tu b{color:#3dffb0;text-shadow:0 0 8px #3dffb0}
+  .riga-sub.nota{font:11px/1.4 var(--mono);letter-spacing:.12em;color:var(--mute);text-transform:uppercase}
+  @keyframes sale{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .carte{position:absolute;left:14px;right:14px;top:calc(env(safe-area-inset-top) + min(38vh,380px));bottom:calc(env(safe-area-inset-bottom) + 134px + 13vh);
+    display:flex;flex-direction:column;gap:8px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;pointer-events:none}
+  .carta{pointer-events:auto;position:relative;flex:none;padding:10px 14px 11px;border:1px solid color-mix(in srgb,var(--c,#22c8ff) 70%,transparent);
+    background:linear-gradient(120deg,rgba(4,34,63,.93),rgba(1,10,24,.9));box-shadow:0 0 22px color-mix(in srgb,var(--c,#22c8ff) 35%,transparent),inset 0 0 24px color-mix(in srgb,var(--c,#22c8ff) 14%,transparent);
+    clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));color:#dff7ff;
+    animation:entra .55s cubic-bezier(.2,.9,.25,1.15) both}
+  .carta::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,#22c8ff);box-shadow:0 0 12px var(--c,#22c8ff)}
+  .carta.esce{animation:esce .4s ease-in forwards}
+  .carta.lampo{animation:lampo .9s ease-out}
+  @keyframes entra{from{opacity:0;transform:translateX(46px) scale(.94);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+  @keyframes esce{to{opacity:0;transform:translateX(-40px) scale(.96);filter:blur(4px)}}
+  @keyframes lampo{0%{filter:brightness(2.2)}100%{filter:none}}
+  .carta-testa{display:flex;justify-content:space-between;gap:8px;font:9.5px/1.4 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--c,#22c8ff)}
+  .carta h4{margin:3px 0 1px;font:500 17px/1.25 Oxanium,sans-serif;letter-spacing:.03em;color:#f4feff}
+  .carta p{font-size:14.5px;line-height:1.35;color:#bfe9f7;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .carta textarea{width:100%;margin-top:6px;min-height:54px;resize:none;background:rgba(1,6,17,.7);color:#f0fdff;border:1px solid rgba(255,181,71,.5);padding:7px 9px;font:15px/1.35 "IBM Plex Sans Condensed",sans-serif}
+  .carta-tasti{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .carta-tasti button{min-height:38px;padding:0 14px;border:1px solid var(--c,#22c8ff);background:rgba(34,200,255,.08);color:#eafcff;font:12px var(--mono);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+  .carta-tasti button.pieno{background:var(--c,#22c8ff);color:#010611;box-shadow:0 0 16px var(--c,#22c8ff)}
+  .carta-tasti button.proposto{animation:chiama 1.1s ease-in-out infinite}
+  .carta-tasti button:disabled{opacity:.45}
+  @keyframes chiama{50%{box-shadow:0 0 26px var(--c,#ffb547),0 0 2px #fff}}
+  .carta .esito{margin-top:6px;font:11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#3dffb0}
+  .carta.decisione{--c:#ff8a2b}.carta.whatsapp{--c:#3dffb0}.carta.bozza{--c:#ffb547}.carta.contatto{--c:#ff2f4a}.carta.messaggio{--c:#22c8ff}.carta.appuntamento{--c:#c9a8ff}
+  .prova-bollo{position:fixed;z-index:7;top:calc(env(safe-area-inset-top) + 68px);left:50%;transform:translateX(-50%);white-space:nowrap;font:9px var(--mono);letter-spacing:.2em;color:#ffb547;border:1px solid rgba(255,181,71,.6);padding:3px 9px;background:rgba(1,6,17,.75);pointer-events:none}
+  @media (max-width:999px){.carta p{-webkit-line-clamp:1}.carta.decisione p{display:none}.carta textarea{min-height:44px}.carta{padding:8px 12px 9px}.carta h4{font-size:16px}.carta-tasti{margin-top:6px}.carta-tasti button{min-height:34px}.riga-sub{font-size:16px}}
+  @media (min-width:1000px){
+    .carte{left:auto;right:max(28px,calc(50vw - 640px));top:110px;bottom:auto;width:360px;max-height:calc(100vh - 160px)}
+    .sottotitoli{left:max(28px,calc(50vw - 640px));right:auto;width:380px;bottom:120px;max-height:46vh}
+    .riga-sub{font-size:19px}
+    html.conv .proiezione,html.conv .telemetria,html.conv .registro{opacity:.3;filter:none}
+  }
+  @media (prefers-reduced-motion:reduce){.carta,.riga-sub{animation:none}html.conv .reattore{transform:none}}
 </style>
 </head>
 <body class="calm">
@@ -367,6 +415,12 @@
   </footer>
 </main>
 
+<!-- conversazione a voce con Jarvis (6/11/2026): sottotitoli e carte che entrano mentre parla -->
+<div class="conv-strato" id="conv" aria-live="polite">
+  <div class="carte" id="carte"></div>
+  <div class="sottotitoli" id="sottotitoli"></div>
+</div>
+
 <section class="foglio" id="foglio" aria-modal="true" role="dialog" aria-labelledby="titoloFoglio">
   <header><h2 id="titoloFoglio">—</h2><button class="chiudi" id="chiudi">Chiudi</button></header>
   <div class="corpo" id="corpo"></div>
@@ -392,8 +446,14 @@
 const $=id=>document.getElementById(id);
 const fermo=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const S={g:'',st:null,sez:'oggi',filtro:'nuovi',storia:[],voce:false,ttTesto:{}};
+const S={g:'',st:null,sez:'oggi',filtro:'nuovi',storia:[],voce:false};
 try{S.g=localStorage.getItem('centralino-gettone')||''}catch(e){}
+/* ?prova=1: dati finti e nessuna chiamata al server, per collaudi e foto (6/11/2026) */
+const FINTA=/[?&]prova=1\b/.test(location.search);
+if(FINTA){const vera=window.fetch.bind(window);
+  window.fetch=(u,o)=>{const p=String(u&&u.url||u).replace(location.origin,'');
+    if(/^\/centralino\/(caratteri|icona)/.test(p))return vera(u,o);
+    return new Promise(r=>setTimeout(()=>r(provaRisposta(p,o)),40))}}
 
 /* ---------- parlare col server ---------- */
 async function api(path,body){
@@ -501,8 +561,6 @@ function mostra(){
   if(S.sez!=='oggi'&&S.sez!=='chat'&&S.sez!=='whatsapp'&&!scrive)apri(S.sez,true);
 }
 function tastiDi(x,grande){
-  if(x.genere==='decisione'&&x.tt&&x.stato==='attesa'&&grande)return`<button data-apri="/centralino#decisioni">Rispondi</button>`;
-  if(x.tt&&x.stato==='attesa')return`<button data-dec="${x.id}" data-r="si">Manda</button>${x.link?`<button data-tt-copia="${x.id}" data-apri="${esc(x.link)}">Copia e apri</button>`:''}<button data-dec="${x.id}" data-r="no">Lascia stare</button>`;
   if(x.genere==='decisione'&&(x.stato==='attesa'||!x.stato))return`<button data-dec="${x.id}" data-r="si">${esc(x.si||'Sì')}</button><button data-dec="${x.id}" data-r="no">${esc(x.no||'No')}</button>`;
   const apri=x.link?`<button data-apri="${esc(x.link)}">Apri</button>`:'';
   return apri+`<button data-ev="${x.id}" data-s="fatto">Fatto</button>`+(apri?'':`<button data-ev="${x.id}" data-s="visto">Visto</button>`);
@@ -519,32 +577,22 @@ setInterval(aggiorna,30000);document.addEventListener('visibilitychange',()=>{if
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button[data-ev],button[data-dec],button[data-apri],button[data-con],a[data-claude]');if(!b)return;
   e.preventDefault();
-  if(b.dataset.ttCopia)ttCopia($('tt-'+b.dataset.ttCopia).value);
   if(b.dataset.apri){apriLink(b.dataset.apri);return}
   if(b.dataset.claude!==undefined){apriClaude();return}
   b.disabled=true;
-  const tt=b.dataset.dec&&b.dataset.r==='si'&&$('tt-'+b.dataset.dec);
   if(b.dataset.ev)await api('/centralino/evento/'+b.dataset.ev,{stato:b.dataset.s});
-  if(b.dataset.dec){const rd=await api('/centralino/decisione/'+b.dataset.dec,{risposta:b.dataset.r,testo:tt?tt.value:''});const x=rd.d&&rd.d.wa_esito;if(x&&(x.errore||x.testo))alert(x.errore||x.testo)}
+  if(b.dataset.dec){const rd=await api('/centralino/decisione/'+b.dataset.dec,{risposta:b.dataset.r});const x=rd.d&&rd.d.wa_esito;if(x&&(x.errore||x.testo))alert(x.errore||x.testo)}
   if(b.dataset.con)await api('/centralino/contatto/'+b.dataset.con,{visto:true});
   aggiorna();
 });
-function ttCopia(t){const a=()=>{const x=document.createElement('textarea');x.value=t;document.body.appendChild(x);x.select();document.execCommand('copy');x.remove()};try{navigator.clipboard.writeText(t).catch(a)}catch(e){a()}}
-document.addEventListener('input',e=>{if(/^tt-/.test(e.target.id||''))S.ttTesto[e.target.id]=e.target.value});
 function apriLink(u){if(/^\/centralino#/.test(u)){vaiA(u);return}if(/^(tel|sms|mailto):/.test(u))location.href=u;else window.open(u,'_blank','noopener')}
 function apriClaude(){const t=Date.now();location.href='claude://';setTimeout(()=>{if(!document.hidden&&Date.now()-t<2500)window.open('https://claude.ai/new','_blank','noopener')},1200)}
 
 /* ---------- i fogli: Messaggi, Decisioni, Contatti, Sistema, Chat ---------- */
 const TITOLI={messaggi:'Messaggi',decisioni:'Decisioni',contatti:'Contatti',sistema:'Sistema',chat:'Claude',agenda:'Agenda',tiktok:'TikTok',whatsapp:'WhatsApp'};
-function ttHtml(e){
-  if(!e.tt)return'';
-  if(e.stato!=='attesa')return e.tt.mandato?`<p>Risposta: ${esc(e.tt.mandato)}</p>`:'';
-  const id='tt-'+e.id,v=S.ttTesto[id]!=null?S.ttTesto[id]:e.tt.testo;
-  return`<label class="tt-eti" for="${id}">La risposta, puoi cambiarla</label><textarea id="${id}" rows="4">${esc(v)}</textarea><p class="tt-nota">Manda: la scrivo io su TikTok al prossimo controllo, entro 20 minuti. Dall'1 alle 8 aspetta le 8.</p>`;
-}
 function voceEvento(e){
   return`<div class="voce ${e.livello}${e.stato!=='nuovo'&&e.stato!=='attesa'?' spenta':''}" data-id="${esc(e.id)}"><div class="meta"><span>${esc(e.nome_fonte)} · ${esc(PAROLA[e.livello])}</span><span>${esc(e.giorno)} ${esc(e.ora)}</span></div>
-    <h3>${esc(e.titolo)}</h3>${e.testo?`<p>${esc(e.testo)}</p>`:''}${ttHtml(e)}${(e.stato==='nuovo'||e.stato==='attesa')?`<div class="tasti">${tastiDi(e).replace(/<button /g,'<button class="btn" ').replace(/data-s="visto"/,'data-s="visto" style="background:transparent"')}</div>`:(e.link?`<div class="tasti"><button class="btn vuoto" data-apri="${esc(e.link)}">Apri</button></div>`:'')}</div>`;
+    <h3>${esc(e.titolo)}</h3>${e.testo?`<p>${esc(e.testo)}</p>`:''}${(e.stato==='nuovo'||e.stato==='attesa')?`<div class="tasti">${tastiDi(e).replace(/<button /g,'<button class="btn" ').replace(/data-s="visto"/,'data-s="visto" style="background:transparent"')}</div>`:(e.link?`<div class="tasti"><button class="btn vuoto" data-apri="${esc(e.link)}">Apri</button></div>`:'')}</div>`;
 }
 function apri(sez,soloContenuto){
   S.sez=sez;document.querySelectorAll('nav [data-sez]').forEach(a=>a.classList.toggle('qui',a.dataset.sez===sez));
@@ -609,6 +657,9 @@ function sistema(st){
   h+=`<div class="titoletto">Widget per la Home</div><p style="font-size:14px;color:#bfe9f7">Serve l'app gratuita Scriptable. Tocca il tasto, copia lo script e incollalo in Scriptable (guida nel LEGGIMI).</p>
      <div class="tasti" style="margin-top:8px"><button class="btn" id="preparaWidget">Prepara lo script</button></div><div id="zonaWidget"></div>
      <img class="anteprima-widget" alt="Anteprima del widget grande" src="/centralino/widget.png?misura=grande&t=${Date.now()}">`;
+  h+=`<div class="titoletto">Schermata di blocco</div><p style="font-size:14px;color:#bfe9f7">Jarvis come sfondo del telefono bloccato, coi dati veri. Tocca il tasto, copia il link e mettilo nel Comando Rapido (guida nel LEGGIMI).</p>
+     <div class="tasti" style="margin-top:8px"><button class="btn" id="preparaBlocco">Dammi il link</button></div><div id="zonaBlocco"></div>
+     <img class="anteprima-widget" alt="Anteprima della schermata di blocco" src="/centralino/blocco.png?t=${Date.now()}">`;
   h+=`<div class="titoletto">Voce</div><p style="font-size:14px;color:#bfe9f7">${st.voce_server?'Jarvis parla con la voce di Beatrice. La lista qui sotto è la voce del telefono, che usa solo quando Beatrice non risponde.':'Beatrice è spenta finché non c\'è la sua chiave sul server: Jarvis parla con la voce del telefono scelta qui sotto.'}</p>
      <select id="sceltaVoce" style="width:100%;margin-top:8px;padding:10px;background:#04152a;color:#e8f8ff;border:1px solid #1f5f86;border-radius:8px;font-size:15px"></select>
      <div class="tasti" style="margin-top:8px"><button class="btn" id="provaVoce">Prova</button></div>`;
@@ -650,6 +701,10 @@ function legaSistema(){
     const r=await fetch('/centralino/widget.js',{headers:h,credentials:'same-origin'});const t=await r.text();
     $('zonaWidget').innerHTML=`<textarea class="script" id="script" readonly></textarea><div class="tasti" style="margin-top:8px"><button class="btn" id="copia">Copia</button></div>`;
     $('script').value=t;$('copia').onclick=async()=>{try{await navigator.clipboard.writeText(t);$('copia').textContent='Copiato'}catch(e){$('script').select();document.execCommand('copy');$('copia').textContent='Copiato'}}};
+  const bl=$('preparaBlocco');if(bl)bl.onclick=async()=>{const h={'X-Centralino-App':'1'};if(S.g)h['X-Centralino']=S.g;
+    const r=await fetch('/centralino/blocco-link',{headers:h,credentials:'same-origin'});const t=await r.text();
+    $('zonaBlocco').innerHTML=`<textarea class="script" id="linkBlocco" readonly rows="3"></textarea><div class="tasti" style="margin-top:8px"><button class="btn" id="copiaBlocco">Copia</button></div>`;
+    $('linkBlocco').value=t;$('copiaBlocco').onclick=async()=>{try{await navigator.clipboard.writeText(t);$('copiaBlocco').textContent='Copiato'}catch(e){$('linkBlocco').select();document.execCommand('copy');$('copiaBlocco').textContent='Copiato'}}};
   const a=$('abbina');if(a)a.onclick=async()=>{const r=await api('/centralino/abbina',{});if(r.ok)$('zonaCodice').textContent=r.d.codice+'  ';$('zonaCodice').insertAdjacentHTML('beforeend','<div style="font:11px var(--mono);letter-spacing:.1em;color:var(--mute)">VALE 10 MINUTI, UNA VOLTA</div>')};
   const sv=$('sceltaVoce');if(sv){const riempi=()=>{const V=vociItaliane(),att=scegliVoce();
       sv.innerHTML=V.length?V.slice().sort((a,b)=>punteggio(b)-punteggio(a)).map(v=>`<option value="${esc(v.name)}"${att&&att.name===v.name?' selected':''}>${esc(v.name)}</option>`).join(''):'<option>Nessuna voce italiana sul telefono</option>'};
@@ -915,7 +970,7 @@ function parlaTelefono(t){
   speechSynthesis.speak(u);
   if(speechSynthesis.paused)speechSynthesis.resume();
 }
-$('reattore').addEventListener('click',()=>{if(parlando){fermaVoce();return}parla(S.st?S.st.voce:'Sto ancora leggendo cosa c\'è.')});
+/* il tocco sul cerchio sta piu' sotto, con la conversazione a voce (6/11/2026) */
 const Riconosci=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!Riconosci)$('statoVoce').textContent='● SOLO LETTURA';
 function ascolta(){
@@ -1018,17 +1073,67 @@ $('codiceMail').onclick=async()=>{
 const oc=$('onda'),ox=oc.getContext('2d');
 function ondaSize(){oc.width=oc.clientWidth*devicePixelRatio;oc.height=oc.clientHeight*devicePixelRatio}
 ondaSize();addEventListener('resize',ondaSize);
-const cv=$('stelle'),cx=cv.getContext('2d');let W,H,punti=[];
-function misura(){W=cv.width=innerWidth*devicePixelRatio;H=cv.height=innerHeight*devicePixelRatio;
-  punti=Array.from({length:120},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4*devicePixelRatio,v:.04+Math.random()*.18,a:Math.random()}))}
+const cv=$('stelle'),cx=cv.getContext('2d');let W,H,punti=[],neuroni=[],impulsi=[],rete=null,fili=[];
+// i colori dei neuroni veri: progetti bianchi e grandi, decisioni arancio, persone e aziende verdi, il resto azzurro
+const TINTA={progetto:'235,252,255',decisione:'255,138,43',persona:'64,230,140',azienda:'64,230,140'};
+function misura(){const q=devicePixelRatio;W=cv.width=innerWidth*q;H=cv.height=innerHeight*q;
+  punti=Array.from({length:70},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4*q,v:.04+Math.random()*.18,a:Math.random()}));
+  impulsi=[];
+  if(rete){
+    // la mappa vera del cervello di Knowlee: ogni neurone e' un progetto, un appunto, una decisione...
+    const mx=W*.05,my=H*.06;
+    neuroni=rete.nodi.map(n=>({x0:mx+n.x*(W-2*mx),y0:my+n.y*(H-2*my),x:0,y:0,r:(1.3+Math.min(n.g,14)*.32)*q,a:Math.random()*6,t:n.t,nome:n.nome}));
+    neuroni.forEach(p=>{p.x=p.x0;p.y=p.y0});
+    fili=rete.fili.map(f=>[neuroni[f[0]],neuroni[f[1]]]).filter(f=>f[0]&&f[1]);
+    return}
+  // senza mappa: neuroni a caso, legati quando sono vicini
+  const n=Math.max(50,Math.min(100,Math.round(innerWidth*innerHeight/5000)));
+  neuroni=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3*q,vy:(Math.random()-.5)*.3*q,r:(1.3+Math.random()*1.9)*q,a:Math.random()*6}));
+  fili=[]}
 misura();addEventListener('resize',misura);
+async function caricaRete(){try{const h={'X-Centralino-App':'1'};if(S.g)h['X-Centralino']=S.g;
+  const r=await fetch('/centralino/rete.json',{headers:h,credentials:'same-origin'});if(!r.ok)return;
+  const d=await r.json();if(d.nodi&&d.nodi.length){rete=d;misura()}}catch(e){}}
+caricaRete();setInterval(caricaRete,30*60*1000);
+// tocca un neurone: dice cos'e'
+const nomeNeurone=document.createElement('div');nomeNeurone.className='nome-neurone';
+nomeNeurone.style.cssText='position:fixed;z-index:40;pointer-events:none;font:11px var(--mono);letter-spacing:.12em;color:#eafcff;background:rgba(1,10,24,.88);border:1px solid rgba(34,200,255,.6);padding:6px 9px;max-width:70vw;opacity:0;transition:opacity .25s';
+document.body.appendChild(nomeNeurone);let nomeVia=0;
+document.addEventListener('click',e=>{if(!rete||e.target.closest('button,a,input,textarea,select,label,svg,[role=button],.voce,.carta'))return;
+  const q=devicePixelRatio,x=e.clientX*q,y=e.clientY*q;let m=null,md=26*q;
+  for(const p of neuroni){const d=Math.hypot(p.x-x,p.y-y);if(d<md){md=d;m=p}}
+  if(!m)return;nomeNeurone.textContent=(m.t||'').toUpperCase()+' · '+m.nome;
+  nomeNeurone.style.left=Math.min(e.clientX+12,innerWidth-nomeNeurone.offsetWidth-8)+'px';nomeNeurone.style.top=(e.clientY-36)+'px';
+  nomeNeurone.style.opacity=1;clearTimeout(nomeVia);nomeVia=setTimeout(()=>nomeNeurone.style.opacity=0,3500);
+  impulsi.push(...fili.filter(f=>f[0]===m||f[1]===m).slice(0,12).map(f=>({a:m,b:f[0]===m?f[1]:f[0],t:0})))});
 let tt=0;
 (function anima(){
   tt+=.016;cx.clearRect(0,0,W,H);
-  for(const p of punti){p.y-=p.v;if(p.y<0)p.y=H;cx.fillStyle=`rgba(168,241,255,${.25+.5*Math.abs(Math.sin(tt+p.a*6))})`;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()}
-  const w=oc.width,h=oc.height,col=getComputedStyle(document.body).getPropertyValue('--heat').trim()||'#22c8ff';
+  const col=getComputedStyle(document.body).getPropertyValue('--heat').trim()||'#22c8ff',q=devicePixelRatio,D=150*q;
+  for(const p of punti){p.y-=p.v;if(p.y<0)p.y=H;cx.fillStyle=`rgba(168,241,255,${.2+.4*Math.abs(Math.sin(tt+p.a*6))})`;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()}
+  cx.lineWidth=.9*q;
+  if(rete){
+    for(const p of neuroni)if(!fermo){p.x=p.x0+Math.sin(tt*.35+p.a)*6*q;p.y=p.y0+Math.cos(tt*.3+p.a*1.3)*6*q}
+    for(const [a,b] of fili){cx.strokeStyle='rgba(34,200,255,.32)';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()}
+  }else{
+    fili=[];
+    for(const p of neuroni){if(!fermo){p.x+=p.vx;p.y+=p.vy}if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1}
+    for(let i=0;i<neuroni.length;i++){const a=neuroni[i];
+      for(let j=i+1;j<neuroni.length;j++){const b=neuroni[j],d=Math.hypot(a.x-b.x,a.y-b.y);
+        if(d<D){fili.push([a,b]);cx.strokeStyle=`rgba(34,200,255,${(1-d/D)*.55})`;cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()}}}
+  }
+  for(const p of neuroni){const l=.45+.35*Math.sin(tt*1.6+p.a),c=TINTA[p.t]||'200,248,255';
+    cx.fillStyle=`rgba(${c},${l})`;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill();
+    cx.strokeStyle=`rgba(${c==='200,248,255'?'34,200,255':c},${l*.35})`;cx.beginPath();cx.arc(p.x,p.y,p.r*2.6,0,7);cx.stroke()}
+  // gli impulsi: partono da un filo a caso e corrono fino all'altro neurone; quando Jarvis parla, molti di piu'
+  if(!fermo&&fili.length&&Math.random()<(parlando?.5:.12)&&impulsi.length<40){const f=fili[Math.random()*fili.length|0];impulsi.push({a:f[0],b:f[1],t:0})}
+  cx.save();cx.shadowColor=col;cx.shadowBlur=10*q;cx.fillStyle=col;
+  impulsi=impulsi.filter(m=>{m.t+=parlando?.05:.025;if(m.t>=1)return false;
+    const x=m.a.x+(m.b.x-m.a.x)*m.t,y=m.a.y+(m.b.y-m.a.y)*m.t;cx.beginPath();cx.arc(x,y,2.4*q,0,7);cx.fill();return true});
+  cx.restore();
+  const w=oc.width,h=oc.height;
   ox.clearRect(0,0,w,h);ox.strokeStyle=col;ox.shadowColor=col;ox.shadowBlur=8;ox.lineWidth=1.4*devicePixelRatio;
-  const amp=parlando?.42:.08;
+  const amp=(typeof CONV!=='undefined'&&CONV.attiva)?(.05+CONV.liv*.6):(parlando?.42:.08);
   for(const k of [1,.6]){ox.globalAlpha=k;ox.beginPath();
     for(let x=0;x<=w;x+=3){const n=x/w,env=Math.sin(n*Math.PI);
       const y=h/2+Math.sin(n*22+tt*6*k)*Math.sin(n*7-tt*3)*h*amp*env*(parlando?(.6+.4*Math.sin(tt*13+n*40)):1);
@@ -1036,6 +1141,285 @@ let tt=0;
   ox.globalAlpha=1;
   if(!fermo&&!document.hidden)requestAnimationFrame(anima);else setTimeout(()=>requestAnimationFrame(anima),1000);
 })();
+
+/* ---------- conversazione a voce con Jarvis (6/11/2026) ----------
+   Tocchi il cerchio e parli. Il server da' un link firmato di ElevenLabs (la chiave resta sul server),
+   la pagina parla col WebSocket dell'agente: microfono a 16 kHz in su, voce di Beatrice in giu',
+   si interrompe parlandoci sopra. Gli strumenti dell'agente li esegue la pagina, con l'accesso che ha gia'.
+   Niente parte da solo: bozze e decisioni compaiono come carte e contano solo i tocchi di Andrea.
+   ?prova=1 simula tutto (sottotitoli, onda, carte) senza rete e senza crediti. */
+var CONV={attiva:false,stato:'',liv:0,ws:null,ctx:null,mic:null,proc:null,sorgente:null,uscita:null,anaOut:null,anaIn:null,
+  fine:0,suoni:[],rateIn:16000,rateOut:16000,id:'',timer:0,inizio:0,carte:[],chat:null};
+function convStato(s){
+  CONV.stato=s;const h=document.documentElement;
+  h.classList.toggle('conv',!!s);['ascolta','parla','pensa'].forEach(x=>h.classList.toggle('conv-'+x,s===x));
+  if(!s){h.style.removeProperty('--liv');return}
+  $('num').textContent='◉';
+  $('eti').textContent={ascolta:'ti ascolto',parla:'sto parlando',pensa:'cerco…',apre:'collego…'}[s]||'';
+  $('dice').innerHTML={ascolta:'<b>parla pure</b> · tocca il cerchio per chiudere',parla:'<b>Jarvis parla</b> · interrompilo quando vuoi',
+    pensa:'<b>guardo nel Centralino…</b>',apre:'<b>collego Jarvis…</b>'}[s]||'';
+}
+function sub(chi,testo,classe){
+  const box=$('sottotitoli');if(!box||!testo)return null;
+  const d=document.createElement('div');d.className='riga-sub '+(classe||(chi==='TU'?'tu':''));
+  d.innerHTML=(chi?`<b>${esc(chi)}</b>`:'')+`<span>${esc(testo)}</span>`;box.appendChild(d);
+  while(box.children.length>7)box.firstElementChild.remove();return d;
+}
+/* le parole compaiono mentre lei parla, non tutte insieme */
+function subParlato(testo,ms){
+  const d=sub('JARVIS',' ');if(!d)return;const s=d.querySelector('span'),parole=String(testo).split(/\s+/);let i=0;
+  const passo=Math.max(60,Math.min(260,(ms||parole.length*300)/Math.max(1,parole.length)));
+  (function avanti(){if(i>parole.length||d.dataset.fermo)return;s.textContent=parole.slice(0,i++).join(' ');setTimeout(avanti,passo)})();
+}
+
+/* ---------- le carte ---------- */
+const TIPO_PAROLA={decisione:'Decisione',whatsapp:'WhatsApp',bozza:'Bozza WhatsApp',contatto:'Sta usando Rilievo',messaggio:'Posta',appuntamento:'Agenda'};
+function cartaHtml(c){
+  const testa=`<div class="carta-testa"><span>${esc(TIPO_PAROLA[c.tipo]||c.tipo)}${c.fonte?' · '+esc(c.fonte):''}</span><span>${esc(c.quando||'')}</span></div>`;
+  let corpo=`<h4>${esc(c.titolo)}</h4>${c.testo?`<p>${esc(c.testo)}</p>`:''}`,tasti='';
+  if(c.tipo==='decisione'&&!c.esito)tasti=`<button class="${c.proposta==='si'?'pieno proposto':''}" data-cazione="decidi" data-r="si">${c.proposta==='si'?'Conferma: ':''}${esc(c.si||'Sì')}</button><button class="${c.proposta==='no'?'pieno proposto':''}" data-cazione="decidi" data-r="no">${c.proposta==='no'?'Conferma: ':''}${esc(c.no||'No')}</button>`;
+  if(c.tipo==='bozza'&&!c.esito){corpo=`<h4>A ${esc(c.titolo)}</h4><textarea aria-label="Testo del messaggio">${esc(c.testo)}</textarea>`;
+    tasti=`<button class="pieno proposto" data-cazione="manda">Manda</button><button data-cazione="via">Lascia stare</button>`}
+  if(c.tipo==='whatsapp')tasti=`<button data-cazione="apri">Apri la chat</button>`;
+  if(c.tipo==='messaggio')tasti=(c.link?`<button data-cazione="apri">Apri</button>`:'')+(c.stato==='nuovo'?`<button data-cazione="fatto">Fatto</button>`:'');
+  if(c.tipo==='contatto')tasti=`<button data-cazione="apri">Contatti</button>`;
+  if(c.tipo==='appuntamento')tasti=`<button data-cazione="apri">Agenda</button>`;
+  return testa+corpo+(c.esito?`<div class="esito">${esc(c.esito)}</div>`:'')+(tasti?`<div class="carta-tasti">${tasti}</div>`:'');
+}
+function mettiCarta(c){
+  const box=$('carte');if(!box||!c)return;c.k=c.tipo+':'+c.id;
+  let v=CONV.carte.find(x=>x.k===c.k);
+  if(v){Object.assign(v,c);v.el.innerHTML=cartaHtml(v);v.el.classList.remove('lampo');void v.el.offsetWidth;v.el.classList.add('lampo');box.prepend(v.el);return v}
+  const el=document.createElement('div');el.className='carta '+c.tipo;el.dataset.k=c.k;el.innerHTML=cartaHtml(c);c.el=el;
+  box.prepend(el);CONV.carte.unshift(c);
+  const max=innerWidth>=1000?4:2;
+  CONV.carte.slice(max).forEach(x=>{x.el.classList.add('esce');setTimeout(()=>x.el.remove(),420)});CONV.carte=CONV.carte.slice(0,max);
+  return c;
+}
+function rinfrescaCarta(c){if(c&&c.el)c.el.innerHTML=cartaHtml(c)}
+function togliCarte(){CONV.carte.forEach(x=>{x.el.classList.add('esce');setTimeout(()=>x.el.remove(),420)});CONV.carte=[]}
+function diAJarvis(t){try{if(CONV.ws&&CONV.ws.readyState===1)CONV.ws.send(JSON.stringify({type:'contextual_update',text:t}))}catch(e){}sub('',t,'nota')}
+$('carte').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-cazione]');if(!b)return;const el=b.closest('.carta'),c=CONV.carte.find(x=>x.k===el.dataset.k);if(!c)return;
+  const a=b.dataset.cazione;
+  if(a==='apri'){if(c.tipo==='whatsapp')apriWa(c.id);else if(c.tipo==='contatto')apri('contatti');else if(c.tipo==='appuntamento')apri('agenda');else if(c.link)apriLink(c.link);return}
+  if(a==='via'){c.esito='Lasciata stare';rinfrescaCarta(c);diAJarvis('Andrea ha scartato la bozza per '+c.titolo+'. Non è partito niente.');return}
+  b.disabled=true;
+  if(a==='fatto'){await api('/centralino/evento/'+c.id,{stato:'fatto'});c.stato='fatto';c.esito='Segnato fatto';rinfrescaCarta(c);aggiorna(true);return}
+  if(a==='decidi'){const r=await api('/centralino/decisione/'+c.id,{risposta:b.dataset.r});const x=r.d&&r.d.wa_esito;
+    c.esito=r.ok?('Deciso: '+(b.dataset.r==='si'?(c.si||'Sì'):(c.no||'No'))+(x&&x.errore?' · '+x.errore:'')):(r.d.errore||'Non è riuscito');rinfrescaCarta(c);
+    diAJarvis(r.ok?'Andrea ha toccato '+(b.dataset.r==='si'?'Sì':'No')+' sulla decisione «'+c.titolo+'».':'La risposta alla decisione «'+c.titolo+'» non è passata: '+(r.d.errore||''));aggiorna(true);return}
+  if(a==='manda'){const t=(el.querySelector('textarea')||{}).value||c.testo;
+    const r=await api('/centralino/whatsapp/invia',{wa:c.id,testo:t});
+    c.testo=t;c.esito=r.ok?'Mandato':(r.d.errore||'Non è partito');rinfrescaCarta(c);
+    diAJarvis(r.ok?'Andrea ha toccato Manda: il messaggio a '+c.titolo+' è partito.':'Il messaggio a '+c.titolo+' non è partito: '+(r.d.errore||''));aggiorna(true)}
+});
+
+/* ---------- gli strumenti dell'agente: li esegue la pagina ---------- */
+const corta=(t,n)=>String(t||'').replace(/\s+/g,' ').trim().slice(0,n||160);
+function cartaDecisione(d,proposta){return{tipo:'decisione',id:d.id,titolo:d.titolo,testo:corta(d.testo,140),quando:(d.giorno||'')+' '+(d.ora||''),si:d.si,no:d.no,proposta}}
+function cartaEvento(e){return{tipo:'messaggio',id:e.id,titolo:e.titolo,testo:corta(e.testo,140),quando:(e.giorno||'')+' '+(e.ora||''),fonte:e.nome_fonte,link:e.link,stato:e.stato}}
+function cartaContatto(c){return{tipo:'contatto',id:c.codice,titolo:c.ditta,testo:c.aperture+' aperture · '+c.rilievi+' rilievi'+(c.fin_dove?' · '+c.fin_dove:''),quando:c.ultima?c.ultima.slice(11,16):''}}
+function cartaWa(w){return{tipo:'whatsapp',id:w.wa,titolo:w.nome,testo:w.anteprima?'«'+w.anteprima+'»':'',quando:(w.giorno||'')+' '+(w.ora||''),fonte:w.non_letti?w.non_letti+' da leggere':''}}
+function appuntamenti(st){const ag=(st&&st.agenda)||{};return[...(ag.oggi||[]).filter(x=>!x.passato).map(x=>Object.assign({quando:'oggi '+(x.ora||'')},x)),...(ag.domani||[]).map(x=>Object.assign({quando:'domani '+(x.ora||'')},x))]}
+function cartaAppuntamento(x,i){return{tipo:'appuntamento',id:x.id||String(i),titolo:x.titolo,testo:x.luogo||'',quando:x.quando}}
+async function convWa(){const r=await api('/centralino/whatsapp.json');return r.ok?(r.d.conversazioni||[]):[]}
+const STRUMENTI={
+  async leggi_situazione(){
+    await aggiorna(true);const st=S.st||{};
+    const dec=(st.decisioni||[]).filter(d=>d.stato==='attesa').slice(0,5),caldi=(st.contatti||[]).filter(c=>c.nuovo).slice(0,5),ap=appuntamenti(st).slice(0,3);
+    caldi.slice(0,1).forEach(c=>mettiCarta(cartaContatto(c)));dec.slice(0,1).forEach(d=>mettiCarta(cartaDecisione(d)));
+    return{livello:st.etichetta,principale:st.principale?{id:st.principale.id,genere:st.principale.genere,fonte:st.principale.nome_fonte,titolo:st.principale.titolo}:null,
+      decisioni_in_attesa:dec.map(d=>({id:d.id,titolo:d.titolo,dettaglio:corta(d.testo,200)})),
+      contatti_caldi:caldi.map(c=>({id:c.codice,ditta:c.ditta,aperture:c.aperture,rilievi:c.rilievi,fin_dove:c.fin_dove||''})),
+      agenda:ap.map((x,i)=>({id:x.id||String(i),quando:x.quando,titolo:x.titolo})),
+      messaggi_nuovi:(st.telemetria||{}).messaggi_nuovi||0,whatsapp_da_leggere:(st.whatsapp||{}).non_letti||0,ora:new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})};
+  },
+  async leggi_messaggi({canale,quanti}){
+    const n=Math.max(1,Math.min(10,+quanti||5)),fuori={};
+    if(canale!=='posta'){const w=(await convWa()).slice(0,n);w.slice(0,2).forEach(x=>mettiCarta(cartaWa(x)));
+      fuori.whatsapp=w.map(x=>({id:x.wa,nome:x.nome,ditta:x.ditta,ultimo:x.anteprima,chi_ha_scritto_per_ultimo:x.dir==='in'?'lui':'Andrea',da_leggere:x.non_letti,quando:x.giorno+' '+x.ora,bozza_pronta:x.bozza}))}
+    if(canale!=='whatsapp'){await aggiorna(true);const p=((S.st||{}).eventi||[]).filter(e=>/^(posta|fiverr)$/.test(e.fonte)).slice(0,n);
+      p.slice(0,2).forEach(e=>mettiCarta(cartaEvento(e)));fuori.posta=p.map(e=>({id:e.id,fonte:e.nome_fonte,titolo:e.titolo,testo:corta(e.testo,240),quando:e.giorno+' '+e.ora,stato:e.stato}))}
+    return fuori;
+  },
+  async mostra_carta({tipo,id}){
+    const st=S.st||{};id=String(id||'');let c=null;
+    if(tipo==='decisione'){const d=(st.decisioni||[]).find(x=>x.id===id);if(d)c=cartaDecisione(d)}
+    else if(tipo==='messaggio'){const e=(st.eventi||[]).find(x=>x.id===id);if(e)c=cartaEvento(e)}
+    else if(tipo==='contatto'){const x=(st.contatti||[]).find(x=>x.codice===id);if(x)c=cartaContatto(x)}
+    else if(tipo==='appuntamento'){const ap=appuntamenti(st),i=ap.findIndex((x,j)=>(x.id||String(j))===id);if(i>=0)c=cartaAppuntamento(ap[i],i)}
+    else if(tipo==='whatsapp'){const w=(await convWa()).find(x=>x.wa===id);if(w)c=cartaWa(w)}
+    if(!c)throw new Error('Non trovo questa '+tipo+' (id '+id+'). Rileggi con leggi_situazione o leggi_messaggi.');
+    mettiCarta(c);return{a_schermo:true};
+  },
+  async rispondi_decisione({id,risposta}){
+    const d=((S.st||{}).decisioni||[]).find(x=>x.id===String(id)&&x.stato==='attesa');
+    if(!d)throw new Error('Questa decisione non è più in attesa o non esiste.');
+    mettiCarta(cartaDecisione(d,risposta==='no'?'no':'si'));
+    return{a_schermo:true,decisa:false,nota:'La carta è a schermo col tasto Conferma. Conta solo il tocco di Andrea: diglielo.'};
+  },
+  async prepara_whatsapp({a,testo}){
+    const w=await convWa(),q=String(a||'').toLowerCase().trim(),cifre=q.replace(/\D/g,'');
+    const x=w.find(x=>cifre.length>5&&x.wa===cifre)||w.find(x=>[x.nome,x.persona,x.ditta].some(n=>n&&n.toLowerCase()===q))||w.find(x=>[x.nome,x.persona,x.ditta].some(n=>n&&q&&n.toLowerCase().includes(q)));
+    if(!x)throw new Error('Non trovo «'+a+'» fra le chat WhatsApp. Chiedi ad Andrea il nome giusto.');
+    if(!corta(testo,10))throw new Error('Il testo è vuoto.');
+    mettiCarta({tipo:'bozza',id:x.wa,titolo:x.nome,testo:String(testo).slice(0,1000)});
+    return{a_schermo:true,mandato:false,a:x.nome,nota:'La bozza è a schermo col tasto Manda. Non è partito niente: parte solo se Andrea tocca Manda.'};
+  },
+  async apri_sezione({sezione}){if(sezione==='whatsapp')apriWa('');else apri(sezione||'oggi');return{aperta:sezione}},
+};
+async function eseguiStrumento(t){
+  const f=STRUMENTI[t.tool_name];let risultato,errore=false;convStato('pensa');
+  try{if(!f)throw new Error('Strumento sconosciuto');risultato=await f(t.parameters||{})}catch(e){risultato={errore:e.message};errore=true}
+  if(t.expects_response!==false&&CONV.ws&&CONV.ws.readyState===1)
+    CONV.ws.send(JSON.stringify({type:'client_tool_result',tool_call_id:t.tool_call_id,result:JSON.stringify(risultato),is_error:errore}));
+  if(CONV.stato==='pensa')convStato(CONV.fine>(CONV.ctx?CONV.ctx.currentTime:0)?'parla':'ascolta');
+  return risultato;
+}
+
+/* ---------- audio: microfono in su, Beatrice in giu' ---------- */
+const b64=buf=>{let s='';const u=new Uint8Array(buf);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+function aPcm16(f32,daRate,aRate){
+  const k=daRate/aRate,n=Math.floor(f32.length/k),out=new Int16Array(n);
+  for(let i=0;i<n;i++){let s=0,a=Math.floor(i*k),b=Math.min(f32.length,Math.floor((i+1)*k));for(let j=a;j<b;j++)s+=f32[j];s/=Math.max(1,b-a);out[i]=Math.max(-1,Math.min(1,s))*0x7fff}
+  return out.buffer;
+}
+function suona(base64){
+  const ctx=CONV.ctx;if(!ctx)return;const bin=atob(base64),n=bin.length>>1,f=new Float32Array(n);
+  for(let i=0;i<n;i++){let v=bin.charCodeAt(2*i)|(bin.charCodeAt(2*i+1)<<8);if(v>=0x8000)v-=0x10000;f[i]=v/0x8000}
+  const buf=ctx.createBuffer(1,n,CONV.rateOut);buf.copyToChannel?buf.copyToChannel(f,0):buf.getChannelData(0).set(f);
+  const s=ctx.createBufferSource();s.buffer=buf;s.connect(CONV.uscita);
+  const quando=Math.max(ctx.currentTime+.03,CONV.fine);s.start(quando);CONV.fine=quando+buf.duration;
+  CONV.suoni.push(s);s.onended=()=>{CONV.suoni=CONV.suoni.filter(x=>x!==s)};
+  if(CONV.stato!=='pensa')convStato('parla');
+}
+function zittisci(){CONV.suoni.forEach(s=>{try{s.stop()}catch(e){}});CONV.suoni=[];CONV.fine=0}
+function livello(an){if(!an)return 0;const d=new Uint8Array(an.fftSize);an.getByteTimeDomainData(d);let s=0;for(const v of d){const x=(v-128)/128;s+=x*x}return Math.min(1,Math.sqrt(s/d.length)*4)}
+/* ogni fotogramma: il cerchio pulsa con chi sta parlando */
+(function vivo(){
+  if(CONV.attiva&&!CONV.prova){
+    const parla=CONV.ctx&&CONV.fine>CONV.ctx.currentTime;
+    const voluto=parla?'parla':'ascolta';if(CONV.stato!=='pensa'&&CONV.stato!=='apre'&&CONV.stato!==voluto)convStato(voluto);
+    CONV.liv=CONV.liv*.6+livello(parla?CONV.anaOut:CONV.anaIn)*.4;
+  }
+  if(CONV.attiva&&CONV.stato&&$('num').textContent!=='◉')convStato(CONV.stato);   /* l'aggiornamento ogni 30 s riscrive il cuore */
+  if(CONV.attiva){document.documentElement.style.setProperty('--liv',CONV.liv.toFixed(3));parlando=CONV.stato==='parla'}
+  requestAnimationFrame(vivo);
+})();
+
+async function apriConversazione(){
+  /* l'audio del telefono si sblocca solo dentro il tocco: si prepara prima di ogni attesa */
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!('WebSocket' in window)){ripiego('Questo telefono non riesce a parlare con Jarvis in diretta. Ti leggo io cosa c\'è.');return}
+  const ctx=new AC();try{ctx.resume()}catch(e){}
+  CONV.attiva=true;CONV.prova=false;CONV.ctx=ctx;CONV.fine=0;togliCarte();$('sottotitoli').innerHTML='';convStato('apre');
+  const micP=navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});
+  const r=await api('/centralino/conversazione',{});
+  if(!r.ok){micP.then(s=>s.getTracks().forEach(t=>t.stop())).catch(()=>{});chiudiConversazione('',true);ripiego(r.d.errore||'Jarvis non risponde adesso. Ti leggo io cosa c\'è.');return}
+  CONV.id=r.d.id;CONV.inizio=Date.now();
+  let stream;try{stream=await micP}catch(e){chiudiConversazione('Senza il permesso del microfono non ti sento. Su iPhone: Impostazioni > Safari > Microfono.');return}
+  if(!CONV.attiva){stream.getTracks().forEach(t=>t.stop());return}
+  CONV.mic=stream;
+  CONV.uscita=ctx.createGain();CONV.anaOut=ctx.createAnalyser();CONV.anaOut.fftSize=512;CONV.uscita.connect(CONV.anaOut);CONV.anaOut.connect(ctx.destination);
+  CONV.sorgente=ctx.createMediaStreamSource(stream);CONV.anaIn=ctx.createAnalyser();CONV.anaIn.fftSize=512;CONV.sorgente.connect(CONV.anaIn);
+  const proc=ctx.createScriptProcessor(2048,1,1);CONV.proc=proc;const muto=ctx.createGain();muto.gain.value=0;
+  CONV.sorgente.connect(proc);proc.connect(muto);muto.connect(ctx.destination);
+  proc.onaudioprocess=e=>{if(CONV.ws&&CONV.ws.readyState===1&&CONV.pronto)CONV.ws.send(JSON.stringify({user_audio_chunk:b64(aPcm16(e.inputBuffer.getChannelData(0),ctx.sampleRate,CONV.rateIn))}))};
+  const ws=new WebSocket(r.d.link);CONV.ws=ws;
+  ws.onopen=()=>ws.send(JSON.stringify({type:'conversation_initiation_client_data'}));
+  ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.type==='conversation_initiation_metadata'){const x=m.conversation_initiation_metadata_event||{};
+      const n=s=>{const k=String(s||'').match(/^pcm_(\d+)$/);return k?+k[1]:16000};CONV.rateIn=n(x.user_input_audio_format);CONV.rateOut=n(x.agent_output_audio_format);CONV.pronto=true;convStato('ascolta')}
+    else if(m.type==='audio'){const a=m.audio_event||{};if(a.audio_base_64)suona(a.audio_base_64)}
+    else if(m.type==='interruption'){zittisci();convStato('ascolta')}
+    else if(m.type==='user_transcript'){sub('TU',(m.user_transcription_event||{}).user_transcript)}
+    else if(m.type==='agent_response'){const t=(m.agent_response_event||{}).agent_response||'';if(t)subParlato(t,t.split(/\s+/).length*330)}
+    else if(m.type==='agent_response_correction'){const x=m.agent_response_correction_event||{},l=[...document.querySelectorAll('#sottotitoli .riga-sub:not(.tu):not(.nota) span')].pop();if(l&&x.corrected_agent_response){l.parentNode.dataset.fermo='1';l.textContent=x.corrected_agent_response+' …'}}
+    else if(m.type==='ping'){const p=m.ping_event||{};setTimeout(()=>{try{ws.send(JSON.stringify({type:'pong',event_id:p.event_id}))}catch(e){}},p.ping_ms||0)}
+    else if(m.type==='client_tool_call')eseguiStrumento(m.client_tool_call||{});
+  };
+  ws.onerror=()=>{};
+  ws.onclose=ev=>{if(CONV.ws===ws)chiudiConversazione(ev.code===1000||ev.code===1005?'':'La linea con Jarvis si è chiusa.')};
+  clearTimeout(CONV.timer);CONV.timer=setTimeout(()=>chiudiConversazione('Tempo finito per questa conversazione. Tocca il cerchio per ripartire.'),(r.d.restano_secondi||300)*1000);
+}
+function chiudiConversazione(frase,muto){
+  if(!CONV.attiva&&!CONV.ws)return;
+  const ws=CONV.ws,id=CONV.id;CONV.ws=null;CONV.attiva=false;CONV.pronto=false;clearTimeout(CONV.timer);
+  try{ws&&ws.close()}catch(e){}
+  zittisci();try{CONV.proc&&(CONV.proc.onaudioprocess=null)}catch(e){}
+  try{CONV.mic&&CONV.mic.getTracks().forEach(t=>t.stop())}catch(e){}try{CONV.ctx&&CONV.ctx.close()}catch(e){}
+  CONV.mic=CONV.ctx=CONV.proc=CONV.anaIn=CONV.anaOut=null;CONV.liv=0;CONV.id='';parlando=false;
+  if(id)api('/centralino/conversazione/fine',{id});
+  convStato('');if(S.st)mostra();
+  if(frase){sub('',frase,'nota');$('sottotitoli').classList.add('resta');setTimeout(()=>$('sottotitoli').classList.remove('resta'),6000)}
+  if(!muto)$('dice').innerHTML=frase?esc(frase):'tocca il cerchio · <b>parla con Jarvis</b>';
+  setTimeout(()=>{if(!CONV.attiva)togliCarte()},frase?9000:4000);
+}
+function ripiego(frase){$('dice').innerHTML=esc(frase);parla(S.st?S.st.voce:'Sto ancora leggendo cosa c\'è.')}
+function convPossibile(){return CONV.prova||!!(S.st&&S.st.conversazione&&S.st.conversazione.accesa)}
+
+/* ---------- prova: una conversazione finta, senza rete e senza crediti ---------- */
+function provaRisposta(p,o){
+  const j=(d,s)=>new Response(JSON.stringify(d),{status:s||200,headers:{'Content-Type':'application/json'}});
+  if(p.startsWith('/centralino/stato.json'))return j(FINTO_STATO);
+  if(p.startsWith('/centralino/whatsapp.json'))return j({conversazioni:FINTO_WA,stato:{attivo:true,parola:'acceso'},auto:{}});
+  if(p.startsWith('/centralino/rete.json'))return j({nodi:[],fili:[]});
+  if(p.startsWith('/centralino/push/chiave'))return j({chiave:''});
+  if(/\/whatsapp\/invia$/.test(p))return j({mandato:true,prova:true});
+  if(p.startsWith('/centralino/decisione/')){const d=FINTO_STATO.decisioni.find(x=>p.endsWith(x.id));if(d)d.stato='si';return j({risposta:'si'})}
+  return j({ok:true,prova:true});
+}
+const FINTO_ORA=(()=>{const n=new Date(),z=x=>String(x).padStart(2,'0');return{g:z(n.getDate())+'/'+z(n.getMonth()+1),o:z(n.getHours())+':'+z(n.getMinutes())}})();
+const FINTO_WA=[
+  {wa:'393401112233',nome:'Marco Rossi',persona:'Marco Rossi',ditta:'Rossi Giardini',anteprima:'Domani alle 9 va bene per il sopralluogo?',dir:'in',non_letti:1,giorno:FINTO_ORA.g,ora:'11:42',bozza:false},
+  {wa:'393475556677',nome:'Bianchi Verde',persona:'Luca Bianchi',ditta:'Bianchi Verde',anteprima:'Grazie, provo il link stasera',dir:'in',non_letti:0,giorno:FINTO_ORA.g,ora:'09:15',bozza:false}];
+const FINTO_DEC={id:'d0c1510e0001',genere:'decisione',stato:'attesa',titolo:'Mando il PDF del preventivo a Flora Giardini?',testo:'Il preventivo da 1.240 euro è pronto. Lo mando con il link che il cliente accetta.',si:'Sì, mandalo',no:'Aspetta',giorno:FINTO_ORA.g,ora:'10:05',nome_fonte:'Braccio destro',livello:'need'};
+const FINTO_STATO={livello:'need',numero:3,spicchio:3,etichetta:'ti aspettano',voce:'Hai tre cose che ti aspettano.',
+  principale:{id:'e0c1510e0001',genere:'evento',fonte:'whatsapp',nome_fonte:'WhatsApp',livello:'need',titolo:'Marco Rossi chiede il sopralluogo di domani',testo:'Domani alle 9 va bene per il sopralluogo?',giorno:FINTO_ORA.g,ora:'11:42',stato:'nuovo',link:'/centralino#wa=393401112233'},
+  coda:{id:'e0c1510e0002',nome_fonte:'Rilievo',livello:'urgent',titolo:'Bianchi Verde sta usando Rilievo',ora:'12:02'},
+  cose:[],registro:[{id:'r1',nome_fonte:'Rilievo',livello:'urgent',titolo:'Bianchi Verde ha aperto il link',ora:'12:02'},{id:'r2',nome_fonte:'WhatsApp',livello:'need',titolo:'Marco Rossi: «Domani alle 9 va bene?»',ora:'11:42'},{id:'r3',nome_fonte:'Knowlee',livello:'calm',titolo:'giro del braccio destro · ok',ora:'11:20'}],
+  telemetria:{aperture24:3,messaggi_nuovi:2,lavori:'11/12',lavori_ok:11,lavori_tot:12,ultimo_giro:'11:20',serie:[0,1,0,2,1,0,3,1,2]},
+  fonti:[{nome:'POSTA',attiva:true},{nome:'RILIEVO',attiva:true},{nome:'KNOWLEE',attiva:true},{nome:'WHATSAPP',attiva:true},{nome:'TIKTOK',attiva:false}],
+  agenda:{oggi:[{id:'a1',ora:'17:30',titolo:'Telefonata con il commercialista',passato:false}],domani:[{id:'a2',ora:'09:00',titolo:'Sopralluogo Rossi, via Torino 5'}],aggiornata:FINTO_ORA.g},
+  tiktok:{},whatsapp:{conversazioni:2,non_letti:1,bozze:0},
+  eventi:[{id:'e0c1510e0003',genere:'evento',fonte:'posta',nome_fonte:'Posta',livello:'need',titolo:'Fatture in Cloud: la prova scade fra 6 mesi',testo:'Conferma la proroga dalla mail.',stato:'nuovo',giorno:FINTO_ORA.g,ora:'08:10',link:''}],
+  decisioni:[FINTO_DEC],
+  contatti:[{codice:'bianchi-verde',ditta:'Bianchi Verde',aperture:3,rilievi:1,ultima:'2026-11-06 12:02:00',fin_dove:'è arrivato alla misura',nuovo:true}],
+  canali:[],richieste:[],chat:{restano:300,tetto:300,accesa:false},conversazione:{accesa:true,minuti:4.5,tetto:40}};
+const aspetta=ms=>new Promise(r=>setTimeout(r,ms));
+async function provaConversazione(){
+  CONV.attiva=true;CONV.prova=true;togliCarte();$('sottotitoli').innerHTML='';convStato('apre');
+  const turno=++CONV.giroProva,vivo=()=>CONV.attiva&&CONV.giroProva===turno;
+  let onda=0;const liv=setInterval(()=>{const t=Date.now()/1000;onda=CONV.stato==='parla'?(.35+.35*Math.abs(Math.sin(t*7))*Math.abs(Math.sin(t*2.3))+.2*Math.random()):(CONV.stato==='ascolta'?(CONV.parlaTu?.25+.4*Math.random():.04*Math.random()):0);CONV.liv=CONV.liv*.5+onda*.5},50);
+  const tu=async(t)=>{convStato('ascolta');CONV.parlaTu=true;await aspetta(300+t.length*45);CONV.parlaTu=false;if(vivo())sub('TU',t);await aspetta(350)};
+  const lei=async(t)=>{if(!vivo())return;convStato('parla');const ms=t.split(/\s+/).length*290;subParlato(t,ms);await aspetta(ms+250);if(vivo())convStato('ascolta')};
+  const usa=async(nome,par)=>{if(!vivo())return;convStato('pensa');await aspetta(450);await STRUMENTI[nome](par);await aspetta(250)};
+  try{
+    await aspetta(500);if(!vivo())return;await lei('Dimmi, Andrea.');
+    await tu('Novità?');await usa('leggi_situazione',{});
+    await lei('Bianchi Verde ha aperto il link tre volte ed è arrivato alla misura. E c\'è una decisione: mando il preventivo a Flora Giardini?');
+    await tu('Chi mi ha scritto su WhatsApp?');await usa('leggi_messaggi',{canale:'whatsapp',quanti:3});
+    await lei('Marco Rossi chiede se domani alle nove va bene per il sopralluogo.');
+    await tu('Digli di sì, alle nove ci sono.');await usa('prepara_whatsapp',{a:'Marco Rossi',testo:'Sì Marco, domani alle 9 ci sono. A domani, Andrea'});
+    await lei('Ho preparato la risposta per Marco. Se ti va bene tocca Manda.');
+    await tu('E il preventivo di Flora, sì, mandalo.');await usa('rispondi_decisione',{id:FINTO_DEC.id,risposta:'si'});
+    await lei('Va bene. Ti ho messo la carta con Conferma: parte quando la tocchi.');
+    convStato('ascolta');
+  }finally{clearInterval(liv);if(CONV.giroProva===turno&&!CONV.attiva){CONV.liv=0}}
+}
+CONV.giroProva=0;
+
+/* il cerchio: con la conversazione accesa si parla con Jarvis, altrimenti ti legge cosa c'e' come prima */
+$('reattore').addEventListener('click',e=>{
+  if(CONV.attiva){if(CONV.prova){CONV.attiva=false;CONV.giroProva++;convStato('');CONV.liv=0;parlando=false;if(S.st)mostra();$('dice').innerHTML='tocca il cerchio · <b>parla con Jarvis</b>'}else chiudiConversazione('');return}
+  if(parlando){fermaVoce();return}
+  if(!convPossibile()){parla(S.st?S.st.voce:'Sto ancora leggendo cosa c\'è.');return}
+  if(CONV.prova)provaConversazione();else apriConversazione();
+});
+if(FINTA){CONV.prova=true;document.body.insertAdjacentHTML('beforeend','<div class="prova-bollo">DEMO · DATI FINTI</div>');
+  if(/[?&]auto=1\b/.test(location.search))setTimeout(()=>{if(!CONV.attiva)provaConversazione()},1500)}
+setTimeout(()=>{if(convPossibile()&&!CONV.attiva&&!parlando&&/tocca il cerchio/.test($('dice').textContent))$('dice').innerHTML='tocca il cerchio · <b>parla con Jarvis</b>'},1200);
 
 /* ---------- partenza ---------- */
 const sezIniziale=(location.hash||'').slice(1);
