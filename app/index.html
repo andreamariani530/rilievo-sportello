@@ -1835,7 +1835,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-06 02:37';
+const COSTRUITA = '2026-11-07 02:32';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -3469,7 +3469,8 @@ function righeDalSopralluogo(s){
     const riga = {v:v.id, q, p:v.p, nome:v.nome, u:v.u,
                   iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0), on:true};
     if(manca) riga.daMisurare = true;
-    if(t.volte > 1){ riga.volteDette = t.volte; volteDette.push(v.nome.toLowerCase() + ' ' + t.volte + ' volte'); }
+    if(t.volte > 1){ riga.volteDette = t.volte; if(t.volteDa) riga.volteDa = t.volteDa;
+      volteDette.push(v.nome.toLowerCase() + ' ' + (t.volteDa ? t.volteDa + ', cioè ' : '') + t.volte + ' volte'); }
     righe.push(riga);
   });
   /* quello che ha detto e che a listino non c'e' non entra nel preventivo: se sparisse
@@ -4186,7 +4187,7 @@ function schedaRiga(id, k){
       fotoVoceInArrivo = undefined;
       r.facoltativa = d.facoltativa === 'si';
       if(d.volte > 1) r.volte = d.volte; else delete r.volte;
-      delete r.volteDette;      // ha risposto lui: la domanda sulla riga non serve piu'
+      delete r.volteDette; delete r.volteDa;      // ha risposto lui: la domanda sulla riga non serve piu'
       prezzoNelListino = null;
       const v = r.v ? voce(r.v) : null;
       if(v && d.p !== primaP && d.p > 0 && Math.abs(Number(v.p) - d.p) > 0.004 && r.u === v.u) prezzoNelListino = {v: v.id, p: d.p};
@@ -9019,9 +9020,12 @@ const CONCETTI_MESTIERI = {
               ['prese','televisione'],['presa','antenna'],['prese','antenna']] },
     { chiavi: ['dati','rete','telefono'],
       dette: ['dati','ethernet','internet','telefono','telefonica','telefoniche','modem','fibra'] },
-    { chiavi: ['citofono','videocitofono','campanello'],
-      dette: ['citofono','citofoni','videocitofono','videocitofoni','campanello','campanelli',
-              'apriporta','pulsantiera'] },
+    /* "CITOFONO E VIDEOCITOFONO" (7 novembre 2026) faceva un videocitofono solo. Il citofono
+       e' un'altra cosa, piu' economica: senza una voce sua chiede il prezzo una volta */
+    { chiavi: ['videocitofono'],
+      dette: ['videocitofono','videocitofoni','apriporta','pulsantiera'] },
+    { chiavi: ['citofono','campanello'],
+      dette: ['citofono','citofoni','campanello','campanelli'] },
     { chiavi: ['linea','dorsale','cavo','cavi'],
       dette: ['linea','linee','dorsale','dorsali','cavo','cavi','filo','fili','cablaggio',
               'cablare','corrugato','corrugati','sfilare','infilare'] },
@@ -9055,8 +9059,14 @@ const CONCETTI_MESTIERI = {
               'sciacquone','sospeso','sospesi'] },
     { chiavi: ['bidet'],
       dette: ['bidet','bide'] },
+    /* "il BOX doccia" (7 novembre 2026) prendeva l'attacco doccia a 638 euro: il box e' una
+       cosa sua, e senza una voce che lo nomini chiede il prezzo */
     { chiavi: ['doccia'],
-      dette: ['doccia','docce','soffione','box'] },
+      dette: ['doccia','docce','soffione'] },
+    { chiavi: ['box','cabina'], sola: true, dette: ['box','cabina'] },
+    /* "un AUTOCLAVE da duecento litri", "e due RACCORDI": spariva tutto senza traccia */
+    { chiavi: ['autoclave'], dette: ['autoclave','autoclavi'] },
+    { chiavi: ['raccordo','raccordi'], dette: ['raccordo','raccordi','gomito','gomiti','manicotto','manicotti'] },
     { chiavi: ['vasca'],
       dette: ['vasca','vasche','idromassaggio'] },
     { chiavi: ['rubinetto','rubinetteria','miscelatore'],
@@ -9116,8 +9126,13 @@ const CONCETTI_MESTIERI = {
       dette: ['proteggere','protezione','coprire','copertura','nylon','teli','telo','mobili'] },
     MACERIE ],
   piastrellista: [
+    /* "posare PIASTRELLE trenta metri quadri" (7 novembre 2026): per il piastrellista le
+       piastrelle dette da sole sono il pavimento. Prima non sceglievano niente e il lavoro
+       principale spariva dal preventivo. Pesano un po' meno di un nome vero: "piastrelle
+       sulle PARETI" resta il rivestimento. */
     { chiavi: ['pavimento','pavimenti','pavimentazione'], stanza: 'pavimento',
-      dette: ['pavimento','pavimenti','pavimentazione','pavimentare'].concat(STANZE) },
+      dette: ['pavimento','pavimenti','pavimentazione','pavimentare'].concat(STANZE),
+      cose: ['piastrelle','piastrella','mattonelle','mattonella','piastrellare','piastrelliamo'] },
     { chiavi: ['rivestimento','rivestimenti'],
       dette: ['rivestimento','rivestimenti','rivestire','pareti','parete','muro','muri',
               'paraschizzi','alzata'] },
@@ -9127,9 +9142,11 @@ const CONCETTI_MESTIERI = {
       dette: ['massetto','massetti','sottofondo','caldana'] },
     { chiavi: ['autolivellante','livellina'],
       dette: ['autolivellante','livellina','livellante'] },
+    /* "TOGLIERE le piastrelle" e' la demolizione (7 novembre 2026) */
     { chiavi: ['demolizione','rimozione'],
       dette: ['demolire','demolizione','demoliamo','rompere','spaccare','scrostare','smantellare',
-              'rimuovere','rimozione','vecchio','vecchia','vecchie','vecchi','esistente','esistenti'] },
+              'rimuovere','rimozione','vecchio','vecchia','vecchie','vecchi','esistente','esistenti',
+              'togliere','togliamo','levare','leviamo','scollare'] },
     { chiavi: ['impermeabilizzazione','guaina'],
       dette: ['impermeabilizzare','impermeabilizzazione','impermeabilizziamo','guaina','guaine',
               'membrana','infiltrazioni'] },
@@ -9249,8 +9266,11 @@ const CONCETTI_MESTIERI = {
       dette: ['sanificazione','sanificare','sanifichiamo','igienizzazione','igienizzare','filtri','filtro','lavaggio'] },
     { chiavi: ['ricarica'], dette: ['gas','ricarica','ricaricare','freon','refrigerante','rabbocco'] },
     { chiavi: ['caldaia'], dette: ['caldaia','caldaie','condensazione','murale','generatore'] },
+    /* "PULIZIA caldaia e controllo fumi" (7 novembre 2026): la pulizia della caldaia e' la
+       sua manutenzione, non la sanificazione del climatizzatore a 60 euro */
     { chiavi: ['fumi','analisi','annuale'],
-      dette: ['fumi','analisi','bollino','libretto','annuale','combustione','tagliando'] },
+      dette: ['fumi','analisi','bollino','libretto','annuale','combustione','tagliando'],
+      frasi: [['pulizia','caldaia'],['pulire','caldaia']] },
     { chiavi: ['canna','fumaria'], dette: ['canna','canne','fumaria','fumarie','camino','comignolo'] },
     { chiavi: ['defangatore'], dette: ['defangatore','defangatori','fanghi','magnetico','fango'] },
     { chiavi: ['radiatore'],
@@ -9260,6 +9280,9 @@ const CONCETTI_MESTIERI = {
       dette: ['valvola','valvole','termostatica','termostatiche','testina','testine','detentore','detentori'] },
     { chiavi: ['cronotermostato'], dette: ['cronotermostato','cronotermostati','termostato','termostati','crono'] },
     { chiavi: ['addolcitore'], dette: ['addolcitore','addolcitori','anticalcare','calcare','dosatore'] },
+    /* "SCALDABAGNO elettrico da cinquanta litri" (7 novembre 2026): non e' nel listino di
+       partenza e spariva. Come cosa del mestiere diventa una voce nuova che chiede il prezzo */
+    { chiavi: ['scaldabagno','boiler'], dette: ['scaldabagno','scaldabagni','boiler','scaldacqua','bollitore'] },
     { chiavi: ['manodopera'], dette: ['manodopera','operaio'] },
     { chiavi: ['uscita','trasferta'], dette: ['uscita','trasferta','chiamata','diritto'] },
     MACERIE ],
@@ -9332,6 +9355,9 @@ const VERBI_GENERICI = new Set(['potare','potatura','potata','taglio','tagliare'
   'piastrelle','piastrella','piastrellare','mattonelle','mattonella','ceramica',
   'verniciare','verniciatura','vernice']);
 const PESO_DEBOLE = 0.4;
+/* le cose che il mestiere chiama col loro nome ("piastrelle"): bastano a scegliere, ma un
+   nome vero della voce ("pareti", "rivestimento") vince ancora */
+const PESO_COSA = 0.9;
 const NOMI_GENERICI = new Set(['trattamento','trattamenti']);
 const TOGLIERE_DETTO = /^(togli|toglier|toglia|rimuov|rimozion|stacc|smont|demol|scrost|rasch|vecch|esistent|romp|spacc|abbatt|levar|levia|elimin|via$|svuot|sgombr|sverni|asport)/;
 /* "tre TRATTAMENTI", "sei PASSAGGI": quante volte si ripete lo stesso lavoro */
@@ -9596,6 +9622,9 @@ function numeriDetti(tok){
     /* "UNA RINGHIERA DA otto metri" (6 novembre 2026): e' quanto e' lunga una cosa, non i
        metri quadri da smaltare. In giardino "un prato da duecento metri" resta il prato. */
     if(n.u === 'm' && tok[i - 1] === 'da' && i >= 3 && (ARTICOLI.has(tok[i - 3]) || numeroDetto(tok[i - 3]) != null) && !inGiardino()) n.daUna = true;
+    /* "abbattere un PINO DA QUINDICI METRI" (7 novembre 2026): i metri sono quanto e' alto,
+       e uscivano quindici abbattimenti */
+    if(n.u === 'm' && tok[i - 1] === 'da' && i >= 2 && inGiardino() && PIANTE_ALTE.test(tok[i - 2] || '')) n.altezza = true;
     fuori.push(n);
   });
   /* ===== IL FORO: LARGHEZZA PER ALTEZZA (4 ottobre 2026) =====
@@ -9768,8 +9797,9 @@ function paroleDellaVoce(v){
     .filter(p => p.length >= 5 && !PAROLE_VUOTE.has(p)).forEach(p => metti(p, NOMI_GENERICI.has(p) ? PESO_DEBOLE : 1));
   frasiScritte(v).filter(f => f.length === 1 && f[0].length >= 3).forEach(f => metti(f[0], 1));
   (SINONIMI[v.id] || []).forEach(p => metti(p, 1));
-  concettiDellaVoce(v).forEach(c =>
-    c.dette.forEach(p => metti(p, VERBI_GENERICI.has(p) || STANZE_DEBOLI.has(p) ? PESO_DEBOLE : 1)));
+  concettiDellaVoce(v).forEach(c => {
+    c.dette.forEach(p => metti(p, VERBI_GENERICI.has(p) || STANZE_DEBOLI.has(p) ? PESO_DEBOLE : 1));
+    (c.cose || []).forEach(p => metti(p, PESO_COSA)); });
   return Array.from(fuori, ([p, peso]) => ({p, peso}));
 }
 const frasiDellaVoce = v => frasiScritte(v).filter(f => f.length > 1);
@@ -9834,6 +9864,7 @@ const TRATTAMENTO_DETTO = new Set(['trattamento','trattamenti','trattare','antip
    albero non e' potarlo, e costa un'altra cifra. "Impianto di irrigazione NUOVO": farne uno
    non e' controllarlo. Senza una voce loro nel listino si pagavano come una potatura e un
    controllo. Sono lavorazioni nuove, che chiedono il prezzo una volta. */
+const PIANTE_ALTE = /^(alber[oi]|pin[oi]|piant[ae]|abet[ei]|cipress[oi]|querc[ei]a?|tigli?o?|pioppi?o?|palm[ae]|cedr[oi]|platan[oi]|acer[oi]|olm[oi]|fagg?i?o?|betull[ae]|magnoli[ae]|ulivo|ulivi|olivo|olivi)$/;
 const ABBATTERE_DETTO = w => /^abbatt(ere|erl[aeio]|iamo|imento|imenti|o|ono)$/.test(w);
 const IMPIANTO_NUOVO = new Set(['nuovo','nuova','installare','installazione','installiamo','realizzare','realizzazione','realizziamo']);
 /* il taglio del flusso segue le lavorazioni del listino, e qui non ce ne sono: "abbattere
@@ -9852,10 +9883,14 @@ function staccaLavoroNuovo(tok){
      stacca solo se il lavoro prima ha gia' il suo numero: "potatura e trattamento di tre
      alberi" resta un pezzo solo. */
   if(a < 0){
-    const t = tok.findIndex((w, i) => i >= 2 && TRATTAMENTO_DETTO.has(w));
+    /* "dieci metri cubi di terra E SEMINA cento metri quadri" (7 novembre 2026): usciva una
+       voce sola «terra semina» da 10, e i cento metri di semina si perdevano */
+    const t = tok.findIndex((w, i) => i >= 2 && (TRATTAMENTO_DETTO.has(w) || SEMINA_DETTA.has(w)));
     let j = t - 1;
-    while(j > 0 && /^(fare|facciamo|faccio|il|un|anche|lo)$/.test(tok[j])) j--;
-    if(t > 0 && tok[j] === 'e' && tok.slice(0, j).some(w => ALTRO_LAVORO.test(w)) && numeriDetti(tok.slice(0, j)).length){
+    while(j > 0 && /^(fare|facciamo|faccio|il|un|anche|lo|la)$/.test(tok[j])) j--;
+    const primaUnLavoro = t > 0 && (tok.slice(0, j).some(w => ALTRO_LAVORO.test(w)) ||
+      (SEMINA_DETTA.has(tok[t]) && numeriDetti(tok.slice(0, j)).some(n => n.u)));
+    if(t > 0 && tok[j] === 'e' && primaUnLavoro && numeriDetti(tok.slice(0, j)).length){
       let fine = t + 1;
       while(fine < tok.length && tok[fine] !== 'e' && !ALTRO_LAVORO.test(tok[fine])) fine++;
       return {prima: tok.slice(0, j), sua: tok.slice(t, fine), dopo: tok.slice(fine)};
@@ -9876,6 +9911,35 @@ function staccaLavoroNuovo(tok){
   while(fine < tok.length && !ALTRO_LAVORO.test(tok[fine])) fine++;
   return {prima: tok.slice(0, da), sua: tok.slice(da, fine), dopo: tok.slice(fine)};
 }
+/* "due condizionatori da DODICIMILA BTU" (7 novembre 2026): 12.000 btu sono circa 3,5 kW,
+   e vinceva il monosplit da 2,5 perche' viene prima nel listino: 578 euro in meno sui due.
+   Quando il listino ha la stessa cosa in piu' taglie ("... 2,5 kW", "... 3,5 kW",
+   "... 25-30 kW"), la taglia detta sceglie la voce piu' vicina. */
+const KW_NEL_NOME = /(\d+(?:,\d+)?)(?:\s*-\s*(\d+(?:,\d+)?))?\s*kw\b/;
+function kwDetti(tok){
+  for(let k = 1; k < tok.length; k++){
+    const btu = tok[k] === 'btu';
+    if(!btu && !/^(kw|kilowatt|chilowatt)$/.test(tok[k])) continue;
+    let v = numeroDetto(tok[k - 1]);
+    if(tok[k - 1] === 'mila' && k >= 2 && numeroDetto(tok[k - 2]) != null) v = numeroDetto(tok[k - 2]) * 1000;
+    if(v != null && v > 0) return btu ? v * 0.000293071 : v;
+  }
+  return null;
+}
+function tagliaGiusta(voce, tok, voci){
+  const nome = x => senzaAccenti(String(x.v.nome || '').toLowerCase());
+  const kw = nome(voce).match(KW_NEL_NOME) ? kwDetti(tok) : null;
+  if(kw == null) return voce;
+  const famiglia = x => nome(x).replace(KW_NEL_NOME, '').trim();
+  const lontano = x => {
+    const t = nome(x).match(KW_NEL_NOME);
+    if(!t) return Infinity;
+    const a = parseFloat(t[1].replace(',', '.')), b = t[2] ? parseFloat(t[2].replace(',', '.')) : a;
+    return kw < a ? a - kw : kw > b ? kw - b : 0;
+  };
+  return voci.filter(x => x.tipo.k === voce.tipo.k && famiglia(x) === famiglia(voce))
+    .reduce((m, x) => lontano(x) < lontano(m) ? x : m, voce);
+}
 function scegliVoce(tok, voci){
   const unita = new Set(numeriDetti(tok).map(n => n.u).filter(Boolean));
   let meglio = null;
@@ -9887,7 +9951,7 @@ function scegliVoce(tok, voci){
       x.parole.forEach(p => { if(p.peso > peso && somiglia(w, p.p)) peso = p.peso; });
       if(!peso) return;
       punti += peso;
-      if(peso >= 1) sicuro++;
+      if(peso >= PESO_COSA) sicuro++;
       if(i < primo) primo = i;
     });
     (x.frasi || []).forEach(f => { const da = trovaFrase(tok, f); if(da >= 0){ punti += 2; sicuro++; if(da < primo) primo = da; } });
@@ -9904,6 +9968,10 @@ function scegliVoce(tok, voci){
        (c.punti === meglio.punti && (c.combacia > meglio.combacia ||
         (c.combacia === meglio.combacia && c.primo < meglio.primo)))) meglio = c;
   });
+  /* "il BOX doccia" (7 novembre 2026): una cosa che e' un lavoro suo non la prende una voce
+     che non la nomina */
+  if(meglio && CONCETTI_IN_USO.some(c => c.sola && tok.some(w => c.dette.some(p => somiglia(w, p)) &&
+     !(meglio.x.parole || []).some(p => somiglia(w, p.p))))) return null;
   /* "SEMINA del prato 200 mq", "prato a ROTOLI", "prato nuovo in ZOLLE": e' un prato da
      fare, non da tagliare. Se nel listino non c'e' una voce della semina, il prato
      sceglieva lo sfalcio, e la semina si pagava come un taglio d'erba: 70 euro invece
@@ -9924,7 +9992,11 @@ function scegliVoce(tok, voci){
     if(tok.some(w => TRATTAMENTO_DETTO.has(w) && !sue.some(p => somiglia(w, p.p))) &&
        !tok.some(w => nome.some(p => somiglia(w, p)))) return null;
     if(meglio.x.tipo.k === 'pezzi' && tok.some(ABBATTERE_DETTO) && !nome.some(ABBATTERE_DETTO)) return null;
-    if(nome.includes('controllo') && tok.some(w => IMPIANTO_NUOVO.has(w)) && !tok.includes('controllo')) return null;
+    /* "impianto di irrigazione CON SEI ZONE" (7 novembre 2026): chi conta le zone e non dice di
+       controllare sta facendo un impianto, non il controllo a 60 euro */
+    const conLeZone = tok.includes('impianto') && tok.some(w => /^zon[ae]$/.test(w));
+    if(nome.includes('controllo') && (tok.some(w => IMPIANTO_NUOVO.has(w)) || conLeZone) &&
+       !tok.some(w => /^(controll|verific|manutenz|ripar|aggiust|sistem)/.test(w))) return null;
   }
   return meglio ? meglio.x : null;
 }
@@ -10011,6 +10083,38 @@ function rifiutata(tok){
    che non e' a listino ("rifacciamo il vialetto in ghiaia") dalle chiacchiere
    ("allora, sopralluogo, il cliente diceva"). */
 usaMestiere(null);   /* PAROLE_CONCETTO: le parole dei concetti del mestiere in uso */
+/* "CITOFONO e videocitofono" (7 novembre 2026): nei mestieri al chiuso una cosa sola del
+   mestiere, detta col suo nome e staccata con la "e", e' un lavoro suo anche senza numero.
+   Non quando si toglie qualcosa: "togliere il vecchio citofono e mettere il videocitofono"
+   e' un lavoro solo. */
+const cosaDetta = w => CONCETTI_IN_USO.some(c => (c.cose || []).some(p => somiglia(w, p)));
+const parolaSola = w => CONCETTI_IN_USO.some(c => c.sola && c.dette.some(p => somiglia(w, p)));
+function cosaSolaDetta(t){
+  if(!MESTIERE_PARLATO || inGiardino() || t.some(w => TOGLIERE_DETTO.test(w))) return false;
+  const sue = t.filter(w => !diServizio(w) && w !== 'e' && w !== 'ed' && numeroDetto(w) == null);
+  return sue.length === 1 && PAROLE_CONCETTO.some(m => somiglia(sue[0], m));
+}
+/* "taglio prato OGNI QUINDICI GIORNI PER SEI MESI" (7 novembre 2026): sono dodici tagli, e
+   ne restava uno. Non si moltiplica di nascosto: si segna quante volte vengono, e il
+   preventivo lo chiede sulla riga come per "tre trattamenti". */
+const GIORNI_DI = {giorno:1, giorni:1, settimana:7, settimane:7, mese:30, mesi:30, anno:365, anni:365};
+function ogniPerQuanto(tok){
+  const o = tok.indexOf('ogni');
+  if(o < 0) return null;
+  let k = o + 1, n = 1;
+  if(numeroDetto(tok[k] || '') != null){ n = numeroDetto(tok[k]); k++; }
+  const passo = GIORNI_DI[tok[k]];
+  if(!passo || !(n > 0)) return null;
+  const pe = tok.indexOf('per', k + 1);
+  if(pe < 0 || pe > k + 3) return null;
+  let m = 1, j = pe + 1;
+  if(numeroDetto(tok[j] || '') != null){ m = numeroDetto(tok[j]); j++; }
+  const durata = GIORNI_DI[tok[j]];
+  if(!durata || !(m > 0)) return null;
+  const volte = Math.round(m * durata / (n * passo));
+  if(!(volte >= 2 && volte <= 60)) return null;
+  return {volte, detto: 'ogni ' + (n > 1 ? n + ' ' : '') + tok[k] + ' per ' + (m > 1 ? m + ' ' : '') + tok[j]};
+}
 function lavorazioneFuoriListino(tok){
   const parole = tok.filter(w => numeroDetto(w) == null && CIRCA[w] == null && !UNITA_DOPO[w] &&
     !RIEMPITIVI.has(w) && !ARTICOLI.has(w) && !PICCOLE.has(w) && w.length > 2 &&
@@ -10026,7 +10130,11 @@ function lavorazioneFuoriListino(tok){
   const delMestiere = parole.some(w => PAROLE_CONCETTO.some(m => somiglia(w, m)) || (inGiardino() && TRATTAMENTO_DETTO.has(w)));
   const conMisura = numeri.some(n => n.u);
   if(!delMestiere && !conMisura) return null;
-  if(parole.every(w => VERBI_GENERICI.has(w) || STANZE_DEBOLI.has(w))) return null;
+  /* "RIFARE IL BAGNO da sei metri quadri" (7 novembre 2026): rifare una stanza con la sua
+     misura e' un lavoro, anche se le due parole da sole dicono poco. Spariva senza traccia. */
+  const rifareUnaStanza = conMisura && MESTIERE_PARLATO && !inGiardino() &&
+    parole.some(w => STANZE_DEBOLI.has(w)) && parole.some(w => /^(rifa|rifac|ristruttur)/.test(w));
+  if(parole.every(w => VERBI_GENERICI.has(w) || STANZE_DEBOLI.has(w)) && !rifareUnaStanza) return null;
   const misura = numeri.find(n => n.u) || numeri.find(n => n.u === null) || null;
   const nome = parole.slice(0, 4).join(' ');
   /* "abbattimento di UN pino": l'albero e' uno, la misura c'e' */
@@ -10062,7 +10170,7 @@ function segnaliForti(tok, voci){
   const segni = tok.map(() => null);
   const metti = (i, x) => { (segni[i] || (segni[i] = new Set())).add(x); };
   voci.forEach(x => {
-    const forti = (x.parole || []).filter(p => p.peso >= 1);
+    const forti = (x.parole || []).filter(p => p.peso >= PESO_COSA);
     if(forti.length) tok.forEach((w, i) => { if(forti.some(p => somiglia(w, p.p))) metti(i, x); });
     (x.frasi || []).forEach(f => { const da = trovaFrase(tok, f); if(da >= 0) metti(da, x); });
   });
@@ -10120,7 +10228,7 @@ function tagliaFlusso(tok, voci){
             (!fermo(c - 1) && (diServizio(tok[c - 1]) || tok[c - 1] === 'e' || tok[c - 1] === 'ed')))) c--;
       const prima = tok.slice(0, c);
       if(c > 0 && tok.slice(c, i).includes('e') && !!lavorazioneFuoriListino(prima) &&
-         (numeriDetti(prima).some(n => n.u && !n.taglia) || prima.some((w, k) => (numeroDetto(w) != null || ARTICOLI.has(w)) && k + 1 < prima.length &&
+         (numeriDetti(prima).some(n => n.u && !n.taglia) || cosaSolaDetta(prima) || prima.some((w, k) => (numeroDetto(w) != null || ARTICOLI.has(w)) && k + 1 < prima.length &&
            numeroDetto(prima[k + 1]) == null && !diServizio(prima[k + 1]) && !UNITA_DOPO[prima[k + 1]]))){
         pezzi.push(prima); inizio = c;
       }
@@ -10134,9 +10242,19 @@ function tagliaFlusso(tok, voci){
        davanti venti metri siepe dietro quindici metri"): due pezzi, e si sommano.
        Contano solo i numeri detti DOPO la prima parola della lavorazione: "sei metri di
        tubo multistrato" e "due lampade di emergenza" sono una cosa sola (1 ottobre 2026). */
-    if(comuni.size && !conMisure(primoForte, i)){ correnti = comuni; ultimoForte = i; continue; }
+    /* "il piatto doccia e IL BOX doccia" (7 novembre 2026): il box e' un lavoro suo, e la
+       doccia detta dopo e' sua, non del piatto */
+    const solaPrima = tok.slice(inizio, i).some(parolaSola);
+    if(comuni.size && !conMisure(primoForte, i) && !solaPrima){ correnti = comuni; ultimoForte = i; continue; }
+    /* "piastrelle SULLE PARETI venti metri quadri" (7 novembre 2026): le piastrelle dicono di
+       cosa e' fatto, le pareti dove. Senza numeri e senza una "e" in mezzo e' un lavoro solo,
+       e lo sceglie il nome piu' preciso: il rivestimento, non il pavimento */
+    if(!comuni.size && !conNumeri(inizio, i) && !tok.slice(ultimoForte + 1, i).some(w => w === 'e' || w === 'ed') &&
+       tok.slice(inizio, i).every((w, k) => !segni[inizio + k] || cosaDetta(w))){
+      correnti = new Set([...correnti, ...qui]); ultimoForte = i; continue;
+    }
     let c = i;
-    while(c - 1 > ultimoForte && !fermo(c - 1) && diServizio(tok[c - 1])) c--;
+    while(c - 1 > ultimoForte && !fermo(c - 1) && (diServizio(tok[c - 1]) || parolaSola(tok[c - 1]))) c--;
     /* "il prato NO la siepe venti metri" (4 novembre 2026): quel no e' del prato, detto
        subito dopo. Passava alla siepe: restava il prato e la siepe spariva. */
     if(tok[c] === 'no' && c - 1 === ultimoForte) c++;
@@ -10181,7 +10299,9 @@ function tagliaFlusso(tok, voci){
     const davantiAlNome = () => {
       if(!MESTIERE_PARLATO || MESTIERE_PARLATO === 'giardiniere' || n !== i || UNITA_DOPO[tok[i]]) return false;
       const x = scegliVoce(tok.slice(inizio, n - 1), voci), y = scegliVoce(tok.slice(i, fineDiQui()), voci);
-      return !!x && !!y && x.tipo.k === 'pezzi' && y.tipo.k === 'pezzi';
+      /* "il rubinetto E DUE SIFONI" (7 novembre 2026): il due conta i sifoni anche se lo
+         scarico si paga a metro. Restava al rubinetto: due rubinetti mai chiesti */
+      return !!x && !!y && x.tipo.k === 'pezzi' && (y.tipo.k === 'pezzi' || (tok[i - 2] === 'e' && x !== y));
     };
     const fineDiQui = () => { for(let j = i + 1; j < tok.length; j++) if(segni[j] && ![...segni[j]].some(v => qui.has(v))) return j; return tok.length; };
     if(n - 1 > ultimoForte && numero(n - 1) && !/^(per|x)$/.test(tok[n - 2] || '') && !codaDelLato && !eAltezza(n) &&
@@ -10594,8 +10714,8 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
     const conLaE = (u, p) => u.tok[u.tok.length - 1] === 'e' ||
       p.tok.slice(0, Math.max(0, p.tok.findIndex(w => !diServizio(w) && w !== 'e' && w !== 'ed'))).some(w => w === 'e' || w === 'ed');
     const contatoDaSolo = (u, p) => conLaE(u, p) &&
-      u.tok.some((w, i) => (numeroDetto(w) != null || ARTICOLI.has(w)) && i + 1 < u.tok.length &&
-        numeroDetto(u.tok[i + 1]) == null && !diServizio(u.tok[i + 1]) && !UNITA_DOPO[u.tok[i + 1]]) &&
+      (u.tok.some((w, i) => (numeroDetto(w) != null || ARTICOLI.has(w)) && i + 1 < u.tok.length &&
+        numeroDetto(u.tok[i + 1]) == null && !diServizio(u.tok[i + 1]) && !UNITA_DOPO[u.tok[i + 1]]) || cosaSolaDetta(u.tok)) &&
       !!lavorazioneFuoriListino(u.tok);
     rimasti.forEach(p => {
       const ultimo = gruppi[gruppi.length - 1];
@@ -10608,9 +10728,10 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
       if(!p.voce){
         /* "scavo dieci metri cubi E getto di cemento tre metri cubi": due lavori fuori
            listino, ognuno con la sua misura, restano due (6 novembre 2026) */
-        if(ultimo && !lavoroNuovo && !p.staccato && !(!ultimo.voce && daSolo(ultimo) && daSolo(p))) ultimo.tok = ultimo.tok.concat(p.tok);
+        if(ultimo && !lavoroNuovo && !p.staccato && !(!ultimo.voce && daSolo(ultimo) && daSolo(p)) &&
+           !(ultimo.voce && p.tok.some(parolaSola))) ultimo.tok = ultimo.tok.concat(p.tok);
         else gruppi.push({voce:null, tok:p.tok.slice(), staccato:p.staccato});
-      } else if(ultimo && ((!ultimo.voce && !daSolo(ultimo) && !contatoDaSolo(ultimo, p)) ||
+      } else if(ultimo && ((!ultimo.voce && !daSolo(ultimo) && !contatoDaSolo(ultimo, p) && !ultimo.tok.some(parolaSola)) ||
                 (ultimo.voce === p.voce && !(haMisura(ultimo) && haMisura(p))))){
         /* "posa di tre | finestre": il pezzo davanti, senza una lavorazione sua, dice di
            quale voce si parla quanto il nome che viene dopo. Si sceglie sull'insieme,
@@ -10620,6 +10741,7 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
       } else gruppi.push({voce:p.voce, tok:p.tok.slice()});
     });
     gruppi.forEach(g => { if(g.voce && aVolume(g.tok)) g.voce = null; });
+    gruppi.forEach(g => { if(g.voce) g.voce = tagliaGiusta(g.voce, g.tok, voci); });
     /* "CAMBIARE il salvavita e TRE INTERRUTTORI" (6 novembre 2026): cambiare un interruttore
        o una presa che c'e' gia' e' la sostituzione del frutto, non un punto luce deviato
        nuovo a 64 euro. Il verbo vale per tutta la frase, finche' non si dice "nuovo". */
@@ -10767,6 +10889,8 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
           const n = k >= 0 ? numeroDetto(g.tok[k]) : 0;
           if(n >= 2 && n <= 60) nuova.volte = n;
         }
+        const ogni = !nuova.volte && ogniPerQuanto(g.tok);
+        if(ogni){ nuova.volte = ogni.volte; nuova.volteDa = ogni.detto; }
         trovate.push(nuova);
         if(!dubbio && !senzaNumero) parti.set(g.voce.v.id, [q]);
       }
@@ -13124,7 +13248,7 @@ function disegnaVoci(id){
       <div class="sotto-voce">
         <div class="nome modificabile" onclick="schedaRiga('${id}',${k})" title="Cambia nome, prezzo, volte nell'anno, o rendila facoltativa">${esc(r.nome)}</div>
         <div class="det">${euro(r.p)} ${esc(r.u)} · IVA ${cifra(aliquotaRiga(p,r))}%${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}${r.facoltativa ? ' · <span class="facoltativa">facoltativa</span>' : ''}${r.daMisurare ? ' · <span class="facoltativa">metti la misura</span>' : ''}${fotoVoceBuona(r.foto) ? ' · con foto' : ''}</div>
-        ${r.volteDette > 1 && volteRiga(r) === 1 ? `<div class="det" style="color:var(--accento)" onclick="schedaRiga('${id}',${k})">Hai detto ${r.volteDette} volte, nel conto ce n'è una: tocca qui e scrivi quante.</div>` : ''}
+        ${r.volteDette > 1 && volteRiga(r) === 1 ? `<div class="det" style="color:var(--accento)" onclick="schedaRiga('${id}',${k})">Hai detto ${r.volteDa ? esc(r.volteDa) + ', cioè ' : ''}${r.volteDette} volte, nel conto ce n'è una: tocca qui e scrivi quante.</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         ${aCorpo(r) ? '<div class="a-corpo">prezzo fisso</div>' : `<div class="qta">
