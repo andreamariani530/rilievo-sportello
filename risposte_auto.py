@@ -145,6 +145,11 @@ R_NUMERI_LUNGHI = re.compile(r"(?:\d[ .-]?){8,}")
 R_FINTO = re.compile(r"\bsono andrea\b|\bsono una persona\b|\bsono un umano\b|\bsono il titolare\b|\bfirmato\b|\bcome ia\b|\bcome modello\b|\bin qualita di\b")
 
 
+# la sola frase sui soldi che puo' partire da sola: e' fissa, scelta da Andrea il 7/11/2026,
+# e non la scrive Claude. Il controllo dei soldi la toglie prima di guardare il resto.
+FRASE_GRATIS = "Basta registrarsi con una mail e una password: è totalmente gratuito."
+
+
 def link_giusto(rubrica):
     """Il link lo decide il numero di chi scrive, mai Claude."""
     codice = (rubrica or {}).get("codice") or ""
@@ -154,7 +159,9 @@ def link_giusto(rubrica):
 def testo_link(rubrica):
     u = link_giusto(rubrica)
     if "?da=" in u:
-        return "Buongiorno, grazie per averci scritto. Ecco il suo link per aprire Rilievo: %s\nSe le serve una mano mi scriva pure." % u
+        # 7/11/2026 Andrea: con ogni link si dice che basta registrarsi ed e' gratis
+        return ("Buongiorno, grazie per averci scritto. Ecco il suo link per aprire Rilievo: %s\n"
+                + FRASE_GRATIS + "\nSe le serve una mano mi scriva pure. Buon lavoro!") % u
     return ("Buongiorno, grazie per averci scritto. Può chiedere di provare Rilievo da questa pagina, con il tasto «Chiedi di provarla»: %s\n"
             "Le arriverà il suo link personale." % u)
 
@@ -175,6 +182,8 @@ def controlla_risposta(tipo, testo, citazione, rubrica, manuale, certo=True):
     if len(testo) > MAX_RISPOSTA:
         return False, "risposta troppo lunga"
     n = norma(testo)
+    if tipo == "link":
+        n = n.replace(norma(FRASE_GRATIS), " ")
     if R_SOLDI.search(n):
         return False, "parla di soldi o di durata"
     if R_FINTO.search(n):
@@ -184,7 +193,7 @@ def controlla_risposta(tipo, testo, citazione, rubrica, manuale, certo=True):
     if tipo == "link":
         if trovati != [giusto]:
             return False, "link diverso da quello giusto"
-        resto = testo.replace(giusto, "")
+        resto = testo.replace(giusto, "").replace(FRASE_GRATIS, " ")
     else:
         if trovati:
             return False, "un indirizzo in una risposta sull'uso"

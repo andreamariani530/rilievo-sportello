@@ -176,8 +176,9 @@ def elenco():
 
 def _messaggio(r):
     return ("Ciao %s, grazie per la richiesta! Questo è il tuo link personale per provare Rilievo:\n%s/?da=%s\n\n"
+            "Basta registrarsi con una mail e una password: è totalmente gratuito.\n\n"
             "Per averla sul telefono come un'app:\n%s/telefono?da=%s\n\n"
-            "Per ora è gratis. Se ti blocchi o manca qualcosa che fai spesso, scrivimi pure: rispondo io.\nAndrea, Rilievo"
+            "Se ti blocchi o manca qualcosa che fai spesso, scrivimi pure: rispondo io. Buon lavoro!\nAndrea, Rilievo"
             % (r["nome"], _base(), r["codice"], _base(), r["codice"]))
 
 
