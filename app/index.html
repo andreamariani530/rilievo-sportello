@@ -1866,7 +1866,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-07 20:17';
+const COSTRUITA = '2026-11-08 02:17';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -8976,6 +8976,11 @@ const TECNICI = new Set(['ampere','amper','amp','volt','watt','kw','kilowatt','c
 const TEMPO = new Set(['giorno','giorni','settimana','settimane','mese','mesi','anno','anni',
   'ora','ore','minuto','minuti','giornata','giornate','stagione','stagioni']);
 const ELEMENTI = new Set(['elementi','elemento']);
+/* "una stanza DA TRENTA": dopo una stanza o una superficie il numero e' la misura, non la taglia */
+const SUPERFICI_DETTE = new Set(['stanza','stanze','camera','camere','bagno','bagni','cucina','sala','salone',
+  'soggiorno','appartamento','casa','villa','parete','pareti','soffitto','soffitti','terrazzo','terrazza',
+  'balcone','pavimento','locale','locali','ufficio','negozio','garage','cantina','corridoio','ingresso',
+  'muro','muri','facciata','tetto','superficie','area','zona','cortile','vialetto','marciapiede']);
 const ARTICOLI   = new Set(['un','uno','una']);
 /* ===== IL DIZIONARIO DEI MODI DI DIRE =====
    Ognuno chiama la stessa lavorazione a modo suo: "sfalcio", "taglio dell'erba",
@@ -9352,14 +9357,17 @@ const CONCETTI_MESTIERI = {
     { chiavi: ['smontaggio','recupero'],
       dette: ['smontaggio','smontare','smontiamo','togliere','togliamo','recupero','recuperare'] },
     { chiavi: ['sanificazione','pulizia'],
-      dette: ['sanificazione','sanificare','sanifichiamo','igienizzazione','igienizzare','filtri','filtro','lavaggio'] },
+      /* "MANUTENZIONE due condizionatori" (8 novembre 2026) faceva due climatizzatori nuovi, 3.446 euro */
+      dette: ['sanificazione','sanificare','sanifichiamo','igienizzazione','igienizzare','filtri','filtro','lavaggio',
+              'manutenzione','manutenzioni'] },
     { chiavi: ['ricarica'], dette: ['gas','ricarica','ricaricare','freon','refrigerante','rabbocco'] },
     { chiavi: ['caldaia'], dette: ['caldaia','caldaie','condensazione','murale','generatore'] },
     /* "PULIZIA caldaia e controllo fumi" (7 novembre 2026): la pulizia della caldaia e' la
        sua manutenzione, non la sanificazione del climatizzatore a 60 euro */
     { chiavi: ['fumi','analisi','annuale'],
       dette: ['fumi','analisi','bollino','libretto','annuale','combustione','tagliando'],
-      frasi: [['pulizia','caldaia'],['pulire','caldaia']] },
+      /* "MANUTENZIONE caldaia" (8 novembre 2026) faceva una caldaia nuova da 2.440 euro */
+      frasi: [['pulizia','caldaia'],['pulire','caldaia'],['manutenzione','caldaia']] },
     { chiavi: ['canna','fumaria'], dette: ['canna','canne','fumaria','fumarie','camino','comignolo'] },
     { chiavi: ['defangatore'], dette: ['defangatore','defangatori','fanghi','magnetico','fango'] },
     { chiavi: ['radiatore'],
@@ -9714,6 +9722,12 @@ function numeriDetti(tok){
     /* "abbattere un PINO DA QUINDICI METRI" (7 novembre 2026): i metri sono quanto e' alto,
        e uscivano quindici abbattimenti */
     if(n.u === 'm' && tok[i - 1] === 'da' && i >= 2 && inGiardino() && PIANTE_ALTE.test(tok[i - 2] || '')) n.altezza = true;
+    /* "una porta interna DA SETTANTA e due da ottanta", "tre split DA NOVEMILA" (8 novembre
+       2026): senza unita', il numero dopo "da" e' la taglia della cosa (centimetri, btu),
+       non quante ne servono. Uscivano settanta porte (32.933 euro) e 12.004 condizionatori.
+       In giardino, e dopo una stanza o una superficie ("una stanza da trenta"), resta la misura. */
+    if(n.u === null && !n.conteggio && tok[i - 1] === 'da' && i >= 2 && v >= 20 && !inGiardino() &&
+       !SUPERFICI_DETTE.has(tok[i - 2]) && tok[i + 1] !== 'a' && tok[i + 1] !== 'per') n.taglia = true;
     fuori.push(n);
   });
   /* ===== IL FORO: LARGHEZZA PER ALTEZZA (4 ottobre 2026) =====
@@ -10012,6 +10026,11 @@ function kwDetti(tok){
     let v = numeroDetto(tok[k - 1]);
     if(tok[k - 1] === 'mila' && k >= 2 && numeroDetto(tok[k - 2]) != null) v = numeroDetto(tok[k - 2]) * 1000;
     if(v != null && v > 0) return btu ? v * 0.000293071 : v;
+  }
+  /* "split DA NOVEMILA" senza dire btu (8 novembre 2026): per un climatizzatore quelle migliaia sono btu */
+  for(let k = 1; k < tok.length; k++){
+    const v = numeroDetto(tok[k]);
+    if(tok[k - 1] === 'da' && v != null && v >= 5000 && v <= 36000) return v * 0.000293071;
   }
   return null;
 }
@@ -10335,6 +10354,12 @@ function tagliaFlusso(tok, voci){
        doccia detta dopo e' sua, non del piatto */
     const solaPrima = tok.slice(inizio, i).some(parolaSola);
     if(comuni.size && !conMisure(primoForte, i) && !solaPrima){ correnti = comuni; ultimoForte = i; continue; }
+    /* "PULIZIA DEI DUE condizionatori", "manutenzione due condizionatori" (8 novembre 2026): il
+       numero subito davanti conta le cose della stessa lavorazione, non e' la misura di un'altra.
+       Staccati, la pulizia restava da 1 e i due condizionatori diventavano due nuovi, 3.446 euro.
+       Solo se prima non c'e' nessun numero: "SEI alberi da potare due tigli e quattro aceri" e' il dettaglio dei sei */
+    if(comuni.size && !solaPrima && numero(i - 1) && !conNumeri(inizio, i - 1) &&
+       !tok.slice(ultimoForte + 1, i).some(w => w === 'e' || w === 'ed')){ correnti = comuni; ultimoForte = i; continue; }
     /* "piastrelle SULLE PARETI venti metri quadri" (7 novembre 2026): le piastrelle dicono di
        cosa e' fatto, le pareti dove. Senza numeri e senza una "e" in mezzo e' un lavoro solo,
        e lo sceglie il nome piu' preciso: il rivestimento, non il pavimento */
