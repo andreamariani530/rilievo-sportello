@@ -1866,7 +1866,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-08 02:17';
+const COSTRUITA = '2026-11-09 02:11';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -9361,6 +9361,8 @@ const CONCETTI_MESTIERI = {
       dette: ['sanificazione','sanificare','sanifichiamo','igienizzazione','igienizzare','filtri','filtro','lavaggio',
               'manutenzione','manutenzioni'] },
     { chiavi: ['ricarica'], dette: ['gas','ricarica','ricaricare','freon','refrigerante','rabbocco'] },
+    /* "e LAVAGGIO impianto" (9 novembre 2026): un lavoro suo, che non si attacca alle valvole di prima */
+    { chiavi: ['lavaggio'], sola: true, dette: ['lavaggio','lavaggi'] },
     { chiavi: ['caldaia'], dette: ['caldaia','caldaie','condensazione','murale','generatore'] },
     /* "PULIZIA caldaia e controllo fumi" (7 novembre 2026): la pulizia della caldaia e' la
        sua manutenzione, non la sanificazione del climatizzatore a 60 euro */
@@ -9386,7 +9388,9 @@ const CONCETTI_MESTIERI = {
   /* 29 ottobre 2026: zanzare, topi, insetti, piccioni */
   disinfestatore: [
     { chiavi: ['zanzare'], dette: ['zanzare','zanzara','tigre','adulticida','adulticidi'] },
-    { chiavi: ['stagionale'], dette: ['stagionale','stagione','estate','abbonamento','passaggi'] },
+    /* "trattamento zanzare giardino mille metri quadri TRE PASSAGGI" (9 novembre 2026) faceva tre contratti
+       stagionali da 800 euro: i passaggi detti sono quante volte si fa il trattamento, come "tre trattamenti" */
+    { chiavi: ['stagionale'], dette: ['stagionale','stagione','estate','abbonamento'] },
     { chiavi: ['antilarvale','tombini'],
       dette: ['antilarvale','antilarvali','larvicida','larvicidi','larve','pastiglie','compresse','tombino','tombini',
               'caditoia','caditoie','pozzetto','pozzetti','tombinatura'] },
@@ -9456,6 +9460,12 @@ const PESO_DEBOLE = 0.4;
    nome vero della voce ("pareti", "rivestimento") vince ancora */
 const PESO_COSA = 0.9;
 const NOMI_GENERICI = new Set(['trattamento','trattamenti']);
+const SOLO_CASSETTA = new Set(['cassetta','cassette','sciacquone','sciacquoni','galleggiante','incasso','placca']);
+const NOMI_DEL_WC = new Set(['wc','water','vaso','vasi','tazza','tazze','gabinetto','sanitario','sanitari','sospeso','sospesi']);
+const DEL_RISCALDAMENTO = new Set(['impianto','impianti','riscaldamento','radiatori','radiatore','termosifoni','termosifone',
+  'caloriferi','pavimento','circuito','tubazioni','fanghi']);
+const DEL_CLIMA = new Set(['climatizzatore','climatizzatori','condizionatore','condizionatori','split','monosplit',
+  'dualsplit','filtri','filtro','clima','aria']);
 const TOGLIERE_DETTO = /^(togli|toglier|toglia|rimuov|rimozion|stacc|smont|demol|scrost|rasch|vecch|esistent|romp|spacc|abbatt|levar|levia|elimin|via$|svuot|sgombr|sverni|asport)/;
 /* "tre TRATTAMENTI", "sei PASSAGGI": quante volte si ripete lo stesso lavoro */
 const VOLTE_DETTE = /^(trattament[oi]|passagg[io]|intervent[oi]|volte|visite|ripassi)$/;
@@ -9598,6 +9608,8 @@ function numeriDetti(tok){
       /* "la siepe sono DUE LATI uno da 12 e uno da 18 metri": il due conta i lati, e
          sommato ai metri la siepe usciva da 32 invece che da 30 (1 novembre 2026) */
       if(PEZZI_DI_UNA_COSA.has(tok[j])) return true;
+      /* "imbiancare TRE STANZE e il corridoio" (9 novembre 2026) faceva tre metri quadri di pareti */
+      if(STANZE_DEBOLI.has(tok[j])) return 'stanze';
       return PAROLE_CONCETTO.some(m => somiglia(tok[j], m));
     }
     return false;
@@ -9705,7 +9717,9 @@ function numeriDetti(tok){
     if(TECNICI.has(cosaDopo(i)) || (/^\d/.test(w) && /^(a|v|w)$/.test(tok[i + 1] || ''))) return;
     const m = misuraDopo(i);
     const n = {v: v * (m ? m.f : 1), u: m ? m.u : null, i, f: m ? m.f : 1};
-    if(n.u === null && contaCose(i)) n.conteggio = true;
+    const contate = n.u === null && contaCose(i);
+    if(contate) n.conteggio = true;
+    if(contate === 'stanze') n.stanze = true;
     if(ELEMENTI.has(cosaDopo(i))) n.elementi = true;
     /* "sta in via Roma DODICI il prato e' trecento metri quadri e la siepe venti metri"
        (2 novembre 2026): il civico sembrava la misura del prato, i trecento metri quadri
@@ -10055,6 +10069,9 @@ function scegliVoce(tok, voci){
     let punti = 0, primo = Infinity;
     let sicuro = 0;
     tok.forEach((w, i) => {
+      /* "zanzare mille metri quadri TRE PASSAGGI" (9 novembre 2026): quante volte non sceglie la voce,
+         e il contratto stagionale, che ha «7 passaggi» nel nome, diventava tre contratti da 800 euro */
+      if(VOLTE_DETTE.test(w) && i > 0 && Number.isInteger(numeroDetto(tok[i - 1]))) return;
       let peso = 0;
       x.parole.forEach(p => { if(p.peso > peso && somiglia(w, p.p)) peso = p.peso; });
       if(!peso) return;
@@ -10080,6 +10097,14 @@ function scegliVoce(tok, voci){
      che non la nomina */
   if(meglio && CONCETTI_IN_USO.some(c => c.sola && tok.some(w => c.dette.some(p => somiglia(w, p)) &&
      !(meglio.x.parole || []).some(p => somiglia(w, p.p))))) return null;
+  /* "riparare lo SCIACQUONE e cambiare la CASSETTA incasso" (9 novembre 2026) prendeva l'attacco wc a
+     577 euro: senza il wc nominato e' un lavoro sulla cassetta, che chiede il suo prezzo */
+  if(meglio && /\b(wc|water|vaso)\b/.test(senzaAccenti(String(meglio.x.v.nome || '').toLowerCase())) &&
+     tok.some(w => SOLO_CASSETTA.has(w)) && !tok.some(w => NOMI_DEL_WC.has(w))) return null;
+  /* "LAVAGGIO IMPIANTO" (9 novembre 2026) prendeva la sanificazione del climatizzatore: il lavaggio
+     dell'impianto di riscaldamento e' un altro lavoro */
+  if(meglio && /climatizzator|condizionator/.test(senzaAccenti(String(meglio.x.v.nome || '').toLowerCase())) &&
+     tok.some(w => DEL_RISCALDAMENTO.has(w)) && !tok.some(w => DEL_CLIMA.has(w))) return null;
   /* "SEMINA del prato 200 mq", "prato a ROTOLI", "prato nuovo in ZOLLE": e' un prato da
      fare, non da tagliare. Se nel listino non c'e' una voce della semina, il prato
      sceglieva lo sfalcio, e la semina si pagava come un taglio d'erba: 70 euro invece
@@ -10141,6 +10166,9 @@ function quantitaPer(tipo, numeri){
   /* un prezzo detto a voce ("a quindici euro l'una") non e' una quantita', mai, nemmeno
      se e' l'unico numero della frase: meglio chiedere la misura che fatturare 15 piante. */
   numeri = numeri.filter(x => !x.prezzo && !x.tempo);
+  /* "tre STANZE" non sono mai tre metri quadri, nemmeno se e' l'unico numero (9 novembre 2026):
+     meglio chiedere la misura */
+  if(tipo.k !== 'pezzi') numeri = numeri.filter(x => !x.stanze);
   /* prima si buttano via le misure che non sono quelle che si fatturano: l'altezza
      della siepe, e il conteggio delle cose quando il lavoro si paga a superficie.
      Se pero' resta soltanto quella, meglio quella che niente. */
@@ -10513,7 +10541,12 @@ function spostaIlConto(pezzi, voci){
     const dopo = scegliVoce(pezzi[k + 1], voci);
     /* "una portafinestra E DUE tapparelle": le tapparelle si pagano a metro quadro, ma il
        due le conta (6 ottobre 2026): la portafinestra restava da 2 mq, le tapparelle a 1 */
-    if(!dopo || (dopo.tipo.k !== 'pezzi' && !(p[j - 1] === 'e' && sulForo(dopo.v)))) continue;
+    /* "centoventi metri quadri di pareti E QUARANTA DI SOFFITTO" (9 novembre 2026): il quaranta e' del
+       soffitto, e finiva sulle pareti (160 mq, e il soffitto senza misura). Vale quando prima e' gia'
+       stata detta una misura con la stessa unita' e il pezzo dopo comincia con "di" */
+    const diDopo = /^(di|del|dello|della|dei|degli|delle)$/.test(pezzi[k + 1][0] || '') &&
+      pezzi.slice(0, k + 1).some(x => numeriDetti(x).some(m => dopo && m.u === dopo.tipo.k));
+    if(!dopo || (dopo.tipo.k !== 'pezzi' && !(p[j - 1] === 'e' && (sulForo(dopo.v) || diDopo)))) continue;
     /* "siepe CINQUANTA alberi TRE": la lavorazione dopo il suo numero ce l'ha gia', quindi
        il cinquanta e' della siepe e resta dov'e'. Senza questo controllo il cinquanta
        scavalcava, la siepe restava a 1 e gli alberi diventavano CINQUANTA piante invece
