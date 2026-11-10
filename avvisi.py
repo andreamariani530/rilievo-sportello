@@ -9,10 +9,12 @@ Il 7 ottobre 2026, prima di mandare l'app ai primi dieci giardinieri, Andrea ha 
 Si manda solo la mail di chi entra e l'ora: niente password, niente lavoro.
 L'avviso parte in un filo a parte: se ntfy o Gmail sono lenti, chi si iscrive non aspetta.
 """
-import datetime, os, threading, urllib.request
+import datetime, os, pathlib, threading, urllib.request
 from zoneinfo import ZoneInfo
 
 import posta
+
+_chiave_benvenuti = threading.Lock()
 
 
 def _ntfy(titolo, testo):
@@ -64,6 +66,75 @@ def chi_entra(mail, nuovo):
         testo = "%s è rientrato con mail e password il %s (telefono nuovo, o era uscito)." % (mail, ora)
     print("  avviso ad Andrea:", titolo, flush=True)
     threading.Thread(target=_manda, args=(titolo, testo), daemon=True).start()
+
+
+
+# ------------------------------------------------- la mail di benvenuto a chi si iscrive
+# 10/11/2026, Andrea: «quando uno si iscrive mandiamo la mail di benvenuto», e «inviala
+# subito, cosi' non sembra una truffa ma un'azienda seria». Parte appena l'iscrizione e'
+# andata a buon fine, una volta sola per mail, da info@ con la firma di Andrea; le
+# risposte tornano a info@. Non dice niente di cosa fa la persona nell'app: solo il
+# grazie, come ritrovare il lavoro e a chi scrivere.
+# Non parte per gli indirizzi di Andrea, per quelli dei collaudi, ne' per chi arriva
+# con un codice di prova o di un amico (RILIEVO_BENVENUTO_NO, separati da virgole).
+BENVENUTO_OGGETTO = "Benvenuto in Rilievo"
+BENVENUTO_TESTO = """Ciao,
+
+grazie per esserti iscritto a Rilievo.
+
+Per ritrovare il tuo lavoro su un altro telefono o sul computer, apri https://rilievoapp.it ed entra con questa mail.
+
+Se qualcosa non ti torna o ti manca, rispondi pure a questa mail: la sto costruendo io, e i pareri di chi lavora davvero sono quelli che mi servono di più.
+
+Buon lavoro!
+
+Andrea
+Rilievo · rilievoapp.it"""
+_CODICI_SENZA_BENVENUTO = {"prova-andrea", "marco-472d"}
+_MAIL_SENZA_BENVENUTO = ("andreamariani530", "@example.", "@rilievoapp.it", "collaud", "prova+")
+
+
+def _gia_salutati():
+    import archivio
+    return pathlib.Path(archivio.CARTELLA) / "benvenuti.txt"
+
+
+def niente_benvenuto(mail, da=""):
+    m = str(mail or "").lower()
+    d = str(da or "").strip().lower()
+    no = set(_CODICI_SENZA_BENVENUTO) | {x.strip().lower() for x in
+                                         (os.environ.get("RILIEVO_BENVENUTO_NO") or "").split(",") if x.strip()}
+    return (not m) or d in no or any(x in m for x in _MAIL_SENZA_BENVENUTO)
+
+
+def _manda_benvenuto(mail):
+    try:
+        f = _gia_salutati()
+        with _chiave_benvenuti:
+            fatti = set(f.read_text(encoding="utf-8").split()) if f.exists() else set()
+            if mail in fatti:
+                return False
+            ok = posta.manda(mail, BENVENUTO_OGGETTO, BENVENUTO_TESTO, nome="Andrea di Rilievo",
+                             rispondi_a=posta.mittente())
+            if ok:
+                f.parent.mkdir(parents=True, exist_ok=True)
+                with open(f, "a", encoding="utf-8") as x:
+                    x.write(mail + "\n")
+        print("  benvenuto a", mail, "partito" if ok else "NON partito", flush=True)
+        return ok
+    except Exception as e:                 # noqa: BLE001
+        print("     benvenuto non partito:", type(e).__name__, e, flush=True)
+        return False
+
+
+def benvenuto(mail, da=""):
+    """Subito dopo l'iscrizione, nel suo filo: chi si iscrive non aspetta."""
+    if niente_benvenuto(mail, da):
+        print("  benvenuto saltato (prova o indirizzo di Andrea):", mail, flush=True)
+        return None
+    t = threading.Thread(target=_manda_benvenuto, args=(mail,), daemon=True)
+    t.start()
+    return t
 
 
 # ------------------------------------------------- le mail di Andrea, coi link puliti

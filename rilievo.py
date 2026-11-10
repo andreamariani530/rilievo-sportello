@@ -3323,6 +3323,8 @@ def servizio(porta=8787, pubblico=False):
                     return
                 self._manda(200, {"gettone": g, "mail": accessi.mail_pulita(mail)})
                 avvisi.chi_entra(accessi.mail_pulita(mail), nuovo=bool(fa))
+                if fa:
+                    avvisi.benvenuto(accessi.mail_pulita(mail), da)
                 return
             if percorso == "/accesso/stato":
                 m = accessi.chi_e(mail, dentro.get("gettone"))
