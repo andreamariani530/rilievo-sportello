@@ -1151,6 +1151,9 @@ body{background:var(--carta)}
   .contenuto{padding:0 18px 60px}
 }
 .testata h1{font-size:30.6px}
+.titolo-giornata{font-family:'Cormorant',serif;font-weight:500;font-size:27px;line-height:1.15;margin:30px 0 16px;
+  padding-top:22px;border-top:1px solid var(--filetto)}
+#casa .guida{margin:4px 0 18px}
 /* La ditta di esempio si dichiara (cliente scettico, 16 ottobre 2026): chi entrava nella
    dimostrazione trovava «Giardini Conti, abbonamento attivo» senza scritto «esempio», e per
    uscire doveva scendere in fondo alle Impostazioni e leggere «Butto via tutto». */
@@ -1160,6 +1163,11 @@ body.in-esempio .striscia-esempio{display:flex}
 .striscia-esempio b{font-weight:600;letter-spacing:.02em}
 .striscia-esempio button{flex:0 0 auto;background:var(--carta);color:var(--inchiostro);border:0;border-radius:999px;
   padding:9px 15px;font:inherit;font-weight:600;cursor:pointer;min-height:40px}
+ /* 10/11/2026: sul telefono la striscia nera mangiava 61 px fissi a ogni pagina */
+@media (max-width:640px){
+  .striscia-esempio{padding:5px 8px 5px 16px;font-size:14px}
+  .striscia-esempio button{padding:6px 14px;min-height:36px;font-size:14px}
+}
 .gratis-oggi{max-width:640px;margin:4px 0 22px}
 .gratis-oggi .grande{font-family:'Cormorant',serif;font-size:38px;line-height:1.05;color:var(--accento)}
 .gratis-oggi p{font-size:17px;margin-top:8px}
@@ -1866,10 +1874,10 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-10 02:09';
+const COSTRUITA = '2026-11-10 21:27';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
-  return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
+  return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
 }
 /* Chiedere al server se c'e' una versione nuova.
 
@@ -4936,7 +4944,7 @@ function bloccoLogo(logo, dove){
         <div class="lbl">Il tuo logo</div>
         <p class="logo-nota">${c ? '' : 'Facoltativo. '}Esce in cima a ogni preventivo, accanto al nome della ditta.</p>
         <div class="riga-azione">
-          <button type="button" class="bottone ${c ? 'vuoto ' : ''}piccolo" onclick="document.getElementById('scelta-logo-${dove}').click()">${c ? 'Cambialo' : 'Carica il logo'}</button>
+          <button type="button" class="bottone vuoto piccolo" onclick="document.getElementById('scelta-logo-${dove}').click()">${c ? 'Cambialo' : 'Carica il logo'}</button>
           ${c ? `<button type="button" class="bottone vuoto piccolo" onclick="togliLogo('${dove}')">Toglilo</button>` : ''}
         </div>
       </div>
@@ -5482,6 +5490,7 @@ function casaHtml(){
     <div class="casa-domande" id="casa-domande">
       ${domande.map((x, i) => `<button type="button" class="${x.urgente ? 'urgente' : ''}" data-domanda="${i}" onclick="chiediDallaCasa(${esc(JSON.stringify(x.t))})">${iconaCasa(iconaDomanda(x))}${esc(x.t)}</button>`).join('')}
     </div>
+    ${guidaHtml('oggi', null)}
     <div class="casa-riquadri" id="casa-riquadri">
       ${riquadro(oggiTile)}${riquadro(prevTile)}${riquadro(meseTile)}${riquadro(fattTile)}
     </div>
@@ -5730,8 +5739,7 @@ PAGINE.oggi = {
 
     return `
     ${casaHtml()}
-    ${guidaHtml('oggi', null)}
-    <div class="lbl" style="margin-bottom:14px" id="la-giornata">La giornata</div>
+    <h2 class="titolo-giornata" id="la-giornata">La giornata</h2>
     ${daChiudere.length ? `<div style="margin-bottom:28px">
       <div class="lbl" style="margin-bottom:12px">Il lavoro è stato fatto?</div>
       <div class="elenco">
@@ -13422,7 +13430,7 @@ PAGINE.preventivo = {
         ${lavoroConSpese(p) ? bloccoSpese(p) : ''}
         <div style="margin-top:18px;border-top:1px solid var(--filetto);padding-top:14px">
           <div class="riga-tot"><span>Stato</span><span>${tagPreventivo(p)}</span></div>
-          <div class="riga-tot"><span>Data</span><span>${dataCorta(p.data)}</span></div>
+          <div class="riga-tot"><span>Data</span><span>${dataLunga(p.data)}</span></div>
           ${rigaLink(p)}
           ${rigaPromemoria(p)}
           ${(p.solleciti || []).length ? `<div class="riga-tot"><span>Risentito</span><span>${p.solleciti.length === 1 ? 'una volta' : p.solleciti.length + ' volte'}, l'ultima ${quando(p.solleciti[p.solleciti.length - 1])}</span></div>` : ''}
@@ -14302,7 +14310,7 @@ PAGINE.cliente = {
       <div class="numero"><div class="val"><small>€</small> ${cifra(accettato, 0)}</div><div class="lbl">${l.filter(preso).length === 1 ? 'Lavoro preso' : 'Lavori presi'}</div></div>
       <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Già incassato</div></div>
       <div class="numero" id="cliente-deve"><div class="val"${deve ? ' style="color:var(--casa-caldo, #b8683a)"' : ''}><small>€</small> ${cifra(deve, 0)}</div><div class="lbl">Ti deve ancora${deve ? ', IVA compresa' : ''}</div></div>
-      <div class="numero"><div class="val" style="font-size:23px">${c.dal ? dataCorta(c.dal) : '—'}</div><div class="lbl">Cliente dal</div></div>
+      <div class="numero"><div class="val" style="font-size:23px">${c.dal ? dataLunga(c.dal) : '—'}</div><div class="lbl">Cliente dal</div></div>
       <div class="numero"><div class="val" style="font-size:23px">${c.tel && String(c.tel).replace(/[^+\d]/g, '')
           ? `<a class="tel-cliente" href="tel:${esc(String(c.tel).replace(/[^+\d]/g, ''))}" style="color:inherit">${esc(c.tel)}</a>`
           : esc(c.tel || '—')}</div><div class="lbl">Telefono</div></div>
@@ -14424,9 +14432,9 @@ PAGINE.numeri = {
     return `
     <div class="riga-numeri">
       <div class="numero"><div class="val"><small>€</small> ${cifra(incassato, 0)}</div><div class="lbl">Incassato nel ${anno}</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Lavoro preso, ancora da incassare${conIva ? ' (IVA compresa)' : ''}</div></div>
-      <div class="numero"><div class="val"><small>€</small> ${cifra(inAttesa, 0)}</div><div class="lbl">Fermo: il cliente non ha risposto${conIva ? ' (senza IVA)' : ''}</div></div>
-      <div class="numero"><div class="val">${quota}<small>%</small></div><div class="lbl">Ne prendi ${presi.length} su ${consegnati.length}</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(daIncassare, 0)}</div><div class="lbl">Da incassare${conIva ? ' · IVA compresa' : ''}</div></div>
+      <div class="numero"><div class="val"><small>€</small> ${cifra(inAttesa, 0)}</div><div class="lbl">Senza risposta${conIva ? ' · IVA esclusa' : ''}</div></div>
+      <div class="numero"><div class="val">${quota}<small>%</small></div><div class="lbl">Accettati: ${presi.length} su ${consegnati.length}</div></div>
     </div>
     <div class="griglia2">
       <div class="riquadro">
@@ -16436,7 +16444,7 @@ PAGINE.impostazioni = {
   guida:false,
   testata(){ return {occhiello:'La tua ditta e i tuoi dati', titolo:'Impostazioni'}; },
   spiega:{
-    testo:'I tuoi dati, quelli che finiscono stampati in cima a ogni documento che consegni. E il salvataggio: tutto quello che fai resta su questo dispositivo, ma da qui te lo porti via in un file tuo.',
+    testo:'I tuoi dati, quelli che finiscono stampati in cima a ogni documento che consegni. E una copia di tutto il tuo lavoro, in un file tuo.',
     punti:['Cambi i tuoi dati e i prossimi documenti escono aggiornati','Esporti un file con dentro tutto: listino, clienti, preventivi, documenti','Lo ricarichi su un altro telefono e ritrovi il tuo lavoro']
   },
   corpo(){
@@ -16485,7 +16493,7 @@ PAGINE.impostazioni = {
         ${riquadroFornitori()}
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il tuo lavoro, in un file</div>
-          <p style="font-size:16px;color:var(--soft)">Quello che fai resta su questo dispositivo, anche se chiudi la pagina (<a href="#privacy" style="color:var(--accento)">come trattiamo i dati</a>). Il file serve a portartelo via: su un altro telefono, sul computer, o per mandarcelo se c'è un problema da sistemare.</p>
+          <p style="font-size:16px;color:var(--soft)">Una copia di tutto in un file tuo (<a href="#privacy" style="color:var(--accento)">come trattiamo i dati</a>). Serve a portartelo via: su un altro telefono, sul computer, o per mandarcelo se c'è un problema da sistemare.</p>
           <div class="azioni" style="margin-top:16px">
             <button class="bottone vuoto" onclick="esporta()">Salva tutto in un file</button>
             <button class="bottone vuoto" onclick="importa()">Ricarica un salvataggio</button>
