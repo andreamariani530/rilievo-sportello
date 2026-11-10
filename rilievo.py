@@ -63,6 +63,10 @@ NOMINATIM    = "https://nominatim.openstreetmap.org/search"
 PHOTON       = "https://photon.komoot.io/api/"
 INDIRIZZI_ESRI = ("https://geocode.arcgis.com/arcgis/rest/services/World/"
                   "GeocodeServer/findAddressCandidates")
+# Google, la quarta porta, dal 10 novembre 2026: conosce i civici dei paesi piccoli
+# meglio delle altre. La chiave sta solo su Render (GOOGLE_MAPS_API_KEY, limitata alla
+# sola ricerca indirizzi). Senza chiave, o se Google non risponde, tutto va come prima.
+INDIRIZZI_GOOGLE = "https://maps.googleapis.com/maps/api/geocode/json"
 CATASTO      = "https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php"
 # La seconda porta del catasto, su un altro indirizzo di rete. Dà le stesse
 # particelle dello sportello "che cosa c'e' in questo punto", ma con il confine
@@ -399,6 +403,110 @@ def _da_photon(domanda, quanti=8, intorno=None):
     return trovati
 
 
+def _chiave_google():
+    return (os.environ.get("GOOGLE_MAPS_API_KEY") or "").strip()
+
+
+GOOGLE_STATO = {"ultimo": "", "quando": 0.0, "risposte": 0}
+
+
+def _chiedi_a_google(domanda, intorno=None):
+    """Una domanda alla ricerca indirizzi di Google. None se non c'e' la chiave o non
+    risponde; lista (anche vuota) se risponde. Ogni risultato ha la stessa forma di
+    quelli di Esri e Photon, piu' "strada", "posti" (comune e frazioni) e "esatto"
+    (Google dice di aver trovato proprio quella casa)."""
+    chiave = _chiave_google()
+    if not chiave:
+        return None
+    dati = {"address": domanda, "components": "country:IT", "language": "it",
+            "region": "it", "key": chiave}
+    if intorno:
+        lat, lon = intorno
+        dati["bounds"] = "%f,%f|%f,%f" % (lat - 0.08, lon - 0.11, lat + 0.08, lon + 0.11)
+    try:
+        d = json.loads(prendi(INDIRIZZI_GOOGLE, dati, tentativi=1, tempo=10).decode("utf-8"))
+    except Exception as e:                              # noqa: BLE001
+        GOOGLE_STATO.update(ultimo="non risponde: %s" % type(e).__name__, quando=time.time())
+        return None
+    stato = d.get("status")
+    GOOGLE_STATO.update(ultimo=stato or "?", quando=time.time())
+    if stato not in ("OK", "ZERO_RESULTS"):
+        # chiave sbagliata, quota finita, servizio spento: si va avanti con le altre porte
+        print("Google indirizzi: %s %s" % (stato, (d.get("error_message") or "")[:200]), flush=True)
+        return None
+    GOOGLE_STATO["risposte"] += 1
+    trovati = []
+    for r in d.get("results", []):
+        parti = {}
+        for c in r.get("address_components", []):
+            for t in c.get("types", []):
+                parti.setdefault(t, c)
+        nome = lambda t, corto=False: (parti.get(t) or {}).get("short_name" if corto else "long_name", "")
+        if nome("country", True) not in ("IT", ""):
+            continue
+        try:
+            lat = float(r["geometry"]["location"]["lat"])
+            lon = float(r["geometry"]["location"]["lng"])
+        except Exception:                               # noqa: BLE001
+            continue
+        comune = nome("administrative_area_level_3") or nome("locality")
+        posti = [x for x in (comune, nome("locality"), nome("sublocality"),
+                             nome("sublocality_level_1"), nome("neighborhood"),
+                             nome("postal_town")) if x]
+        civico = nome("street_number")
+        tipo = r.get("geometry", {}).get("location_type", "")
+        trovati.append({
+            "lat": lat, "lon": lon,
+            "indirizzo": r.get("formatted_address", ""),
+            "comune_nome": comune,
+            "provincia": nome("administrative_area_level_2", True),
+            "civico_trovato": civico,
+            "strada": nome("route"),
+            "posti": posti,
+            "cap": nome("postal_code"),
+            # ROOFTOP = proprio sull'edificio; RANGE_INTERPOLATED = stimato lungo la via
+            "esatto": tipo == "ROOFTOP" and bool(civico) and not r.get("partial_match"),
+            "fonte_indirizzo": "Google",
+        })
+    return trovati
+
+
+def _via_da_google(via, posto, civico, cap=""):
+    """La via cercata su Google, tenuta solo se cade nel posto scritto e se e' la
+    stessa via. Preciso solo se Google e' sull'edificio e il civico e' quello scritto."""
+    lat, lon = posto["dove"]
+    trovati = _chiedi_a_google(
+        via + ", " + ((cap + " ") if cap else "") + posto["comune"]
+        + ((" " + posto["provincia"]) if posto.get("provincia") and len(posto["provincia"]) == 2 else ""),
+        (lat, lon))
+    if not trovati:
+        return None
+    nomi = {_pulito(posto["comune"])}
+    esatto = vicino = strada = None
+    for p in trovati:
+        if _distanza_km((p["lat"], p["lon"]), (lat, lon)) > 12:
+            continue
+        if not (nomi & {_pulito(x) for x in p["posti"]}):
+            continue
+        if not p["strada"] or not _stessa_strada(via, p["strada"]):
+            continue
+        if cap and p.get("cap") and p["cap"] != cap:
+            continue
+        pulito = {k: v for k, v in p.items() if k not in ("strada", "posti", "cap", "esatto")}
+        pulito["comune_nome"] = posto["comune"]
+        pulito["provincia"] = posto["provincia"] or p.get("provincia", "")
+        if p["esatto"] and _stesso_civico(civico, p["civico_trovato"]):
+            esatto = esatto or dict(pulito, preciso=True)
+        elif p["civico_trovato"] and _stesso_civico(civico, p["civico_trovato"]):
+            # civico giusto ma punto stimato lungo la via: vicino, non preciso
+            vicino = vicino or dict(pulito, preciso=False)
+        elif p["civico_trovato"]:
+            vicino = vicino or dict(pulito, preciso=False)
+        else:
+            strada = strada or dict(pulito, preciso=False, civico_trovato="")
+    return esatto or vicino or strada
+
+
 def _via_da_photon(via, posto, civico, cap=""):
     """La via cercata su Photon, ma tenuta solo se cade nel posto scritto.
     Serve dove Esri non arriva: le vie delle frazioni piccole ci sono solo in
@@ -474,6 +582,8 @@ def suggerimenti_indirizzo(indirizzo, cap="", quanti=6):
     if nomi:
         trovati = _posti(nomi[0], sigla, cap) or []
         posto = trovati[0] if trovati else None
+    for p in _chiedi_a_google(domanda, posto and posto["dove"]) or []:
+        aggiungi(p, "Google")
     if posto:
         lat, lon = posto["dove"]
         riquadro = "%f,%f,%f,%f" % (lon - 0.4, lat - 0.3, lon + 0.4, lat + 0.3)
@@ -775,6 +885,10 @@ def _la_via_da_tutte_le_porte(via, posto, civico, nome, cap=""):
     bussa anche alle altre, e se una lo trova vince lei.
 
     Quando nessuno trova il civico esatto non cambia niente: resta l'ordine di prima."""
+    # dal 10 novembre 2026 Google bussa per primo: se ha proprio quella casa, vince
+    google = _via_da_google(via, posto, civico, cap)
+    if google and google.get("preciso"):
+        return google
     esri = _via_nel_posto(via, posto, civico)
     if esri and esri.get("preciso"):
         return esri
@@ -784,7 +898,12 @@ def _la_via_da_tutte_le_porte(via, posto, civico, nome, cap=""):
     osm = _via_da_osm(via, posto, civico, nome)
     if osm and osm.get("preciso"):
         return osm
-    return esri or photon or osm
+    # nessuno ha il civico esatto: prima una casa della via con quel numero
+    # (anche stimata da Google), poi l'ordine di prima
+    for t in (google, esri, photon, osm):
+        if t and t.get("civico_trovato") and _stesso_civico(civico, t.get("civico_trovato")):
+            return t
+    return esri or google or photon or osm
 
 
 def punto_dall_indirizzo(indirizzo, cap=""):
@@ -861,6 +980,9 @@ def punto_dall_indirizzo(indirizzo, cap=""):
 
 def _punto_senza_comune(indirizzo, civico):
     """La ricerca di prima del 15 settembre 2026, che non guarda il comune."""
+    for p in _chiedi_a_google(indirizzo) or []:
+        if p["esatto"] and _stesso_civico(civico, p["civico_trovato"]):
+            return {k: v for k, v in p.items() if k not in ("strada", "posti", "cap", "esatto")}
     esatto, vicino = _punto_da_esri(indirizzo, civico)
     if esatto:
         return esatto
@@ -3883,7 +4005,10 @@ def servizio(porta=8787, pubblico=False):
             if u.path in ("/", "/ci-sei"):
                 self._manda(200, {"servizio": "rilievo", "pronto": True,
                                   "versione": VERSIONE,
-                                  "codice_richiesto": bool(codici().get("attivo"))})
+                                  "codice_richiesto": bool(codici().get("attivo")),
+                                  # solo se la chiave c'e' e com'e' andata l'ultima domanda, mai la chiave
+                                  "indirizzi_google": {"chiave": bool(_chiave_google()),
+                                                       "ultimo": GOOGLE_STATO["ultimo"]}})
                 return
             if u.path == "/entra":
                 # l'app lo chiede all'apertura: questo codice vale ancora? e di
