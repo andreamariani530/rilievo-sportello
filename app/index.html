@@ -1883,7 +1883,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-10 23:11';
+const COSTRUITA = '2026-11-10 23:21';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -6719,7 +6719,7 @@ function tendinaIndirizzo(campo){
           if(mio !== giro || document.activeElement !== campo) return;
           const l = ((j && j.suggerimenti) || []).filter(x => x && x.testo).slice(0, 5);
           if(!l.length){ chiudi(); return; }
-          box.innerHTML = l.map(x => `<button type="button" class="riga-tendina" data-testo="${esc(x.testo)}">
+          box.innerHTML = l.map(x => `<button type="button" class="riga-tendina" data-testo="${esc(x.testo)}" data-id="${esc(x.id || '')}">
             <span class="via">${esc(x.via || x.testo)}</span>${x.dove ? `<span class="dove">${esc(x.dove)}</span>` : ''}</button>`).join('');
           box.hidden = false;
         }).catch(() => { if(mio === giro) chiudi(); });
@@ -6733,6 +6733,16 @@ function tendinaIndirizzo(campo){
     const b = e.target.closest('.riga-tendina'); if(!b) return;
     campo.value = b.dataset.testo;
     ultima = campo.value;
+    /* la scheda di quel posto, con la stessa sessione: per Google le lettere scritte
+       diventano una domanda sola, gratis, e arriva il CAP (10/11/2026) */
+    if(b.dataset.id && sessioneIndirizzo){
+      const capo = campo.closest('.finestra'), scritto = campo.value;
+      fetch(SPORTELLO_RILIEVO + '/scelto?' + col() + 'id=' + encodeURIComponent(b.dataset.id) + '&sessione=' + sessioneIndirizzo, {mode:'cors'})
+        .then(r => r.json()).then(j => {
+          const cap = capo && capo.querySelector('#c-cap');
+          if(j && j.cap && cap && !cap.value.trim() && campo.value === scritto) cap.value = j.cap;
+        }).catch(() => {});
+    }
     sessioneIndirizzo = '';
     chiudi();
     campo.dispatchEvent(new Event('change', {bubbles:true}));

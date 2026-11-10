@@ -514,7 +514,8 @@ def _via_da_google(via, posto, civico, cap=""):
 # correggerlo dopo. Solo il testo: il punto lo trova poi la ricerca di sempre.
 # Costa a ogni domanda, quindi c'e' un tetto al giorno (crediti gratuiti di Google).
 COMPLETA_GOOGLE = "https://places.googleapis.com/v1/places:autocomplete"
-COMPLETA_TETTO = int(os.environ.get("RILIEVO_COMPLETA_TETTO") or 4000)
+COMPLETA_TETTO = int(os.environ.get("RILIEVO_COMPLETA_TETTO") or 1000)
+SCHEDA_GOOGLE = "https://places.googleapis.com/v1/places/"
 COMPLETA_CONTO = {"giorno": "", "fatte": 0}
 ZONE_DITTA = {}     # "melegnano" -> (lat, lon): il paese della ditta si cerca una volta sola
 
@@ -593,9 +594,58 @@ def completa_indirizzo(testo, sessione="", vicino=None):
         dopo = re.sub(r",?\s*Italia$", "", dopo).strip()
         prima = re.sub(r",\s*(\d{1,4}\s*[A-Za-z]{0,3})$", r" \1", prima)
         scritto = ", ".join(x for x in (prima, dopo) if x) or re.sub(r",?\s*Italia$", "", tutto)
-        fuori.append({"testo": scritto[:160], "via": prima[:120], "dove": dopo[:120]})
+        fuori.append({"testo": scritto[:160], "via": prima[:120], "dove": dopo[:120],
+                      "id": re.sub(r"[^A-Za-z0-9_-]", "", str(p.get("placeId") or ""))[:300]})
         if len(fuori) >= 5:
             break
+    return fuori
+
+
+def chiudi_sessione(posto_id, sessione=""):
+    """L'artigiano ha toccato un suggerimento: si chiede a Google la scheda di quel
+    posto con lo stesso sessionToken. Cosi' le domande fatte mentre scriveva non si
+    pagano (Google le conta come una sessione sola) e arrivano CAP e coordinate.
+    {} se manca qualcosa o Google non risponde: l'app resta com'era."""
+    posto_id = re.sub(r"[^A-Za-z0-9_-]", "", str(posto_id or ""))[:300]
+    sessione = re.sub(r"[^A-Za-z0-9_-]", "", str(sessione or ""))[:36]
+    chiave = _chiave_google()
+    if not posto_id or not chiave:
+        return {}
+    oggi = time.strftime("%Y-%m-%d")
+    if COMPLETA_CONTO["giorno"] != oggi:
+        COMPLETA_CONTO.update(giorno=oggi, fatte=0)
+    if COMPLETA_CONTO["fatte"] >= COMPLETA_TETTO:
+        return {}
+    COMPLETA_CONTO["fatte"] += 1
+    url = SCHEDA_GOOGLE + posto_id + "?" + urllib.parse.urlencode(
+        dict({"languageCode": "it", "regionCode": "it"}, **({"sessionToken": sessione} if sessione else {})))
+    try:
+        richiesta = urllib.request.Request(url, headers={
+            "X-Goog-Api-Key": chiave, "X-Goog-FieldMask": "location,addressComponents",
+            "User-Agent": AGENTE})
+        with urllib.request.urlopen(richiesta, timeout=6) as r:
+            d = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            spiega = json.loads(e.read().decode("utf-8")).get("error", {}).get("status", "")
+        except Exception:                               # noqa: BLE001
+            spiega = ""
+        GOOGLE_STATO.update(scheda="%s %s" % (e.code, spiega))
+        print("Google scheda: %s %s" % (e.code, spiega), flush=True)
+        return {}
+    except Exception as e:                              # noqa: BLE001
+        GOOGLE_STATO.update(scheda="non risponde: %s" % type(e).__name__)
+        return {}
+    GOOGLE_STATO.update(scheda="OK")
+    fuori = {}
+    dove = d.get("location") or {}
+    if isinstance(dove.get("latitude"), (int, float)) and isinstance(dove.get("longitude"), (int, float)):
+        fuori.update(lat=dove["latitude"], lon=dove["longitude"])
+    for c in d.get("addressComponents", []):
+        if "postal_code" in (c.get("types") or []):
+            cap = re.sub(r"\D", "", c.get("longText") or c.get("shortText") or "")
+            if len(cap) == 5:
+                fuori["cap"] = cap
     return fuori
 
 
@@ -4101,7 +4151,8 @@ def servizio(porta=8787, pubblico=False):
                                   # solo se la chiave c'e' e com'e' andata l'ultima domanda, mai la chiave
                                   "indirizzi_google": {"chiave": bool(_chiave_google()),
                                                        "ultimo": GOOGLE_STATO["ultimo"],
-                                                       "suggerimenti": GOOGLE_STATO.get("completa", "")}})
+                                                       "suggerimenti": GOOGLE_STATO.get("completa", ""),
+                                                       "scheda": GOOGLE_STATO.get("scheda", "")}})
                 return
             if u.path == "/entra":
                 # l'app lo chiede all'apertura: questo codice vale ancora? e di
@@ -4177,6 +4228,12 @@ def servizio(porta=8787, pubblico=False):
                     vicino = punto_della_zona((q.get("zona") or [""])[0])
                 self._manda(200, {"suggerimenti": completa_indirizzo(
                     (q.get("testo") or [""])[0], (q.get("sessione") or [""])[0], vicino)})
+                return
+            if u.path == "/scelto":
+                # toccato un suggerimento: chiude la sessione di Google (le lettere
+                # scritte non si pagano) e porta CAP e coordinate
+                self._manda(200, chiudi_sessione((q.get("id") or [""])[0],
+                                                 (q.get("sessione") or [""])[0]))
                 return
             if u.path == "/indirizzi":
                 # gli indirizzi possibili per quello che e' stato scritto: la via
