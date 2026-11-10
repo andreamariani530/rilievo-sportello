@@ -1866,7 +1866,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-09 02:11';
+const COSTRUITA = '2026-11-10 02:09';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + '/' + (+m[2]) + '/' + m[1] + ', ore ' + m[4] : '';
@@ -9067,13 +9067,15 @@ const CONCETTI_MESTIERI = {
   elettricista: [
     /* "installare UN LAMPADARIO" e' il montaggio, non un punto luce nuovo (6 novembre 2026):
        il lampadario sta solo nel concetto del montaggio */
+    /* "TRE INTERRUTTORI" (10 novembre 2026) facevano tre punti deviati: l'interruttore detto da solo
+       accende il punto luce semplice. Il deviato vale quando si dice deviato, deviatore, invertitore */
     { chiavi: ['luce','lampada','illuminazione'],
       dette: ['luce','luci','lampada','lampade','faretto','faretti',
-              'applique','illuminazione','lampadina','lampadine','led'] },
+              'applique','illuminazione','lampadina','lampadine','led','interruttore','interruttori'] },
     { chiavi: ['presa','prese'],
       dette: ['presa','prese','schuko','spina','spine','multipresa','bipasso'] },
     { chiavi: ['interruttore','deviatore','invertitore','deviato'],
-      dette: ['interruttore','interruttori','deviatore','deviatori','deviata','deviate','deviato','deviati',
+      dette: ['deviatore','deviatori','deviata','deviate','deviato','deviati',
               'invertitore','invertitori','pulsante','pulsanti','comando','comandi','tapparelle'] },
     { chiavi: ['quadro','centralino'],
       dette: ['quadro','quadri','quadretto','centralino','centralini','contatore'] },
@@ -9160,6 +9162,10 @@ const CONCETTI_MESTIERI = {
     { chiavi: ['box','cabina'], sola: true, dette: ['box','cabina'] },
     /* "un AUTOCLAVE da duecento litri", "e due RACCORDI": spariva tutto senza traccia */
     { chiavi: ['autoclave'], dette: ['autoclave','autoclavi'] },
+    /* "installare un ADDOLCITORE e un FILTRO" (10 novembre 2026) non faceva niente: senza una voce
+       loro nel listino chiedono il prezzo, una riga per uno */
+    { chiavi: ['addolcitore'], dette: ['addolcitore','addolcitori','anticalcare','dosatore','dosatori'] },
+    { chiavi: ['filtro'], dette: ['filtro','filtri','autopulente','autopulenti'] },
     { chiavi: ['raccordo','raccordi'], dette: ['raccordo','raccordi','gomito','gomiti','manicotto','manicotti'] },
     { chiavi: ['vasca'],
       dette: ['vasca','vasche','idromassaggio'] },
@@ -9301,6 +9307,9 @@ const CONCETTI_MESTIERI = {
     { chiavi: ['uscita','trasferta'], dette: ['uscita','trasferta','chiamata','diritto'] },
     MACERIE ],
   muratore: [
+    /* "un marciapiede venti metri quadri E DUE POZZETTI" (10 novembre 2026): i pozzetti sparivano dentro
+       il marciapiede. Non sono nel listino di partenza: chiedono il prezzo, contati */
+    { chiavi: ['pozzetto'], dette: ['pozzetto','pozzetti','chiusino','chiusini'] },
     { chiavi: ['tramezzo','forati'],
       dette: ['tramezzo','tramezzi','tavolato','tavolati','forati','forato','mattoni','mattone','divisorio',
               'tramezzatura'] },
@@ -9379,6 +9388,9 @@ const CONCETTI_MESTIERI = {
       dette: ['valvola','valvole','termostatica','termostatiche','testina','testine','detentore','detentori'] },
     { chiavi: ['cronotermostato'], dette: ['cronotermostato','cronotermostati','termostato','termostati','crono'] },
     { chiavi: ['addolcitore'], dette: ['addolcitore','addolcitori','anticalcare','calcare','dosatore'] },
+    /* "POMPA DI CALORE da otto chilowatt e un bollitore" (10 novembre 2026) non faceva niente: la pompa
+       di calore non e' nel listino di partenza, chiede il prezzo; i chilowatt sono la sua taglia */
+    { chiavi: ['pompa'], dette: ['pompa','pompe'], frasi: [['pompa','calore']] },
     /* "SCALDABAGNO elettrico da cinquanta litri" (7 novembre 2026): non e' nel listino di
        partenza e spariva. Come cosa del mestiere diventa una voce nuova che chiede il prezzo */
     { chiavi: ['scaldabagno','boiler'], dette: ['scaldabagno','scaldabagni','boiler','scaldacqua','bollitore'] },
@@ -9487,7 +9499,11 @@ const PAROLE_VUOTE = new Set(['verde','alto','alta','fusto','controllo','rifacim
   'manutenzione','intervento','lavori','servizio',
   'punto','punti','attacco','attacchi','fornitura','sostituzione','tinteggiatura','pittura',
   'verniciatura','nuovo','nuova','compreso','compresa','impianto','elettrico','elettrica',
-  'idraulico','idraulica','esistente','singolo','singola','completo','completa']);
+  'idraulico','idraulica','esistente','singolo','singola','completo','completa',
+  /* "zanzare seicento metri quadri sei passaggi DA MAGGIO A SETTEMBRE" (10 novembre 2026) faceva sei
+     contratti stagionali da 800 euro: il periodo sta nel nome del contratto, ma dirlo non chiede il contratto */
+  'gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre',
+  'novembre','dicembre']);
 
 const senzaAccenti = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
 function preparaTesto(t){
@@ -10516,6 +10532,22 @@ function staccaCoseContate(tok, voci){
     if(tok[k] !== 'e' && tok[k] !== 'ed') continue;
     const n = numeroDetto(tok[k + 1]);
     const contata = ARTICOLI.has(tok[k + 1]) || (Number.isInteger(n) && n >= 2 && n <= 60);
+    /* "CITOFONO e dieci metri di canalina", "POMPA DI CALORE da otto chilowatt e un bollitore",
+       "un ADDOLCITORE e un filtro" (10 novembre 2026): una cosa del mestiere che a listino non c'e',
+       detta prima della "e", spariva dentro quello che veniva dopo. E' un lavoro suo, che chiede il
+       prezzo. Al chiuso, e non quando si toglie qualcosa per metterne un'altra. */
+    const avanti = tok.slice(k + 1), davanti = tok.slice(0, k);
+    if(MESTIERE_PARLATO && !inGiardino() && !tok.some(w => TOGLIERE_DETTO.test(w)) &&
+       davanti.some(w => PAROLE_CONCETTO.some(m => somiglia(w, m))) && !segnaliForti(davanti, voci).some(Boolean) &&
+       !!lavorazioneFuoriListino(davanti) &&
+       (segnaliForti(avanti, voci).some(Boolean) ||
+        (contata && avanti.some(w => PAROLE_CONCETTO.some(m => somiglia(w, m))) && !!lavorazioneFuoriListino(avanti))))
+    {
+      /* e quello che viene dopo, se e' anche lui fuori listino, e' un lavoro suo: non si riattacca */
+      const resto = staccaCoseContate(tok.slice(k), voci);
+      if(!segnaliForti(avanti, voci).some(Boolean) && Array.isArray(resto[0])) resto[0] = {tok: resto[0], staccato: true};
+      return [{tok: davanti, staccato: true}].concat(resto);
+    }
     /* "dichiarazione di conformita' E SOPRALLUOGO", "pittura centoventi metri quadri E
        CARTONGESSO quindici": fuori dal giardino anche il nome da solo, se e' una cosa del
        mestiere o porta la sua misura (6 novembre 2026). In giardino ci pensa lavoroNuovo. */
@@ -10546,7 +10578,10 @@ function spostaIlConto(pezzi, voci){
        stata detta una misura con la stessa unita' e il pezzo dopo comincia con "di" */
     const diDopo = /^(di|del|dello|della|dei|degli|delle)$/.test(pezzi[k + 1][0] || '') &&
       pezzi.slice(0, k + 1).some(x => numeriDetti(x).some(m => dopo && m.u === dopo.tipo.k));
-    if(!dopo || (dopo.tipo.k !== 'pezzi' && !(p[j - 1] === 'e' && (sulForo(dopo.v) || diDopo)))) continue;
+    /* "rasatura E DUE TRACCE" (10 novembre 2026): il due detto subito prima del nome delle tracce le
+       conta. Restava alla rasatura, che diventava di 2 metri quadri */
+    const contaIlNome = p[j - 1] === 'e' && dopo && (dopo.parole || []).some(x => x.peso >= 1 && somiglia(pezzi[k + 1][0] || '', x.p));
+    if(!dopo || (dopo.tipo.k !== 'pezzi' && !(p[j - 1] === 'e' && (sulForo(dopo.v) || diDopo || contaIlNome)))) continue;
     /* "siepe CINQUANTA alberi TRE": la lavorazione dopo il suo numero ce l'ha gia', quindi
        il cinquanta e' della siepe e resta dov'e'. Senza questo controllo il cinquanta
        scavalcava, la siepe restava a 1 e gli alberi diventavano CINQUANTA piante invece
@@ -10902,7 +10937,7 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
         const prima = gruppi[iG - 1];
         if(!cambia(g.tok) && !(prima && cambia(prima.tok) && (prima.tok[prima.tok.length - 1] === 'e' || g.tok[0] === 'e'))) return;
         if(g.tok.some(w => /^(nuov|aggiung|aggiunt|fare|facciamo|mettere|mettiamo|portare|spostare|punt)/.test(w))) return;
-        if(concettiDellaVoce(g.voce.v).some(c => c.chiavi.some(k => ['interruttore','presa','prese','deviato'].includes(k)))) g.voce = frutto;
+        if(concettiDellaVoce(g.voce.v).some(c => c.chiavi.some(k => ['interruttore','presa','prese','deviato','luce'].includes(k)))) g.voce = frutto;
       });
     /* "pavimento IN gres", "pareti IN idropittura lavabile": il gres e' il pavimento, non
        un secondo lavoro. Uscivano due righe, la posa in ceramica e quella in gres, e il
