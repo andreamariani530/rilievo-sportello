@@ -516,6 +516,26 @@ def _via_da_google(via, posto, civico, cap=""):
 COMPLETA_GOOGLE = "https://places.googleapis.com/v1/places:autocomplete"
 COMPLETA_TETTO = int(os.environ.get("RILIEVO_COMPLETA_TETTO") or 4000)
 COMPLETA_CONTO = {"giorno": "", "fatte": 0}
+ZONE_DITTA = {}     # "melegnano" -> (lat, lon): il paese della ditta si cerca una volta sola
+
+
+def punto_della_zona(zona):
+    """Dove sta il paese della ditta, per mettere in testa i suggerimenti vicini.
+    None se non si trova: allora i suggerimenti restano di tutta Italia."""
+    chiave = _pulito(zona)[:60]
+    if len(chiave) < 2:
+        return None
+    if chiave not in ZONE_DITTA:
+        try:
+            posti = _posti(str(zona)[:60]) or []
+        except Exception:                               # noqa: BLE001
+            posti = None
+        if posti is None:
+            return None                                 # Esri non risponde: si riprova la prossima volta
+        ZONE_DITTA[chiave] = posti[0]["dove"] if posti else None
+        if len(ZONE_DITTA) > 2000:
+            ZONE_DITTA.clear()
+    return ZONE_DITTA.get(chiave)
 
 
 def completa_indirizzo(testo, sessione="", vicino=None):
@@ -4152,6 +4172,9 @@ def servizio(porta=8787, pubblico=False):
                     vicino = (float(q["lat"][0]), float(q["lon"][0])) if q.get("lat") and q.get("lon") else None
                 except Exception:                   # noqa: BLE001
                     vicino = None
+                if not vicino and q.get("zona"):
+                    # il paese della ditta: prima le vie della sua zona (Andrea, 10/11/2026)
+                    vicino = punto_della_zona((q.get("zona") or [""])[0])
                 self._manda(200, {"suggerimenti": completa_indirizzo(
                     (q.get("testo") or [""])[0], (q.get("sessione") or [""])[0], vicino)})
                 return
