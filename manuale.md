@@ -68,7 +68,7 @@ Toccando un riquadro si apre il suo elenco. Sotto ancora «La giornata», con le
   saldo, «È pagato» lo segna incassato. In cima, chi dal link dice di aver fatto il
   bonifico: «È arrivato» lo segna (l'acconto, o tutto se era il totale), «Non ancora» lo
   toglie dalla lista.
-- «Clienti da risentire»: chi non senti da più di sei mesi, con «Chiamalo» e
+- «Clienti da risentire»: chi non senti da più di sei mesi, con «Chiama» e
   «Nuovo preventivo».
 - In fondo, «Come sta andando»: quanto hai preventivato e quanto è stato accettato negli
   ultimi sette giorni, i preventivi senza risposta, i clienti da risentire.
@@ -85,7 +85,7 @@ Chi ti ha chiamato o scritto.
   firma delle mail, su WhatsApp o sul biglietto. Chi ti cerca scrive nome, telefono,
   indirizzo e cosa gli serve, e preme «Manda la richiesta»: arriva qui da sola, come
   «Dal tuo link», con una mail per te; in Oggi la vedi in «Nuove richieste dal tuo link»
-  con «Chiamalo» e «Fissa il sopralluogo». Dalla scheda: «Copia il link»,
+  con «Chiama» e «Fissa il sopralluogo». Dalla scheda: «Copia il link»,
   «Mandalo su WhatsApp», «Guardalo», e «Fai un link nuovo» se quello vecchio gira dove non vuoi.
   Serve il tuo accesso con mail e password. Al massimo 20 richieste al giorno.
   Nella stessa scheda puoi accendere il prezzo indicativo: scegli una voce del listino a
@@ -146,7 +146,7 @@ Il cuore del lavoro: cammini nel giardino e parli.
   sul link; la riga dice «con foto». «Toglila» la toglie.
 - «Cliente e data», in cima, cambia a chi è intestato il preventivo, la data e il numero.
 - «Consegnalo al cliente» apre «Come glielo consegni?»:
-  - «Prepara il link»: il cliente apre una pagina, scrive il nome e tocca «Accetto».
+  - «Prepara il link»: il cliente apre una pagina, scrive il nome, tocca «Accetto» e firma via mail con OTP (codice di 6 cifre che gli arriva per mail).
     L'app segna da sola il preventivo accettato e ti dice quante volte l'ha aperto.
     Sul link il cliente può anche: spuntare le voci facoltative («Puoi aggiungere»,
     «Rifai il conto») e accettare il totale che ha scelto, e le voci entrano da sole nel
@@ -253,7 +253,7 @@ Quanto hai preventivato, quanto è stato accettato, quanto incassato, e perché 
 lavori (i motivi dei «no»). «Vai a risentirli» porta ai preventivi da sollecitare.
 Le cifre da incassare e incassate sono IVA compresa (quello che arriva in banca); il
 lavoro preso e i preventivi fermi sono senza IVA. Per questo la stessa commessa può
-valere 646 in Preventivi e 788 «ancora da incassare»: le etichette lo dicono.
+valere 646 in Preventivi e 788 «Ancora da incassare»: le etichette lo dicono.
 
 ## Lavori della squadra (`#squadra`)
 

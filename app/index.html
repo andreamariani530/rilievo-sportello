@@ -1915,7 +1915,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-11 00:06';
+const COSTRUITA = '2026-11-11 00:35';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -13511,7 +13511,8 @@ PAGINE.preventivo = {
           : p.stato === 'pagato' ? 'Pagato' + (p.pagato && p.pagato.quando ? ' il ' + dataLunga(p.pagato.quando) : '') + '. Questo è chiuso: il lavoro fatto e i soldi incassati.'
           : lavoroFinito(p) ? 'Lavoro finito il ' + dataLunga(p.lavoro_fatto.quando) + '. ' + (p.stato === 'pagato' ? 'Chiuso: fatto e incassato.' : 'Resta da incassare.')
           : p.stato === 'accettato' ? (p.firma ? 'Firmato da ' + esc(p.firma.nome) + ' il ' + dataLunga(p.firma.quando) + '. Il lavoro è tuo.'
-              : p.link && p.link.accettato ? 'Accettato dal link da ' + esc(p.link.accettato.nome) + ', ' + esc(quandoOra(p.link.accettato.quando)) + '. Il lavoro è tuo.'
+              : p.link && p.link.accettato ? 'Accettato dal link da ' + esc(p.link.accettato.nome) + ', ' + esc(quandoOra(p.link.accettato.quando))
+                + (p.link.accettato.mail ? ', firmato via mail con OTP a ' + esc(p.link.accettato.mail) : '') + '. Il lavoro è tuo.'
               : 'Accettato. Il lavoro è tuo.')
           : p.stato === 'rifiutato' ? 'Non è andata' + (p.motivo ? ': ' + esc(((MOTIVI_NO.find(x => x[0] === p.motivo) || [0, ''])[1]).toLowerCase()) : '') + '. Resta nel cassetto: se il cliente ci ripensa, lo rifai uguale con un tocco.'
           : p.stato === 'inviato' ? 'Consegnato ' + quando(p.data) + (p.consegna ? ' (' + esc(p.consegna.come) + ')' : '') + '. Se non risponde, risentilo: il messaggio è già scritto.'
@@ -17230,7 +17231,7 @@ function bloccoLink(id){
   const p = prev(id); if(!p) return '';
   return `<div class="pdf-consegna" id="link-consegna">
       <div><span class="lbl">Il link da mandare</span>
-        <span>Lo apre dal telefono, lo legge e lo accetta con un tocco. Tu vedi quando l’ha aperto.</span></div>
+        <span>Lo apre dal telefono e lo firma via mail con OTP (un codice usa e getta che gli arriva per mail). Tu vedi quando l’ha aperto.</span></div>
       <button class="bottone piccolo" id="btn-link" onclick="preparaLink('${id}')">${linkVivo(p) ? 'Usa il link' : 'Prepara il link'}</button>
     </div>`;
 }
@@ -17260,7 +17261,9 @@ async function preparaLink(id){
       const r = await fetch(SPORTELLO_RILIEVO + '/link/metti', {method:'POST', mode:'cors',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(Object.assign({corpo, ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
-                              titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : '')}, extraDelLink(p)))});
+                              titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : ''),
+                              /* dall'11/11: il cliente conferma il si' con un codice mandato a questa mail */
+                              mail_cliente: ((p.cliente && cliente(p.cliente)) || {}).mail || ''}, extraDelLink(p)))});
       const d = await r.json().catch(() => ({}));
       if(!r.ok || !d.link) throw new Error(d.errore || 'Il server non ha preso il preventivo.');
       p.link = {id: d.link, gestione: d.gestione, firma, creato: new Date().toISOString(), aperto: 0};
@@ -17356,6 +17359,8 @@ async function guardaILink(){
     }
     if(s.accettato && !p.link.accettato){
       p.link.accettato = {nome: s.accettato.nome, quando: s.accettato.quando};
+      const ver = s.accettato.verifica;
+      if(ver && ver.tipo === 'codice per mail' && ver.mail) p.link.accettato.mail = String(ver.mail).slice(0, 120);
       delete p.link.cambia;
       /* le voci in piu' spuntate dal cliente entrano nel preventivo, come con la firma sul posto */
       const prima = conti(p).totale, aggiunte = [];

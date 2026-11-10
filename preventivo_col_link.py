@@ -33,6 +33,16 @@ che aveva davanti. Basta per dire «il cliente ha accettato questo preventivo».
 Non e' la firma elettronica avanzata con marca temporale che vanta Klivo, e
 l'app non deve dire che lo sia.
 
+DALL'11 NOVEMBRE 2026: IL CODICE PER MAIL PRIMA DEL SI'
+Andrea ha chiesto di rendere piu' solida l'accettazione senza spendere. Dopo nome e
+spunta il server manda un codice di 6 cifre alla mail del cliente: quella che la ditta
+ha nella scheda del cliente (arriva dall'app come `mail_cliente`) oppure, se non c'e',
+quella che il cliente scrive. Il si' vale solo col codice giusto, e nell'accettazione
+resta anche la mail confermata. Resta una firma elettronica semplice, ma legata a una
+casella che il cliente controlla davvero. Il codice vale 15 minuti, 5 tentativi; al
+massimo 5 mail l'ora per link. Se la posta non parte, si accetta come prima (senza
+codice): un cliente che vuole dire si' non deve restare bloccato da un guasto nostro.
+
 DAL 4 OTTOBRE 2026 (idee prese ai concorrenti, cartellino E della notte)
   - il cliente spunta le voci facoltative e accetta il totale che ha scelto lui;
   - oltre ad «Accetto» puo' dire «No, grazie» (col motivo) o «Vorrei cambiare qualcosa»;
@@ -103,6 +113,22 @@ def pulisci(corpo):
     return c
 
 
+_MAIL = re.compile(r"[^\s@<>\"',;]+@[^\s@<>\"',;]+\.[A-Za-z]{2,}")
+
+
+def mail_buona(x):
+    m = str(x or "").strip()[:120]
+    return m.lower() if _MAIL.fullmatch(m) else ""
+
+
+def mail_coperta(m):
+    """m•••••@gmail.com: si capisce dove guardare senza mostrarla intera a chi apre il link."""
+    if "@" not in str(m or ""):
+        return ""
+    chi, dove = m.split("@", 1)
+    return chi[:1] + "•" * max(3, min(6, len(chi) - 1)) + "@" + dove
+
+
 _IBAN = re.compile(r"IT\d{2}[A-Z]\d{10}[A-Z0-9]{12}")
 MOTIVI_NO = [("prezzo", "Il prezzo"), ("tempi", "I tempi"), ("altro_giardiniere", "Ho scelto un altro"),
              ("rimandato", "Rimando più avanti"), ("altro", "Altro")]
@@ -119,7 +145,7 @@ def _soldi(x):
 def _extra_buoni(extra):
     """Quello che arriva dall'app oltre al documento, controllato pezzo per pezzo."""
     extra = extra if isinstance(extra, dict) else {}
-    fuori = {"pagamento": None, "facoltative": [], "base": None, "scade_il": None}
+    fuori = {"pagamento": None, "facoltative": [], "base": None, "scade_il": None, "mail_cliente": ""}
     pg = extra.get("pagamento")
     if isinstance(pg, dict):
         iban = re.sub(r"\s", "", str(pg.get("iban") or "")).upper()
@@ -143,6 +169,7 @@ def _extra_buoni(extra):
             if 0 <= k < 1000 and k not in visti and imp is not None and nome:
                 visti.add(k)
                 fuori["facoltative"].append({"k": k, "nome": nome, "importo": imp})
+    fuori["mail_cliente"] = mail_buona(extra.get("mail_cliente"))
     fuori["base"] = _soldi(extra.get("base"))
     if not fuori["facoltative"] or fuori["base"] is None:
         fuori["facoltative"], fuori["base"] = [], fuori["base"]
@@ -193,7 +220,7 @@ def metti(corpo, ditta="", titolo="", telefono="", da_ip="", extra=None):
                 "impronta": hashlib.sha256(pulito.encode()).hexdigest(),
                 "aperture": [], "accettato": None, "ritirato": None,
                 "pagamento": ex["pagamento"], "facoltative": ex["facoltative"], "base": ex["base"],
-                "risposta": None, "bonifico": None}
+                "risposta": None, "bonifico": None, "mail_cliente": ex["mail_cliente"]}
         _scrivi(lid, dati)
     return {"link": lid, "gestione": g}, None
 
@@ -272,25 +299,142 @@ def _vivo(d):
     return bool(d) and not _scaduto(d)
 
 
+CODICE_MINUTI = 15
+CODICE_TENTATIVI = 5
+CODICE_MAIL_ORA = 5
+
+
+def _impronta_codice(lid, codice):
+    return hashlib.sha256(("c:" + lid + ":" + str(codice)).encode()).hexdigest()
+
+
+def _segna_si(d, nome, ip, browser, scelte, verifica=None):
+    d["accettato"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nome": nome,
+                      "ip": str(ip or "")[:60], "browser": str(browser or "")[:200],
+                      "impronta": d.get("impronta"), "scelte": scelte, "totale": totale_con(d, scelte),
+                      "verifica": verifica}
+    d.pop("in_attesa", None)
+
+
+def _si_possibile(d):
+    """None se si puo' ancora dire si', altrimenti (ok, messaggio) da tornare."""
+    if not _vivo(d):
+        return False, "Questo preventivo non è più valido."
+    if d.get("accettato"):
+        return True, "Era già accettato."
+    if (d.get("risposta") or {}).get("tipo") == "no":
+        return False, "Hai già risposto di no. Se ci hai ripensato, scrivi a chi te l’ha mandato."
+    return None
+
+
 def accetta(lid, nome, ip="", browser="", con=None):
-    """Torna (True, messaggio) oppure (False, motivo)."""
+    """Il si' senza codice: resta per quando la posta non parte. Torna (True, msg) o (False, motivo)."""
     nome = re.sub(r"\s+", " ", str(nome or "")).strip()[:80]
     if len(nome) < 3:
         return False, "Scrivi il tuo nome e cognome per accettare."
     with _chiave:
         d = _leggi(lid)
-        if not _vivo(d):
-            return False, "Questo preventivo non è più valido."
-        if d.get("accettato"):
-            return True, "Era già accettato."
-        if (d.get("risposta") or {}).get("tipo") == "no":
-            return False, "Hai già risposto di no. Se ci hai ripensato, scrivi a chi te l’ha mandato."
-        scelte = scelte_buone(d, con)
-        d["accettato"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nome": nome,
-                          "ip": str(ip or "")[:60], "browser": str(browser or "")[:200],
-                          "impronta": d.get("impronta"), "scelte": scelte, "totale": totale_con(d, scelte)}
+        no = _si_possibile(d)
+        if no:
+            return no
+        _segna_si(d, nome, ip, browser, scelte_buone(d, con))
         _scrivi(lid, d)
     return True, "Accettato."
+
+
+def chiedi_codice(lid, nome, con=None, mail_scritta="", ip="", browser="", manda=None):
+    """Primo passo del si': prepara il codice e lo manda.
+    Torna (stato, messaggio): stato e' "mandato", "accettato" (posta guasta: si' senza
+    codice, come prima dell'11/11), "gia" (era gia' accettato) oppure "errore"."""
+    nome = re.sub(r"\s+", " ", str(nome or "")).strip()[:80]
+    if len(nome) < 3:
+        return "errore", "Scrivi il tuo nome e cognome per accettare."
+    with _chiave:
+        d = _leggi(lid)
+        no = _si_possibile(d)
+        if no:
+            return ("gia" if no[0] else "errore"), no[1]
+        mail = d.get("mail_cliente") or mail_buona(mail_scritta)
+        if not mail:
+            return "errore", ("Scrivi la tua mail: ti mandiamo un codice per confermare." if not str(mail_scritta or "").strip()
+                              else "Questa mail non sembra giusta. Controllala.")
+        adesso = time.time()
+        mandati = [x for x in (d.get("codici_mandati") or []) if adesso - x < 3600]
+        if len(mandati) >= CODICE_MAIL_ORA:
+            return "errore", "Ti abbiamo già mandato diversi codici. Guarda nella posta (anche fra lo spam) o riprova fra un’ora."
+        codice = "%06d" % secrets.randbelow(1000000)
+        d["in_attesa"] = {"nome": nome, "scelte": scelte_buone(d, con), "mail": mail,
+                          "codice": _impronta_codice(lid, codice), "scade": int(adesso + CODICE_MINUTI * 60),
+                          "tentativi": 0, "mandato": int(adesso),
+                          "ip": str(ip or "")[:60], "browser": str(browser or "")[:200]}
+        d["codici_mandati"] = mandati + [adesso]
+        _scrivi(lid, d)
+        ditta, titolo = d.get("ditta") or "", d.get("titolo") or "il preventivo"
+    partita = False
+    if manda:
+        testo = (f"Buongiorno {nome},\n\n"
+                 f"il codice per accettare {titolo}" + (f" di {ditta}" if ditta else "") + f" è:\n\n    {codice}\n\n"
+                 f"Scrivilo nella pagina del preventivo. Vale {CODICE_MINUTI} minuti.\n\n"
+                 "Se non hai chiesto tu di accettare questo preventivo, ignora questa mail: senza il codice non succede niente.\n\n"
+                 "Rilievo")
+        try:
+            partita = bool(manda(mail, f"Il codice per accettare il preventivo: {codice}", testo))
+        except Exception:                   # noqa: BLE001
+            partita = False
+    if partita:
+        return "mandato", ""
+    # la posta non e' partita: non si blocca il cliente, si accetta come prima
+    with _chiave:
+        d = _leggi(lid)
+        att = d.get("in_attesa") or {}
+        if d.get("accettato") or not att:
+            return "gia", "Era già accettato."
+        _segna_si(d, att["nome"], att["ip"], att["browser"], att["scelte"],
+                  {"tipo": "nessuna", "perche": "la mail col codice non è partita", "mail": att["mail"]})
+        _scrivi(lid, d)
+    return "accettato", ""
+
+
+def conferma_codice(lid, codice, ip="", browser=""):
+    """Secondo passo: il codice giusto chiude il si'. Torna (True, '') o (False, motivo)."""
+    codice = re.sub(r"\D", "", str(codice or ""))[:6]
+    with _chiave:
+        d = _leggi(lid)
+        no = _si_possibile(d)
+        if no:
+            return no
+        att = d.get("in_attesa")
+        if not att:
+            return False, "Scrivi il tuo nome e premi «Accetto»: ti mandiamo il codice."
+        if time.time() > att.get("scade", 0):
+            return False, "Il codice è scaduto. Premi «Mandami un codice nuovo»."
+        if att.get("tentativi", 0) >= CODICE_TENTATIVI:
+            return False, "Troppi codici sbagliati. Premi «Mandami un codice nuovo»."
+        if len(codice) != 6 or not secrets.compare_digest(att.get("codice", ""), _impronta_codice(lid, codice)):
+            att["tentativi"] = att.get("tentativi", 0) + 1
+            _scrivi(lid, d)
+            resta = CODICE_TENTATIVI - att["tentativi"]
+            return False, ("Il codice non è giusto. Controlla l’ultima mail arrivata." if resta > 0
+                           else "Troppi codici sbagliati. Premi «Mandami un codice nuovo».")
+        _segna_si(d, att["nome"], ip or att.get("ip"), browser or att.get("browser"), att.get("scelte") or [],
+                  {"tipo": "codice per mail", "mail": att["mail"],
+                   "mandato": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(att.get("mandato") or time.time()))})
+        _scrivi(lid, d)
+    return True, ""
+
+
+def altra_mail(lid):
+    """Il cliente ha sbagliato a scrivere la mail: si torna al primo modulo."""
+    with _chiave:
+        d = _leggi(lid)
+        if d and d.get("in_attesa") and not d.get("accettato"):
+            d.pop("in_attesa", None)
+            _scrivi(lid, d)
+
+
+def in_attesa(d):
+    att = (d or {}).get("in_attesa")
+    return att if att and not d.get("accettato") else None
 
 
 def rispondi(lid, tipo, motivo="", testo=""):
@@ -347,13 +491,16 @@ html,body{background:#F4EFE6;margin:0}
 .accetta{max-width:920px;margin:0 auto 60px;padding:26px 20px;font-family:'EB Garamond','Cormorant',Georgia,serif;font-size:17px;scroll-margin-top:12px;color:#2B2822;border-top:1px solid #D9D1C2}
 .accetta h2{font-weight:400;font-size:24px;margin:0 0 6px}
 .accetta p{margin:6px 0 14px;color:#4A463F;line-height:1.5}
-.accetta input[type=text]{width:100%;box-sizing:border-box;font-size:19px;padding:14px;border:1px solid #BDB4A3;background:#fff;font-family:inherit}
+.accetta input[type=text],.accetta input[type=email]{width:100%;box-sizing:border-box;font-size:19px;padding:14px;border:1px solid #BDB4A3;background:#fff;font-family:inherit;margin-bottom:8px}
 .accetta label.ok{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:16px}
 .accetta label.ok input{width:22px;height:22px;margin-top:2px;flex:0 0 22px}
 .accetta button{font-size:18px;padding:15px 28px;border:0;background:#2B2822;color:#F4EFE6;font-family:inherit;letter-spacing:.04em}
 .accetta .fatto{font-size:22px;color:#4F6B4A}
 .accetta .errore{color:#9A4B3A}
 .accetta .contatti a{color:#2B2822;margin-right:18px;white-space:nowrap}
+.accetta input.codice{font-size:26px;letter-spacing:.3em}
+.accetta input.codice::placeholder{letter-spacing:normal;font-size:19px}
+.accetta .ancora{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 16px}
 .accetta .tasto-nascosto{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .cambiato{max-width:920px;margin:12px auto 0;padding:14px 20px;box-sizing:border-box;font-family:'EB Garamond','Cormorant',Georgia,serif;font-size:17px;color:#2B2822;background:#FBF8F2;border:1px solid #D9D1C2}
 .nota{font-size:15px;color:#5E584E}
@@ -410,7 +557,7 @@ def _come_pagare(d, e, ditta, con_tasto):
     return righe + '</div>'
 
 
-def pagina(lid, stili_app, messaggio="", errore="", con=None, nome=""):
+def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
     """L'HTML intero della pagina per il cliente, oppure None se il link non c'e'."""
     d = _leggi(lid)
     if not d:
@@ -448,9 +595,13 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome=""):
         nomi = [v["nome"] for v in fac if v["k"] in (acc.get("scelte") or [])]
         con_che = (", con " + ", ".join(n[:1].lower() + n[1:] for n in nomi)) if nomi else ""
         tot = f' Totale {e(_euro(acc["totale"]))}.' if nomi and acc.get("totale") is not None else ""
+        ver = acc.get("verifica") or {}
+        conf = (f' Firmato via mail con OTP, codice mandato a {e(mail_coperta(ver.get("mail","")))}.'
+                if ver.get("tipo") == "codice per mail" else "")
         fondo = (_come_pagare(d, e, ditta, True) +
                  f'<div class="accetta"><p class="fatto">Accettato da {e(acc.get("nome",""))}{e(con_che)}, '
                  f'il {e(_data(acc.get("quando","")))}.{tot}</p>'
+                 + (f'<p class="nota">{conf.strip()}</p>' if conf else '') +
                  f'<p>{chi} lo ha già saputo. Grazie.</p>{contatti}</div>')
     elif risp.get("tipo") == "no":
         fondo = (f'<div class="accetta" id="rispondi"><p class="fatto">Hai risposto di no.</p>'
@@ -472,16 +623,49 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome=""):
         motivi = "".join(f'<label class="ok"><input type="radio" name="motivo" value="{k}">'
                          f'<span>{e(n)}</span></label>' for k, n in MOTIVI_NO)
         sul_cambio = errore.startswith("Scrivi cosa vorresti")
+        att = in_attesa(d)
+        mail_nota = d.get("mail_cliente") or ""
+        if mail_nota:
+            campo_mail = (f'<p class="nota">Ti mandiamo un codice a {e(mail_coperta(mail_nota))} per confermare che sei tu.</p>')
+        else:
+            campo_mail = (f'<input type="email" name="mail" value="{e(str(mail or "")[:120])}" placeholder="La tua mail" '
+                          f'autocomplete="email" inputmode="email" required>'
+                          f'<p class="nota" style="margin-top:6px">Ti mandiamo un codice per confermare che sei tu.</p>')
+        if att:
+            # secondo passo: il codice arrivato per mail
+            fondo = (f'<div class="accetta" id="rispondi"><h2>Controlla la posta</h2>'
+                     f'<p>Firma via mail con OTP: abbiamo mandato un codice di 6 cifre a <b>{e(mail_coperta(att.get("mail","")))}</b>. '
+                     f'Scrivilo qui per firmare il preventivo.</p>'
+                     + (f'<p class="errore">{e(errore)}</p>' if errore else '') +
+                     f'<form method="post" action="/p/{lid}/codice#rispondi">'
+                     f'<input type="text" name="codice" placeholder="Il codice" inputmode="numeric" autocomplete="one-time-code" '
+                     f'pattern="[0-9 ]{{6,7}}" maxlength="7" required class="codice">'
+                     f'<p style="margin-top:14px"><button type="submit">Firma e accetto</button></p></form>'
+                     f'<p class="nota">Non arriva? Guarda anche fra lo spam. Vale {CODICE_MINUTI} minuti.</p>'
+                     f'<div class="ancora"><form method="post" action="/p/{lid}/accetto#rispondi">'
+                     f'<input type="hidden" name="nome" value="{e(att.get("nome",""))}"><input type="hidden" name="ok" value="1">'
+                     + (f'<input type="hidden" name="mail" value="{e(att.get("mail",""))}">' if not mail_nota else '')
+                     + "".join(f'<input type="hidden" name="con" value="{k}">' for k in (att.get("scelte") or [])) +
+                     f'<button type="submit" class="secondario">Mandami un codice nuovo</button></form> '
+                     + ('' if mail_nota else
+                        f'<form method="post" action="/p/{lid}/altra#rispondi">'
+                        f'<button type="submit" class="secondario">Ho sbagliato la mail</button></form>')
+                     + f'</div>{contatti}</div>')
+            avviso = ""
+            corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>{e(d.get("titolo") or "Il tuo preventivo")}</h1></div>'
+                     + fondo + f'<div class="carta">{d.get("corpo","")}</div>')
+            return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
         fondo = (f'<div class="accetta" id="rispondi">{gia}<h2>Ti va bene?</h2>'
                  f'<p>Se il preventivo è come lo vuoi, scrivi il tuo nome e premi «Accetto». '
                  f'{chi} lo sa subito.</p>'
                  + (f'<p class="errore">{e(errore)}</p>' if errore and not sul_cambio else '') +
                  f'<form method="post" action="/p/{lid}/accetto#rispondi"><button type="submit" class="tasto-nascosto" tabindex="-1" aria-hidden="true">Accetto</button>{riquadro}'
                  f'<input type="text" name="nome" value="{e(str(nome or "")[:80])}" placeholder="Nome e cognome" autocomplete="name" required minlength="3">'
+                 f'{campo_mail}'
                  f'<label class="ok"><input type="checkbox" name="ok" value="1" required>'
                  f'<span>Ho letto il preventivo e lo accetto.</span></label>'
                  f'<button type="submit">Accetto</button></form>{contatti}'
-                 f'<p class="nota">Restano segnati il tuo nome, il giorno e l’ora. Valgono le condizioni '
+                 f'<p class="nota">Restano segnati il tuo nome, la mail confermata, il giorno e l’ora. Valgono le condizioni '
                  f'scritte nel preventivo.</p>'
                  f'<details class="altre" id="cambia"{" open" if sul_cambio else ""}><summary>Non ti va bene così?</summary>'
                  f'<form method="post" action="/p/{lid}/risposta#cambia"><input type="hidden" name="tipo" value="cambia">'

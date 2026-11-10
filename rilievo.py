@@ -3521,7 +3521,7 @@ def servizio(porta=8787, pubblico=False):
             if u.path.startswith("/fic/"):
                 self._fic(u.path)
                 return
-            m = re.fullmatch(r"/p/([a-z2-9]{14})/(accetto|risposta|pagato)", u.path)
+            m = re.fullmatch(r"/p/([a-z2-9]{14})/(accetto|risposta|pagato|codice|altra)", u.path)
             if m:
                 self._accetta_dal_link(m.group(1), m.group(2))
                 return
@@ -3904,8 +3904,17 @@ def servizio(porta=8787, pubblico=False):
             stili = preventivo_col_link.stili_dell_app(APP / "index.html")
             uno = lambda k: (campi.get(k) or [""])[0]
             con = campi.get("con") or []
+            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
             if cosa == "pagato":
                 preventivo_col_link.segna_bonifico(lid)
+                pagina = preventivo_col_link.pagina(lid, stili)
+            elif cosa == "codice":
+                ok, msg = preventivo_col_link.conferma_codice(lid, uno("codice"), ip, self.headers.get("User-Agent") or "")
+                pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg)
+                if ok:
+                    print("  link: preventivo accettato col codice")
+            elif cosa == "altra":
+                preventivo_col_link.altra_mail(lid)
                 pagina = preventivo_col_link.pagina(lid, stili)
             elif cosa == "risposta":
                 ok, msg = preventivo_col_link.rispondi(lid, uno("tipo"), uno("motivo"), uno("testo"))
@@ -3914,16 +3923,22 @@ def servizio(porta=8787, pubblico=False):
                     print("  link: il cliente ha risposto (%s)" % uno("tipo")[:10])
             elif uno("fai") == "conto":
                 # «Rifai il conto»: si ridisegna la pagina con le voci spuntate, senza accettare
-                pagina = preventivo_col_link.pagina(lid, stili, con=con, nome=uno("nome"))
+                pagina = preventivo_col_link.pagina(lid, stili, con=con, nome=uno("nome"), mail=uno("mail"))
             elif not uno("ok"):
-                pagina = preventivo_col_link.pagina(lid, stili, con=con, nome=uno("nome"),
+                pagina = preventivo_col_link.pagina(lid, stili, con=con, nome=uno("nome"), mail=uno("mail"),
                                                     errore="Spunta «Ho letto il preventivo e lo accetto».")
             else:
-                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
-                ok, msg = preventivo_col_link.accetta(lid, uno("nome"), ip, self.headers.get("User-Agent") or "", con=con)
-                pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg, con=con)
-                if ok:
-                    print("  link: preventivo accettato")
+                # dall'11/11/2026 il si' passa da un codice mandato per mail (vedi preventivo_col_link)
+                stato, msg = preventivo_col_link.chiedi_codice(
+                    lid, uno("nome"), con=con, mail_scritta=uno("mail"), ip=ip,
+                    browser=self.headers.get("User-Agent") or "",
+                    manda=lambda a, oggetto, testo: posta.manda(a, oggetto, testo, nome="Rilievo"))
+                pagina = preventivo_col_link.pagina(lid, stili, errore=msg if stato == "errore" else "",
+                                                    con=con, nome=uno("nome"), mail=uno("mail"))
+                if stato == "mandato":
+                    print("  link: codice per accettare mandato per mail")
+                elif stato == "accettato":
+                    print("  link: preventivo accettato SENZA codice (la mail non e' partita)")
             if pagina is None:
                 self._pagina_cliente(404, "<!doctype html><meta charset=utf-8><p>Questo link non esiste.</p>")
                 return
