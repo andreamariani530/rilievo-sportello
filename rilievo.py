@@ -27,7 +27,7 @@ Il catasto qualche volta sbaglia, e l'indirizzo può cadere sul civico sbagliato
 Per questo ogni numero che esce di qui si corregge a mano dentro l'applicazione.
 """
 import argparse, base64, io, json, math, os, pathlib, re, sys, time, unicodedata
-import urllib.parse, urllib.request
+import urllib.error, urllib.parse, urllib.request
 import logging
 import xml.etree.ElementTree as ET
 import archivio            # l'archivio condiviso della ditta
@@ -505,6 +505,78 @@ def _via_da_google(via, posto, civico, cap=""):
         else:
             strada = strada or dict(pulito, preciso=False, civico_trovato="")
     return esatto or vicino or strada
+
+
+# ------------------------------------------------- i suggerimenti mentre si scrive
+#
+# Dal 10 novembre 2026: mentre l'artigiano scrive l'indirizzo, sotto compaiono gli
+# indirizzi veri di Google e ne tocca uno. Cosi' l'errore non nasce, invece di
+# correggerlo dopo. Solo il testo: il punto lo trova poi la ricerca di sempre.
+# Costa a ogni domanda, quindi c'e' un tetto al giorno (crediti gratuiti di Google).
+COMPLETA_GOOGLE = "https://places.googleapis.com/v1/places:autocomplete"
+COMPLETA_TETTO = int(os.environ.get("RILIEVO_COMPLETA_TETTO") or 4000)
+COMPLETA_CONTO = {"giorno": "", "fatte": 0}
+
+
+def completa_indirizzo(testo, sessione="", vicino=None):
+    """Fino a 5 indirizzi che cominciano come quello scritto. Lista vuota se non c'e'
+    la chiave, se Google non risponde o se il tetto del giorno e' finito: l'app
+    allora resta com'era, senza tendina."""
+    testo = " ".join(str(testo or "").split())[:120]
+    chiave = _chiave_google()
+    if len(testo) < 4 or not chiave:
+        return []
+    oggi = time.strftime("%Y-%m-%d")
+    if COMPLETA_CONTO["giorno"] != oggi:
+        COMPLETA_CONTO.update(giorno=oggi, fatte=0)
+    if COMPLETA_CONTO["fatte"] >= COMPLETA_TETTO:
+        return []
+    COMPLETA_CONTO["fatte"] += 1
+    corpo = {"input": testo, "includedRegionCodes": ["it"], "languageCode": "it",
+             "includedPrimaryTypes": ["street_address", "premise", "subpremise", "route", "locality"]}
+    sessione = re.sub(r"[^A-Za-z0-9_-]", "", str(sessione or ""))[:36]
+    if sessione:
+        corpo["sessionToken"] = sessione
+    if vicino:
+        corpo["locationBias"] = {"circle": {"center": {"latitude": vicino[0], "longitude": vicino[1]},
+                                            "radius": 50000.0}}
+    try:
+        richiesta = urllib.request.Request(
+            COMPLETA_GOOGLE, data=json.dumps(corpo).encode("utf-8"), method="POST",
+            headers={"Content-Type": "application/json", "X-Goog-Api-Key": chiave,
+                     "User-Agent": AGENTE})
+        with urllib.request.urlopen(richiesta, timeout=6) as r:
+            d = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            spiega = json.loads(e.read().decode("utf-8")).get("error", {}).get("status", "")
+        except Exception:                               # noqa: BLE001
+            spiega = ""
+        GOOGLE_STATO.update(completa="%s %s" % (e.code, spiega))
+        print("Google suggerimenti: %s %s" % (e.code, spiega), flush=True)
+        return []
+    except Exception as e:                              # noqa: BLE001
+        GOOGLE_STATO.update(completa="non risponde: %s" % type(e).__name__)
+        return []
+    GOOGLE_STATO.update(completa="OK")
+    fuori = []
+    for x in d.get("suggestions", []):
+        p = x.get("placePrediction") or {}
+        f = p.get("structuredFormat") or {}
+        prima = ((f.get("mainText") or {}).get("text") or "").strip()
+        dopo = ((f.get("secondaryText") or {}).get("text") or "").strip()
+        tutto = ((p.get("text") or {}).get("text") or "").strip()
+        if not (prima or tutto):
+            continue
+        # "Via Roma, 10" + "Milano MI, Italia" -> "Via Roma 10, Milano MI": come lo
+        # scriverebbe una persona, e come lo legge _pezzi_indirizzo
+        dopo = re.sub(r",?\s*Italia$", "", dopo).strip()
+        prima = re.sub(r",\s*(\d{1,4}\s*[A-Za-z]{0,3})$", r" \1", prima)
+        scritto = ", ".join(x for x in (prima, dopo) if x) or re.sub(r",?\s*Italia$", "", tutto)
+        fuori.append({"testo": scritto[:160], "via": prima[:120], "dove": dopo[:120]})
+        if len(fuori) >= 5:
+            break
+    return fuori
 
 
 def _via_da_photon(via, posto, civico, cap=""):
@@ -4008,7 +4080,8 @@ def servizio(porta=8787, pubblico=False):
                                   "codice_richiesto": bool(codici().get("attivo")),
                                   # solo se la chiave c'e' e com'e' andata l'ultima domanda, mai la chiave
                                   "indirizzi_google": {"chiave": bool(_chiave_google()),
-                                                       "ultimo": GOOGLE_STATO["ultimo"]}})
+                                                       "ultimo": GOOGLE_STATO["ultimo"],
+                                                       "suggerimenti": GOOGLE_STATO.get("completa", "")}})
                 return
             if u.path == "/entra":
                 # l'app lo chiede all'apertura: questo codice vale ancora? e di
@@ -4071,6 +4144,16 @@ def servizio(porta=8787, pubblico=False):
                 # a che punto sta l'Agenzia delle Entrate, detto in chiaro: serve a
                 # capire in dieci secondi se un rilievo mancato e' colpa loro
                 self._manda(200, catasto_risponde())
+                return
+            if u.path == "/completa":
+                # i suggerimenti mentre si scrive l'indirizzo (Google); la chiave resta qui
+                vicino = None
+                try:
+                    vicino = (float(q["lat"][0]), float(q["lon"][0])) if q.get("lat") and q.get("lon") else None
+                except Exception:                   # noqa: BLE001
+                    vicino = None
+                self._manda(200, {"suggerimenti": completa_indirizzo(
+                    (q.get("testo") or [""])[0], (q.get("sessione") or [""])[0], vicino)})
                 return
             if u.path == "/indirizzi":
                 # gli indirizzi possibili per quello che e' stato scritto: la via

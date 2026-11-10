@@ -673,6 +673,15 @@ body.disegno-aperto{overflow:hidden}
 .riga-suggerita .dove{display:block;font-size:16px;color:var(--inchiostro)}
 .riga-suggerita .chi{display:block;font-size:13.5px;color:var(--tenue);margin-top:2px}
 .nota-suggeriti{font-size:14px;color:var(--tenue);margin:2px 0 6px}
+/* la tendina degli indirizzi mentre si scrive (Google, 10 novembre 2026) */
+.tendina-indirizzi{margin-top:6px;background:var(--bianco);border:1px solid var(--filetto2);
+  border-radius:10px;overflow:hidden}
+.riga-tendina{display:block;width:100%;text-align:left;background:none;border:0;
+  border-bottom:1px solid var(--filetto2);padding:11px 13px;font-family:inherit;cursor:pointer}
+.riga-tendina:last-child{border-bottom:0}
+.riga-tendina:hover,.riga-tendina:focus{background:var(--carta,#f7f1e5);outline:none}
+.riga-tendina .via{display:block;font-size:16px;color:var(--inchiostro)}
+.riga-tendina .dove{display:block;font-size:13.5px;color:var(--tenue);margin-top:2px}
 /* min-height:0 e' quello che tiene in piedi tutto: senza, un figlio flex non si
    restringe sotto il suo contenuto, la foto spinge il piede fuori dallo schermo e
    del giardino resta una striscia alta due dita (Cafagna, 17 settembre 2026) */
@@ -1874,7 +1883,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-10 22:06';
+const COSTRUITA = '2026-11-10 22:56';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -3842,6 +3851,8 @@ function scheda(o){
   document.body.appendChild(velo);
   addEventListener('keydown', tastoScheda);
   schedaAperta = o;
+  /* i campi dell'indirizzo hanno la tendina di Google mentre si scrive */
+  (o.campi || []).forEach(c => { if(c.ind) tendinaIndirizzo(document.getElementById('c-' + c.k)); });
 
   /* Quanto fa, mentre si cambia il numero.
 
@@ -4117,7 +4128,7 @@ function schedaPreventivo(id, idCliente){
                   nome:cl ? cl.nome : '', luogo:cl ? (cl.indirizzo || cl.luogo || '') : ''},
     campi:[
       {k:'nome', l:'Per chi', p:'Villa Ranieri'},
-      {k:'luogo', l:'Dove', p:'Via Castello 18, Pandino'},
+      {k:'luogo', l:'Dove', ind:true, p:'Via Castello 18, Pandino'},
       {k:'numero', l:'Numero', m:true, p:'2026/045'},
       {k:'data', l:'Data', t:'data', m:true},
       {k:'stato', l:'A che punto è', t:'scelta', m:true, opzioni:STATI_PREVENTIVO},
@@ -4326,7 +4337,7 @@ function schedaSopralluogo(id){
          "Condominio Le Querce, Rivolta d'Adda" sembra un cliente di qualcun altro.
          Il comune e' quello della ditta, cosi' l'esempio somiglia al suo lavoro. */
       {k:'nome', l:'Per chi', p:'Es. Sig. Rossi, oppure Condominio Il Parco'},
-      {k:'luogo', l:'Dove', p:'Es. Via Roma 10' + (comuneDitta() ? ', ' + comuneDitta() : '')},
+      {k:'luogo', l:'Dove', ind:true, p:'Es. Via Roma 10' + (comuneDitta() ? ', ' + comuneDitta() : '')},
       {k:'quando', l:'Quando', t:'data'},
       {k:'ora', l:'A che ora', t:'ora'}
     ],
@@ -6556,7 +6567,7 @@ function preparaRilievo(idSopralluogo, chiedi){
     sotto:'Scrivi l\'indirizzo come lo scriveresti a una persona: se il posto è una frazione, scrivila prima del comune. Il CAP non serve quasi mai, ma nei paesini piccoli toglie ogni dubbio.',
     valori:{indirizzo: s.luogo || (r ? r.dove : '') || '', cap: s.cap || ''},
     campi:[
-      {k:'indirizzo', l:'Indirizzo', p:'Via Galileo Galilei 7, Rivolta d\'Adda'},
+      {k:'indirizzo', l:'Indirizzo', ind:true, p:'Via Galileo Galilei 7, Rivolta d\'Adda'},
       {k:'cap', l:'CAP (facoltativo)', m:true, p:'48124'}
     ],
     controlla: d => d.indirizzo ? null
@@ -6673,6 +6684,58 @@ function chiediRilievo(idSopralluogo, indirizzo, lato, soloFoto, cap){
     })
     .catch(() => { if(!superata()){ passo('misura_no'); rilievoNonDisponibile(idSopralluogo, '', [], indirizzo); } })
     .finally(() => { clearTimeout(sveglia); clearTimeout(scade); if(!superata()) fineAttesa(); });
+}
+/* La tendina degli indirizzi mentre si scrive (Andrea, 10 novembre 2026).
+   Dalla quarta lettera il servizio chiede a Google gli indirizzi veri che cominciano
+   cosi' (la chiave resta sul server) e qui sotto se ne vedono fino a cinque: un tocco
+   e il campo e' scritto giusto, con la frazione e la provincia. L'errore non nasce,
+   invece di correggerlo dopo. Senza rete o senza risposta non compare niente e il
+   campo resta un campo normale. */
+let sessioneIndirizzo = '';
+function tendinaIndirizzo(campo){
+  if(!campo || campo.dataset.tendina) return;
+  campo.dataset.tendina = '1';
+  campo.setAttribute('autocomplete', 'off');
+  const box = document.createElement('div');
+  box.className = 'tendina-indirizzi';
+  box.hidden = true;
+  campo.insertAdjacentElement('afterend', box);
+  let attesa = null, ultima = '', giro = 0;
+  const chiudi = () => { giro++; box.hidden = true; box.innerHTML = ''; };
+  campo.addEventListener('input', () => {
+    clearTimeout(attesa);
+    const t = campo.value.trim();
+    if(t.length < 4){ chiudi(); ultima = ''; return; }
+    attesa = setTimeout(() => {
+      if(t === ultima && !box.hidden) return;
+      ultima = t;
+      if(!sessioneIndirizzo) sessioneIndirizzo = Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+      const mio = ++giro;
+      fetch(SPORTELLO_RILIEVO + '/completa?' + col() + 'testo=' + encodeURIComponent(t) + '&sessione=' + sessioneIndirizzo, {mode:'cors'})
+        .then(r => r.json()).then(j => {
+          if(mio !== giro || document.activeElement !== campo) return;
+          const l = ((j && j.suggerimenti) || []).filter(x => x && x.testo).slice(0, 5);
+          if(!l.length){ chiudi(); return; }
+          box.innerHTML = l.map(x => `<button type="button" class="riga-tendina" data-testo="${esc(x.testo)}">
+            <span class="via">${esc(x.via || x.testo)}</span>${x.dove ? `<span class="dove">${esc(x.dove)}</span>` : ''}</button>`).join('');
+          box.hidden = false;
+        }).catch(() => { if(mio === giro) chiudi(); });
+    }, 280);
+  });
+  /* il dito sulla tendina non deve togliere il fuoco al campo prima del tocco */
+  box.addEventListener('pointerdown', e => e.preventDefault());
+  box.addEventListener('mousedown', e => e.preventDefault());
+  box.addEventListener('click', e => {
+    e.preventDefault();
+    const b = e.target.closest('.riga-tendina'); if(!b) return;
+    campo.value = b.dataset.testo;
+    ultima = campo.value;
+    sessioneIndirizzo = '';
+    chiudi();
+    campo.dispatchEvent(new Event('change', {bubbles:true}));
+  });
+  campo.addEventListener('blur', () => setTimeout(() => { if(document.activeElement !== campo) chiudi(); }, 180));
+  campo.addEventListener('keydown', e => { if(e.key === 'Escape' && !box.hidden){ e.stopPropagation(); chiudi(); } });
 }
 /* Gli indirizzi possibili, da toccare. Sono la seconda risposta per un indirizzo
    scritto in un modo che il servizio non riconosce, o che esiste in piu' paesi:
