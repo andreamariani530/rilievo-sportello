@@ -342,19 +342,21 @@ html,body{background:#F4EFE6;margin:0}
 .banda{max-width:920px;margin:0 auto;padding:22px 20px 6px;font-family:'Cormorant',Georgia,serif;color:#2B2822}
 .banda .chi{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#6E7F66}
 .banda h1{font-weight:400;font-size:28px;margin:4px 0 0}
-.carta{max-width:920px;margin:12px auto;background:#fff;box-shadow:0 1px 0 #E2DACB}
+.carta{max-width:920px;margin:12px auto}
 .carta .foglio{margin:0 auto 18px!important}
-.accetta{max-width:920px;margin:0 auto 60px;padding:26px 20px;font-family:Georgia,serif;color:#2B2822;border-top:1px solid #D9D1C2}
+.accetta{max-width:920px;margin:0 auto 60px;padding:26px 20px;font-family:'EB Garamond','Cormorant',Georgia,serif;font-size:17px;scroll-margin-top:12px;color:#2B2822;border-top:1px solid #D9D1C2}
 .accetta h2{font-weight:400;font-size:24px;margin:0 0 6px}
 .accetta p{margin:6px 0 14px;color:#4A463F;line-height:1.5}
 .accetta input[type=text]{width:100%;box-sizing:border-box;font-size:19px;padding:14px;border:1px solid #BDB4A3;background:#fff;font-family:inherit}
 .accetta label.ok{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:16px}
-.accetta label.ok input{width:22px;height:22px;margin-top:2px}
+.accetta label.ok input{width:22px;height:22px;margin-top:2px;flex:0 0 22px}
 .accetta button{font-size:18px;padding:15px 28px;border:0;background:#2B2822;color:#F4EFE6;font-family:inherit;letter-spacing:.04em}
 .accetta .fatto{font-size:22px;color:#4F6B4A}
 .accetta .errore{color:#9A4B3A}
-.accetta .contatti a{color:#2B2822;margin-right:18px}
-.nota{font-size:13px;color:#7A746A}
+.accetta .contatti a{color:#2B2822;margin-right:18px;white-space:nowrap}
+.accetta .tasto-nascosto{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.cambiato{max-width:920px;margin:12px auto 0;padding:14px 20px;box-sizing:border-box;font-family:'EB Garamond','Cormorant',Georgia,serif;font-size:17px;color:#2B2822;background:#FBF8F2;border:1px solid #D9D1C2}
+.nota{font-size:15px;color:#5E584E}
 .accetta button.secondario,.pagare button.secondario{background:#fff;color:#2B2822;border:1px solid #2B2822;font-size:16px;padding:12px 20px}
 .aggiungi{border:1px solid #D9D1C2;padding:14px 16px 16px;margin:0 0 18px;background:#FBF8F2}
 .aggiungi h3{font-weight:400;font-size:20px;margin:0 0 4px}
@@ -363,7 +365,7 @@ html,body{background:#F4EFE6;margin:0}
 .altre summary{cursor:pointer;font-size:17px;color:#4A463F}
 .altre form{margin:14px 0 6px}
 .altre textarea,.altre input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid #BDB4A3;background:#fff;font-family:inherit;margin:4px 0 10px}
-.pagare{max-width:920px;margin:12px auto 0;padding:22px 20px;font-family:Georgia,serif;color:#2B2822;background:#FBF8F2;border:1px solid #D9D1C2;box-sizing:border-box}
+.pagare{max-width:920px;margin:12px auto 0;padding:22px 20px;font-family:'EB Garamond','Cormorant',Georgia,serif;color:#2B2822;background:#FBF8F2;border:1px solid #D9D1C2;box-sizing:border-box}
 .pagare h2{font-weight:400;font-size:22px;margin:0}
 .pagare .cifra{font-size:30px;margin:4px 0 8px}
 .pagare p{line-height:1.55;margin:6px 0 12px}
@@ -400,11 +402,11 @@ def _come_pagare(d, e, ditta, con_tasto):
              f'<p>Bonifico a <b>{e(pg.get("intestato") or ditta)}</b><br>IBAN<br><span class="iban">{e(_iban_scritto(pg["iban"]))}</span>'
              + (f'<br>Causale: {e(pg["causale"])}' if pg.get("causale") else '') + '</p>')
     if d.get("bonifico"):
-        righe += f'<p class="fatto">Grazie: hai detto di aver fatto il bonifico. {ditta} controlla e ti conferma.</p>'
+        righe += f'<p class="fatto">Grazie: hai detto di aver fatto il bonifico. {ditta or 'La ditta'} controlla e ti conferma.</p>'
     elif con_tasto:
-        righe += (f'<form method="post" action="/p/{e(d["_lid"])}/pagato">'
+        righe += (f'<form method="post" action="/p/{e(d["_lid"])}/pagato#rispondi">'
                   f'<button type="submit">Ho fatto il bonifico</button></form>'
-                  f'<p class="nota">Premilo dopo averlo fatto: {ditta} lo sa e controlla in banca.</p>')
+                  f'<p class="nota">Premilo dopo averlo fatto: {ditta or 'la ditta'} lo sa e controlla in banca.</p>')
     return righe + '</div>'
 
 
@@ -416,27 +418,31 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome=""):
     d["_lid"] = lid
     e = html.escape
     ditta = e(d.get("ditta") or "")
-    if _scaduto(d):
-        if not d.get("ritirato") and not d.get("accettato"):
-            corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>Il preventivo è scaduto</h1></div>'
-                     f'<div class="accetta"><p>Il preventivo valeva fino a una certa data, scritta nelle condizioni, '
-                     f'e quella data è passata. Chiedi a {ditta} di rinnovarlo: ti manda il link nuovo.</p></div>')
-        else:
-            corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>Questo preventivo non è più valido</h1></div>'
-                     '<div class="accetta"><p>Chi te l’ha mandato lo ha ritirato o ne ha fatto uno nuovo. '
-                     'Chiedigli il link aggiornato.</p></div>')
-        return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
+    chi = ditta or "La ditta"            # all'inizio di una frase
     tel = d.get("telefono") or ""
-    contatti = ""
-    domanda = "Per qualsiasi cosa:" if d.get("accettato") else "Una domanda prima di decidere?"
-    if tel:
+    def _contatti(domanda):
+        if not tel:
+            return ""
         wa = tel.lstrip("+")
         if not wa.startswith("39") and len(wa) <= 10:
             wa = "39" + wa
-        contatti = (f'<p class="contatti">{domanda} '
-                    f'<a href="tel:{e(tel)}">Chiama</a><a href="https://wa.me/{e(wa)}" target="_blank" rel="noopener">Scrivi su WhatsApp</a></p>')
+        return (f'<p class="contatti">{domanda} '
+                f'<a href="tel:{e(tel)}">Chiama</a><a href="https://wa.me/{e(wa)}" target="_blank" rel="noopener">Scrivi su WhatsApp</a></p>')
+    if _scaduto(d):
+        if not d.get("ritirato") and not d.get("accettato"):
+            corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>Il preventivo è scaduto</h1></div>'
+                     f'<div class="accetta"><p>Il tempo per accettarlo è passato. Chiedi a {ditta or "chi te l’ha mandato"} di rinnovarlo: '
+                     f'ti manda il link nuovo.</p>{_contatti("Per chiederlo:")}</div>')
+        else:
+            corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>Questo preventivo non è più valido</h1></div>'
+                     '<div class="accetta"><p>Chi te l’ha mandato lo ha ritirato o ne ha fatto uno nuovo. '
+                     f'Chiedigli il link aggiornato.</p>{_contatti("Per chiederlo:")}</div>')
+        return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
     acc = d.get("accettato")
     risp = d.get("risposta") or {}
+    # dopo il no la domanda «prima di decidere» non ha piu' senso
+    contatti = _contatti("Per qualsiasi cosa:" if acc else "Se ci ripensi:" if risp.get("tipo") == "no"
+                         else "Una domanda prima di decidere?")
     fac = d.get("facoltative") or []
     if acc:
         nomi = [v["nome"] for v in fac if v["k"] in (acc.get("scelte") or [])]
@@ -445,10 +451,10 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome=""):
         fondo = (_come_pagare(d, e, ditta, True) +
                  f'<div class="accetta"><p class="fatto">Accettato da {e(acc.get("nome",""))}{e(con_che)}, '
                  f'il {e(_data(acc.get("quando","")))}.{tot}</p>'
-                 f'<p>{ditta} lo ha già saputo. Grazie.</p>{contatti}</div>')
+                 f'<p>{chi} lo ha già saputo. Grazie.</p>{contatti}</div>')
     elif risp.get("tipo") == "no":
-        fondo = (f'<div class="accetta"><p class="fatto">Hai risposto di no.</p>'
-                 f'<p>{ditta} lo sa. Grazie di averlo detto: se ci ripensi, scrivigli.</p>{contatti}</div>')
+        fondo = (f'<div class="accetta" id="rispondi"><p class="fatto">Hai risposto di no.</p>'
+                 f'<p>{chi} lo sa. Grazie di averlo detto.</p>{contatti}</div>')
     else:
         scelte = scelte_buone(d, con)
         riquadro = ""
@@ -457,36 +463,43 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome=""):
             riquadro = ('<div class="aggiungi"><h3>Puoi aggiungere</h3>'
                         + "".join(f'<label class="ok"><input type="checkbox" name="con" value="{v["k"]}"'
                                   f'{" checked" if v["k"] in scelte else ""}><span>{e(v["nome"])}'
-                                  f' <b>+ {e(_euro(v["importo"]))}</b></span></label>' for v in fac)
+                                  f' <b>+ {e(_euro(v["importo"]))}</b> IVA compresa</span></label>' for v in fac)
                         + (f'<p class="totale-scelto">Con quello che hai scelto: <b>{e(_euro(tot))}</b>, IVA compresa.</p>'
                            if scelte and tot is not None else '')
                         + '<button type="submit" name="fai" value="conto" formnovalidate class="secondario">Rifai il conto</button></div>')
         gia = (f'<p class="fatto" style="font-size:18px">Hai chiesto di cambiare: “{e(risp.get("testo",""))}”. '
-               f'{ditta} lo sa e ti risponde.</p>') if risp.get("tipo") == "cambia" else ""
-        motivi = "".join(f'<label class="ok"><input type="radio" name="motivo" value="{k}"{" checked" if k == "prezzo" else ""}>'
+               f'{chi} lo sa e ti risponde.</p>') if risp.get("tipo") == "cambia" else ""
+        motivi = "".join(f'<label class="ok"><input type="radio" name="motivo" value="{k}">'
                          f'<span>{e(n)}</span></label>' for k, n in MOTIVI_NO)
-        fondo = (f'<div class="accetta">{gia}<h2>Ti va bene?</h2>'
+        sul_cambio = errore.startswith("Scrivi cosa vorresti")
+        fondo = (f'<div class="accetta" id="rispondi">{gia}<h2>Ti va bene?</h2>'
                  f'<p>Se il preventivo è come lo vuoi, scrivi il tuo nome e premi «Accetto». '
-                 f'{ditta} lo sa subito.</p>'
-                 + (f'<p class="errore">{e(errore)}</p>' if errore else '') +
-                 f'<form method="post" action="/p/{lid}/accetto">{riquadro}'
+                 f'{chi} lo sa subito.</p>'
+                 + (f'<p class="errore">{e(errore)}</p>' if errore and not sul_cambio else '') +
+                 f'<form method="post" action="/p/{lid}/accetto#rispondi"><button type="submit" class="tasto-nascosto" tabindex="-1" aria-hidden="true">Accetto</button>{riquadro}'
                  f'<input type="text" name="nome" value="{e(str(nome or "")[:80])}" placeholder="Nome e cognome" autocomplete="name" required minlength="3">'
                  f'<label class="ok"><input type="checkbox" name="ok" value="1" required>'
                  f'<span>Ho letto il preventivo e lo accetto.</span></label>'
                  f'<button type="submit">Accetto</button></form>{contatti}'
                  f'<p class="nota">Restano segnati il tuo nome, il giorno e l’ora. Valgono le condizioni '
                  f'scritte nel preventivo.</p>'
-                 f'<details class="altre"><summary>Non ti va bene così?</summary>'
-                 f'<form method="post" action="/p/{lid}/risposta"><input type="hidden" name="tipo" value="cambia">'
+                 f'<details class="altre" id="cambia"{" open" if sul_cambio else ""}><summary>Non ti va bene così?</summary>'
+                 f'<form method="post" action="/p/{lid}/risposta#cambia"><input type="hidden" name="tipo" value="cambia">'
+                 + (f'<p class="errore">{e(errore)}</p>' if sul_cambio else '') +
                  f'<p>Cosa vorresti cambiare?</p><textarea name="testo" rows="3" required minlength="3" '
                  f'placeholder="Per esempio: senza la siepe, oppure a novembre"></textarea>'
                  f'<button type="submit" class="secondario">Vorrei cambiare qualcosa</button></form>'
-                 f'<form method="post" action="/p/{lid}/risposta"><input type="hidden" name="tipo" value="no">'
+                 f'<form method="post" action="/p/{lid}/risposta#rispondi"><input type="hidden" name="tipo" value="no">'
                  f'<p>Non lo vuoi fare? Ci aiuta sapere perché.</p>{motivi}'
                  f'<input type="text" name="testo" placeholder="Se vuoi, due parole">'
                  f'<button type="submit" class="secondario">No, grazie</button></form></details></div>')
-    corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>{e(d.get("titolo") or "Il tuo preventivo")}</h1></div>'
-             + (fondo if acc else '') +
+    avviso = ""
+    if acc and acc.get("scelte") and acc.get("totale") is not None:
+        avviso = (f'<p class="cambiato">Qui sotto c’è il preventivo com’era prima delle voci che hai aggiunto. '
+                  f'Con quelle il totale è <b>{e(_euro(acc["totale"]))}</b>, IVA compresa.</p>')
+    # dopo il si' si torna in cima, dove sta «Come pagare»
+    corpo = (f'<div class="banda"{' id="rispondi"' if acc else ''}><div class="chi">{ditta}</div><h1>{e(d.get("titolo") or "Il tuo preventivo")}</h1></div>'
+             + (fondo + avviso if acc else '') +
              f'<div class="carta">{d.get("corpo","")}</div>' + ('' if acc else fondo))
     return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
 
@@ -497,7 +510,9 @@ def _data(iso):
         import datetime, zoneinfo
         t = datetime.datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
         t = t.astimezone(zoneinfo.ZoneInfo("Europe/Rome"))
-        return t.strftime("%d/%m/%Y alle %H:%M")
+        mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
+                "settembre", "ottobre", "novembre", "dicembre"]
+        return f"{t.day} {mesi[t.month - 1]} {t.year} alle {t:%H:%M}"
     except Exception:                       # noqa: BLE001
         return iso
 

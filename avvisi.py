@@ -77,12 +77,12 @@ def chi_entra(mail, nuovo):
 # grazie, come ritrovare il lavoro e a chi scrivere.
 # Non parte per gli indirizzi di Andrea, per quelli dei collaudi, ne' per chi arriva
 # con un codice di prova o di un amico (RILIEVO_BENVENUTO_NO, separati da virgole).
-BENVENUTO_OGGETTO = "Benvenuto in Rilievo"
+BENVENUTO_OGGETTO = "Ti diamo il benvenuto in Rilievo"
 BENVENUTO_TESTO = """Ciao,
 
-grazie per esserti iscritto a Rilievo.
+grazie per l'iscrizione a Rilievo.
 
-Per ritrovare il tuo lavoro su un altro telefono o sul computer, apri https://rilievoapp.it ed entra con questa mail.
+Per ritrovare il tuo lavoro su un altro telefono o sul computer, apri https://rilievoapp.it ed entra con questa mail e la tua password.
 
 Se qualcosa non ti torna o ti manca, rispondi pure a questa mail: la sto costruendo io, e i pareri di chi lavora davvero sono quelli che mi servono di più.
 

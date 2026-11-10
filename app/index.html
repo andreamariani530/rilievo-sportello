@@ -1101,6 +1101,7 @@ button.via{font:inherit;text-align:left;width:100%}
 .casa-riquadri .torta span{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cormorant',Georgia,serif;
   font-weight:500;font-size:24.8px;line-height:1}
 .casa-riquadri .legenda-casa{font-size:10.9px;line-height:1.55;color:var(--casa-muto);white-space:nowrap;min-width:0}
+@media (max-width:380px){ .casa-riquadri .legenda-casa{white-space:normal} .casa-riquadri .con-torta{gap:8px} }
 .casa-riquadri .legenda-casa i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4.3px;vertical-align:.05em}
 .casa-riquadri .riquadro.spento .val{font-size:22px;color:var(--casa-muto)}
 /* Desktop home: share the same width with the daily agenda. */
@@ -1329,6 +1330,37 @@ body{font-feature-settings:"liga" 1,"lnum" 1}
 .barra-sotto a{font-size:11px;letter-spacing:0}
 th,.tavola .didascalia,.foto .didascalia,.foglio .foto-doc figcaption,.facoltativa,.interruttore .stato{font-size:11px;letter-spacing:.1em}
 .foglio .lbl{font-size:10px;letter-spacing:.22em}
+/* 10/11/2026: la stampa vale piu' di tutto il resto, per questo sta in fondo */
+html{background:var(--carta)}
+@media print{
+  .striscia-esempio,.barra-sotto,.tiro,.chiedi,.velo-chat,#tasto-chiedi{display:none!important}
+  html,body{background:#fff!important}
+  .foglio{border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;background:#fff!important}
+  .foglio .intestazione{flex-direction:row!important}
+  .foglio .dati{text-align:right!important}
+  .contenuto,main{padding:0!important;margin:0!important}
+  .foglio .piede{break-before:avoid;page-break-before:avoid}
+  main,.app{display:block!important}
+  html,body,.app,main,#schermo,.arriva,.contenuto{min-height:0!important;height:auto!important;padding-bottom:0!important}
+  .foglio .firma-doc{grid-template-columns:1.6fr 1fr!important}
+}
+/* il menu chiuso sul tablet lasciava la sua ombra sul bordo sinistro */
+@media (max-width:900px){ aside{transform:translateX(calc(-100% - 50px))} aside.aperta{transform:none} }
+/* sul computer il tasto «Chiedi» galleggiante copriva l'ultima riga di ogni pagina */
+@media (min-width:901px){ .contenuto{padding-bottom:110px} }
+/* Piani: il segno «il tuo mestiere» copriva la frase sopra */
+.spiega .piani{margin-top:24px}
+.euro-intero{white-space:nowrap}
+/* «Come glielo consegni?»: il link e' la strada consigliata, PDF e «a mano» leggeri; nel PDF «Chiudi» leggero */
+.finestra:has(#btn-link) #btn-pdf,.finestra:has(#pdf-consegna) #btn-salva{background:#fff;color:var(--inchiostro);border-color:var(--filetto2)}
+.bottone.distruggi{background:#9A4B3A;border-color:#9A4B3A;color:#fff}
+/* gli avvisi neri stavano sopra la barra in basso e sopra i tasti delle schede */
+@media (max-width:900px){ .avviso{bottom:calc(86px + env(safe-area-inset-bottom))} }
+/* matita, cestino e gli altri tasti a icona: almeno 40 px sotto il dito */
+.matita{min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center}
+/* sul telefono una riga toccata restava beige, attaccata al bordo */
+@media (hover:none){ .elenco .r.cliccabile:hover{background:transparent} }
+.piede .tel-intero,.foglio .piede{overflow-wrap:normal}
 </style>
 <!-- IL SITO (Andrea, 31/10/2026: «cosi' apre gia' l'app, non il nostro sito»).
      Chi arriva su rilievoapp.it da Google o scrivendo l'indirizzo vede prima la
@@ -1470,7 +1502,7 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
      <a class="s-tasto" href="#s-chiedi" id="s-vai-chiedi">Chiedi di provarla</a>
      <a class="s-link" href="https://www.tiktok.com/@rilievo_app" rel="noopener">Guardala su TikTok</a>
     </div>
-    <p class="s-nota">La stiamo provando con pochi artigiani alla volta. Gratis, finché è in prova.</p>
+    <p class="s-nota">Totalmente gratuito. La apriamo a pochi artigiani alla volta.</p>
    </div>
    <div class="s-tel"><div class="s-schermo"><img src="/sito/casa.webp" alt="La schermata iniziale di Rilievo con preventivi, incassi e lavoro del mese" width="780" height="1688" loading="lazy" decoding="async"></div></div>
   </div>
@@ -1883,7 +1915,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-10 23:21';
+const COSTRUITA = '2026-11-11 00:06';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -2680,7 +2712,7 @@ function tempoHtml(p){
 function fraseSenzaOre(nomi){
   const n = nomi.map(esc), uno = n.length === 1;
   const chi = uno ? n[0] : n.slice(0, -1).join(', ') + ' e ' + n[n.length - 1];
-  return chi + (uno ? ' resta fuori dal conto: nel listino non ha le ore.' : ' restano fuori dal conto: nel listino non hanno le ore.');
+  return chi + (uno ? ' resta fuori dal conto dei giorni: nel listino non ha le ore.' : ' restano fuori dal conto dei giorni: nel listino non hanno le ore.');
 }
 function personeAlLavoro(id, d){
   const p = prev(id); if(!p) return;
@@ -2736,7 +2768,7 @@ const ESEMPI_PARLATO = {
 const esempioParlato = () => ESEMPI_PARLATO[mestiereDitta()] || ESEMPI_PARLATO.giardiniere;
 function esempioRighe(){
   const m = mestiereDitta();
-  if(!LISTINI_MESTIERI[m]) return 'Sfalcio prato 350 mq 105,00\nPotatura siepe 40 ml 9,00 360,00';
+  if(!LISTINI_MESTIERI[m]) return 'Sfalcio prato 350 mq 105,00\nPotatura siepe 40 m 9,00 360,00';
   return LISTINI_MESTIERI[m].voci.slice(0, 2).map((v, k) => {
     const q = k ? 4 : 10, un = {mq: 'mq', m: 'ml', ore: 'ore'}[tipoUnita(v.u).k] || 'pz';
     return v.nome + ' ' + q + ' ' + un + ' ' + String(v.p.toFixed(2)).replace('.', ',') + ' ' + String((v.p * q).toFixed(2)).replace('.', ',');
@@ -2806,7 +2838,7 @@ function riquadroMestiere(){
     </div>
     <p style="font-size:16px;color:var(--soft)"><b>Oggi è gratis:</b> tutto è aperto e non paghi niente.
       Quando partono i pagamenti te lo dico prima, e decidi tu.</p>
-    <div class="azioni" style="margin-top:14px"><a class="bottone" href="#piani">Vedi piani e prezzi</a></div>
+    <div class="azioni" style="margin-top:14px"><a class="bottone vuoto" href="#piani">Vedi piani e prezzi</a></div>
   </div>`;
 }
 let personeInSquadra = 0;
@@ -3977,7 +4009,7 @@ function chiedi(testo, poi, testoSi){
       <div class="piede">
         <div class="a-destra riga-azione">
           <button class="bottone vuoto piccolo" onclick="chiudiScheda()">No, lascia stare</button>
-          <button class="bottone piccolo" id="btn-si">${esc(testoSi || 'Sì, cancella')}</button>
+          <button class="bottone piccolo${testoSi ? '' : ' distruggi'}" id="btn-si">${esc(testoSi || 'Sì, cancella')}</button>
         </div>
       </div>
     </div>`;
@@ -4008,7 +4040,7 @@ function schedaRichiesta(id){
       {k:'tel', l:'Telefono', t:'tel', p:'340 1234567'},
       {k:'luogo', l:'Paese', p:'Pandino (CR)'},
       {k:'indirizzo', l:'Indirizzo', p:'Via Roma 4, 26025 Pandino (CR)'},
-      {k:'cosa', l:'Cosa vuole', t:'lungo', p:"Due parole, come te l'ha detto lei."},
+      {k:'cosa', l:'Cosa vuole', t:'lungo', p:"Due parole, come te l'hanno detto."},
       {k:'canale', l:'Come ti ha cercato', p:'Telefonata'},
       {k:'arrivata', l:'Quando è arrivata', t:'data'},
       {k:'stato', l:'A che punto è', t:'scelta', opzioni:STATI_RICHIESTA}
@@ -4044,14 +4076,14 @@ function schedaCliente(id, per){
     dopo: per.dopo,
     valori: fatt ? valoriClientePerFattura(c) : (c || {dal:S.oggi}),
     campi:[
-      {k:'nome', l:'Nome', p:'Villa Ranieri'},
-      {k:'luogo', l:'Paese', p:'Pandino'},
-      {k:'indirizzo', l:'Indirizzo', p:'Via Castello 18, 26025 Pandino (CR)'},
+      {k:'nome', l:'Nome', p:'Es. Mario Rossi'},
+      {k:'luogo', l:'Paese', p:'Es. Melegnano'},
+      {k:'indirizzo', l:'Indirizzo', p:'Via, numero e paese'},
       ...(fatt ? CAMPI_CLIENTE_FATTURA : []),
-      {k:'tel', l:'Telefono', t:'tel', p:'339 8817742'},
+      {k:'tel', l:'Telefono', t:'tel', p:'Es. 333 1234567'},
       {k:'mail', l:'Mail', t:'mail', p:'nome@esempio.it'},
       {k:'dal', l:'Cliente dal', t:'data'},
-      {k:'note', l:'Note', t:'lungo', p:'Quello che ti serve ricordare di lui.'}
+      {k:'note', l:'Note', t:'lungo', p:'Quello che ti serve ricordare.'}
     ],
     controlla: d => !d.nome ? 'Serve il nome del cliente.' : (fatt ? controllaClientePerFattura(d) : null),
     salva: d => {
@@ -4127,9 +4159,9 @@ function schedaPreventivo(id, idCliente){
     valori: p || {data:S.oggi, stato:'bozza', numero:nuovoNumero(), sconto:0,
                   nome:cl ? cl.nome : '', luogo:cl ? (cl.indirizzo || cl.luogo || '') : ''},
     campi:[
-      {k:'nome', l:'Per chi', p:'Villa Ranieri'},
-      {k:'luogo', l:'Dove', ind:true, p:'Via Castello 18, Pandino'},
-      {k:'numero', l:'Numero', m:true, p:'2026/045'},
+      {k:'nome', l:'Per chi', p:'Es. Mario Rossi'},
+      {k:'luogo', l:'Dove', ind:true, p:'Via, numero e paese'},
+      {k:'numero', l:'Numero', m:true, p:'Es. ' + String(S.oggi).slice(0, 4) + '/001'},
       {k:'data', l:'Data', t:'data', m:true},
       {k:'stato', l:'A che punto è', t:'scelta', m:true, opzioni:STATI_PREVENTIVO},
       {k:'rate', l:'Rate mensili', t:'numero', m:true, facoltativo:true, p:'Vuoto: si paga tutto insieme'},
@@ -4180,15 +4212,17 @@ function duplicaPreventivo(id){
   n.stato = 'bozza'; n.sopralluogo = null;
   /* la copia e' un preventivo nuovo: niente firma, solleciti o esito di quello vecchio */
   ['firma','solleciti','solleciti_saldo','promemoria','motivo','motivo_nota','consegna','iva','stato_prima','pagato'].forEach(k => { delete n[k]; });
-  n.note = 'Ripreso dal preventivo n. ' + p.numero + '.';
   S.preventivi.unshift(n); salva();
   location.hash = '#preventivo/' + n.id;
   avvisa('Copiato. Cambia quello che serve e mandalo.');
 }
 function eliminaRiga(id, k){
   const p = prev(id);
-  p.righe.splice(k, 1); salva(); vai();
-  avvisa('Voce tolta dal preventivo.');
+  const via = p.righe.splice(k, 1)[0]; salva(); vai();
+  avvisaConTasto('Voce tolta dal preventivo.', 'Rimettila', () => {
+    const q = prev(id); if(!q || !via) return;
+    q.righe.splice(Math.min(k, q.righe.length), 0, via); salva(); vai();
+  });
 }
 /* Quanto fa questa riga, scritto mentre si cambia il numero.
 
@@ -5531,7 +5565,7 @@ function dittaInCasa(){
     nDoc === null ? '' : `<a class="ditta-riga" id="ditta-documenti" href="#documenti">${iconaCasa('foglio')}<span>Documenti</span>
       <b>${nDoc}</b><em>preventivi, fatture e file, cliente per cliente</em></a>`,
     incasso === null ? '' : `<a class="ditta-riga" id="ditta-incassare" href="#preventivi">${iconaCasa('soldi')}<span>Da incassare</span>
-      <b>${incasso.n ? '€ ' + cifra(incasso.tot, 0) : '0'}</b><em>${incasso.n ? (incasso.n === 1 ? 'un lavoro preso, non ancora pagato' : incasso.n + ' lavori presi, non ancora pagati') + ', IVA compresa' : 'nessuno ti deve niente'}</em></a>`,
+      <b>€ ${incasso.n ? cifra(incasso.tot, 0) : '0'}</b><em>${incasso.n ? (incasso.n === 1 ? 'un lavoro preso, non ancora pagato' : incasso.n + ' lavori presi, non ancora pagati') + ', IVA compresa' : 'nessuno ti deve niente'}</em></a>`,
     nVoci === null ? '' : `<a class="ditta-riga" id="ditta-listino" href="#listino">${iconaCasa('listino')}<span>Listino</span>
       <b>${nVoci}</b><em>i tuoi prezzi, anche a corpo</em></a>`
   ].join('');
@@ -5773,7 +5807,7 @@ PAGINE.oggi = {
           <div class="elenco" id="richieste-dal-link" style="margin-bottom:26px">${dalLink.map(r => `
             <div class="r"><div><div class="tit">${esc(r.nome)}</div>
               <div class="sub">${sotto(r.cosa, r.luogo, quando(r.arrivata))}</div></div>
-              <div class="azioni">${r.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(r.tel).replace(/[^+\d]/g, ''))}">Chiamalo</a>` : ''}
+              <div class="azioni">${r.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(r.tel).replace(/[^+\d]/g, ''))}">Chiama</a>` : ''}
                 <button class="bottone piccolo" style="white-space:nowrap" onclick="fissaSopralluogo('${r.id}')">Fissa il sopralluogo</button></div>
             </div>`).join('')}</div>` : ''}
         <div class="lbl" style="margin-bottom:12px">In programma</div>
@@ -5792,7 +5826,7 @@ PAGINE.oggi = {
             <div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'">
               <div><div class="tit">${esc(p.nome)}</div>
                 <div class="sub">${sotto('Accettato' + (p.link && p.link.accettato ? ' dal link' : p.firma ? ' con la firma' : ''), euro(conti(p).netto), p.luogo)}</div></div>
-              <button class="bottone piccolo" style="white-space:nowrap" onclick="event.stopPropagation();fissaLavoro('${p.id}')">Fissa il giorno</button>
+              <button class="bottone vuoto piccolo" style="white-space:nowrap" onclick="event.stopPropagation();fissaLavoro('${p.id}')">Fissa il giorno</button>
             </div>`).join('')}
           </div>` : ''}
         <div class="lbl" style="margin-bottom:10px">Non ti hanno ancora risposto</div>
@@ -5847,12 +5881,13 @@ PAGINE.oggi = {
             <div><div class="tit">${esc(c.nome)}</div>
               <div class="sub">${sotto(c.luogo || c.indirizzo || '', ultimo ? 'ultimo lavoro ' + quando(ultimo) : '', daQuantoTempo(giorni))}</div></div>
             <div class="riga-azione">
-              ${c.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(c.tel).replace(/[^+\d]/g, ''))}" onclick="event.stopPropagation()">Chiamalo</a>` : ''}
+              ${c.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(c.tel).replace(/[^+\d]/g, ''))}" onclick="event.stopPropagation()">Chiama</a>` : ''}
               <button class="bottone piccolo" onclick="event.stopPropagation();schedaPreventivo(null,'${c.id}')">Nuovo preventivo</button>
             </div>
           </div>`).join('')}
         </div>`
-        : '<div class="niente" style="padding:20px 0">Nessuno da risentire: hai sentito tutti negli ultimi sei mesi.</div>'}
+        : (S.clienti.length ? '<div class="niente" style="padding:20px 0">Nessuno da risentire: hai sentito tutti negli ultimi sei mesi.</div>'
+           : '<div class="niente" style="padding:20px 0">Qui compaiono i clienti che non senti da sei mesi.</div>')}
     </div>
     <!-- I numeri della settimana stavano qui in fondo. Dal 14 ottobre 2026 stanno nei
          quattro riquadri in cima, sotto la chat (la home di Matteo). -->`;
@@ -6176,7 +6211,7 @@ function rilievoHtml(ril, s, r){
     </p>
     <p style="font-size:15px;color:var(--tenue);margin-top:14px;max-width:70ch">
       ${ril.senza_riferimenti ? 'Il catasto non ha dato foglio e particella: i metri quadri sono contati sui confini della mappa.'
-        : `Foglio ${esc(ril.foglio || '—')}, particella ${esc(ril.particella || '—')}, comune ${esc(ril.comune || '—')}${ril.comune_nome ? ' (' + esc(ril.comune_nome) + (ril.provincia ? ', ' + esc(ril.provincia) : '') + ')' : ''}.`}
+        : `Foglio ${esc(ril.foglio || '—')}, particella ${esc(ril.particella || '—')}, ${ril.comune_nome ? 'comune di ' + esc(ril.comune_nome) + (ril.provincia ? ' (' + esc(ril.provincia) + ')' : '') : 'comune ' + esc(ril.comune || '—')}.`}
       ${ril.a_mano ? 'Misure scritte a mano, non calcolate dal catasto.'
                    : 'Ottenuto dal solo indirizzo, senza sopralluogo e senza misure prese a mano.'}
       ${ril.casa_a_mano ? 'La casa l\'hai indicata tu sulla foto.' : ''}
@@ -6415,6 +6450,7 @@ function domandaPerche(){
    Non blocca niente: il preventivo si puo' mandare anche col foglio aperto. */
 function invitoAccesso(){
   setTimeout(() => {
+    if(document.querySelector('.velo-scheda')){ invitoAccesso(); return; }
     if(!suaDitta() || statoCopia().gettone || document.querySelector('.foglio-perche')) return;
     const m = memoriaPassi(); if(m.invito) return;
     m.invito = true; ricordaPassi(m);
@@ -7536,7 +7572,7 @@ function zoneHtml(ril, s){
         <div class="lbl">Le parti del giardino</div>
         <p class="parti-sotto">Disegnale sulla foto. Il preventivo prende da qui i metri del prato, delle aiuole e delle siepi, e quanti alberi ci sono.</p>
       </div>
-      <button class="bottone piccolo" onclick="apriDisegno('${s.id}')">${zone.length ? 'Disegna ancora' : 'Disegna sulla foto'}</button>
+      <button class="bottone ${zone.length ? 'vuoto ' : ''}piccolo" onclick="apriDisegno('${s.id}')">${zone.length ? 'Disegna ancora' : 'Disegna sulla foto'}</button>
     </div>
     ${zone.length ? `
     <div class="parti-totali">
@@ -7571,7 +7607,7 @@ function schedaZona(idSopralluogo, idZona){
   scheda({
     titolo: 'Modifica «' + nome + '»',
     sotto: 'Misura sulla foto: ' + scriviMisura(z.tipo, misuraZona(z, latoFoto(ril))) +
-           '. Per cambiarne la forma, usa il tasto «Ridisegna» accanto.',
+           '. Per cambiarne la forma, tocca la matita sulla foto, accanto al nome.',
     valori: {nome, tipo: z.tipo},
     campi: [{k:'nome', l:'Nome', p:'Prato davanti casa'}]
       .concat(tipi.length > 1 ? [{k:'tipo', l:'Che cos\'è', t:'scelta', opzioni:tipi}] : []),
@@ -13375,7 +13411,7 @@ PAGINE.preventivi = {
     ${lista.length ? `<div class="elenco">${lista.map(p => `
       <div class="r cliccabile" data-cerca="${esc(chiaveCerca(p.nome, p.numero, p.luogo, dataLunga(p.data), p.note))}" onclick="location.hash='#preventivo/${p.id}'">
         <div><div class="tit">${esc(p.nome)}</div>
-          <div class="sub">n. ${esc(p.numero)} · ${dataCorta(p.data)} · ${p.righe.filter(r=>r.on).length} voci · <b>${euro(conti(p).netto)}</b></div></div>
+          <div class="sub">n. ${esc(p.numero)} · ${dataLunga(p.data).replace(' ' + String(S.oggi).slice(0, 4), '')} · ${p.righe.filter(r=>r.on).length} voci · <b>${euro(conti(p).netto)}</b></div></div>
         <div class="riga-azione">
           ${tagPreventivo(p)}
           ${comandi([
@@ -13471,7 +13507,7 @@ PAGINE.preventivo = {
       <div class="scheda">
         <div class="lbl" style="margin-bottom:12px">${p.stato === 'bozza' ? 'Quando è pronto' : 'A che punto è'}</div>
         <p style="font-size:16px;color:var(--soft)">${
-          p.stato === 'messo_via' ? 'Messo via: resta nel cassetto ma non ti gira piu\u2019 fra i piedi, e non conta nei numeri. Riprendilo quando vuoi.'
+          p.stato === 'messo_via' ? 'Messo via: resta nel cassetto ma non ti gira più fra i piedi, e non conta nei numeri. Riprendilo quando vuoi.'
           : p.stato === 'pagato' ? 'Pagato' + (p.pagato && p.pagato.quando ? ' il ' + dataLunga(p.pagato.quando) : '') + '. Questo è chiuso: il lavoro fatto e i soldi incassati.'
           : lavoroFinito(p) ? 'Lavoro finito il ' + dataLunga(p.lavoro_fatto.quando) + '. ' + (p.stato === 'pagato' ? 'Chiuso: fatto e incassato.' : 'Resta da incassare.')
           : p.stato === 'accettato' ? (p.firma ? 'Firmato da ' + esc(p.firma.nome) + ' il ' + dataLunga(p.firma.quando) + '. Il lavoro è tuo.'
@@ -14323,7 +14359,7 @@ function statoCliente(c){
 function setFiltroClienti(f){ filtroClienti = f; vai(); }
 PAGINE.clienti = {
   guida:false,
-  testata(){ return {occhiello:'Chi sono e cosa gli hai fatto', titolo:'Clienti',
+  testata(){ return {occhiello:'Chi sono e che lavori hai fatto', titolo:'Clienti',
     destra:'<button class="bottone" onclick="schedaCliente(null)">+ Nuovo cliente</button>'}; },
   spiega:{
     testo:'Ogni cliente con i suoi lavori, i suoi preventivi e le sue foto. Quando ti richiama fra un anno, sai già cosa gli avevi fatto e a quanto.',
@@ -14546,7 +14582,7 @@ PAGINE.numeri = {
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Il preventivo medio</div>
           <div style="font-family:'Cormorant',serif;font-size:38px;line-height:1">${euro(medio)}</div>
-          <p style="font-size:15.5px;color:var(--soft);margin-top:8px">Quanto vale, in media, un lavoro che ti dicono di sì. Per fare mille euro in più al mese ne servono ${Math.max(1, Math.ceil(1000 / (medio || 1)))} in più.</p>
+          <p style="font-size:15.5px;color:var(--soft);margin-top:8px">Quanto vale, in media, un lavoro per cui ti dicono di sì. Per fare mille euro in più al mese ne servono ${Math.max(1, Math.ceil(1000 / (medio || 1)))} in più.</p>
         </div>
         <div class="riquadro">
           <div class="lbl" style="margin-bottom:12px">Perché li perdi</div>
@@ -14763,7 +14799,7 @@ PAGINE.documento = {
         ${marchioDoc(a, esc(a.sotto || ''))}
         <div class="dati">
           ${esc(a.via)}<br>${esc(a.citta)}<br>
-          P. IVA ${esc(a.piva)}<br>${sotto(a.tel, a.mail)}
+          ${a.piva ? 'P. IVA ' + esc(a.piva) + '<br>' : ''}${sotto(a.tel, a.mail)}
         </div>
       </div>
 
@@ -14816,7 +14852,7 @@ PAGINE.documento = {
       <div class="condizioni-doc">
         <div class="lbl">Condizioni</div>
         <p>Il preventivo vale fino al ${dataLunga(dopoGiorni(p.data, giorni))}.${acconto
-          ? ` Alla firma si versa un acconto del ${cifra(acconto)}%, cioè ${euro(rateCarta ? rateCarta.anticipo : cent(c.totale * acconto / 100))}${rateCarta ? '.' : '; il saldo a fine lavori.'}` : ''}${rateCarta
+          ? ` Alla firma si versa un acconto del ${cifra(acconto)}%, cioè <span class="euro-intero">${euro(rateCarta ? rateCarta.anticipo : cent(c.totale * acconto / 100))}</span>${rateCarta ? '.' : '; il saldo a fine lavori.'}` : ''}${rateCarta
           ? ` ${acconto ? 'Il resto' : 'Il totale'} si paga in ${rateCarta.quante} rate mensili da ${rateScritte(rateCarta)}.` : ''}</p>
         ${durataPerIlCliente(p) ? `<p class="durata-doc">${esc(durataPerIlCliente(p))}</p>` : ''}
         ${a.condizioni ? `<p>${esc(a.condizioni)}</p>` : ''}
@@ -14835,7 +14871,7 @@ PAGINE.documento = {
           ${firma ? `<div class="firma-data">${dataLunga(firma.quando)}</div>` : '<div class="firma-riga"></div>'}
         </div>
       </div>
-      <div class="piede">Consegnato in sopralluogo da ${esc(a.nome)}${a.tel ? ' · ' + esc(a.tel) : ''}.</div>
+      <div class="piede">${esc(a.nome)}${a.tel ? ' · ' + esc(a.tel) : ''}${a.mail ? ' · ' + esc(a.mail) : ''}</div>
     </div>
     ${allegatoDoc(p, cl, ril, zone, foto)}`;
   }
@@ -14919,9 +14955,9 @@ function contattiCliente(c){
   const wa = numeroWhatsApp(c.tel);
   const posta = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(c.mail || '') ? c.mail : '';
   const t = [];
-  if(tel) t.push(`<a class="bottone vuoto piccolo" id="cliente-chiama" href="tel:${esc(tel)}">Chiamalo</a>`);
+  if(tel) t.push(`<a class="bottone vuoto piccolo" id="cliente-chiama" href="tel:${esc(tel)}">Chiama</a>`);
   if(wa) t.push(`<a class="bottone vuoto piccolo" id="cliente-wa" href="${esc('https://wa.me/' + wa)}" target="_blank" rel="noopener">WhatsApp</a>`);
-  if(posta) t.push(`<a class="bottone vuoto piccolo" id="cliente-mail" href="mailto:${esc(posta)}">Mandagli una mail</a>`);
+  if(posta) t.push(`<a class="bottone vuoto piccolo" id="cliente-mail" href="mailto:${esc(posta)}">Manda una mail</a>`);
   return t.length ? `<div class="azioni contatti-cliente" style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 22px">${t.join('')}</div>` : '';
 }
 function numeroWhatsApp(tel){
@@ -15224,7 +15260,7 @@ function schedaPdf(id){
   if(!String(S.azienda.nome || '').trim()) return primaIlNome(() => schedaPdf(id));
   scheda({titolo: 'Il preventivo in PDF',
           sotto: 'Il documento come lo vedi qui, con la tua intestazione, in un file da mandare.',
-          extra: bloccoPdf(id), campi: [], testoSalva: 'Chiudi', salva: () => {}});
+          extra: bloccoPdf(id), campi: [], testoSalva: 'Chiudi', soloSalva: true, salva: () => {}});
 }
 function consegnaPreventivo(id){
   const p = prev(id); if(!p) return;
@@ -15384,7 +15420,7 @@ function sceltaFattura(){
     : '<div class="niente" style="padding:12px 0 18px">Adesso non c\'è un lavoro da fatturare. La fattura si fa su un lavoro finito e pagato: quando lo segni, lo trovi qui.</div>';
   scheda({
     titolo: 'Fai una fattura',
-    sotto: 'Scegli il lavoro: cliente, righe e importi li prendo dal preventivo.' + (fatturaDiProva ? ' Per ora è in prova, non parte niente allo Stato.' : ''),
+    sotto: 'Scegli il lavoro: cliente, righe e importi li prendo dal preventivo.' + (fatturaDiProva ? ' Per ora le fatture fatte da qui non partono verso lo Stato.' : ''),
     extra, campi: [],
     testoSalva: 'Vedi le fatture fatte',
     salva: () => { filtroDocumenti = 'fatture'; if(location.hash !== '#documenti') location.hash = '#documenti'; }
@@ -15564,6 +15600,8 @@ function apriFirma(id){
     </div>`;
   document.body.appendChild(velo);
   document.body.classList.add('disegno-aperto');
+  const viaFirma = () => { removeEventListener('hashchange', viaFirma); if(document.getElementById('firma') === velo) chiudiFirma(); };
+  addEventListener('hashchange', viaFirma);
   const tela = velo.querySelector('#firma-tela');
   const pen = tela.getContext('2d');
   pen.lineCap = 'round'; pen.lineJoin = 'round'; pen.strokeStyle = '#1B1917'; pen.lineWidth = 3.4;
@@ -16352,7 +16390,7 @@ PAGINE.piani = {
       <div class="promessa"><h4>I tuoi dati li scarichi sempre, anche se smetti</h4>
         <p>Clienti, preventivi, fatture e listino in un file tuo, con «Salva tutto in un file» in <a href="#impostazioni" style="color:var(--accento)">Impostazioni</a>.</p></div>
       <div class="promessa"><h4>Ti risponde una persona</h4>
-        <p>Andrea Mariani, Melegnano (MI): chiama il <a href="tel:+393289757655" style="color:var(--accento)">328 975 7655</a> o scrivi a <a href="mailto:andreamariani530a@gmail.com" style="color:var(--accento)">andreamariani530a@gmail.com</a>. Risponde chi costruisce Rilievo.</p></div>
+        <p>Andrea Mariani, Melegnano (MI): chiama il <a href="tel:+393289757655" style="color:var(--accento)">328 975 7655</a> o scrivi a <a href="mailto:info@rilievoapp.it" style="color:var(--accento)">info@rilievoapp.it</a>. Risponde chi costruisce Rilievo.</p></div>
     </div>
     <div class="riquadro" style="margin-top:22px;max-width:640px" id="conto-piano">
       <div class="lbl" style="margin-bottom:10px">Quando partono i pagamenti, da ${m.nome.toLowerCase()}</div>
@@ -16379,12 +16417,12 @@ function testoPrivacy(){
     <h3>Chi c&rsquo;&egrave; dietro</h3>
     <p>Rilievo lo costruisce <b>Andrea Mariani</b>, di <b>Melegnano (MI)</b>, una persona sola, non una grande azienda. Oggi &egrave;
       <b>gratis</b>. Se hai un dubbio chiamalo al <a href="tel:+393289757655">328 975 7655</a> o scrivigli a
-      <a href="mailto:andreamariani530a@gmail.com">andreamariani530a@gmail.com</a>: risponde lui.</p>
+      <a href="mailto:info@rilievoapp.it">info@rilievoapp.it</a>: risponde lui.</p>
 
     <h3>In breve</h3>
-    <p>Quello che scrivi in Rilievo resta <b>sul tuo telefono</b>: la ditta, i clienti, i preventivi,
-      le foto, il listino. Se scegli una password, ne teniamo anche una <b>copia sul nostro server</b>, per
-      fartela ritrovare su un altro telefono: &egrave; protetta e noi non la guardiamo. Escono anche
+    <p>Quello che scrivi in Rilievo (la ditta, i clienti, i preventivi, le foto, il listino) sta <b>sul tuo telefono</b>
+      e in una <b>copia sul nostro server</b>, legata alla tua mail e alla tua password, per fartelo ritrovare su un
+      altro telefono o sul computer: &egrave; protetta e noi non la guardiamo. Escono anche
       <b>l&rsquo;indirizzo del giardino</b>, quando chiedi il rilievo, e <b>il preventivo che mandi col link</b>,
       perch&eacute; il tuo cliente lo possa aprire.
       Niente pubblicit&agrave;, nessun dato venduto. Se arrivi dal link che ti abbiamo mandato, segniamo
@@ -16392,11 +16430,11 @@ function testoPrivacy(){
 
     <h3>Chi risponde dei dati</h3>
     <p>Per ora Rilievo &egrave; gratuito e lo costruisce Andrea Mariani, come persona privata.
-      Per qualunque domanda sui dati: <a href="mailto:andreamariani530a@gmail.com">andreamariani530a@gmail.com</a>.</p>
+      Per qualunque domanda sui dati: <a href="mailto:info@rilievoapp.it">info@rilievoapp.it</a>.</p>
 
     <h3>Cosa resta sul telefono, e la copia sul server</h3>
-    <p>Tutto il tuo lavoro sta nella memoria del browser di questo dispositivo. Se crei il tuo accesso
-      (mail e password), il telefono ne manda anche una <b>copia al nostro server</b>, poco dopo ogni modifica.
+    <p>Tutto il tuo lavoro sta nella memoria del browser di questo dispositivo, e col tuo accesso
+      (mail e password) il telefono ne manda una <b>copia al nostro server</b>, poco dopo ogni modifica.
       Sta su un disco del servizio Render a Francoforte, nell&rsquo;Unione Europea, si apre solo con la tua mail
       e la tua password, e noi non la guardiamo. La password non la conserviamo: teniamo solo un suo calcolo
       che non si pu&ograve; rovesciare. Se la dimentichi ti mandiamo una mail per sceglierne una nuova.
@@ -16410,7 +16448,9 @@ function testoPrivacy(){
         degli indirizzi: restano solo nel suo registro tecnico, che si svuota da solo dopo pochi giorni.</li>
       <li>Per trovare foto e confini, l&rsquo;indirizzo o le coordinate vanno ai servizi pubblici di
         cartografia: Agenzia delle Entrate (catasto), Regione Lombardia ed Emilia-Romagna (foto),
-        Esri (foto e ricerca indirizzi, Stati Uniti), Photon e OpenStreetMap (ricerca indirizzi).</li>
+        Esri (foto e ricerca indirizzi, Stati Uniti), Google (ricerca indirizzi, Stati Uniti), Photon e
+        OpenStreetMap (ricerca indirizzi).</li>
+      <li>Per rendere pi&ugrave; nitida la foto dall&rsquo;alto del giardino, la foto passa da Google Gemini, che la restituisce ripulita. Le misure restano quelle del catasto.</li>
     </ul>
 
     <h3>Solo se lo accendi tu</h3>
@@ -16693,7 +16733,7 @@ function disegnaChat(){
        : chatConto.restano === 1 ? 'Ti resta 1 domanda questo mese' : 'Ti restano ' + chatConto.restano + ' domande questo mese')
     : 'Conosce l\'app da cima a fondo';
   const invitoAccesso = diProva
-    ? '<div class="msg lui accesso-chat">Stai usando la prova: 20 domande al mese. Entra con la tua mail e la tua password e diventano 300.' +
+    ? '<div class="msg lui accesso-chat">Senza accesso le domande sono 20 al mese. Entra con la tua mail e la tua password e diventano 300.' +
       '<div class="portami"><button class="bottone piccolo" data-accesso="entra">Entra con la tua mail</button> ' +
       '<button class="bottone vuoto piccolo" data-accesso="crea">Crea il tuo accesso</button></div></div>'
     : '';

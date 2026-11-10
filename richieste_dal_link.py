@@ -260,6 +260,10 @@ html,body{background:#F4EFE6;margin:0}
 .rl-pagina textarea{min-height:110px}
 .rl-pagina button{margin-top:20px;font-size:18px;padding:15px 28px;border:0;background:#2B2822;color:#F4EFE6;font-family:inherit;letter-spacing:.04em}
 .rl-pagina .errore{color:#9A4B3A}
+.rl-nascosto{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
+.rl-stima .rl-avviso{font-size:15px;color:#9A4B3A;margin:6px 0 0}
+.rl-pagina .nota a{color:inherit}
+.rl-pagina h1{text-wrap:balance}
 .rl-pagina .fatto{font-family:'Cormorant',Georgia,serif;font-size:26px;color:#4F6B4A}
 .rl-pagina .nascosto{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
 .rl-pagina .nota{font-size:13px;color:#7A746A;margin-top:18px}
@@ -283,7 +287,7 @@ def pagina(codice, stili_app, errore="", fatto=False, valori=None, stima=None, f
     e = html.escape
     if not d:
         corpo = ('<div class="rl-pagina"><h1>Questo link non funziona più</h1>'
-                 '<p>La ditta ne ha fatto uno nuovo. Chiedi a chi te l’ha dato quello giusto.</p></div>')
+                 '<p>Forse è vecchio o è stato copiato a metà. Chiedi a chi te l’ha dato quello giusto.</p></div>')
         return _intera("Richiesta", stili_app, corpo), 404
     v = valori or {}
     ditta = e(d.get("ditta") or "La ditta")
@@ -296,17 +300,18 @@ def pagina(codice, stili_app, errore="", fatto=False, valori=None, stima=None, f
     corpo = (f'<div class="rl-pagina"><div class="chi">{ditta}</div><h1>Chiedi un preventivo</h1>'
              f'<p>Scrivi chi sei, dove e cosa ti serve: {ditta} ti richiama per fissare un sopralluogo.</p>'
              + (f'<p class="errore">{e(errore)}</p>' if errore else '') +
-             f'<form method="post" action="/chiedi/{e(codice)}">'
+             f'<form method="post" action="/chiedi/{e(codice)}"><button type="submit" class="rl-nascosto" tabindex="-1" aria-hidden="true">Manda la richiesta</button>'
              f'<label for="nome">Nome e cognome</label><input id="nome" name="nome" autocomplete="name" required minlength="2" value="{e(v.get("nome", ""))}">'
              f'<label for="tel">Telefono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required value="{e(v.get("tel", ""))}">'
              f'<label for="indirizzo">Indirizzo del lavoro</label><input id="indirizzo" name="indirizzo" autocomplete="street-address" '
              f'placeholder="Via, numero e paese" value="{e(v.get("indirizzo", ""))}">'
              + (_riquadro_prezzo(d, e, stima, foto, nota_prezzo) if d.get("prezzo") else "") +
              f'<label for="cosa">Cosa ti serve</label><textarea id="cosa" name="cosa" required minlength="3" '
-             f'placeholder="Per esempio: tagliare il prato e la siepe, circa 300 metri">{e(v.get("cosa", ""))}</textarea>'
+             f'placeholder="Per esempio: cosa va fatto, quanto è grande, per quando ti serve">{e(v.get("cosa", ""))}</textarea>'
              f'<div class="nascosto" aria-hidden="true"><label for="sito">Lascia vuoto</label><input id="sito" name="sito" tabindex="-1" autocomplete="off"></div>'
              f'<button type="submit">Manda la richiesta</button></form>{contatti}'
-             f'<p class="nota">I tuoi dati vanno solo a {ditta}, per richiamarti. Non li usiamo per altro.</p></div>')
+             f'<p class="nota">Nome, telefono e indirizzo vanno solo a {ditta}, per richiamarti, e non servono ad altro. '
+             f'<a href="/privacy" target="_blank" rel="noopener">Come trattiamo i dati</a></p></div>')
     return _intera("Chiedi un preventivo a " + (d.get("ditta") or "la ditta"), stili_app, corpo), 200
 
 
@@ -321,7 +326,7 @@ def _riquadro_prezzo(d, e, stima, foto, nota):
                 f'<p class="rl-nota-prezzo">Prezzo indicativo, misurato sul catasto e sulla foto dall’alto: lo conferma {ditta} dopo un sopralluogo. '
                 f'Se va bene, manda la richiesta qui sotto.</p></div>')
     return (f'<div class="rl-stima">'
-            + (f'<p class="rl-nota-prezzo">{e(nota)}</p>' if nota else '') +
+            + (f'<p class="rl-avviso">{e(nota)}</p>' if nota else '') +
             f'<button type="submit" name="fai" value="prezzo" formnovalidate class="rl-secondario">Vedi il prezzo indicativo</button>'
             f'<p class="rl-nota-prezzo">Per {voce.lower()}: scrivi l’indirizzo e tocca qui. Ci vuole fino a mezzo minuto: misuriamo il lotto sul catasto.</p></div>')
 

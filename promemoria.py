@@ -100,7 +100,8 @@ def _soldi(n):
         s = f"{float(n):,.2f}"
     except (TypeError, ValueError):
         return ""
-    return "€ " + s.replace(",", "X").replace(".", ",").replace("X", ".")
+    s = s.replace(",", "X").replace(".", ",").replace("X", ".")
+    return "€ " + (s[:-3] if s.endswith(",00") else s)
 
 
 def testo(voce, ditta):
@@ -124,8 +125,9 @@ def testo(voce, ditta):
                  "Ha avuto modo di guardarlo? Se c'è qualcosa da cambiare lo sistemiamo volentieri.")
         if voce.get("link"):
             corpo += "\n\nLo ritrova qui, e se le va bene lo accetta direttamente dalla pagina:\n" + voce["link"]
-    corpo += "\n\n" + firma + "\n\n(Messaggio mandato da Rilievo per conto di " + (ditta.get("nome") or "la ditta") + \
-             ": se risponde, la risposta arriva direttamente a loro.)"
+    chi = ditta.get("nome") or "chi le ha fatto il preventivo"
+    corpo += ("\n\n" + firma).rstrip() + "\n\n(Messaggio mandato da Rilievo per conto di " + chi + \
+             (": se risponde, la risposta arriva direttamente a loro.)" if _mail_buona(ditta.get("mail")) else ".)")
     return oggetto, corpo
 
 
