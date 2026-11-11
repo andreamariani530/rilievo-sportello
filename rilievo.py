@@ -3772,6 +3772,20 @@ def servizio(porta=8787, pubblico=False):
                 print("  link: nuovo preventivo da %s" % (dentro.get("ditta") or "?")[:40])
                 self._manda(200, r)
                 return
+            if percorso == "/link/firmato":
+                # firma sul posto (11/11/2026): la copia firmata sul server, e al cliente
+                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+                r, errore = preventivo_col_link.firmato_sul_posto(
+                    dentro.get("corpo"), dentro.get("ditta"), dentro.get("titolo"), dentro.get("telefono"), ip,
+                    extra=dentro, nome=dentro.get("nome"), browser=self.headers.get("User-Agent") or "",
+                    indirizzo=(os.environ.get("RILIEVO_INDIRIZZO") or "https://rilievoapp.it"),
+                    manda=lambda a, oggetto, testo: posta.manda(a, oggetto, testo, nome=str(dentro.get("ditta") or "Rilievo")[:60]))
+                if not r:
+                    self._manda(400, {"errore": errore})
+                    return
+                print("  link: copia firmata sul posto (%s)" % r.get("copia"))
+                self._manda(200, r)
+                return
             if percorso == "/link/stato":
                 voci = dentro.get("voci") if isinstance(dentro.get("voci"), list) else []
                 fuori = {}
@@ -3940,7 +3954,7 @@ def servizio(porta=8787, pubblico=False):
                 elif stato == "accettato":
                     print("  link: preventivo accettato SENZA codice (la mail non e' partita)")
             if pagina is None:
-                self._pagina_cliente(404, "<!doctype html><meta charset=utf-8><p>Questo link non esiste.</p>")
+                self._pagina_cliente(404, preventivo_col_link.pagina_mancante(preventivo_col_link.stili_dell_app(APP / "index.html")))
                 return
             self._pagina_cliente(200, pagina)
 
@@ -4121,9 +4135,7 @@ def servizio(porta=8787, pubblico=False):
                 lid = m.group(1)
                 pagina = preventivo_col_link.pagina(lid, preventivo_col_link.stili_dell_app(APP / "index.html"))
                 if pagina is None:
-                    self._pagina_cliente(404, "<!doctype html><meta charset=utf-8><title>Rilievo</title>"
-                                              "<p style='font-family:Georgia,serif;padding:30px'>Questo link non esiste "
-                                              "o è scaduto. Chiedi a chi te l’ha mandato quello nuovo.</p>")
+                    self._pagina_cliente(404, preventivo_col_link.pagina_mancante(preventivo_col_link.stili_dell_app(APP / "index.html")))
                     return
                 # l'artigiano che si guarda il suo link non conta come «aperto»
                 if (q.get("anteprima") or [""])[0] != "1":

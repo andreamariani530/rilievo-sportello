@@ -437,6 +437,50 @@ def in_attesa(d):
     return att if att and not d.get("accettato") else None
 
 
+def firmato_sul_posto(corpo, ditta="", titolo="", telefono="", da_ip="", extra=None, nome="",
+                      browser="", indirizzo="https://rilievoapp.it", manda=None):
+    """La copia di un preventivo firmato col dito davanti all'artigiano (firma sul posto (11/11/2026)).
+    Si conserva come un link gia' accettato, con l'ora del server, e se c'e' la mail del
+    cliente gli si manda la sua copia. Torna (risposta, None) oppure (None, errore)."""
+    nome = re.sub(r"\s+", " ", str(nome or "")).strip()[:80]
+    if len(nome) < 2:
+        return None, "Manca il nome di chi ha firmato."
+    r, errore = metti(corpo, ditta, titolo, telefono, da_ip, extra)
+    if not r:
+        return None, errore
+    lid = r["link"]
+    with _chiave:
+        d = _leggi(lid)
+        d["accettato"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nome": nome,
+                          "ip": str(da_ip or "")[:60], "browser": str(browser or "")[:200],
+                          "impronta": d.get("impronta"), "scelte": [], "totale": totale_con(d, []),
+                          "verifica": {"tipo": "firma sul posto"}}
+        _scrivi(lid, d)
+        mail, quando = d.get("mail_cliente") or "", d["accettato"]["quando"]
+    r["quando"] = quando
+    r["copia"] = "senza_mail"
+    if mail and manda:
+        url = indirizzo.rstrip("/") + "/p/" + lid
+        chi = str(ditta or "").strip()
+        testo = (f"Buongiorno {nome},\n\n"
+                 f"ecco la tua copia del preventivo che hai firmato" + (f" con {chi}" if chi else "") +
+                 f" il {_data(quando)}:\n\n{url}\n\n"
+                 "La trovi sempre a questo indirizzo. Se qualcosa non torna, rispondi a chi ti ha fatto il preventivo.\n\n"
+                 "Rilievo")
+        try:
+            partita = bool(manda(mail, "La tua copia del preventivo firmato" + (f" · {chi}" if chi else ""), testo))
+        except Exception:                   # noqa: BLE001
+            partita = False
+        r["copia"] = "mandata" if partita else "non_partita"
+        if partita:
+            r["mail"] = mail
+            with _chiave:
+                d = _leggi(lid)
+                d["accettato"]["verifica"]["copia_a"] = mail
+                _scrivi(lid, d)
+    return r, None
+
+
 def rispondi(lid, tipo, motivo="", testo=""):
     """«No, grazie» o «Vorrei cambiare qualcosa». Torna (True, '') oppure (False, motivo)."""
     testo = re.sub(r"[ \t]+", " ", str(testo or "")).strip()[:600]
@@ -522,6 +566,8 @@ html,body{background:#F4EFE6;margin:0}
 .pagare .fatto{font-size:19px;color:#4F6B4A}
 /* sul link si accetta qui sotto: le righe per la firma a penna non servono */
 .carta .firma-doc{display:none}
+/* firma sul posto (11/11/2026): la copia firmata mostra la firma */
+.carta.posto .firma-doc{display:grid}
 </style>"""
 
 
@@ -596,13 +642,16 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
         con_che = (", con " + ", ".join(n[:1].lower() + n[1:] for n in nomi)) if nomi else ""
         tot = f' Totale {e(_euro(acc["totale"]))}.' if nomi and acc.get("totale") is not None else ""
         ver = acc.get("verifica") or {}
+        posto = ver.get("tipo") == 'firma sul posto'
         conf = (f' Firmato via mail con OTP, codice mandato a {e(mail_coperta(ver.get("mail","")))}.'
                 if ver.get("tipo") == "codice per mail" else "")
         fondo = (_come_pagare(d, e, ditta, True) +
                  f'<div class="accetta"><p class="fatto">Accettato da {e(acc.get("nome",""))}{e(con_che)}, '
                  f'il {e(_data(acc.get("quando","")))}.{tot}</p>'
                  + (f'<p class="nota">{conf.strip()}</p>' if conf else '') +
-                 f'<p>{chi} lo ha già saputo. Grazie.</p>{contatti}</div>')
+                 (f'<p>Firmato sul posto, davanti a {ditta or "chi ha fatto il preventivo"}. Questa è la tua copia: '
+                    f'la trovi sempre a questo indirizzo.</p>' if posto else f'<p>{chi} lo ha già saputo. Grazie.</p>')
+                 + f'{contatti}</div>')
     elif risp.get("tipo") == "no":
         fondo = (f'<div class="accetta" id="rispondi"><p class="fatto">Hai risposto di no.</p>'
                  f'<p>{chi} lo sa. Grazie di averlo detto.</p>{contatti}</div>')
@@ -684,8 +733,17 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
     # dopo il si' si torna in cima, dove sta «Come pagare»
     corpo = (f'<div class="banda"{' id="rispondi"' if acc else ''}><div class="chi">{ditta}</div><h1>{e(d.get("titolo") or "Il tuo preventivo")}</h1></div>'
              + (fondo + avviso if acc else '') +
-             f'<div class="carta">{d.get("corpo","")}</div>' + ('' if acc else fondo))
+             f'<div class="carta{" posto" if acc and ((acc.get("verifica") or {}).get("tipo") == "firma sul posto") else ""}">{d.get("corpo","")}</div>'
+             + ('' if acc else fondo))
     return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
+
+
+def pagina_mancante(stili_app=""):
+    """Il link sbagliato o finito: prima era una riga bianca senza stile, minuscola sul telefono."""
+    corpo = ('<div class="banda"><h1>Questo link non funziona</h1></div>'
+             '<div class="accetta"><p>Forse è scaduto, è stato ritirato o è stato copiato a metà. '
+             'Chiedi a chi te l’ha mandato il link giusto.</p></div>')
+    return _intera("Rilievo", stili_app, corpo)
 
 
 def _data(iso):

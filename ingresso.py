@@ -214,13 +214,32 @@ def decidi(gettone, si):
 
 _STILE = ("<!doctype html><html lang=it><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
           "<meta name=robots content=noindex><title>Rilievo: richiesta di accesso</title><style>"
-          "body{font-family:Georgia,serif;background:#F7F1E5;color:#1B1917;margin:0;padding:34px 22px;max-width:560px;line-height:1.5}"
+          "body{font-family:'EB Garamond','Cormorant',Georgia,serif;background:#FBF8F2;color:#1B1917;margin:0 auto;padding:34px 22px;max-width:560px;line-height:1.5}"
           "h1{font-weight:400;font-size:30px;margin:0 0 18px}dl{margin:0 0 24px;border-top:1px solid #E2DCD0}"
           "dt{font:12px system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8A8377;margin-top:12px}"
           "dd{margin:2px 0 12px;font-size:19px;border-bottom:1px solid #E2DCD0;padding-bottom:10px;overflow-wrap:anywhere}"
           ".tasto{display:block;width:100%;box-sizing:border-box;text-align:center;font:16px system-ui,sans-serif;padding:16px;border-radius:999px;"
           "border:0;background:#3E4A3A;color:#FFFDF9;text-decoration:none;margin:0 0 12px;cursor:pointer}"
           ".vuoto{background:none;border:1px solid #8A8377;color:#4A453E}p{font-size:18px;color:#4A453E}</style>")
+
+
+def _quando(ora):
+    """«2026-11-10 21:14:03» come lo salva il server diventa «10 novembre 2026 alle 21:14»."""
+    mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto",
+            "settembre", "ottobre", "novembre", "dicembre"]
+    try:
+        g, h = str(ora).split(" ")
+        a, m, d = g.split("-")
+        return "%d %s %s alle %s" % (int(d), mesi[int(m) - 1], a, h[:5])
+    except Exception:                       # noqa: BLE001
+        return ora
+
+
+def _tel(t):
+    c = "".join(x for x in str(t or "") if x.isdigit() or x == "+")
+    if len(c) == 10 and c.startswith("3"):
+        return "%s %s %s" % (c[:3], c[3:6], c[6:])
+    return t
 
 
 def pagina(gettone):
@@ -231,8 +250,8 @@ def pagina(gettone):
     e = html.escape
     righe = "".join("<dt>%s</dt><dd>%s</dd>" % (e(a), e(b)) for a, b in (
         ("Chi", r["nome"]), ("Mestiere", r["mestiere"] or "non detto"), ("Zona", r["zona"] or "non detta"),
-        ("Mail", r["mail"] or "non lasciata"), ("Telefono", r["telefono"] or "non lasciato"),
-        ("Arriva da", r["provenienza"]), ("Quando", r["ora"]), ("Codice", r["codice"])))
+        ("Mail", r["mail"] or "non lasciata"), ("Telefono", _tel(r["telefono"]) or "non lasciato"),
+        ("Arriva da", r["provenienza"]), ("Quando", _quando(r["ora"])), ("Codice", r["codice"])))
     if r["stato"] == "in attesa":
         fine = ("<form method=post action='/ingresso/decidi/%s/si'><button class=tasto>Sì, fallo entrare</button></form>"
                 "<form method=post action='/ingresso/decidi/%s/no'><button class='tasto vuoto'>No, non ora</button></form>"
@@ -249,5 +268,9 @@ def pagina(gettone):
             fine += "Adesso mandagli il messaggio.</p>"
         if r.get("telefono"):
             fine += "<a class=tasto href='%s'>Manda su WhatsApp</a>" % e(_wa(r), quote=True)
-        fine += "<p style='overflow-wrap:anywhere'>Il suo link: %s/?da=%s</p>" % (e(_base()), e(r["codice"]))
+        if r.get("mail") and not r.get("mail_partita"):
+            fine += "<a class='tasto vuoto' href='mailto:%s?subject=%s&body=%s'>Scrivigli la mail, già pronta</a>" % (
+                e(r["mail"], quote=True), urllib.parse.quote("Il tuo link per Rilievo"), urllib.parse.quote(_messaggio(r)))
+        fine += "<p style='overflow-wrap:anywhere'>Il suo link: <a href='%s/?da=%s'>%s/?da=%s</a></p>" % (
+            e(_base()), e(r["codice"]), e(_base()), e(r["codice"]))
     return _STILE + "<h1>Richiesta di accesso</h1><dl>" + righe + "</dl>" + fine + "</html>"
