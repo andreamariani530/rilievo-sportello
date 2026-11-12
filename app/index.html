@@ -2013,7 +2013,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-12 23:07';
+const COSTRUITA = '2026-11-13 00:13';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -13550,9 +13550,9 @@ async function testoDaUfficio(file, nome){
 function siLegge(f){
   const nome = String((f && f.nome) || '').toLowerCase();
   const tipo = String((f && f.tipo) || '').toLowerCase();
-  if(/\.(pdf|docx|xlsx|odt|ods|txt|csv|md|rtf)$/.test(nome)) return true;
-  if(/\.(doc|xls|pages|numbers|jpe?g|png|webp|heic)$/.test(nome)) return false;
-  return /pdf|text|csv|wordprocessing|spreadsheet|opendocument/i.test(tipo);
+  if(/\.(pdf|docx|xlsx|odt|ods|txt|csv|md|rtf|jpe?g|png|webp|heic|heif)$/.test(nome)) return true;
+  if(/\.(doc|xls|pages|numbers)$/.test(nome)) return false;
+  return /pdf|text|csv|wordprocessing|spreadsheet|opendocument|^image\//i.test(tipo);
 }
 
 /* da un file qualunque al testo. Si leggono davvero: PDF, Word, Excel,
@@ -13603,14 +13603,15 @@ function apriListinoDaVecchi(idDoc){
       <h3>Il tuo listino dai preventivi di prima</h3>
       <p style="color:var(--tenue);font-size:15.5px">Prendo un preventivo che hai già fatto, leggo le righe e ti propongo le
         lavorazioni col prezzo. Tu scegli quali tenere. Dove c'è scritto solo il totale della riga, il prezzo per unità lo ricavo io.
-        Va bene un PDF, un Word, un Excel: li apro io, non devi copiare niente a mano.</p>
+        Va bene una foto del foglio, anche di carta o presa da WhatsApp, oppure un PDF, un Word, un Excel: li leggo io, non devi copiare niente a mano.</p>
     </div>
     <div class="form" id="listino-passo1">
       <div class="riga-azione" style="gap:10px;flex-wrap:wrap">
-        <button class="bottone" onclick="document.getElementById('scelta-preventivo-vecchio').click()">Scegli un preventivo dal telefono</button>
-        <input type="file" id="scelta-preventivo-vecchio" style="display:none"
-          accept=".pdf,.docx,.xlsx,.odt,.ods,.txt,.csv,.rtf,application/pdf,text/plain,text/csv" onchange="leggiPreventivoScelto(this)">
+        <button class="bottone" onclick="document.getElementById('scelta-preventivo-vecchio').click()">Fotografa o scegli un preventivo</button>
+        <input type="file" id="scelta-preventivo-vecchio" style="display:none" multiple
+          accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.pdf,.docx,.xlsx,.odt,.ods,.txt,.csv,.rtf,application/pdf,text/plain,text/csv" onchange="leggiPreventivoScelto(this)">
       </div>
+      <p style="font-size:14.5px;color:var(--tenue);margin:8px 0 0">Se è su due pagine, scegli le due foto insieme.</p>
       ${vecchi.length ? `<div style="margin-top:20px">
         <div class="lbl">Oppure uno di quelli già nel cassetto</div>
         <div class="elenco" style="margin-top:8px">${vecchi.map(d => `
@@ -13643,9 +13644,99 @@ function finestraListino(dentro){
 }
 
 async function leggiPreventivoScelto(input){
-  const f = (input.files || [])[0];
+  const tutti = Array.prototype.slice.call(input.files || []);
   input.value = '';
-  if(f) await leggiEProponi(f);
+  if(!tutti.length) return;
+  /* piu' foto insieme = le pagine dello stesso preventivo: una lettura sola */
+  const foto = tutti.filter(eFoto);
+  if(foto.length > 1 && foto.length === tutti.length){ await leggiDaFoto(foto, 'Dalle tue ' + foto.length + ' foto'); return; }
+  await leggiEProponi(tutti[0]);
+}
+
+/* ===== IL LISTINO DA UNA FOTO =========================================
+   Marco, 12/11/2026: «sarebbe piu' comodo poter allegare l'immagine e non solo il
+   file». Un preventivo vecchio quasi sempre e' una foto del foglio, una scansione
+   o un'immagine di WhatsApp: dentro non c'e' testo. La foto si rimpicciolisce qui,
+   va al server, la legge l'IA e torna il testo delle righe; poi la strada e' la
+   solita (leggiRigheListino -> proponiVoci). Il server non la tiene.
+   ===================================================================== */
+const FOTO_LETTURA_LATO = 1600, FOTO_LETTURA_PAGINE = 4;
+function eFoto(f){
+  const nome = String((f && (f.name || f.nome)) || '').toLowerCase();
+  const tipo = String((f && (f.type || f.tipo)) || '').toLowerCase();
+  return /^image\//.test(tipo) || /\.(jpe?g|png|heic|heif|webp|gif|bmp)$/.test(nome);
+}
+/* una foto -> un JPEG piu' piccolo, come testo. null se il telefono non la apre */
+function fotoPerLettura(file){
+  return new Promise(pronta => {
+    let url = '';
+    try{ url = URL.createObjectURL(file); }catch(e){ pronta(null); return; }
+    const im = new Image();
+    im.onerror = () => { URL.revokeObjectURL(url); pronta(null); };
+    im.onload = () => {
+      try{
+        const scala = Math.min(1, FOTO_LETTURA_LATO / Math.max(im.width, im.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.width * scala));
+        c.height = Math.max(1, Math.round(im.height * scala));
+        const g = c.getContext('2d');
+        g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(im, 0, 0, c.width, c.height);
+        pronta(c.toDataURL('image/jpeg', .82));
+      }catch(e){ pronta(null); }
+      URL.revokeObjectURL(url);
+    };
+    im.src = url;
+  });
+}
+/* un PDF scansionato: le prime pagine disegnate come foto, con lo stesso pdf.js */
+async function pagineDelPdf(file){
+  const lib = await caricaPdfJs();
+  const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false}).promise;
+  const fuori = [];
+  try{
+    for(let n = 1; n <= Math.min(doc.numPages, FOTO_LETTURA_PAGINE); n++){
+      const pagina = await doc.getPage(n);
+      const v1 = pagina.getViewport({scale: 1});
+      const vista = pagina.getViewport({scale: Math.min(3, FOTO_LETTURA_LATO / Math.max(v1.width, v1.height))});
+      const c = document.createElement('canvas');
+      c.width = Math.round(vista.width); c.height = Math.round(vista.height);
+      const g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+      await pagina.render({canvasContext: g, viewport: vista}).promise;
+      fuori.push(c.toDataURL('image/jpeg', .82));
+      if(pagina.cleanup) pagina.cleanup();
+    }
+  } finally { try{ await doc.destroy(); }catch(e){} }
+  return fuori;
+}
+const NON_LEGGO_FOTO = 'Non sono riuscito a leggere la foto. Riprova, oppure incolla le righe qui sotto.';
+async function leggiDaFoto(files, da, pdf){
+  if(typeof fetch !== 'function' || (typeof navigator !== 'undefined' && navigator.onLine === false)){
+    avvisa('Per leggere una foto serve la rete. Riprova quando sei connesso, oppure incolla le righe qui sotto.');
+    return;
+  }
+  avvisaFermo(files.length > 1 ? 'Leggo le ' + files.length + ' foto del preventivo… ci vuole qualche secondo.' : 'Leggo la foto del preventivo… ci vuole qualche secondo.');
+  let immagini = [];
+  try{
+    if(pdf) immagini = await pagineDelPdf(files[0]);
+    else for(const f of files.slice(0, FOTO_LETTURA_PAGINE)){ const i = await fotoPerLettura(f); if(i) immagini.push(i); }
+  }catch(e){ immagini = []; }
+  if(!immagini.length){
+    avvisa('Questa foto il telefono non riesce ad aprirla. Prova a fare uno screenshot della foto e a scegliere quello.');
+    return;
+  }
+  let r;
+  try{ r = await chiamaServer('/leggi-foto-preventivo', corpoChat({immagini})); }
+  catch(e){ avvisa(NON_LEGGO_FOTO); return; }
+  const d = (r && r.d) || {};
+  if(!r.ok){ avvisa(d.errore && !/[{}<>]/.test(d.errore) ? d.errore : NON_LEGGO_FOTO); return; }
+  if(d.nessuno){ avvisa(d.messaggio || 'In questa foto non trovo righe con un prezzo.'); return; }
+  const righe = leggiRigheListino(d.testo || '');
+  if(!righe.length){ avvisa('Ho letto la foto ma non ci trovo righe con un prezzo. Prova con una foto più dritta e vicina, oppure incolla le righe qui sotto.'); return; }
+  if(files.length > FOTO_LETTURA_PAGINE) da += ' (lette le prime ' + FOTO_LETTURA_PAGINE + ')';
+  fineAttesa();
+  proponiVoci(righe, da);
 }
 async function leggiPreventivoDalCassetto(idDoc){
   const d = S.documenti.find(x => x.id === idDoc);
@@ -13670,6 +13761,9 @@ async function leggiEProponi(file){
   try{ esito = await testoDalFile(file); }
   catch(e){ avvisa('Questo PDF non si è aperto. Se è protetto da password, toglila e riprova.'); return; }
   if(!esito.testo.trim()){
+    /* una foto o un PDF scansionato: li legge l'IA sul server */
+    if(esito.motivo === 'foto'){ await leggiDaFoto([file], 'Dalla foto ' + (file.name ? '«' + file.name + '»' : 'del preventivo')); return; }
+    if(esito.motivo === 'scansione'){ await leggiDaFoto([file], 'Da ' + (file.name || 'un preventivo scansionato'), true); return; }
     /* i casi veri si dicono chiari, non si fanno passare per un guasto */
     if(esito.motivo === 'scansione') avvisa('Questo preventivo è una scansione o una foto: dentro non c\'è testo da leggere. Riscrivi le righe nella casella qui sotto, oppure carica il file originale.');
     else if(esito.motivo === 'ufficio-vecchio') avvisa('Questo è un file di Office vecchio (.doc o .xls) e non lo so aprire. Riaprilo col tuo programma e salvalo come .docx, .xlsx o PDF: quelli li leggo. Oppure copia le righe e incollale qui sotto.');

@@ -44,6 +44,7 @@ import ingresso           # chi arriva dal sito chiede l'accesso (1/11/2026)
 import fattura             # la fattura elettronica: Openapi in prova, Aruba, o l'Aruba finto
 import fattureincloud      # il collegamento col Fatture in Cloud dell'artigiano (4/10/2026)
 import assistente          # l'assistente in chat, col manuale dell'app dentro
+import foto_preventivo     # il listino da una foto del preventivo vecchio
 # il Centralino di Andrea (30/10/2026): un modulo a parte. Se si rompe, Rilievo resta uguale.
 try:
     import centralino
@@ -3587,6 +3588,9 @@ def servizio(porta=8787, pubblico=False):
             if u.path == "/assistente":
                 self._assistente()
                 return
+            if u.path == "/leggi-foto-preventivo":
+                self._foto_preventivo()
+                return
             if u.path.startswith("/copia/") or u.path == "/promemoria/stato":
                 self._copia(u.path)
                 return
@@ -3720,6 +3724,21 @@ def servizio(porta=8787, pubblico=False):
                                                account=m and accessi.id_account(m),
                                                telefono=dentro.get("telefono"), ip=self._ip(),
                                                dati=dentro.get("dati"))
+            self._manda(codice, dati)
+
+        # ---- il listino da una foto del preventivo vecchio ----------------------
+        def _foto_preventivo(self):
+            """Una o piu' pagine fotografate: le legge l'IA e tornano le righe come testo.
+            La foto non si salva; con l'accesso conta l'account, senza il telefono."""
+            dentro = self._corpo(4 * (foto_preventivo.MAX_FOTO * 4 // 3 + 64) + 16 * 1024)
+            if not isinstance(dentro, dict):
+                self._manda(400, {"errore": "Questa foto e' troppo grande. Riprova."})
+                return
+            m = accessi.chi_e(dentro.get("mail"), dentro.get("gettone")) if dentro.get("gettone") else None
+            codice, dati = foto_preventivo.leggi(dentro.get("immagini"),
+                                                 account=m and accessi.id_account(m),
+                                                 telefono=dentro.get("telefono"), ip=self._ip())
+            dentro = None
             self._manda(codice, dati)
 
         # ---- la copia al sicuro ------------------------------------------------

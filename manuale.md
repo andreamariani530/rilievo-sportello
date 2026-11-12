@@ -185,8 +185,8 @@ Le tue lavorazioni con i tuoi prezzi.
 - Accanto al prezzo c'è in quanti preventivi l'hai usata («in 2 preventivi», «mai usata»).
 - «Come la chiami a voce?»: scrivi le parole che usi tu per quella lavorazione, così la
   voce la riconosce.
-- «Prendilo da un preventivo vecchio»: carichi un tuo preventivo di prima (PDF, Word,
-  Excel) e l'app ne ricava il listino. Le righe dubbie sono segnate «da controllare».
+- «Prendilo da un preventivo vecchio»: «Fotografa o scegli un preventivo» (foto, PDF,
+  Word, Excel) e l'app ne ricava il listino. Righe dubbie: «da controllare».
 - Cambiare un prezzo vale per i preventivi nuovi; quelli già mandati non cambiano.
 
 ## Clienti (`#clienti`)
