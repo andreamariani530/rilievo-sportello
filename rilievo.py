@@ -35,6 +35,7 @@ import copia_al_sicuro     # il lavoro di un artigiano fuori dal telefono
 import accessi             # mail e password, come in ogni app
 import posta               # la mail per scegliere una password nuova
 import promemoria          # i promemoria automatici ai clienti, se la ditta li accende
+import bozze               # il promemoria alla ditta: preventivo fatto e mai mandato (11/11/2026)
 import preventivo_col_link # il preventivo che il cliente apre e accetta da un link
 import richieste_dal_link  # il link della ditta: i clienti nuovi scrivono da li' (4/10/2026)
 import avvisi             # chi si iscrive e chi rientra: avviso ad Andrea
@@ -408,6 +409,11 @@ def _chiave_google():
 
 
 GOOGLE_STATO = {"ultimo": "", "quando": 0.0, "risposte": 0}
+# cerotto notte 11-12/11/2026 (lavoro I): tetto al giorno alla ricerca indirizzi di Google.
+# 300 al giorno sono circa 9.000 al mese, sotto le 10.000 gratuite. Oltre, si torna alla
+# strada di prima (Esri e OpenStreetMap), come quando la chiave non c'e'.
+GOOGLE_TETTO = int((os.environ.get("RILIEVO_GOOGLE_TETTO") or "300").strip() or 300)
+GOOGLE_CONTO = {"giorno": "", "fatte": 0}
 
 
 def _chiedi_a_google(domanda, intorno=None):
@@ -418,6 +424,12 @@ def _chiedi_a_google(domanda, intorno=None):
     chiave = _chiave_google()
     if not chiave:
         return None
+    oggi = time.strftime("%Y-%m-%d")
+    if GOOGLE_CONTO["giorno"] != oggi:
+        GOOGLE_CONTO.update(giorno=oggi, fatte=0)
+    if GOOGLE_CONTO["fatte"] >= GOOGLE_TETTO:
+        return None
+    GOOGLE_CONTO["fatte"] += 1
     dati = {"address": domanda, "components": "country:IT", "language": "it",
             "region": "it", "key": chiave}
     if intorno:
@@ -1768,6 +1780,9 @@ FOTO_REGIONI = [
 # quanto si aspetta una Regione prima di lasciar perdere: davanti a un cliente
 # non si sta fermi, e la foto di scorta c'e' sempre
 ATTESA_REGIONE = 9
+# cerotto notte 11-12/11/2026 (lavoro I): una Regione guasta si salta per 10 minuti, poi si riprova.
+REGIONE_PAUSA = 600
+_REGIONE_FERMA = {}
 
 
 def _in_metri_mercatore(lat, lon):
@@ -1842,6 +1857,11 @@ def _foto_dalla_regione(y0, x0, y1, x1, lati, fonte):
 # La foto bella serve solo a chi guarda, e arriva dopo: il rilievo esce subito con la
 # foto di sempre, l'app chiede /foto-migliorata/<chiave> finche' e' pronta e la scambia.
 # Senza chiave, o se Google non risponde, non cambia niente: resta la foto di sempre.
+# cerotto notte 11-12/11/2026 (lavoro I): tetto al giorno e poche foto insieme.
+FOTO_IA_TETTO = int((os.environ.get("RILIEVO_FOTO_IA_TETTO") or "100").strip() or 100)
+FOTO_IA_INSIEME = 3
+FOTO_IA_CONTO = {"giorno": "", "fatte": 0}
+_FOTO_IA_LUCCHETTO = threading.Lock()
 MODELLO_FOTO_IA = os.environ.get("RILIEVO_MODELLO_FOTO") or "gemini-3-pro-image"
 ATTESA_FOTO_IA = 90
 LATO_FOTO_IA = 1024
@@ -1950,7 +1970,14 @@ def avvia_foto_ia(foto, y0, x0, y1, x1, nome_fonte):
     chiave = chiave_foto_ia(y0, x0, y1, x1, foto.size[0], nome_fonte)
     if _file_foto_ia(chiave).exists() or chiave in _FOTO_IA_IN_CORSO:
         return chiave
-    _FOTO_IA_IN_CORSO[chiave] = time.time()
+    with _FOTO_IA_LUCCHETTO:
+        oggi = time.strftime("%Y-%m-%d")
+        if FOTO_IA_CONTO["giorno"] != oggi:
+            FOTO_IA_CONTO.update(giorno=oggi, fatte=0)
+        if FOTO_IA_CONTO["fatte"] >= FOTO_IA_TETTO or len(_FOTO_IA_IN_CORSO) >= FOTO_IA_INSIEME:
+            return ""                   # resta la foto di sempre, come a funzione spenta
+        FOTO_IA_CONTO["fatte"] += 1
+        _FOTO_IA_IN_CORSO[chiave] = time.time()
     threading.Thread(target=_lavora_foto_ia, args=(chiave, foto.copy(), nome_fonte),
                      daemon=True).start()
     return chiave
@@ -1977,11 +2004,19 @@ def foto_dall_alto(y0, x0, y1, x1, lati, quale=""):
     if quale != "esri":
         fonte = regione_del_punto((y0 + y1) / 2, (x0 + x1) / 2,
                                   "" if quale in ("", "regione") else quale)
+        scelta_app = quale in ("", "regione")
+        if fonte and scelta_app and time.time() < _REGIONE_FERMA.get(fonte["chiave"], 0):
+            fonte = None                # guasta da poco: si va dritti alla foto di scorta
         if fonte:
             try:
                 return _foto_dalla_regione(y0, x0, y1, x1, lati, fonte), fonte["nome"]
             except Exception as e:                     # noqa: BLE001
                 print("     la Regione non ha dato la foto:", e)
+                # un riquadro vuoto e' un buco di quella zona; il resto e' il servizio
+                # guasto (l'11/11 la Lombardia rispondeva «General function failure» o
+                # taceva per 9 secondi a ogni rilievo): lo si salta per un po'
+                if scelta_app and "vuoto" not in str(e):
+                    _REGIONE_FERMA[fonte["chiave"]] = time.time() + REGIONE_PAUSA
     return _foto_dall_alto(y0, x0, y1, x1, lati), "Esri World Imagery"
 
 
@@ -3394,6 +3429,23 @@ for _f in sorted((APP / "sito").glob("*.webp")):
     STATICI["/sito/" + _f.name] = ("sito/" + _f.name, "image/webp")
 
 
+def mappa_delle_guide():
+    """Le pagine «quanto costa» nella sitemap (notte 11-12/11/2026): l'elenco lo scrive
+    genera.py in app/guide/elenco.json, cosi' una pagina nuova entra da sola."""
+    try:
+        el = json.loads((APP / "guide" / "elenco.json").read_text(encoding="utf-8"))
+    except Exception:                       # noqa: BLE001
+        return ""
+    giorno = lambda x: x if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(x or "")) else ""
+    riga = lambda via, quando: ("<url><loc>https://rilievoapp.it%s</loc>%s</url>\n"
+                                % (via, "<lastmod>%s</lastmod>" % quando if quando else ""))
+    righe = [riga("/guide/", giorno(el.get("aggiornate")))]
+    for p in el.get("pagine", []):
+        if re.fullmatch(r"[a-z0-9-]{3,80}", str(p.get("slug", ""))):
+            righe.append(riga("/guide/" + p["slug"], giorno(p.get("aggiornata"))))
+    return "".join(righe)
+
+
 def fic_pagina_scelta(gettone, ditte):
     """Chi ha piu' ditte su Fatture in Cloud sceglie quale collegare, prima di salvare."""
     import html as _h
@@ -3411,6 +3463,27 @@ def fic_pagina_scelta(gettone, ditte):
             "<h1>Quale ditta colleghi?</h1><p>Sul tuo Fatture in Cloud ci sono più ditte. "
             "Tocca quella da cui devono partire le fatture di Rilievo.</p><ul>" + voci + "</ul>"
             "<p style='font-size:15px'>Hai dieci minuti per scegliere. Poi si riparte da Impostazioni.</p></html>")
+
+
+# cerotto notte 11-12/11/2026 (lavoro I): lavori pesanti a turno.
+# L'11/11/2026 alle 22:36 Render ha spento il server per memoria piena (516 MB su 512):
+# cinque rilievi nello stesso minuto, uno su dieci ettari. Rilievi e foto passano al
+# massimo LAVORI_PESANTI alla volta; gli altri aspettano il turno invece di far cadere
+# tutti. Finito un lavoro pesante, la memoria libera torna al sistema: senza, durante
+# il giorno la memoria a riposo saliva da 100 a 300 MB e non scendeva piu'.
+LAVORI_PESANTI = max(1, int((os.environ.get("RILIEVO_LAVORI_PESANTI") or "2").strip() or 2))
+ATTESA_TURNO = 30.0
+PERCORSI_PESANTI = frozenset(("/rilievo", "/foto", "/particelle", "/case-vicine"))
+_TURNO_PESANTE = threading.BoundedSemaphore(LAVORI_PESANTI)
+
+
+def _rendi_memoria():
+    """La memoria che Python ha gia' liberato torna davvero al sistema (solo Linux)."""
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:                                   # noqa: BLE001
+        pass
 
 
 def servizio(porta=8787, pubblico=False):
@@ -3433,6 +3506,8 @@ def servizio(porta=8787, pubblico=False):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Headers", "*")
             self.send_header("Access-Control-Allow-Private-Network", "true")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Strict-Transport-Security", "max-age=31536000")
             self.end_headers()
 
         def do_OPTIONS(self):
@@ -3896,6 +3971,50 @@ def servizio(porta=8787, pubblico=False):
             self.send_header("Content-Length", "0")
             self.end_headers()
 
+        def _guida(self, percorso):
+            """Le pagine «quanto costa» (notte 11-12/11/2026): file fissi in app/guide/,
+            fatti da genera.py. A differenza dei preventivi, queste Google le deve vedere."""
+            cartella = APP / "guide"
+            if percorso == "/guide":
+                self.send_response(301)
+                self.send_header("Location", "/guide/")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            nome = percorso[len("/guide/"):]
+            f, tipo = None, None
+            if nome == "":
+                f, tipo = cartella / "index.html", "text/html; charset=utf-8"
+            elif re.fullmatch(r"caratteri/[a-z0-9-]{1,40}\.woff2", nome):
+                f, tipo = cartella / nome, "font/woff2"
+            elif re.fullmatch(r"[a-z0-9-]{3,80}", nome):
+                f, tipo = cartella / (nome + ".html"), "text/html; charset=utf-8"
+            elif re.fullmatch(r"[a-z0-9-]{3,80}/", nome):
+                self.send_response(301)
+                self.send_header("Location", "/guide/" + nome[:-1])
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if f is None or not f.is_file():
+                dati = ('<!doctype html><html lang="it"><meta charset="utf-8"><title>Pagina non trovata | Rilievo</title>'
+                        '<meta name="robots" content="noindex"><p style="font-family:Georgia,serif;padding:30px">'
+                        'Questa pagina non c\'è. <a href="/guide/">Tutti i prezzi e i modelli</a></p></html>').encode("utf-8")
+                self.send_response(404)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(dati)))
+                self.end_headers()
+                self.wfile.write(dati)
+                return
+            dati = f.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", tipo)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable" if tipo == "font/woff2"
+                             else "public, max-age=3600")
+            self.send_header("Content-Length", str(len(dati)))
+            self.end_headers()
+            self.wfile.write(dati)
+
         def _pagina_cliente(self, codice, testo):
             dati = (testo or "").encode("utf-8")
             self.send_response(codice)
@@ -4006,6 +4125,20 @@ def servizio(porta=8787, pubblico=False):
             self._manda(200, r)
 
         def do_GET(self):
+            # lavori pesanti a turno (cerotto notte 11-12/11/2026)
+            if self.path.split("?", 1)[0] not in PERCORSI_PESANTI:
+                return self._do_GET_sportello()
+            if not _TURNO_PESANTE.acquire(timeout=ATTESA_TURNO):
+                print("     troppi rilievi insieme: risposto di riprovare")
+                self._manda(503, {"errore": "Sto finendo altri rilievi. Riprova fra un minuto."})
+                return
+            try:
+                return self._do_GET_sportello()
+            finally:
+                _TURNO_PESANTE.release()
+                _rendi_memoria()
+
+        def _do_GET_sportello(self):
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
             if centralino and centralino.gestisci(self, "GET", u.path, q):
@@ -4081,7 +4214,7 @@ def servizio(porta=8787, pubblico=False):
             # usciamo?»). Si mostra solo la pagina dell'app: i preventivi dei clienti,
             # le richieste e il centralino restano fuori dai motori di ricerca.
             if u.path == "/robots.txt":
-                testo = ("User-agent: *\nAllow: /$\nAllow: /telefono\n"
+                testo = ("User-agent: *\nAllow: /$\nAllow: /telefono\nAllow: /guide/\n"
                          "Disallow: /p/\nDisallow: /chiedi/\nDisallow: /centralino\n"
                          "Disallow: /posta\nDisallow: /visite\nDisallow: /fic/\nDisallow: /ingresso/\n"
                          "Disallow: /fattura\n\nSitemap: https://rilievoapp.it/sitemap.xml\n")
@@ -4106,6 +4239,7 @@ def servizio(porta=8787, pubblico=False):
                 dati = ('<?xml version="1.0" encoding="UTF-8"?>\n'
                         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                         '<url><loc>https://rilievoapp.it/</loc></url>\n'
+                        + mappa_delle_guide() +
                         '</urlset>\n').encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/xml; charset=utf-8")
@@ -4142,6 +4276,10 @@ def servizio(porta=8787, pubblico=False):
                     preventivo_col_link.segna_aperto(lid)
                 self._pagina_cliente(200, pagina)
                 return
+            # le pagine «quanto costa» per farsi trovare su Google (notte 11-12/11/2026)
+            if u.path == "/guide" or u.path.startswith("/guide/"):
+                self._guida(u.path)
+                return
             # l'applicazione stessa, se c'e' la cartella app/: cosi' ha un indirizzo
             # fisso e si installa sul telefono, e si apre anche senza rete
             if u.path in STATICI and (APP / STATICI[u.path][0]).is_file():
@@ -4150,6 +4288,8 @@ def servizio(porta=8787, pubblico=False):
                 self.send_response(200)
                 self.send_header("Content-Type", tipo)
                 self.send_header("Cache-Control", "public, max-age=604800" if tipo == "image/webp" else "no-cache")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Strict-Transport-Security", "max-age=31536000")
                 self.send_header("Content-Length", str(len(dati)))
                 self.end_headers()
                 self.wfile.write(dati)
@@ -4393,6 +4533,18 @@ def servizio(porta=8787, pubblico=False):
                     _limite(None)
                 return
             if u.path != "/rilievo":
+                # controllo col dito 12/11/2026: dal telefono si vedeva una riga di codice,
+                # {"errore":...}, minuscola. Al browser una pagina vera; ai programmi come prima.
+                if "text/html" in (self.headers.get("Accept") or ""):
+                    corpo = ('<div class="banda"><h1>Questa pagina non c’è</h1></div>'
+                             '<div class="accetta"><p>L’indirizzo è sbagliato o è stato copiato a metà.</p>'
+                             '<p><a href="/" style="display:inline-block;min-height:44px;line-height:44px;'
+                             'padding:0 18px;border-radius:10px;background:#1B1915;color:#fff;'
+                             'text-decoration:none">Vai a Rilievo</a></p></div>')
+                    self._pagina_cliente(404, preventivo_col_link._intera(
+                        "Pagina non trovata · Rilievo",
+                        preventivo_col_link.stili_dell_app(APP / "index.html"), corpo))
+                    return
                 self._apri(404)
                 self.wfile.write(b'{"errore":"Non c\'e nulla qui."}')
                 return
@@ -4434,6 +4586,7 @@ def servizio(porta=8787, pubblico=False):
 
     socketserver.TCPServer.allow_reuse_address = True
     promemoria.avvia()     # ogni mezz'ora, nei giorni feriali dalle 9 alle 19
+    bozze.avvia()          # la mattina, lun-sab 7:30-9:30: «il preventivo e' pronto da mandare»
     with socketserver.ThreadingTCPServer((indirizzo_ascolto, porta), Sportello) as s:
         print("Il rilievo è acceso su http://%s:%d" % (indirizzo_ascolto, porta))
         print("Lascia questa finestra aperta e usa Rilievo. Ctrl-C per fermare.")

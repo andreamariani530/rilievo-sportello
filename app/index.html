@@ -1376,6 +1376,17 @@ a[href^="tel:"]{white-space:nowrap}
 @media (max-width:900px){ .avviso{bottom:calc(86px + env(safe-area-inset-bottom))} }
 /* matita, cestino e gli altri tasti a icona: almeno 40 px sotto il dito */
 .matita{min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center}
+/* controllo col dito 12/11/2026: ogni tasto almeno 44 px sotto il dito. Erano 35-43 px:
+   menu, tasti piccoli, linguette, matita, tasti tondi della casa, domande pronte, esempio */
+nav a.voce{min-height:44px;box-sizing:border-box}
+.bottone.piccolo,.filtri button,.casa-domande button,.striscia-esempio button{min-height:44px;box-sizing:border-box}
+.matita{min-width:44px;min-height:44px}
+.casa-tasto{width:44px;height:44px;margin:-7px 0}
+/* il sito: «Scrivici», «Guardala su TikTok», «Apri la tua app», i link in fondo erano 20-26 px */
+#sito .s-scrivi,#sito .s-link,#sito .s-piede a,#sito #s-apri,#sito .s-marchio{display:inline-flex;align-items:center;min-height:44px}
+#sito summary{padding:11px 0;min-height:44px;box-sizing:border-box}
+/* la striscia «Ditta di esempio» resta bassa (scelta del 10/11: al massimo 48 px) col tasto da 44 */
+@media (max-width:640px){ .striscia-esempio{padding-top:2px;padding-bottom:2px} }
 /* sul telefono una riga toccata restava beige, attaccata al bordo */
 @media (hover:none){ .elenco .r.cliccabile:hover{background:transparent} }
 .piede .tel-intero,.foglio .piede{overflow-wrap:normal}
@@ -1558,6 +1569,8 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
   <div class="s-fine" id="s-chiedi">
    <h2>Vuoi provarla sui tuoi lavori?</h2>
    <p class="s-sotto">Lasciaci un contatto: ti mandiamo il tuo link personale. Risponde chi la costruisce.</p>
+   <!-- porta un collega (12/11/2026): chi arriva col link di un artigiano entra subito -->
+   <p class="s-sotto" id="s-invitato" hidden><b>Ti ha invitato un collega:</b> lascia la mail e il link ti arriva subito.</p>
    <form class="s-modulo" id="s-modulo" novalidate>
     <label>Nome o ditta<input name="nome" autocomplete="name" maxlength="80" required></label>
     <label>Mestiere<select name="mestiere"><option value="">Scegli…</option><option>Giardiniere</option><option>Elettricista</option><option>Idraulico</option><option>Termoidraulico</option><option>Imbianchino</option><option>Piastrellista</option><option>Muratore</option><option>Serramentista</option><option>Disinfestatore</option><option>Altro</option></select></label>
@@ -1606,6 +1619,10 @@ document.getElementById('s-torna').addEventListener('click', function(e){
   [].forEach.call(sito.children, function(c){ c.hidden = c.id === 's-informativa' || (c.id === 's-gia' && !window.rilievoGiaUsata); });
   sito.scrollTop = 0;
 });
+if(/[?&]invito=[a-z0-9-]{2,30}/.test(location.search)){
+  document.getElementById('s-invitato').hidden = false;
+  addEventListener('load', function(){ document.getElementById('s-chiedi').scrollIntoView(); });
+}
 /* chi l'app l'ha gia' usata su questo telefono non deve chiedere niente */
 if(window.rilievoGiaUsata) document.getElementById('s-gia').hidden = false;
 document.getElementById('s-apri').addEventListener('click', function(){
@@ -1620,6 +1637,8 @@ document.getElementById('s-modulo').addEventListener('submit', function(e){
   e.preventDefault();
   var f = e.target, esito = document.getElementById('s-esito'), tasto = document.getElementById('s-manda');
   var d = {da_dove: document.referrer};
+  var invito = (location.search.match(/[?&]invito=([a-z0-9-]{2,30})/) || [])[1];
+  if(invito) d.invito = invito;
   ['nome','mestiere','zona','mail','telefono','sito_web'].forEach(function(k){ d[k] = f.elements[k].value.trim(); });
   esito.textContent = '';
   if(!d.nome){ esito.textContent = 'Scrivi il tuo nome o quello della ditta.'; f.elements.nome.focus(); return; }
@@ -1629,7 +1648,9 @@ document.getElementById('s-modulo').addEventListener('submit', function(e){
     .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
     .then(function(x){
       if(!x.ok){ esito.textContent = x.j.errore || 'Non è partita. Riprova tra poco.'; tasto.disabled = false; return; }
-      f.hidden = true; document.getElementById('s-grazie').hidden = false;
+      var grazie = document.getElementById('s-grazie');
+      if(x.j.subito) grazie.textContent = 'Fatto: il tuo link personale è partito per mail. Se non lo vedi, guarda anche nella posta indesiderata.';
+      f.hidden = true; grazie.hidden = false;
     })
     .catch(function(){ esito.textContent = 'Non è partita: controlla la rete, oppure scrivi a info@rilievoapp.it.'; tasto.disabled = false; });
 });
@@ -1933,7 +1954,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-11 14:40';
+const COSTRUITA = '2026-11-12 18:32';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -2452,10 +2473,10 @@ const PIANI = {
 };
 /* i listini di partenza: voci e prezzi dai prezzari regionali pubblici, fonte in
    listini-dei-mestieri.md accanto al pacchetto. Sono un punto di partenza. */
-const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia 2026 delle opere pubbliche (impianti elettrici)", "voci": [
-    {"id": "el-luce", "nome": "Punto luce", "u": "a punto", "p": 48.93, "h": 0.7}, 
+const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia 2026 delle opere pubbliche (impianti elettrici) e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
+    {"id": "el-luce", "nome": "Punto luce", "u": "a punto", "p": 80, "h": 0.7}, 
     {"id": "el-deviato", "nome": "Punto luce deviato", "u": "a punto", "p": 64.54, "h": 0.9}, 
-    {"id": "el-presa", "nome": "Punto presa 10/16A", "u": "a punto", "p": 46.33, "h": 0.5}, 
+    {"id": "el-presa", "nome": "Punto presa 10/16A", "u": "a punto", "p": 65, "h": 0.5}, 
     {"id": "el-tv", "nome": "Punto TV e antenna", "u": "a punto", "p": 148.57, "h": 2.8}, 
     {"id": "el-dati", "nome": "Punto rete dati", "u": "a punto", "p": 65, "h": 0.6}, 
     {"id": "el-quadro", "nome": "Quadro elettrico 12 moduli cablato", "u": "a pezzo", "p": 250, "h": 3}, 
@@ -2475,7 +2496,7 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "el-dedicata", "nome": "Linea dedicata forno o piano a induzione", "u": "a pezzo", "p": 120, "h": 1.5}, 
     {"id": "el-colonnina", "nome": "Installazione colonnina di ricarica auto", "u": "a pezzo", "p": 450, "h": 4}, 
     {"id": "el-uscita", "nome": "Uscita e diritto di chiamata", "u": "a corpo", "p": 40}, 
-    {"id": "el-impianto", "nome": "Rifacimento impianto elettrico completo", "u": "al metro quadro", "p": 95, "h": 0.6}]}, "idraulico": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da idraulico e impianti termici)", "voci": [
+    {"id": "el-impianto", "nome": "Rifacimento impianto elettrico completo", "u": "al metro quadro", "p": 95, "h": 0.6}]}, "idraulico": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da idraulico e impianti termici) e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
     {"id": "id-sanitario", "nome": "Sostituzione sanitario o boiler", "u": "a pezzo", "p": 111.26, "h": 2.5}, 
     {"id": "id-lavabo", "nome": "Attacco lavabo", "u": "ad attacco", "p": 638.8, "h": 2.5}, 
     {"id": "id-bidet", "nome": "Attacco bidet", "u": "ad attacco", "p": 638.8, "h": 2.5}, 
@@ -2484,7 +2505,7 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "id-piatto", "nome": "Posa piatto doccia", "u": "a pezzo", "p": 117.13, "h": 1.5}, 
     {"id": "id-lavatrice", "nome": "Attacco lavatrice", "u": "ad attacco", "p": 522.4, "h": 1.8}, 
     {"id": "id-lavello", "nome": "Attacco lavello cucina", "u": "ad attacco", "p": 638.8}, 
-    {"id": "id-acqua", "nome": "Punto acqua in più", "u": "a punto", "p": 116.4}, 
+    {"id": "id-acqua", "nome": "Punto acqua in più", "u": "a punto", "p": 170}, 
     {"id": "id-rubinetto", "nome": "Rubinetto o miscelatore", "u": "a pezzo", "p": 30.41}, 
     {"id": "id-tubo", "nome": "Tubo multistrato", "u": "al metro", "p": 10.17}, 
     {"id": "id-scarico", "nome": "Scarico in PVC", "u": "al metro", "p": 9.76}, 
@@ -2492,24 +2513,24 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "id-radiatore", "nome": "Radiatore in alluminio (1 kW)", "u": "a pezzo", "p": 288.3}, 
     {"id": "id-valvola", "nome": "Valvola termostatica", "u": "a pezzo", "p": 54.77}, 
     {"id": "id-perdita", "nome": "Ricerca perdita", "u": "all'ora", "p": 40.55, "h": 1}, 
-    {"id": "id-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180}]}, "imbianchino": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da decoratore), con alcune voci del Prezzario Regione Lombardia 2026", "voci": [
-    {"id": "im-pareti", "nome": "Tinteggiatura pareti", "u": "al metro quadro", "p": 5.37, "stanza": "pareti", "h": 0.12}, 
+    {"id": "id-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180}]}, "imbianchino": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da decoratore), con alcune voci del Prezzario Regione Lombardia 2026 e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
+    {"id": "im-pareti", "nome": "Tinteggiatura pareti", "u": "al metro quadro", "p": 10, "stanza": "pareti", "h": 0.12}, 
     {"id": "im-soffitti", "nome": "Tinteggiatura soffitti", "u": "al metro quadro", "p": 6.27, "stanza": "soffitto", "h": 0.12}, 
     {"id": "im-lavabile", "nome": "Idropittura lavabile", "u": "al metro quadro", "p": 6.11, "stanza": "pareti", "h": 0.12}, 
     {"id": "im-fissativo", "nome": "Fissativo isolante", "u": "al metro quadro", "p": 1.96, "stanza": "pareti+soffitto"}, 
-    {"id": "im-rasatura", "nome": "Rasatura a gesso", "u": "al metro quadro", "p": 17.79, "stanza": "pareti", "h": 0.3}, 
+    {"id": "im-rasatura", "nome": "Rasatura a gesso", "u": "al metro quadro", "p": 25, "stanza": "pareti", "h": 0.3}, 
     {"id": "im-stuccatura", "nome": "Stuccatura e carteggiatura", "u": "al metro quadro", "p": 2.24, "stanza": "pareti", "h": 0.09}, 
     {"id": "im-raschiatura", "nome": "Raschiatura vecchie tinte", "u": "al metro quadro", "p": 6.93, "stanza": "pareti", "h": 0.18}, 
     {"id": "im-carta", "nome": "Rimozione carta da parati", "u": "al metro quadro", "p": 6.81, "stanza": "pareti"}, 
     {"id": "im-antimuffa", "nome": "Trattamento antimuffa", "u": "al metro quadro", "p": 4.5, "stanza": ""}, 
-    {"id": "im-facciata", "nome": "Facciata esterna", "u": "al metro quadro", "p": 10.57, "stanza": "", "h": 0.135}, 
+    {"id": "im-facciata", "nome": "Facciata esterna", "u": "al metro quadro", "p": 24, "stanza": "", "h": 0.135}, 
     {"id": "im-ringhiere", "nome": "Smalto ringhiere", "u": "al metro quadro", "p": 16.73, "stanza": ""}, 
     {"id": "im-porta", "nome": "Verniciatura porta", "u": "a pezzo", "p": 60.36, "stanza": ""}, 
     {"id": "im-termosifoni", "nome": "Smalto termosifoni", "u": "al metro quadro", "p": 14.59, "stanza": ""}, 
     {"id": "im-zoccolino", "nome": "Zoccolino a vernice lavabile", "u": "al metro", "p": 5.78, "stanza": "perimetro"}, 
-    {"id": "im-protezione", "nome": "Protezione pavimenti e mobili", "u": "a corpo", "p": 80, "stanza": ""}]}, "piastrellista": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (pavimenti, rivestimenti e demolizioni), con alcune voci del Prezzario Regione Lombardia 2026", "voci": [
-    {"id": "pi-pavimento", "nome": "Posa pavimento in ceramica", "u": "al metro quadro", "p": 33.58, "stanza": "pavimento", "h": 0.3}, 
-    {"id": "pi-gres", "nome": "Posa gres porcellanato", "u": "al metro quadro", "p": 35.39, "stanza": "pavimento", "h": 0.3}, 
+    {"id": "im-protezione", "nome": "Protezione pavimenti e mobili", "u": "a corpo", "p": 80, "stanza": ""}]}, "piastrellista": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (pavimenti, rivestimenti e demolizioni), con alcune voci del Prezzario Regione Lombardia 2026 e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
+    {"id": "pi-pavimento", "nome": "Posa pavimento in ceramica", "u": "al metro quadro", "p": 30, "stanza": "pavimento", "h": 0.3}, 
+    {"id": "pi-gres", "nome": "Posa gres porcellanato", "u": "al metro quadro", "p": 30, "stanza": "pavimento", "h": 0.3}, 
     {"id": "pi-grande", "nome": "Posa gres grande formato", "u": "al metro quadro", "p": 45, "stanza": "pavimento"}, 
     {"id": "pi-rivestimento", "nome": "Posa rivestimento pareti", "u": "al metro quadro", "p": 35.39, "stanza": "rivestimento", "h": 0.5}, 
     {"id": "pi-massetto", "nome": "Massetto in cemento 5 cm", "u": "al metro quadro", "p": 19.05, "stanza": "pavimento", "h": 0.38}, 
@@ -2522,7 +2543,7 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "pi-fughe", "nome": "Stuccatura fughe", "u": "al metro quadro", "p": 6, "stanza": ""}, 
     {"id": "pi-silicone", "nome": "Sigillatura in silicone", "u": "al metro", "p": 2.51, "stanza": ""}, 
     {"id": "pi-esterno", "nome": "Pavimento esterno o terrazzo", "u": "al metro quadro", "p": 44.63, "stanza": ""}, 
-    {"id": "pi-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180, "stanza": ""}]}, "serramentista": {"fonte": "Prezzario Regione Lombardia 2026 e Prezzario Lavori Regione Toscana 2026 delle opere pubbliche (serramenti)", "voci": [
+    {"id": "pi-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180, "stanza": ""}]}, "serramentista": {"fonte": "Prezzario Regione Lombardia 2026 e Prezzario Lavori Regione Toscana 2026 delle opere pubbliche (serramenti) e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
     {"id": "se-pvc2", "nome": "Finestra in PVC, due ante", "u": "al metro quadro", "p": 709.85, "detti": "due ante, doppia anta", "h": 1.4}, 
     {"id": "se-pvc1", "nome": "Finestra in PVC, un'anta", "u": "al metro quadro", "p": 614.72, "detti": "un'anta, anta singola", "h": 1.4}, 
     {"id": "se-fissa", "nome": "Finestra fissa in PVC", "u": "al metro quadro", "p": 386.68, "detti": "finestra fissa", "h": 1.4}, 
@@ -2546,9 +2567,9 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "se-davanzale", "nome": "Davanzale o soglia in marmo", "u": "al metro", "p": 35.65}, 
     {"id": "se-silicone", "nome": "Sigillatura in silicone", "u": "al metro", "p": 2.51}, 
     {"id": "se-ora", "nome": "Regolazione e manutenzione infissi", "u": "all'ora", "p": 31.88, "h": 1}, 
-    {"id": "se-uscita", "nome": "Uscita e trasferta", "u": "a corpo", "p": 35}]}, "muratore": {"fonte": "Prezzario Regione Lombardia 2026 delle opere pubbliche (opere edili e ristrutturazioni)", "voci": [
+    {"id": "se-uscita", "nome": "Uscita e trasferta", "u": "a corpo", "p": 35}]}, "muratore": {"fonte": "Prezzario Regione Lombardia 2026 delle opere pubbliche (opere edili e ristrutturazioni) e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
     {"id": "mu-tramezzo", "nome": "Tramezzo in forati da 8 cm", "u": "al metro quadro", "p": 40.13, "stanza": "", "h": 0.9}, 
-    {"id": "mu-demtramezzo", "nome": "Demolizione tramezzo in forati", "u": "al metro quadro", "p": 15.54, "stanza": "", "h": 0.29}, 
+    {"id": "mu-demtramezzo", "nome": "Demolizione tramezzo in forati", "u": "al metro quadro", "p": 30, "stanza": "", "h": 0.29}, 
     {"id": "mu-apertura", "nome": "Apertura vano porta in tramezzo", "u": "al metro quadro", "p": 133.53, "stanza": ""}, 
     {"id": "mu-chiusura", "nome": "Chiusura vano porta", "u": "al metro quadro", "p": 122.58, "stanza": ""}, 
     {"id": "mu-intonaco", "nome": "Intonaco civile a calce e cemento", "u": "al metro quadro", "p": 14.96, "stanza": "", "h": 0.49}, 
@@ -2568,25 +2589,30 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "mu-cappotto", "nome": "Cappotto in EPS 10 cm", "u": "al metro quadro", "p": 82.47, "stanza": ""}, 
     {"id": "mu-intesterno", "nome": "Intonaco esterno", "u": "al metro quadro", "p": 17.29, "stanza": ""}, 
     {"id": "mu-guaina", "nome": "Impermeabilizzazione con guaina liquida", "u": "al metro quadro", "p": 26.58, "stanza": "pavimento"}, 
-    {"id": "mu-ponteggio", "nome": "Ponteggio, montaggio e smontaggio", "u": "al metro quadro", "p": 24.6, "stanza": ""}, 
+    {"id": "mu-ponteggio", "nome": "Ponteggio, montaggio e smontaggio", "u": "al metro quadro", "p": 12, "stanza": ""}, 
     {"id": "mu-assistenza", "nome": "Assistenza muraria agli impianti", "u": "a corpo", "p": 250, "stanza": ""}, 
     {"id": "mu-ora", "nome": "Manodopera muratore", "u": "all'ora", "p": 43.9, "stanza": "", "h": 1}, 
-    {"id": "mu-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180, "stanza": ""}]}, "termoidraulico": {"fonte": "Prezzario Regione Lombardia 2026 e Prezzario Lavori Regione Toscana 2026 delle opere pubbliche (impianti meccanici), con il Prezzario Regione Piemonte 2025", "voci": [
-    {"id": "te-mono25", "nome": "Climatizzatore monosplit 2,5 kW", "u": "a pezzo", "p": 1723.02, "h": 4.0}, 
-    {"id": "te-mono35", "nome": "Climatizzatore monosplit 3,5 kW", "u": "a pezzo", "p": 2012.09, "detti": "monosplit 3,5", "h": 4.0}, 
-    {"id": "te-dual", "nome": "Climatizzatore dual split", "u": "a pezzo", "p": 3493.14, "h": 6.0}, 
-    {"id": "te-trial", "nome": "Climatizzatore trial split", "u": "a pezzo", "p": 3992.3, "h": 6.5}, 
-    {"id": "te-posaclima", "nome": "Posa climatizzatore del cliente", "u": "a pezzo", "p": 127.52, "detti": "condizionatore del cliente", "h": 4.0}, 
-    {"id": "te-rame", "nome": "Linea frigorifera in rame", "u": "al metro", "p": 35}, 
-    {"id": "te-condensa", "nome": "Scarico condensa", "u": "al metro", "p": 8}, 
+    {"id": "mu-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180, "stanza": ""}]}, "termoidraulico": {"fonte": "Prezzario Regione Lombardia 2026 e Prezzario Lavori Regione Toscana 2026 delle opere pubbliche (impianti meccanici), con il Prezzario Regione Piemonte 2025 e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
+    {"id": "te-mono25", "nome": "Climatizzatore monosplit 2,5 kW", "u": "a pezzo", "p": 1200, "h": 4.0}, 
+    {"id": "te-mono35", "nome": "Climatizzatore monosplit 3,5 kW", "u": "a pezzo", "p": 1400, "detti": "monosplit 3,5", "h": 4.0}, 
+    {"id": "te-dual", "nome": "Climatizzatore dual split", "u": "a pezzo", "p": 2300, "h": 6.0}, 
+    {"id": "te-trial", "nome": "Climatizzatore trial split", "u": "a pezzo", "p": 3200, "h": 6.5}, 
+    {"id": "te-posaclima", "nome": "Posa climatizzatore del cliente", "u": "a pezzo", "p": 300, "detti": "condizionatore del cliente", "h": 4.0}, 
+    {"id": "te-rame", "nome": "Linea frigorifera in rame", "u": "al metro", "p": 40}, 
+    {"id": "te-condensa", "nome": "Scarico condensa", "u": "al metro", "p": 15}, 
     {"id": "te-canalina", "nome": "Canalina copritubo", "u": "al metro", "p": 10.6}, 
     {"id": "te-foro", "nome": "Foro passante nel muro", "u": "a pezzo", "p": 60}, 
-    {"id": "te-smontaclima", "nome": "Smontaggio climatizzatore con recupero del gas", "u": "a pezzo", "p": 80}, 
+    {"id": "te-smontaclima", "nome": "Smontaggio climatizzatore con recupero del gas", "u": "a pezzo", "p": 60}, 
     {"id": "te-sanifica", "nome": "Pulizia e sanificazione climatizzatore", "u": "a pezzo", "p": 60}, 
-    {"id": "te-gas", "nome": "Ricarica del gas", "u": "a pezzo", "p": 90}, 
-    {"id": "te-caldaia24", "nome": "Caldaia a condensazione 24 kW", "u": "a pezzo", "p": 2440.03, "h": 9.0}, 
-    {"id": "te-caldaia30", "nome": "Caldaia a condensazione 25-30 kW", "u": "a pezzo", "p": 3030, "detti": "caldaia da 30", "h": 9.0}, 
-    {"id": "te-sostcaldaia", "nome": "Sostituzione caldaia, solo manodopera", "u": "a pezzo", "p": 191.28, "h": 6.0}, 
+    {"id": "te-gas", "nome": "Ricarica del gas", "u": "a pezzo", "p": 150}, 
+    {"id": "te-posadual", "nome": "Posa climatizzatore dual split del cliente", "u": "a pezzo", "p": 550, "h": 6.0}, 
+    {"id": "te-posatrial", "nome": "Posa climatizzatore trial split del cliente", "u": "a pezzo", "p": 780, "h": 6.5}, 
+    {"id": "te-perdita", "nome": "Ricerca e riparazione perdita di gas, con ricarica", "u": "a corpo", "p": 380}, 
+    {"id": "te-staffa", "nome": "Staffa per unità esterna del climatizzatore", "u": "a pezzo", "p": 120}, 
+    {"id": "te-lineaelettrica", "nome": "Linea elettrica dedicata con interruttore", "u": "a corpo", "p": 200}, 
+    {"id": "te-caldaia24", "nome": "Caldaia a condensazione 24 kW", "u": "a pezzo", "p": 1600, "h": 9.0}, 
+    {"id": "te-caldaia30", "nome": "Caldaia a condensazione 25-30 kW", "u": "a pezzo", "p": 1900, "detti": "caldaia da 30", "h": 9.0}, 
+    {"id": "te-sostcaldaia", "nome": "Sostituzione caldaia, solo manodopera", "u": "a pezzo", "p": 350, "h": 6.0}, 
     {"id": "te-manutenzione", "nome": "Manutenzione annuale caldaia con analisi dei fumi", "u": "a pezzo", "p": 100}, 
     {"id": "te-canna", "nome": "Canna fumaria in acciaio inox", "u": "al metro", "p": 179.76}, 
     {"id": "te-defangatore", "nome": "Defangatore magnetico", "u": "a pezzo", "p": 97.43}, 
@@ -2594,7 +2620,7 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "te-valvola", "nome": "Valvola termostatica", "u": "a pezzo", "p": 54.77}, 
     {"id": "te-crono", "nome": "Cronotermostato", "u": "a pezzo", "p": 317.18}, 
     {"id": "te-addolcitore", "nome": "Addolcitore domestico", "u": "a pezzo", "p": 1260.29}, 
-    {"id": "te-ora", "nome": "Manodopera", "u": "all'ora", "p": 31.88, "h": 1}, 
+    {"id": "te-ora", "nome": "Manodopera", "u": "all'ora", "p": 55, "h": 1}, 
     {"id": "te-uscita", "nome": "Uscita e trasferta", "u": "a corpo", "p": 35}]}, "altro": {"fonte": "Prezzario Regione Piemonte 2025 (ora di operaio specializzato) e stime", "voci": [
     {"id": "al-ora", "nome": "Manodopera", "u": "all'ora", "p": 40.55, "h": 1}, 
     {"id": "al-materiale", "nome": "Materiale", "u": "a corpo", "p": 50}, 
@@ -3741,7 +3767,25 @@ function inviaPreventivo(id, come){
   const r = s ? richiesta(s.richiesta) : null;
   if(r) r.stato = 'preventivo_inviato';
   salva(); vai();
+  if(chiediPromemoria(p)) return;
   avvisa('Mandato. È nel cassetto e il cliente è finito in rubrica.');
+}
+/* «Se il cliente non risponde, glielo ricordo io?» (notte 11-12 novembre 2026).
+   I promemoria restano spenti di base (4 ottobre 2026): si chiedono qui, quando
+   servono, al massimo due volte in tutto. Se il tasto non si tocca non cambia niente. */
+function chiediPromemoria(p){
+  const i = impPromemoria();
+  if(i.preventivi || !statoCopia().gettone || !mailCliente(p) || !mailBuona(S.azienda.mail)) return false;
+  if((Number(S.azienda.promemoria_chiesto) || 0) >= 2) return false;
+  S.azienda.promemoria_chiesto = (Number(S.azienda.promemoria_chiesto) || 0) + 1; salva();
+  avvisaConTasto('Mandato. Se fra ' + i.giorni + ' giorni il cliente non ti ha risposto, vuoi che gli scriviamo noi una mail garbata a nome tuo?',
+    'Sì, pensaci tu', () => {
+      S.azienda.promemoria = Object.assign({}, impPromemoria(), {preventivi: true}); salva(); vai();
+      const j = impPromemoria();
+      avvisa('Fatto. Se il cliente non risponde, dopo ' + j.giorni + ' giorni gli scriviamo noi, al massimo ' +
+        (j.volte === 1 ? 'una volta' : j.volte + ' volte') + '. Lo cambi in Impostazioni, nei Promemoria automatici.');
+    });
+  return true;
 }
 function accettaPreventivo(id){
   const p = prev(id);
@@ -4229,7 +4273,9 @@ function duplicaPreventivo(id){
   n.id = nuovoId('p'); n.numero = nuovoNumero(); n.data = S.oggi;
   n.stato = 'bozza'; n.sopralluogo = null;
   /* la copia e' un preventivo nuovo: niente firma, solleciti o esito di quello vecchio */
-  ['firma','solleciti','solleciti_saldo','promemoria','motivo','motivo_nota','consegna','iva','stato_prima','pagato'].forEach(k => { delete n[k]; });
+  ['firma','solleciti','solleciti_saldo','promemoria','motivo','motivo_nota','consegna','iva','stato_prima','pagato',
+   /* e il lavoro di quello vecchio: fatto, data, acconto, fattura, link del cliente (12 novembre 2026) */
+   'lavoro_fatto','lavoro','acconto_preso','fattura','link'].forEach(k => { delete n[k]; });
   S.preventivi.unshift(n); salva();
   location.hash = '#preventivo/' + n.id;
   avvisa('Copiato. Cambia quello che serve e mandalo.');
@@ -9508,6 +9554,11 @@ const CONCETTI_MESTIERI = {
       dette: ['sanificazione','sanificare','sanifichiamo','igienizzazione','igienizzare','filtri','filtro','lavaggio',
               'manutenzione','manutenzioni'] },
     { chiavi: ['ricarica'], dette: ['gas','ricarica','ricaricare','freon','refrigerante','rabbocco'] },
+    /* 12 novembre 2026, listino condizionatori: perdita, staffa, linea elettrica */
+    { chiavi: ['perdita','riparazione'], dette: ['perdita','perdite','fuga','fughe','perde','riparazione','riparare'] },
+    { chiavi: ['staffa'], dette: ['staffa','staffe','mensola','mensole','supporto','supporti'] },
+    /* la linea si riconosce da «dedicata» o «interruttore», non da «elettrica»: lo scaldabagno elettrico e' un'altra cosa */
+    { chiavi: ['dedicata','interruttore'], dette: ['dedicata','dedicato','interruttore','interruttori','magnetotermico'] },
     /* "e LAVAGGIO impianto" (9 novembre 2026): un lavoro suo, che non si attacca alle valvole di prima */
     { chiavi: ['lavaggio'], sola: true, dette: ['lavaggio','lavaggi'] },
     { chiavi: ['caldaia'], dette: ['caldaia','caldaie','condensazione','murale','generatore'] },
@@ -10126,6 +10177,11 @@ const sembraVerbo = w => (/(are|ire|iamo|amo|ano)$/.test(w) && w.length >= 6) ||
                          (/(ato|ata|ati|uto|uta)$/.test(w) && w.length >= 7);
 const SEMINA_DETTA = new Set(['semina','seminare','seminato','seminata','seminiamo','semenza',
   'semente','rotolo','rotoli','zolla','zolle']);
+/* "ARIEGGIATURA prato cinquecento metri quadri" (prato concimato e interruttori cambiati
+   (12/11/2026)): si pagava come lo sfalcio. Arieggiare, scarificare e carotare un prato sono
+   lavori loro: senza una voce nel listino chiedono il prezzo una volta, come la semina. */
+const LAVORI_DEL_PRATO = new Set(['arieggiatura','arieggiature','arieggiare','arieggiamo','arieggiato',
+  'scarificatura','scarifica','scarificare','scarifichiamo','carotatura','carotare','verticut']);
 const inGiardino = () => CONCETTI_IN_USO.some(c => c.chiavi.includes('semina'));
 const PIANTE_BASSE = new Set(['rose','rosa','roseto','roseti','rosai','rosaio','ortensia','ortensie','lavanda']);
 const TRATTAMENTO_DETTO = new Set(['trattamento','trattamenti','trattare','antiparassitario',
@@ -10266,6 +10322,7 @@ function scegliVoce(tok, voci){
   if(meglio && CONCETTI_IN_USO.some(c => c.chiavi.includes('semina'))){
     const sue = meglio.x.parole || [];
     if(tok.some(w => SEMINA_DETTA.has(w) && !sue.some(p => somiglia(w, p.p)))) return null;
+    if(tok.some(w => LAVORI_DEL_PRATO.has(w) && !sue.some(p => somiglia(w, p.p)))) return null;
     /* "potatura di otto ROSE" (2 novembre 2026): senza una voce loro nel listino sceglievano
        la potatura di alberi ad alto fusto, e otto rose si pagavano come otto alberi. Meglio
        una lavorazione nuova, che chiede il prezzo una volta. */
@@ -10561,6 +10618,15 @@ function tagliaFlusso(tok, voci){
         .some(p => p.length >= 3 && (somiglia(w, p) || (w.length >= 4 && w.length === p.length && w.slice(0, -1) === p.slice(0, -1)))));
     if(!comuni.size && c - 2 > ultimoForte && !diServizio(tok[c - 1]) && nelNomeDiQui(tok[c - 1]) &&
        (numero(c - 2) || ARTICOLI.has(tok[c - 2]))) c -= 2;
+    /* "concimazione PRATO quattrocento" (prato concimato e interruttori cambiati (12/11/2026)): il
+       prato e' dove si concima, non un secondo lavoro. Staccato prendeva lo sfalcio coi 400 mq, e
+       si pagava un taglio d'erba mai chiesto. Con "del prato" era gia' giusto. Vale quando il
+       lavoro di prima e' detto col suo nome o col verbo, e' la concimazione o la pulizia, e
+       non ha ancora misure. "sfalcio prato" e "siepe prato trecento" restano come prima. */
+    if(!comuni.size && c === i && inGiardino() && /^(prato|prati)$/.test(tok[i]) &&
+       ultimoForte >= 0 && (sembraVerbo(tok[ultimoForte]) || /(tura|zione|mento|aggio)$/.test(tok[ultimoForte])) &&
+       tok.slice(ultimoForte + 1, i).every(w => diServizio(w) && w !== 'e' && w !== 'ed') && !conNumeri(inizio, i) &&
+       [...correnti].some(x => concettiDellaVoce(x.v).some(k => k.chiavi.includes('concimazione') || k.chiavi.includes('pulizia')))) continue;
     /* "rasatura PARETI ottanta metri quadri" (6 novembre 2026): le pareti sono dove si
        rasa, non un secondo lavoro. Staccate prendevano l'intonaco a gesso con gli 80 mq,
        e la rasatura restava senza misura. Vale quando il lavoro di prima e' detto col suo
@@ -11108,7 +11174,14 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
       gruppi.forEach((g, iG) => {
         if(!g.voce || g.voce === frutto || !g.tok.some(w => /^(interruttor|deviator|pres[ae]$)/.test(w))) return;
         const prima = gruppi[iG - 1];
-        if(!cambia(g.tok) && !(prima && cambia(prima.tok) && (prima.tok[prima.tok.length - 1] === 'e' || g.tok[0] === 'e'))) return;
+        /* "tre faretti in bagno e CAMBIARE | due interruttori" (prato concimato e interruttori
+           cambiati (12/11/2026)): il verbo detto dopo la "e" restava in coda al pezzo dei faretti.
+           Gli interruttori diventavano punti luce nuovi e si sommavano ai faretti: Punto luce 5.
+           Il verbo in coda e' del pezzo dopo, e non cambia quello in cui e' rimasto. */
+        const coda = t => { const k = t.lastIndexOf('e');
+          return k >= 0 && k < t.length - 1 && t.slice(k + 1).every(w => diServizio(w) || cambia([w])) && cambia(t.slice(k + 1)) ? k : -1; };
+        const propri = t => coda(t) >= 0 ? t.slice(0, coda(t)) : t;
+        if(!cambia(propri(g.tok)) && !(prima && coda(prima.tok) >= 0) && !(prima && cambia(prima.tok) && (prima.tok[prima.tok.length - 1] === 'e' || g.tok[0] === 'e'))) return;
         if(g.tok.some(w => /^(nuov|aggiung|aggiunt|fare|facciamo|mettere|mettiamo|portare|spostare|punt)/.test(w))) return;
         if(concettiDellaVoce(g.voce.v).some(c => c.chiavi.some(k => ['interruttore','presa','prese','deviato','luce'].includes(k)))) g.voce = frutto;
       });
@@ -16462,7 +16535,7 @@ PAGINE.piani = {
         ${suo ? '<span class="per-te-segno">Il tuo mestiere</span>' : ''}
         <div class="lbl">${k === 'squadra' ? 'In più' : 'Piano'}</div>
         <h3>${p.nome}</h3>
-        <div class="prezzo">€ ${p.prezzo} <small>${k === 'squadra' ? 'al mese per persona' : 'al mese'}</small></div>
+        <div class="prezzo">€ ${p.prezzo} <small>${k === 'squadra' ? 'al mese per persona + IVA' : 'al mese + IVA'}</small></div>
         <p class="per-chi">${p.perChi}</p>
         <ul>${p.cose.map(c => '<li>' + c + '</li>').join('')}${(p.piu || []).map(c => '<li class="in-piu">' + c + '</li>').join('')}</ul>
         ${extra || ''}
@@ -16492,6 +16565,7 @@ PAGINE.piani = {
       <div class="promessa"><h4>Ti risponde una persona</h4>
         <p>Andrea Mariani, Melegnano (MI): chiama il <a href="tel:+393289757655" style="color:var(--accento)">328 975 7655</a> o scrivi a <a href="mailto:info@rilievoapp.it" style="color:var(--accento)">info@rilievoapp.it</a>. Risponde chi costruisce Rilievo.</p></div>
     </div>
+    <!-- IVA esclusa sui piani (12/11/2026): 19 + IVA fa 23,18, chi confronta deve capirlo subito -->
     <div class="riquadro" style="margin-top:22px;max-width:640px" id="conto-piano">
       <div class="lbl" style="margin-bottom:10px">Quando partono i pagamenti, da ${m.nome.toLowerCase()}</div>
       ${/* senza squadra «Pro 40 €» e sotto «Al mese 40 €»: lo stesso numero due volte
@@ -16500,6 +16574,8 @@ PAGINE.piani = {
       <div class="riga-tot"><span>Squadra, ${personeInSquadra} × € ${PIANI.squadra.prezzo}</span><span>€ ${personeInSquadra * PIANI.squadra.prezzo}</span></div>
       <div class="riga-tot"><span><b>Al mese</b></span><span><b>€ ${totale}</b></span></div>`
         : `<div class="riga-tot"><span><b>${base.nome}, al mese</b></span><span><b>€ ${totale}</b></span></div>`}
+      <div class="riga-tot" id="con-iva"><span>Con l'IVA (22%)</span><span>€ ${(totale * 1.22).toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></div>
+      <p style="font-size:14px;color:var(--tenue);margin:4px 0 0">I prezzi dei piani sono IVA esclusa.</p>
       <p style="font-size:15px;color:var(--tenue);margin-top:10px">${m.piano === 'pro'
         ? 'Lavori all’aperto: il rilievo dall’alto ti fa risparmiare il metro.'
         : 'Se lavori anche all’aperto (terrazzi, giardini, recinzioni) ti serve Pro, per il rilievo dall’alto.'}
@@ -16656,6 +16732,24 @@ PAGINE.privacy = {
   corpo(){ return testoPrivacy(); }
 };
 /* ===== IMPOSTAZIONI ===== */
+/* porta un collega (12/11/2026): Andrea, «arriva la richiesta lo stesso e tu la approvi
+   in automatico». Il link porta al sito col codice di chi invita; il server fa entrare
+   subito chi lascia la mail (al massimo 5 al giorno per artigiano). Senza codice niente. */
+function linkCollega(){ const d = daMio(); return d ? 'https://rilievoapp.it/?invito=' + d : ''; }
+function riquadroCollega(){
+  const l = linkCollega();
+  if(!l) return '';
+  const testo = 'Ciao, per i preventivi uso Rilievo: misura il giardino o la casa dall\'indirizzo e fa il preventivo sul posto. Prova anche tu, entri subito ed è gratis: ' + l;
+  return `<div class="riquadro" id="porta-collega" style="margin-bottom:22px">
+    <div class="lbl" style="margin-bottom:10px">Porta un collega</div>
+    <p style="margin:0 0 14px;color:var(--soft);font-size:16px;line-height:1.55">Manda questo link a un collega: chiede l'accesso ed entra subito, senza aspettare.</p>
+    <p style="margin:0 0 14px;font-size:15px;overflow-wrap:anywhere;color:var(--tenue)">${esc(l)}</p>
+    <div class="azioni">
+      <a class="bottone" id="collega-whatsapp" href="https://wa.me/?text=${encodeURIComponent(testo)}" target="_blank" rel="noopener">Mandalo su WhatsApp</a>
+      <button class="bottone vuoto" id="collega-copia" type="button" onclick="this.textContent = copiaSenzaPermesso(linkCollega()) ? 'Copiato' : 'Tienilo premuto per copiarlo'">Copia il link</button>
+    </div>
+  </div>`;
+}
 PAGINE.impostazioni = {
   guida:false,
   testata(){ return {occhiello:'La tua ditta e i tuoi dati', titolo:'Impostazioni'}; },
@@ -16701,6 +16795,7 @@ PAGINE.impostazioni = {
       </div>
 
       <div>
+        ${riquadroCollega()}
         ${riquadroMestiere()}
         ${riquadroFattura()}
         ${riquadroFic()}

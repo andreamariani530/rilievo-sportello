@@ -1,0 +1,452 @@
+{
+ "aggiornate": "2026-11-12",
+ "pagine": [
+  {
+   "slug": "modello-preventivo-lavori-edili",
+   "titolo": "Modello di preventivo lavori edili gratis (Word e PDF)",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 20,
+     "min": 11.29,
+     "medio": 11.29,
+     "max": 11.29
+    },
+    {
+     "q": 20,
+     "min": 19.05,
+     "medio": 19.05,
+     "max": 19.05
+    },
+    {
+     "q": 20,
+     "min": 13,
+     "medio": 30,
+     "max": 40
+    },
+    {
+     "q": 60,
+     "min": 5,
+     "medio": 10,
+     "max": 15
+    },
+    {
+     "q": 4,
+     "min": 43.9,
+     "medio": 43.9,
+     "max": 43.9
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 1982.4,
+    "iva": 436.13,
+    "totale": 2418.53,
+    "basso": 1342.4,
+    "alto": 2482.4
+   }
+  },
+  {
+   "slug": "come-fare-un-preventivo",
+   "titolo": "Come fare un preventivo per lavori: guida e modello gratis",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 16,
+     "min": 40.55,
+     "medio": 43.9,
+     "max": 43.9
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 702.4,
+    "iva": 154.53,
+    "totale": 856.93,
+    "basso": 648.8,
+    "alto": 702.4
+   }
+  },
+  {
+   "slug": "modello-preventivo-imbianchino",
+   "titolo": "Modello di preventivo per imbianchino, con calcolo al mq",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 180,
+     "min": 5,
+     "medio": 10,
+     "max": 15
+    },
+    {
+     "q": 30,
+     "min": 3,
+     "medio": 5.5,
+     "max": 8
+    },
+    {
+     "q": 10,
+     "min": 6,
+     "medio": 9.64,
+     "max": 18
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 2061.4,
+    "iva": 453.51,
+    "totale": 2514.91,
+    "basso": 1050.0,
+    "alto": 3120.0
+   }
+  },
+  {
+   "slug": "modello-preventivo-elettricista",
+   "titolo": "Modello di preventivo per elettricista a punto luce",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 12,
+     "min": 41.94,
+     "medio": 109.48,
+     "max": 109.48
+    },
+    {
+     "q": 15,
+     "min": 46.33,
+     "medio": 103.01,
+     "max": 103.01
+    },
+    {
+     "q": 1,
+     "min": 200,
+     "medio": 250,
+     "max": 300
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 3108.91,
+    "iva": 683.96,
+    "totale": 3792.87,
+    "basso": 1398.23,
+    "alto": 3158.91
+   }
+  },
+  {
+   "slug": "modello-preventivo-giardiniere",
+   "titolo": "Modello di preventivo per giardiniere, gratis (Word e PDF)",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 200,
+     "min": 0.3,
+     "medio": 1,
+     "max": 5
+    },
+    {
+     "q": 30,
+     "min": 2.5,
+     "medio": 3.5,
+     "max": 4.3
+    },
+    {
+     "q": 2,
+     "min": 20,
+     "medio": 59,
+     "max": 200
+    },
+    {
+     "q": 1,
+     "min": 100,
+     "medio": 300,
+     "max": 500
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 723.0,
+    "iva": 159.06,
+    "totale": 882.06,
+    "basso": 275.0,
+    "alto": 2029.0
+   }
+  },
+  {
+   "slug": "taglio-erba-prezzo-mq",
+   "titolo": "Quanto costa tagliare l'erba al mq: prezzi 2026",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 200,
+     "min": 0.3,
+     "medio": 1,
+     "max": 5
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 200.0,
+    "iva": 44.0,
+    "totale": 244.0,
+    "basso": 60.0,
+    "alto": 1000.0
+   }
+  },
+  {
+   "slug": "potatura-siepe-prezzo-metro",
+   "titolo": "Potatura siepe: prezzo al metro lineare nel 2026",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 30,
+     "min": 2.5,
+     "medio": 3.5,
+     "max": 4.3
+    },
+    {
+     "q": 10,
+     "min": 4.3,
+     "medio": 8.3,
+     "max": 12.74
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 188.0,
+    "iva": 41.36,
+    "totale": 229.36,
+    "basso": 118.0,
+    "alto": 256.4
+   }
+  },
+  {
+   "slug": "potatura-alberi-prezzo",
+   "titolo": "Quanto costa potare un albero: prezzi 2026 per altezza",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 2,
+     "min": 20,
+     "medio": 59,
+     "max": 200
+    },
+    {
+     "q": 1,
+     "min": 80,
+     "medio": 200,
+     "max": 400
+    },
+    {
+     "q": 0,
+     "min": 400,
+     "medio": 430,
+     "max": 900
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 318.0,
+    "iva": 69.96,
+    "totale": 387.96,
+    "basso": 120.0,
+    "alto": 800.0
+   }
+  },
+  {
+   "slug": "imbiancare-casa-prezzo-mq",
+   "titolo": "Quanto costa imbiancare casa al mq: prezzi 2026",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 250,
+     "min": 5,
+     "medio": 10,
+     "max": 15
+    },
+    {
+     "q": 20,
+     "min": 3,
+     "medio": 5.5,
+     "max": 8
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 2610.0,
+    "iva": 574.2,
+    "totale": 3184.2,
+    "basso": 1310.0,
+    "alto": 3910.0
+   }
+  },
+  {
+   "slug": "rasatura-pareti-prezzo-mq",
+   "titolo": "Rasatura pareti: prezzo al mq nel 2026",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 60,
+     "min": 6,
+     "medio": 9.64,
+     "max": 18
+    },
+    {
+     "q": 60,
+     "min": 5,
+     "medio": 10,
+     "max": 15
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 1178.4,
+    "iva": 259.25,
+    "totale": 1437.65,
+    "basso": 660.0,
+    "alto": 1980.0
+   }
+  },
+  {
+   "slug": "cartongesso-prezzo-mq",
+   "titolo": "Cartongesso prezzo al mq 2026: pareti e controsoffitti",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 12,
+     "min": 25,
+     "medio": 43.14,
+     "max": 60
+    },
+    {
+     "q": 15,
+     "min": 35,
+     "medio": 46.16,
+     "max": 55
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 1210.08,
+    "iva": 266.22,
+    "totale": 1476.3,
+    "basso": 825.0,
+    "alto": 1545.0
+   }
+  },
+  {
+   "slug": "posa-piastrelle-prezzo-mq",
+   "titolo": "Posa piastrelle prezzo al mq 2026, anche 60x120",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 40,
+     "min": 13,
+     "medio": 30,
+     "max": 40
+    },
+    {
+     "q": 0,
+     "min": 35,
+     "medio": 50,
+     "max": 70
+    },
+    {
+     "q": 20,
+     "min": 20,
+     "medio": 30,
+     "max": 40
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 1800.0,
+    "iva": 396.0,
+    "totale": 2196.0,
+    "basso": 920.0,
+    "alto": 2400.0
+   }
+  },
+  {
+   "slug": "posa-battiscopa-prezzo-metro",
+   "titolo": "Posa battiscopa: prezzo al metro lineare 2026",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 45,
+     "min": 3,
+     "medio": 8.2,
+     "max": 15
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 369.0,
+    "iva": 81.18,
+    "totale": 450.18,
+    "basso": 135.0,
+    "alto": 675.0
+   }
+  },
+  {
+   "slug": "posa-laminato-prezzo-mq",
+   "titolo": "Posa laminato prezzo al mq 2026: quanto costa",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 50,
+     "min": 5,
+     "medio": 15,
+     "max": 25
+    },
+    {
+     "q": 0,
+     "min": 9,
+     "medio": 9.5,
+     "max": 10
+    },
+    {
+     "q": 30,
+     "min": 3,
+     "medio": 8.2,
+     "max": 15
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 996.0,
+    "iva": 219.12,
+    "totale": 1215.12,
+    "basso": 340.0,
+    "alto": 1700.0
+   }
+  },
+  {
+   "slug": "rifare-impianto-elettrico-costo",
+   "titolo": "Rifare l'impianto elettrico: costo al mq nel 2026",
+   "aggiornata": "2026-11-12",
+   "voci": [
+    {
+     "q": 80,
+     "min": 30,
+     "medio": 40,
+     "max": 50
+    },
+    {
+     "q": 1,
+     "min": 200,
+     "medio": 250,
+     "max": 300
+    }
+   ],
+   "iva": 22,
+   "conto": {
+    "imponibile": 3450.0,
+    "iva": 759.0,
+    "totale": 4209.0,
+    "basso": 2600.0,
+    "alto": 4300.0
+   }
+  }
+ ]
+}

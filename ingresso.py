@@ -23,6 +23,7 @@ MAIL_BUONA = re.compile(r"[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s.]{2,30}")
 PER_ORA_DA_UNO = 5                  # richieste all'ora dallo stesso indirizzo
 AL_GIORNO = 30                      # richieste al giorno in tutto: il telefono di Andrea non si riempie
 MESTIERE_MASSIMO = 60
+INVITI_AL_GIORNO = 5                # porta un collega (12/11/2026): entrate da sole per artigiano al giorno
 
 _l = threading.Lock()
 _recenti = {}                       # impronta dell'indirizzo -> ore delle richieste; solo in memoria
@@ -90,26 +91,28 @@ def _link_decidi(r):
     return _base() + "/ingresso/decidi/" + r["gettone"]
 
 
-def _avvisa(r, titolo):
+def _avvisa(r, titolo, livello="need"):
     testo = "%s, %s, %s. Arriva da: %s. Contatto: %s" % (
         r["nome"], r["mestiere"] or "mestiere non detto", r["zona"] or "zona non detta",
         r["provenienza"], " · ".join(x for x in (r["mail"], r["telefono"]) if x))
+    if livello == "calm":               # porta un collega (12/11/2026): e' gia' dentro, niente da decidere
+        testo += ". È già entrato da solo: se qualcosa non ti torna, apri e tocca «Blocca»."
 
     def manda():
         topic = (os.environ.get("RILIEVO_NTFY_TOPIC") or "").strip()
         if topic:
             try:
-                q = urllib.request.Request("https://ntfy.sh/" + topic, data=(testo + "\nTocca per decidere.").encode("utf-8"),
+                q = urllib.request.Request("https://ntfy.sh/" + topic, data=(testo + ("" if livello == "calm" else "\nTocca per decidere.")).encode("utf-8"),
                                            method="POST", headers={"Title": titolo.encode("utf-8").decode("latin-1", "ignore"),
                                                                    "Tags": "bust_in_silhouette", "Click": _link_decidi(r)})
                 urllib.request.urlopen(q, timeout=15).read()
             except Exception as e:      # noqa: BLE001
                 print("     ingresso: avviso non partito:", e, flush=True)
-        avvisi._mail(titolo, testo + "\n\nDecidi qui: " + _link_decidi(r))
+        avvisi._mail(titolo, testo + ("\n\nVedi o blocca qui: " if livello == "calm" else "\n\nDecidi qui: ") + _link_decidi(r))
     threading.Thread(target=manda, daemon=True).start()
     try:
         import centralino
-        centralino.aggiungi("rilievo", titolo, testo, livello="need", tipo="accesso",
+        centralino.aggiungi("rilievo", titolo, testo, livello=livello, tipo="accesso",
                             link="/ingresso/decidi/" + r["gettone"], chiave="ingresso:%s:%s" % (r["codice"], r["ora"]))
     except Exception as e:              # noqa: BLE001
         print("     ingresso: centralino non raggiunto:", e, flush=True)
@@ -144,6 +147,18 @@ def chiedi(d, ip=""):
         return 400, {"errore": "Lascia una mail o un telefono: serve per mandarti il link."}
     if _troppe(ip):
         return 429, {"errore": "Hai già mandato la richiesta: ti scriviamo noi."}
+    # porta un collega (12/11/2026): l'invito vale solo se il codice di chi invita e' acceso
+    invito, invito_nome = str(d.get("invito") or "").strip().lower()[:30], ""
+    if invito and re.fullmatch(r"[a-z0-9-]{2,30}", invito):
+        try:
+            import visite
+            elenco = visite.da_chi()
+            invito_nome = str((elenco.get(invito) or {}).get("ditta") or invito) if invito in elenco else ""
+        except Exception as e:          # noqa: BLE001
+            print("     ingresso: invito non controllato:", e, flush=True)
+    if not invito_nome:
+        invito = ""
+    da_solo = False
     with _l:
         tutte = _leggi()
         for r in tutte:
@@ -157,9 +172,20 @@ def chiedi(d, ip=""):
              "ora": _ora(), "nome": nome, "mestiere": _testo(d.get("mestiere"), MESTIERE_MASSIMO),
              "zona": _testo(d.get("zona"), 80), "mail": mail, "telefono": telefono,
              "provenienza": provenienza(d.get("da_dove"))}
+        if invito:
+            r["invitato_da"], r["invitato_da_nome"] = invito, invito_nome[:80]
+            r["provenienza"] = "invito di " + invito_nome[:60]
+            gia = sum(1 for x in tutte if x.get("invitato_da") == invito and x.get("da_solo")
+                      and str(x.get("ora", "")).startswith(oggi))
+            da_solo = bool(mail) and gia < INVITI_AL_GIORNO
+            r["da_solo"] = da_solo
         tutte.append(r)
         _scrivi(tutte)
     print("  ingresso: richiesta da %s (%s)" % (r["codice"], r["provenienza"]), flush=True)
+    if da_solo:
+        r = decidi(r["gettone"], True) or r
+        _avvisa(r, "Entrato con l'invito di %s: %s" % (r["invitato_da_nome"], nome), livello="calm")
+        return 200, {"ok": True, "subito": bool(r.get("mail_partita"))}
     _avvisa(r, "Chiede l'accesso a Rilievo: " + nome)
     return 200, {"ok": True}
 
@@ -196,6 +222,10 @@ def decidi(gettone, si):
         r = next((x for x in tutte if x.get("gettone") == gettone), None)
         if not r:
             return None
+        if r["stato"] == "approvata" and not si and r.get("invitato_da"):
+            r["stato"], r["bloccato"] = "bloccata", _ora()
+            _scrivi(tutte)
+            return r
         if r["stato"] != "in attesa":
             return r
         r["stato"] = "approvata" if si else "rifiutata"
@@ -252,6 +282,9 @@ def pagina(gettone):
         ("Chi", r["nome"]), ("Mestiere", r["mestiere"] or "non detto"), ("Zona", r["zona"] or "non detta"),
         ("Mail", r["mail"] or "non lasciata"), ("Telefono", _tel(r["telefono"]) or "non lasciato"),
         ("Arriva da", r["provenienza"]), ("Quando", _quando(r["ora"])), ("Codice", r["codice"])))
+    if r.get("invitato_da"):
+        righe += "<dt>Invitato da</dt><dd>%s (codice %s)%s</dd>" % (
+            e(r.get("invitato_da_nome") or ""), e(r["invitato_da"]), ", entrato da solo" if r.get("da_solo") else "")
     if r["stato"] == "in attesa":
         fine = ("<form method=post action='/ingresso/decidi/%s/si'><button class=tasto>Sì, fallo entrare</button></form>"
                 "<form method=post action='/ingresso/decidi/%s/no'><button class='tasto vuoto'>No, non ora</button></form>"
@@ -273,4 +306,9 @@ def pagina(gettone):
                 e(r["mail"], quote=True), urllib.parse.quote("Il tuo link per Rilievo"), urllib.parse.quote(_messaggio(r)))
         fine += "<p style='overflow-wrap:anywhere'>Il suo link: <a href='%s/?da=%s'>%s/?da=%s</a></p>" % (
             e(_base()), e(r["codice"]), e(_base()), e(r["codice"]))
+        if r.get("invitato_da"):
+            fine += ("<form method=post action='/ingresso/decidi/%s/no'><button class='tasto vuoto'>Blocca</button></form>"
+                     "<p style='font-size:15px'>Blocca spegne il suo codice: il link non lo riconosce più.</p>" % e(gettone))
+    if r["stato"] == "bloccata":
+        fine = "<p><b>Bloccato.</b> Il suo codice è spento dal %s.</p>" % e(_quando(r.get("bloccato") or r["ora"]))
     return _STILE + "<h1>Richiesta di accesso</h1><dl>" + righe + "</dl>" + fine + "</html>"

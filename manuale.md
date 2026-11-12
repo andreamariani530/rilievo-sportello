@@ -1,9 +1,7 @@
 # Manuale di Rilievo, per l'assistente
 
-Questo testo lo legge l'assistente dentro l'app, prima di ogni risposta. Dice com'è fatta
-Rilievo e come si fa ogni cosa. I nomi dei tasti sono scritti tra «» esattamente come
-compaiono nell'app. Gli indirizzi tipo `#oggi` portano alla pagina: l'assistente li usa
-per mettere un collegamento "Portami lì".
+Com'è fatta Rilievo e come si fa ogni cosa. I nomi dei tasti sono tra «» come
+nell'app; gli indirizzi tipo `#oggi` servono per il collegamento "Portami lì".
 
 ## Come rispondere
 
@@ -215,13 +213,11 @@ L'archivio: i lavori chiusi (fatti e pagati) e le carte caricate da fuori.
 - **Come la mandi?** Ogni volta si sceglie fra due strade, e l'ultima scelta esce per prima:
   - «Mandala con Rilievo»: parte da Openapi, l'intermediario che la consegna all'Agenzia
     delle Entrate, compresa nell'abbonamento. La riga dice a che punto è: Partita,
-    Arrivata, Tornata indietro (e l'app dice perché e dove correggere). Finché su una
-    fattura c'è scritto «di prova», quella non arriva allo Stato. Serve la rete.
+    Arrivata, Tornata indietro (con il perché). Una fattura «di prova» non arriva allo Stato.
   - «Scarica il file»: una fattura vera, col numero vero, anche senza rete. Si apre
     «Il file è pronto» con «Salvalo sul telefono» (e «Mandalo», se il telefono sa
-    condividere i file). Si carica gratis sul sito «Fatture e Corrispettivi»
-    dell'Agenzia delle Entrate, con lo SPID: «Trasmissione», poi «Invia il file». Oppure
-    si manda al commercialista. Sul lavoro resta «File pronto, da caricare» finché non
+    condividere i file). Si carica gratis col tuo SPID sul sito dell'Agenzia delle
+    Entrate (Fatture e Corrispettivi, voce Trasmissione), o si manda al commercialista. Sul lavoro resta «File pronto, da caricare» finché non
     tocchi «Fatto, è partita»; «Rifai il file» lo rifà con lo stesso numero.
   - Chi carica il file sul programma di un suo intermediario, se quello vuole il suo
     codice nel file, lo scrive una volta nei suoi dati:
