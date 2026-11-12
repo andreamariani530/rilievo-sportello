@@ -1954,7 +1954,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-12 18:32';
+const COSTRUITA = '2026-11-12 19:11';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -5789,6 +5789,8 @@ PAGINE.oggi = {
     const hannoDettoSi = S.preventivi.filter(p => p.stato === 'accettato' && !soloFattura(p) && !lavoroBuono(p.lavoro) && !lavoroFinito(p))
       .sort((a, b) => String(a.data).localeCompare(String(b.data)));
     const bonifici = S.preventivi.filter(bonificoDaGuardare);
+    /* lavori in piu' da confermare: restano qui finche' l'artigiano non risponde (12/11/2026) */
+    const inPiu = S.preventivi.filter(inPiuDaDecidere);
     const daIncassare = S.preventivi.filter(p => lavoroFinito(p) && p.stato !== 'pagato'
                                               && p.stato !== 'messo_via' && p.stato !== 'rifiutato')
       .sort((a, b) => String(a.lavoro_fatto.quando).localeCompare(String(b.lavoro_fatto.quando)));
@@ -5884,6 +5886,10 @@ PAGINE.oggi = {
         ${prossimiHtml}
       </div>
       <div class="scheda">
+        ${inPiu.length ? `<div class="lbl" style="margin-bottom:10px">Vorrebbero aggiungere un lavoro</div>
+          <div class="elenco" style="border-top:0;margin-bottom:24px" id="lavori-in-piu">
+          ${inPiu.map(p => `<div class="r cliccabile" onclick="location.hash='#preventivo/${p.id}'"><div style="flex:1">${schedaInPiu(p, 'oggi')}</div></div>`).join('')}
+          </div>` : ''}
         ${hannoDettoSi.length ? `<div class="lbl" style="margin-bottom:10px">Hanno detto sì: dai un giorno al lavoro</div>
           <div class="elenco" style="border-top:0;margin-bottom:24px" id="hanno-detto-si">
           ${hannoDettoSi.map(p => `
@@ -13627,6 +13633,10 @@ PAGINE.preventivo = {
           <div id="righe-iva">${righeIvaHtml(c, 'riga-iva')}</div>
           <div class="riga-tot" style="color:var(--inchiostro)"><span>Totale documento</span><span id="riga-totale"><b>${euro(c.totale)}</b></span></div>
           ${p.righe.some(r => r.on && r.facoltativa) ? `<div class="riga-tot"><span>Facoltative, proposte a parte</span><span id="riga-fac">${euro(c.facoltative)}</span></div>` : ''}
+          ${(p.stato === 'bozza' || p.stato === 'inviato') && S.listino.length ? `<div id="proponi-in-piu" style="margin-top:10px">
+            <button class="bottone vuoto" style="min-height:44px;width:100%" onclick="proponiInPiu('${p.id}')">Proponi un lavoro in più</button>
+            <p style="font-size:14px;color:var(--tenue);margin:6px 0 0">Il cliente la vede a parte e può aggiungerla. Prima di farla, la confermi tu.</p></div>` : ''}
+          ${schedaInPiu(p, 'prev')}
           ${(() => { const rr = rateDi(c, p.rate, Number(S.azienda.acconto) > 0 ? Number(S.azienda.acconto) : 0);
              return rr ? `<div class="riga-tot"><span>${rr.anticipo ? 'Dopo l’acconto, ' : ''}${rr.quante} rate mensili da</span><span id="riga-rata">${rateScritte(rr)}</span></div>` : ''; })()}
         </div>
@@ -17299,6 +17309,95 @@ function tieniQuesto(){
    ===================================================================== */
 const PROMEMORIA_BASE = {preventivi: false, giorni: 5, volte: 2, pagamenti: false};
 const impPromemoria = () => Object.assign({}, PROMEMORIA_BASE, (S && S.azienda && S.azienda.promemoria) || {});
+/* LAVORI IN PIU' CON LA CONFERMA DELL'ARTIGIANO (12/11/2026). Andrea: «se sono sicuro che devo
+   uscire per uno sfalcio prato posso aver pianificato solo quello e aver preso altri lavori, o
+   non aver portato gli attrezzi giusti». Un lavoro in piu' scelto dal cliente non e' mai
+   confermato da solo: arriva una mail all'artigiano, in Oggi c'e' la scheda con «Va bene, lo
+   faccio» / «Non questa volta», e solo i confermati entrano nel totale, in fattura e nei tempi.
+   L'avviso per mail e' acceso di base: scrive solo all'artigiano, mai ai suoi clienti. */
+function impAvvisoDitta(){ return !(S && S.azienda && S.azienda.avviso_ditta === false); }
+function mailDittaPerAvvisi(){
+  return (suaDitta() && impAvvisoDitta() && mailBuona(S.azienda.mail)) ? String(S.azienda.mail).trim() : '';
+}
+function cambiaAvvisoDitta(){
+  S.azienda.avviso_ditta = !impAvvisoDitta();
+  salva(); vai();
+  avvisa(impAvvisoDitta() ? 'Avvisi per mail accesi: valgono per i link che prepari da adesso.' : 'Avvisi per mail spenti. Le risposte le vedi comunque in Oggi.');
+}
+/* i lavori in piu' chiesti dal cliente e non ancora decisi */
+const inPiuDaDecidere = p => !!(p && p.link && Array.isArray(p.link.in_piu) && p.link.in_piu.some(x => !x.esito)
+                               && p.stato === 'accettato' && !lavoroFinito(p));
+const nomeDalLink = p => (p.link && p.link.accettato && p.link.accettato.nome) || ((p.cliente && cliente(p.cliente)) || {}).nome || p.nome;
+function vociInPiu(xs){ return xs.map(x => esc(x.nome) + ' · ' + euro(x.importo)).join(', '); }
+async function decidiInPiu(id, esito, solo){
+  const p = prev(id); if(!p || !linkVivo(p) || !Array.isArray(p.link.in_piu)) return;
+  if(lavoroFinito(p) || p.stato === 'pagato'){ avvisa('Il lavoro è già fatto: non si cambia più.'); return; }
+  const voci = p.link.in_piu.filter(x => solo === undefined ? !x.esito : x.k === solo).map(x => x.k);
+  if(!voci.length) return;
+  let d;
+  try{
+    const r = await fetch(SPORTELLO_RILIEVO + '/link/in-piu', {method:'POST', mode:'cors', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({link: p.link.id, gestione: p.link.gestione, voci, esito})});
+    d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.errore || 'Il server non ha preso la risposta.');
+  }catch(e){
+    avvisa(e && e.message && !/fetch|network|Failed/i.test(e.message) ? e.message : 'Serve la rete per rispondere al cliente. Riprova fra poco.');
+    return;
+  }
+  applicaInPiu(p, d.in_piu || []);
+  salva(); vai();
+  const nomi = p.link.in_piu.filter(x => voci.includes(x.k)).map(x => x.nome.toLowerCase()).join(', ');
+  avvisa(esito === 'si' ? 'Fatto: ' + nomi + ' entra nel lavoro e nel totale. Al cliente lo diciamo noi, se ha la mail.'
+                        : 'Va bene: ' + nomi + ' resta fuori. Il resto del lavoro è confermato.');
+}
+/* il server dice come stanno i lavori in piu': i confermati entrano nel preventivo, gli altri restano facoltativi */
+function applicaInPiu(p, lista){
+  p.link.in_piu = lista.map(x => ({k: x.k, nome: String(x.nome || '').slice(0, 120), importo: Number(x.importo) || 0,
+                                   chiesto: x.chiesto || '', esito: x.esito === 'si' || x.esito === 'no' ? x.esito : null, deciso: x.deciso || ''}));
+  p.link.in_piu.forEach(x => {
+    const rr = p.righe[x.k];
+    if(rr && rr.on && rr.nome === x.nome) rr.facoltativa = x.esito !== 'si';
+  });
+}
+function schedaInPiu(p, dove){
+  const xs = (p.link && Array.isArray(p.link.in_piu)) ? p.link.in_piu : [];
+  if(!xs.length) return '';
+  const aperti = xs.filter(x => !x.esito), decisi = xs.filter(x => x.esito);
+  const si = 'min-height:44px;white-space:nowrap';
+  const cambiabile = !lavoroFinito(p) && p.stato !== 'pagato';
+  return `<div class="in-piu-scheda" id="in-piu-${dove}-${p.id}" style="margin-top:12px">
+      ${aperti.length ? `<div class="tit">${esc(nomeDalLink(p))} vorrebbe aggiungere: ${vociInPiu(aperti)}</div>
+        <div class="sub">Prima di farlo serve il tuo sì. Finché non rispondi resta qui, e non entra nel totale.</div>
+        <div class="azioni" style="margin-top:10px">
+          <button class="bottone piccolo" style="${si}" onclick="event.stopPropagation();decidiInPiu('${p.id}','si')">Va bene, lo faccio</button>
+          <button class="bottone vuoto piccolo" style="${si}" onclick="event.stopPropagation();decidiInPiu('${p.id}','no')">Non questa volta</button>
+        </div>` : ''}
+      ${dove === 'prev' && decisi.length ? `<div class="lbl" style="margin:6px 0 4px">Lavori in più chiesti dal cliente</div>` : ''}
+      ${dove === 'prev' ? decisi.map(x => `<div class="riga-tot"><span>${esc(x.nome)} <span style="white-space:nowrap">${euro(x.importo)}</span></span><span style="text-align:right">${x.esito === 'si' ? 'confermato' : 'non questa volta'}
+          ${cambiabile ? `<button class="bottone vuoto piccolo" style="${si};margin-left:8px" onclick="decidiInPiu('${p.id}','${x.esito === 'si' ? 'no' : 'si'}',${x.k})">${x.esito === 'si' ? 'Toglilo' : 'Lo faccio lo stesso'}</button>` : ''}</span></div>`).join('') : ''}
+    </div>`;
+}
+/* «Proponi un lavoro in piu'»: la stessa scelta del listino, la voce entra come facoltativa */
+function proponiInPiu(id){
+  const p = prev(id); if(!p) return;
+  const disponibili = S.listino.filter(v => !p.righe.some(r => r.v === v.id));
+  if(!disponibili.length){ avvisa('Il tuo listino è già tutto nel preventivo. Tocca il nome di una voce e scegli «Facoltativa», oppure aggiungi una voce nuova.'); return; }
+  scheda({
+    titolo: 'Proponi un lavoro in più',
+    sotto: 'Il cliente la vede a parte e può aggiungerla. Prima di farla, la confermi tu.',
+    valori: {v: disponibili[0].id},
+    campi: [{k:'v', l:'Dal tuo listino', t:'scelta', opzioni: disponibili.map(v => [v.id, v.nome + ' — ' + euro(v.p) + ' ' + v.u])}],
+    testoSalva: 'Proponila',
+    salva: d => {
+      const v = voce(d.v); if(!v) return;
+      const g = giardinoDelPreventivo(p);
+      const s = quantitaNota(v, g && g.ril);
+      p.righe.push({v:v.id, q: s && s.q > 0 ? s.q : 1, p:v.p, nome:v.nome, u:v.u, iva:typeof v.iva === 'number' ? v.iva : (Number(S.azienda.iva)||0),
+                    on:true, aMano:true, facoltativa:true});
+    },
+    messaggio: 'Fatto: è fra le voci in più. Il cliente la vede a parte.'
+  });
+}
 function mailCliente(p){
   const cl = p && p.cliente ? cliente(p.cliente) : null;
   return cl && mailBuona(cl.mail) ? {mail: String(cl.mail).trim(), nome: cl.nome || ''} : null;
@@ -17330,6 +17429,9 @@ function riquadroPromemoria(){
         Se ti risponde, la risposta arriva a te. Parte solo nei giorni feriali, dalle 9 alle 19.</p>
       <div class="riga-tot"><span>Preventivi senza risposta</span><span><b>${i.preventivi ? 'dopo ' + i.giorni + ' giorni, al massimo ' + i.volte + ' volte' : 'spento'}</b></span></div>
       <div class="riga-tot"><span>Lavori finiti non pagati</span><span><b>${i.pagamenti ? 'dopo 7 giorni, al massimo 2 volte' : 'spento'}</b></span></div>
+      <div class="riga-tot" id="riga-avviso-ditta"><span>Avvisami per mail quando un cliente accetta, aggiunge un lavoro, chiede di cambiare o dice di aver pagato
+          <small style="display:block;color:var(--tenue);font-size:14px">${mailBuona(S.azienda.mail) ? 'Arriva alla mail dei tuoi dati.' : 'Metti la tua mail nei tuoi dati per ricevere gli avvisi.'}</small></span>
+        <span><button class="bottone vuoto piccolo" style="min-height:44px;white-space:nowrap" onclick="cambiaAvvisoDitta()">${impAvvisoDitta() ? 'Acceso' : 'Spento'}</button></span></div>
       ${!dentro ? `<p class="fattura-nota" style="margin-top:10px">Per farli partire serve il tuo accesso (lo crei qui sopra): le mail partono da noi, anche quando il telefono è spento.</p>`
         : !mailBuona(S.azienda.mail) ? `<p class="fattura-nota" style="margin-top:10px">Metti la mail della ditta nei tuoi dati: è lì che ti arrivano le risposte dei clienti.</p>`
         : senzaMail ? `<p class="fattura-nota" style="margin-top:10px">${senzaMail === 1 ? 'Un preventivo senza risposta non ha' : senzaMail + ' preventivi senza risposta non hanno'} la mail del cliente in rubrica: lì il promemoria non parte.</p>` : ''}
@@ -17457,7 +17559,9 @@ async function preparaLink(id){
         body: JSON.stringify(Object.assign({corpo, ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
                               titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : ''),
                               /* dall'11/11: il cliente conferma il si' con un codice mandato a questa mail */
-                              mail_cliente: ((p.cliente && cliente(p.cliente)) || {}).mail || ''}, extraDelLink(p)))});
+                              mail_cliente: ((p.cliente && cliente(p.cliente)) || {}).mail || '',
+                              /* lavori in piu' (12/11/2026): dove avvisare l'artigiano quando il cliente risponde */
+                              mail_ditta: mailDittaPerAvvisi(), da: daMio()}, extraDelLink(p)))});
       const d = await r.json().catch(() => ({}));
       if(!r.ok || !d.link) throw new Error(d.errore || 'Il server non ha preso il preventivo.');
       p.link = {id: d.link, gestione: d.gestione, firma, creato: new Date().toISOString(), aperto: 0};
@@ -17515,7 +17619,9 @@ async function guardaILink(){
   /* si chiede anche dei preventivi gia' accettati che aspettano il bonifico dell'acconto */
   const da = S.preventivi.filter(p => linkVivo(p) && (
     (!(p.link.accettato) && !(p.link.risposta && p.link.risposta.tipo === 'no') && (p.stato === 'bozza' || p.stato === 'inviato')) ||
-    (p.link.accettato && !p.link.bonifico && p.stato === 'accettato' && !!pagamentoDi(p))));
+    (p.link.accettato && !p.link.bonifico && p.stato === 'accettato' && !!pagamentoDi(p)) ||
+    /* lavori in piu': il cliente puo' chiederli anche dopo il si' (12/11/2026) */
+    (p.link.accettato && p.stato === 'accettato' && !lavoroFinito(p) && p.righe.some(r => r.on && r.facoltativa))));
   if(!da.length) return;
   linkGuardatiAlle = Date.now();
   let d;
@@ -17551,6 +17657,15 @@ async function guardaILink(){
       p.link.bonifico = {quando: s.bonifico.quando};
       detti.push(p.nome + ' dice di aver fatto il bonifico: controlla in banca');
       cambiato = true;
+    }
+    /* lavori in piu' chiesti dal cliente: aspettano il si' dell'artigiano (12/11/2026) */
+    if(Array.isArray(s.in_piu)){
+      const prima = JSON.stringify(p.link.in_piu || []);
+      const nuovi = s.in_piu.filter(x => !x.esito && !(p.link.in_piu || []).some(y => y.k === x.k));
+      applicaInPiu(p, s.in_piu);
+      if(JSON.stringify(p.link.in_piu) !== prima) cambiato = true;
+      if(nuovi.length) detti.push(((s.accettato && s.accettato.nome) || nomeDalLink(p)) + ' vorrebbe aggiungere ' +
+        nuovi.map(x => String(x.nome).toLowerCase() + ' (' + euro(x.importo) + ')').join(', ') + ': rispondi in Oggi');
     }
     if(s.accettato && !p.link.accettato){
       p.link.accettato = {nome: s.accettato.nome, quando: s.accettato.quando};

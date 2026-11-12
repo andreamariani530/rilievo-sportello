@@ -51,6 +51,19 @@ DAL 4 OTTOBRE 2026 (idee prese ai concorrenti, cartellino E della notte)
   - il link scade quando scade il preventivo (prima valeva 180 giorni, mentre la
     carta diceva 30: il cliente poteva accettare prezzi vecchi).
 Tutto con moduli normali: la pagina continua a non far girare nessuno script.
+
+DAL 12 NOVEMBRE 2026: I LAVORI IN PIU' LI CONFERMA L'ARTIGIANO
+Andrea: «se sono sicuro che devo uscire per uno sfalcio prato posso aver pianificato solo
+quello e aver preso altri lavori, o non aver portato gli attrezzi giusti». Quindi:
+  - le voci facoltative spuntate dal cliente NON entrano piu' nel si': il preventivo
+    base e' accettato, le voci in piu' restano «da confermare» in `in_piu`, fuori dal
+    totale accettato, dall'acconto e dalla fattura;
+  - il cliente puo' chiederle anche dopo aver accettato (/p/<link>/aggiungi);
+  - l'artigiano risponde dall'app («Va bene, lo faccio» / «Non questa volta», /link/in-piu):
+    solo le confermate entrano in `accettato.scelte` e nel totale. Si puo' cambiare idea;
+  - all'artigiano arriva una mail per ogni evento del cliente (accettato, lavoro in piu',
+    vorrebbe cambiare, no, bonifico), una sola, se nell'app ha lasciato acceso l'avviso;
+    al cliente arriva l'esito, se ha una mail. Mai per i codici di prova o degli amici.
 """
 import datetime, hashlib, html, json, os, pathlib, re, secrets, threading, time
 
@@ -145,7 +158,8 @@ def _soldi(x):
 def _extra_buoni(extra):
     """Quello che arriva dall'app oltre al documento, controllato pezzo per pezzo."""
     extra = extra if isinstance(extra, dict) else {}
-    fuori = {"pagamento": None, "facoltative": [], "base": None, "scade_il": None, "mail_cliente": ""}
+    fuori = {"pagamento": None, "facoltative": [], "base": None, "scade_il": None, "mail_cliente": "",
+             "mail_ditta": "", "da": ""}
     pg = extra.get("pagamento")
     if isinstance(pg, dict):
         iban = re.sub(r"\s", "", str(pg.get("iban") or "")).upper()
@@ -170,6 +184,10 @@ def _extra_buoni(extra):
                 visti.add(k)
                 fuori["facoltative"].append({"k": k, "nome": nome, "importo": imp})
     fuori["mail_cliente"] = mail_buona(extra.get("mail_cliente"))
+    # lavori in piu' (12/11/2026): dove avvisare l'artigiano, e da quale codice arriva
+    fuori["mail_ditta"] = mail_buona(extra.get("mail_ditta"))
+    da = str(extra.get("da") or "").strip().lower()
+    fuori["da"] = da if re.fullmatch(r"[a-z0-9-]{2,30}", da) else ""
     fuori["base"] = _soldi(extra.get("base"))
     if not fuori["facoltative"] or fuori["base"] is None:
         fuori["facoltative"], fuori["base"] = [], fuori["base"]
@@ -220,7 +238,8 @@ def metti(corpo, ditta="", titolo="", telefono="", da_ip="", extra=None):
                 "impronta": hashlib.sha256(pulito.encode()).hexdigest(),
                 "aperture": [], "accettato": None, "ritirato": None,
                 "pagamento": ex["pagamento"], "facoltative": ex["facoltative"], "base": ex["base"],
-                "risposta": None, "bonifico": None, "mail_cliente": ex["mail_cliente"]}
+                "risposta": None, "bonifico": None, "mail_cliente": ex["mail_cliente"],
+                "mail_ditta": ex["mail_ditta"], "da": ex["da"], "in_piu": []}
         _scrivi(lid, dati)
     return {"link": lid, "gestione": g}, None
 
@@ -238,7 +257,8 @@ def stato(lid, gestione):
     return {"aperto": len(ap), "prima_volta": ap[0] if ap else None,
             "ultima_volta": ap[-1] if ap else None,
             "accettato": d.get("accettato"), "ritirato": d.get("ritirato"),
-            "scade": d.get("scade"), "risposta": d.get("risposta"), "bonifico": d.get("bonifico")}
+            "scade": d.get("scade"), "risposta": d.get("risposta"), "bonifico": d.get("bonifico"),
+            "in_piu": [dict(x) for x in (d.get("in_piu") or [])]}
 
 
 def ritira(lid, gestione):
@@ -308,10 +328,35 @@ def _impronta_codice(lid, codice):
     return hashlib.sha256(("c:" + lid + ":" + str(codice)).encode()).hexdigest()
 
 
+def _adesso():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _metti_in_piu(d, scelte):
+    """Le voci spuntate dal cliente diventano «da confermare». Torna quelle nuove."""
+    gia = {x["k"] for x in (d.get("in_piu") or [])}
+    fac = {v["k"]: v for v in (d.get("facoltative") or [])}
+    nuove = []
+    for k in scelte or []:
+        if k in fac and k not in gia:
+            nuove.append({"k": k, "nome": fac[k]["nome"], "importo": fac[k]["importo"],
+                          "chiesto": _adesso(), "esito": None, "deciso": None})
+    d["in_piu"] = (d.get("in_piu") or []) + nuove
+    return nuove
+
+
+def confermate(d):
+    return sorted(x["k"] for x in (d.get("in_piu") or []) if x.get("esito") == "si")
+
+
 def _segna_si(d, nome, ip, browser, scelte, verifica=None):
-    d["accettato"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nome": nome,
+    # lavori in piu' (12/11/2026): si accetta il preventivo base; le voci spuntate
+    # aspettano il si' dell'artigiano e non entrano nel totale accettato
+    _metti_in_piu(d, scelte)
+    gia_si = confermate(d)
+    d["accettato"] = {"quando": _adesso(), "nome": nome,
                       "ip": str(ip or "")[:60], "browser": str(browser or "")[:200],
-                      "impronta": d.get("impronta"), "scelte": scelte, "totale": totale_con(d, scelte),
+                      "impronta": d.get("impronta"), "scelte": gia_si, "totale": totale_con(d, gia_si),
                       "verifica": verifica}
     d.pop("in_attesa", None)
 
@@ -519,6 +564,180 @@ def segna_bonifico(lid):
         return True
 
 
+def aggiungi_dopo(lid, con=None):
+    """Il cliente, dopo il si', chiede uno o piu' lavori in piu'. Torna (True, nuove) o (False, motivo)."""
+    with _chiave:
+        d = _leggi(lid)
+        if not _vivo(d) or not d.get("accettato"):
+            return False, "Questo preventivo non è più valido."
+        scelte = scelte_buone(d, con)
+        if not scelte:
+            return False, "Spunta il lavoro che vorresti aggiungere."
+        nuove = _metti_in_piu(d, scelte)
+        if nuove:
+            _scrivi(lid, d)
+    return True, nuove
+
+
+def decidi_in_piu(lid, gestione, chi, esito):
+    """La risposta dell'artigiano: esito "si" o "no" per le voci `chi` (numeri k).
+    Si puo' cambiare idea. Torna la risposta per l'app oppure None."""
+    if esito not in ("si", "no"):
+        return None
+    ks = set()
+    for x in (chi if isinstance(chi, list) else [chi])[:30]:
+        try:
+            ks.add(int(x))
+        except (TypeError, ValueError):
+            pass
+    with _chiave:
+        d = _leggi(lid)
+        if not _vale(d, gestione) or d.get("ritirato") or not d.get("accettato"):
+            return None
+        cambiate = 0
+        for x in d.get("in_piu") or []:
+            if x["k"] in ks and x.get("esito") != esito:
+                x["esito"], x["deciso"] = esito, _adesso()
+                cambiate += 1
+        si = confermate(d)
+        d["accettato"]["scelte"] = si
+        d["accettato"]["totale"] = totale_con(d, si)
+        if cambiate:
+            _scrivi(lid, d)
+        return {"in_piu": [dict(x) for x in d.get("in_piu") or []], "scelte": si,
+                "totale": d["accettato"]["totale"], "cambiate": cambiate}
+
+
+# ---- le mail: all'artigiano quando il cliente risponde, al cliente l'esito -----
+INDIRIZZO_APP = "https://rilievoapp.it/"
+_FINTE = ("@example.", "collaud")
+
+
+def niente_posta(d, mail):
+    """Nessuna mail per i codici di prova o degli amici, ne' a indirizzi finti dei collaudi."""
+    m = str(mail or "").lower()
+    if not m or any(x in m for x in _FINTE):
+        return True
+    try:
+        import avvisi
+        no = set(avvisi._CODICI_SENZA_BENVENUTO)
+    except Exception:                       # noqa: BLE001
+        no = {"prova-andrea", "marco-472d"}
+    no |= {x.strip().lower() for x in (os.environ.get("RILIEVO_BENVENUTO_NO") or "").split(",") if x.strip()}
+    if (d.get("da") or "") in no:
+        return True
+    return (d.get("ditta") or "").strip() == "Giardini Conti"      # la dimostrazione
+
+
+def _voci_scritte(voci):
+    return "\n".join(f"- {v['nome']} · {_euro(v['importo'])}" for v in voci)
+
+
+def _elenco(nomi):
+    nomi = [n[:1].lower() + n[1:] for n in nomi]
+    return nomi[0] if len(nomi) == 1 else ", ".join(nomi[:-1]) + " e " + nomi[-1]
+
+
+def avvisa_ditta(lid, cose, manda):
+    """Una mail all'artigiano per ogni evento nuovo del cliente: cose fra "accettato",
+    "in_piu", "cambia", "no", "bonifico". Ogni evento si scrive una volta sola (segnato
+    prima di spedire). Il si' e i lavori in piu' arrivati insieme vanno in una mail sola.
+    Torna True se e' partita."""
+    with _chiave:
+        d = _leggi(lid)
+        if not d or not d.get("mail_ditta") or niente_posta(d, d["mail_ditta"]):
+            return False
+        fatti = d.setdefault("avvisi_ditta", {})
+        nuove = []
+        if "in_piu" in cose:
+            visti = set(fatti.get("in_piu") or [])
+            nuove = [x for x in d.get("in_piu") or [] if x["k"] not in visti and x.get("esito") is None]
+            if nuove:
+                fatti["in_piu"] = sorted(visti | {x["k"] for x in nuove})
+        altre = [c for c in ("accettato", "cambia", "no", "bonifico") if c in cose and not fatti.get(c)]
+        for c in altre:
+            fatti[c] = _adesso()
+        if not nuove and not altre:
+            return False
+        _scrivi(lid, d)
+    a, T = d["mail_ditta"], d.get("titolo") or "il preventivo"
+    acc, risp = d.get("accettato") or {}, d.get("risposta") or {}
+    N = acc.get("nome") or "Il cliente"
+    piede = "\n\nTi scriviamo solo quando un cliente risponde. Lo spegni in Impostazioni."
+    mail = []
+    lavoro = "un lavoro" if len(nuove) == 1 else "dei lavori"
+    chiedi = (f"\n\nPrima di farlo ti serve il tuo sì. Apri Rilievo e rispondi: {INDIRIZZO_APP}")
+    if "accettato" in altre and nuove:
+        mail.append((f"{N} ha accettato il preventivo e vorrebbe aggiungere {lavoro} · {T}",
+                     f"Buone notizie: {N} ha accettato il preventivo «{T}».\n\n"
+                     f"Vorrebbe aggiungere anche:\n{_voci_scritte(nuove)}" + chiedi + piede))
+    elif "accettato" in altre:
+        mail.append((f"{N} ha accettato il preventivo · {T}",
+                     f"Buone notizie: {N} ha accettato il preventivo «{T}».\n\n"
+                     f"Apri Rilievo e dagli un giorno: {INDIRIZZO_APP}" + piede))
+    elif nuove:
+        mail.append((f"{N} vorrebbe aggiungere {lavoro} · {T}",
+                     f"{N} vorrebbe aggiungere al preventivo «{T}»:\n{_voci_scritte(nuove)}" + chiedi + piede))
+    if "cambia" in altre:
+        mail.append((f"Il cliente vorrebbe cambiare qualcosa · {T}",
+                     f"Il cliente ha scritto: «{str(risp.get('testo') or '')[:300]}».\n\n"
+                     f"Lo trovi in Oggi su Rilievo: {INDIRIZZO_APP}" + piede))
+    if "no" in altre:
+        mail.append((f"Il cliente ha detto no · {T}",
+                     f"Motivo: {dict(MOTIVI_NO).get(risp.get('motivo'), 'Altro')}.\n\n"
+                     f"Su Rilievo il preventivo è fra i rifiutati: {INDIRIZZO_APP}" + piede))
+    if "bonifico" in altre:
+        mail.append((f"Il cliente dice di aver pagato · {T}",
+                     f"Controlla in banca. Quando lo vedi arrivato, segnalo su Rilievo: {INDIRIZZO_APP}" + piede))
+    ok = False
+    for oggetto, testo in mail:
+        try:
+            ok = bool(manda(a, oggetto, testo)) or ok
+        except Exception as e:              # noqa: BLE001
+            print("  avviso alla ditta non partito:", type(e).__name__)
+    return ok
+
+
+def avvisa_cliente(lid, manda):
+    """Al cliente l'esito dei lavori in piu' appena deciso. Una mail per ogni esito nuovo."""
+    with _chiave:
+        d = _leggi(lid)
+        acc = (d or {}).get("accettato") or {}
+        a = (acc.get("verifica") or {}).get("mail") or (d or {}).get("mail_cliente") or ""
+        if not d or not acc or not mail_buona(a) or niente_posta(d, a):
+            return False
+        fatti = d.setdefault("avvisi_cliente", {})
+        si, no = [], []
+        for x in d.get("in_piu") or []:
+            if x.get("esito") in ("si", "no") and fatti.get(str(x["k"])) != x["esito"]:
+                fatti[str(x["k"])] = x["esito"]
+                (si if x["esito"] == "si" else no).append(x)
+        if not si and not no:
+            return False
+        _scrivi(lid, d)
+    ditta = (d.get("ditta") or "").strip() or "La ditta"
+    T = d.get("titolo") or "il preventivo"
+    url = INDIRIZZO_APP.rstrip("/") + "/p/" + lid
+    ok = False
+    if si:
+        tot = acc.get("totale")
+        testo = (f"Buongiorno,\n\n{ditta} ha confermato: farà anche {_elenco([x['nome'] for x in si])}."
+                 + (f" Nuovo totale {_euro(tot)}." if tot is not None else "")
+                 + f"\n\nIl preventivo aggiornato è qui: {url}\n\nRilievo")
+        try:
+            ok = bool(manda(a, f"{ditta} ha confermato il lavoro in più · {T}", testo)) or ok
+        except Exception as e:              # noqa: BLE001
+            print("  esito al cliente non partito:", type(e).__name__)
+    if no:
+        testo = (f"Buongiorno,\n\n{ditta} per questa volta non riesce ad aggiungere {_elenco([x['nome'] for x in no])}. "
+                 f"Il resto del lavoro resta confermato: ne parlate di persona.\n\nIl preventivo è qui: {url}\n\nRilievo")
+        try:
+            ok = bool(manda(a, f"Il lavoro in più, per questa volta no · {T}", testo)) or ok
+        except Exception as e:              # noqa: BLE001
+            print("  esito al cliente non partito:", type(e).__name__)
+    return ok
+
+
 # ---- la pagina che vede il cliente -------------------------------------------
 REGOLE = ("default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; "
           "font-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; "
@@ -564,6 +783,13 @@ html,body{background:#F4EFE6;margin:0}
 .accetta input[type=checkbox],.accetta input[type=radio]{accent-color:#2B2822}
 .pagare button{font-size:18px;padding:15px 28px;border:0;background:#2B2822;color:#F4EFE6;font-family:inherit}
 .pagare .fatto{font-size:19px;color:#4F6B4A}
+/* lavori in piu' (12/11/2026) */
+.in-piu{max-width:920px;margin:12px auto 0;padding:16px 20px;box-sizing:border-box;font-family:'EB Garamond','Cormorant',Georgia,serif;font-size:17px;color:#2B2822;background:#FBF8F2;border:1px solid #D9D1C2}
+.in-piu p{margin:4px 0 8px;line-height:1.5}
+.in-piu .attesa{color:#8A6A2E}
+.in-piu .si{color:#4F6B4A}
+.in-piu .no{color:#9A4B3A}
+.accetta .aggiungi button,.in-piu button{min-height:44px}
 /* sul link si accetta qui sotto: le righe per la firma a penna non servono */
 .carta .firma-doc{display:none}
 /* firma sul posto (11/11/2026): la copia firmata mostra la firma */
@@ -645,7 +871,7 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
         posto = ver.get("tipo") == 'firma sul posto'
         conf = (f' Firmato via mail con OTP, codice mandato a {e(mail_coperta(ver.get("mail","")))}.'
                 if ver.get("tipo") == "codice per mail" else "")
-        fondo = (_come_pagare(d, e, ditta, True) +
+        fondo = (_come_pagare(d, e, ditta, True) + _lavori_in_piu(d, e, ditta, con) +
                  f'<div class="accetta"><p class="fatto">Accettato da {e(acc.get("nome",""))}{e(con_che)}, '
                  f'il {e(_data(acc.get("quando","")))}.{tot}</p>'
                  + (f'<p class="nota">{conf.strip()}</p>' if conf else '') +
@@ -661,10 +887,13 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
         if fac:
             tot = totale_con(d, scelte)
             riquadro = ('<div class="aggiungi"><h3>Puoi aggiungere</h3>'
+                        f'<p class="nota" style="margin:0 0 6px">Se aggiungi un lavoro, {ditta or "la ditta"} ti conferma '
+                        'se riesce a farlo nella stessa giornata.</p>'
                         + "".join(f'<label class="ok"><input type="checkbox" name="con" value="{v["k"]}"'
                                   f'{" checked" if v["k"] in scelte else ""}><span>{e(v["nome"])}'
                                   f' <b>+ {e(_euro(v["importo"]))}</b> IVA compresa</span></label>' for v in fac)
-                        + (f'<p class="totale-scelto">Con quello che hai scelto: <b>{e(_euro(tot))}</b>, IVA compresa.</p>'
+                        + (f'<p class="totale-scelto">Con quello che hai scelto: <b>{e(_euro(tot))}</b>, IVA compresa, '
+                           f'se {ditta or "la ditta"} ti conferma i lavori in più.</p>'
                            if scelte and tot is not None else '')
                         + '<button type="submit" name="fai" value="conto" formnovalidate class="secondario">Rifai il conto</button></div>')
         gia = (f'<p class="fatto" style="font-size:18px">Hai chiesto di cambiare: “{e(risp.get("testo",""))}”. '
@@ -736,6 +965,39 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
              f'<div class="carta{" posto" if acc and ((acc.get("verifica") or {}).get("tipo") == "firma sul posto") else ""}">{d.get("corpo","")}</div>'
              + ('' if acc else fondo))
     return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
+
+
+def _lavori_in_piu(d, e, ditta, con=None):
+    """Dopo il si': i lavori in piu' (in attesa, confermati, non questa volta) e, finche'
+    restano voci da chiedere, il modulo per chiederle. Solo moduli, nessuno script."""
+    chi = ditta or "La ditta"
+    righe = ""
+    for x in d.get("in_piu") or []:
+        voce = f'{e(x["nome"])} · {e(_euro(x["importo"]))}'
+        if x.get("esito") == "si":
+            righe += f'<p class="si">Confermato da {chi}: {voce}</p>'
+        elif x.get("esito") == "no":
+            righe += (f'<p class="no">{chi} per questa volta non riesce ad aggiungere: {e(x["nome"])}. '
+                      'Il resto del lavoro resta confermato: ne parlate di persona.</p>')
+        else:
+            righe += f'<p class="attesa">In attesa di conferma: {voce}</p>'
+    if righe and any(x.get("esito") is None for x in d.get("in_piu") or []):
+        righe += f'<p class="nota">{chi} ti conferma se riesce a farlo nella stessa giornata. Finché non conferma, non entra nel totale.</p>'
+    chiesti = {x["k"] for x in d.get("in_piu") or []} | set((d.get("accettato") or {}).get("scelte") or [])
+    restano = [v for v in d.get("facoltative") or [] if v["k"] not in chiesti]
+    modulo = ""
+    if restano:
+        scelte = scelte_buone(d, con)
+        modulo = (f'<form method="post" action="/p/{e(d["_lid"])}/aggiungi#in-piu"><p><b>Vuoi aggiungere un lavoro?</b></p>'
+                  + "".join(f'<label class="ok" style="display:flex;gap:10px;align-items:flex-start;margin:10px 0">'
+                            f'<input type="checkbox" name="con" value="{v["k"]}"{" checked" if v["k"] in scelte else ""} '
+                            f'style="width:22px;height:22px;flex:0 0 22px"><span>{e(v["nome"])} <b>+ {e(_euro(v["importo"]))}</b> IVA compresa</span></label>'
+                            for v in restano)
+                  + f'<p class="nota">Se aggiungi un lavoro, {ditta or "la ditta"} ti conferma se riesce a farlo nella stessa giornata.</p>'
+                  '<button type="submit" class="secondario" style="font-size:16px;padding:12px 20px;background:#fff;color:#2B2822;border:1px solid #2B2822">Chiedi di aggiungerlo</button></form>')
+    if not righe and not modulo:
+        return ""
+    return f'<div class="in-piu" id="in-piu">{righe}{modulo}</div>'
 
 
 def pagina_mancante(stili_app=""):

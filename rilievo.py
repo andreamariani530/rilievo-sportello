@@ -3596,7 +3596,7 @@ def servizio(porta=8787, pubblico=False):
             if u.path.startswith("/fic/"):
                 self._fic(u.path)
                 return
-            m = re.fullmatch(r"/p/([a-z2-9]{14})/(accetto|risposta|pagato|codice|altra)", u.path)
+            m = re.fullmatch(r"/p/([a-z2-9]{14})/(accetto|risposta|pagato|codice|altra|aggiungi)", u.path)
             if m:
                 self._accetta_dal_link(m.group(1), m.group(2))
                 return
@@ -3871,6 +3871,18 @@ def servizio(porta=8787, pubblico=False):
                             fuori[str(v.get("link"))] = s
                 self._manda(200, {"stati": fuori})
                 return
+            if percorso == "/link/in-piu":
+                # lavori in piu' (12/11/2026): l'artigiano risponde «Va bene, lo faccio» o «Non questa volta»
+                lid = str(dentro.get("link") or "")
+                r = preventivo_col_link.decidi_in_piu(lid, dentro.get("gestione"), dentro.get("voci"), dentro.get("esito"))
+                if r is None:
+                    self._manda(404, {"errore": "Questo preventivo non c'è più sul server."})
+                    return
+                if r["cambiate"]:
+                    self._posta_del_link(preventivo_col_link.avvisa_cliente, lid)
+                    print("  link: lavoro in piu' deciso (%s)" % dentro.get("esito"))
+                self._manda(200, r)
+                return
             if percorso == "/link/ritira":
                 ok = preventivo_col_link.ritira(dentro.get("link"), dentro.get("gestione"))
                 self._manda(200 if ok else 404, {"ritirato": ok})
@@ -4028,6 +4040,16 @@ def servizio(porta=8787, pubblico=False):
             self.end_headers()
             self.wfile.write(dati)
 
+        def _posta_del_link(self, fai, lid, *argomenti):
+            """Lavori in piu' (12/11/2026): la posta parte nel suo filo, la pagina del cliente non aspetta."""
+            manda = lambda a, oggetto, testo: posta.manda(a, oggetto, testo, nome="Rilievo")
+            def lavora():
+                try:
+                    fai(lid, *argomenti, manda)
+                except Exception as e:      # noqa: BLE001
+                    print("  posta del link non partita:", type(e).__name__)
+            threading.Thread(target=lavora, daemon=True).start()
+
         def _accetta_dal_link(self, lid, cosa="accetto"):
             try:
                 quanto = min(int(self.headers.get("Content-Length") or 0), 4096)
@@ -4039,12 +4061,20 @@ def servizio(porta=8787, pubblico=False):
             con = campi.get("con") or []
             ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
             if cosa == "pagato":
-                preventivo_col_link.segna_bonifico(lid)
+                if preventivo_col_link.segna_bonifico(lid):
+                    self._posta_del_link(preventivo_col_link.avvisa_ditta, lid, ["bonifico"])
+                pagina = preventivo_col_link.pagina(lid, stili)
+            elif cosa == "aggiungi":
+                ok, msg = preventivo_col_link.aggiungi_dopo(lid, con)
+                if ok and msg:
+                    self._posta_del_link(preventivo_col_link.avvisa_ditta, lid, ["in_piu"])
+                    print("  link: il cliente chiede un lavoro in piu'")
                 pagina = preventivo_col_link.pagina(lid, stili)
             elif cosa == "codice":
                 ok, msg = preventivo_col_link.conferma_codice(lid, uno("codice"), ip, self.headers.get("User-Agent") or "")
                 pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg)
                 if ok:
+                    self._posta_del_link(preventivo_col_link.avvisa_ditta, lid, ["accettato", "in_piu"])
                     print("  link: preventivo accettato col codice")
             elif cosa == "altra":
                 preventivo_col_link.altra_mail(lid)
@@ -4053,6 +4083,8 @@ def servizio(porta=8787, pubblico=False):
                 ok, msg = preventivo_col_link.rispondi(lid, uno("tipo"), uno("motivo"), uno("testo"))
                 pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg)
                 if ok:
+                    if uno("tipo") in ("cambia", "no"):
+                        self._posta_del_link(preventivo_col_link.avvisa_ditta, lid, [uno("tipo")])
                     print("  link: il cliente ha risposto (%s)" % uno("tipo")[:10])
             elif uno("fai") == "conto":
                 # «Rifai il conto»: si ridisegna la pagina con le voci spuntate, senza accettare
@@ -4071,6 +4103,7 @@ def servizio(porta=8787, pubblico=False):
                 if stato == "mandato":
                     print("  link: codice per accettare mandato per mail")
                 elif stato == "accettato":
+                    self._posta_del_link(preventivo_col_link.avvisa_ditta, lid, ["accettato", "in_piu"])
                     print("  link: preventivo accettato SENZA codice (la mail non e' partita)")
             if pagina is None:
                 self._pagina_cliente(404, preventivo_col_link.pagina_mancante(preventivo_col_link.stili_dell_app(APP / "index.html")))
