@@ -4098,7 +4098,7 @@ def servizio(porta=8787, pubblico=False):
                 stato, msg = preventivo_col_link.chiedi_codice(
                     lid, uno("nome"), con=con, mail_scritta=uno("mail"), ip=ip,
                     browser=self.headers.get("User-Agent") or "",
-                    manda=lambda a, oggetto, testo: posta.manda(a, oggetto, testo, nome="Rilievo"))
+                    manda=lambda a, oggetto, testo, nome="Rilievo": posta.manda(a, oggetto, testo, nome=nome))
                 pagina = preventivo_col_link.pagina(lid, stili, errore=msg if stato == "errore" else "",
                                                     con=con, nome=uno("nome"), mail=uno("mail"))
                 if stato == "mandato":

@@ -422,8 +422,17 @@ def chiedi_codice(lid, nome, con=None, mail_scritta="", ip="", browser="", manda
                  f"Scrivilo nella pagina del preventivo. Vale {CODICE_MINUTI} minuti.\n\n"
                  "Se non hai chiesto tu di accettare questo preventivo, ignora questa mail: senza il codice non succede niente.\n\n"
                  "Rilievo")
+        # a379 (si' di Andrea 12/11 sera): il cliente vede la sua ditta, non «Rilievo», e il codice
+        # subito nell'oggetto. Prima «Rilievo» + «Il codice per accettare...» sembrava spam.
+        oggetto = f"{codice} è il codice per accettare il preventivo" + (f" di {ditta.strip()}" if ditta.strip() else "")
+        mittente = (ditta.strip()[:60] + " tramite Rilievo") if ditta.strip() else "Rilievo"
         try:
-            partita = bool(manda(mail, f"Il codice per accettare il preventivo: {codice}", testo))
+            import inspect
+            try:
+                col_nome = "nome" in inspect.signature(manda).parameters
+            except (TypeError, ValueError):
+                col_nome = False
+            partita = bool(manda(mail, oggetto, testo, nome=mittente) if col_nome else manda(mail, oggetto, testo))
         except Exception:                   # noqa: BLE001
             partita = False
     if partita:

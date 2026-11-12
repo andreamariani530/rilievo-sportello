@@ -54,15 +54,15 @@
     {
      "q": 16,
      "min": 40.55,
-     "medio": 43.9,
+     "medio": 42.2,
      "max": 43.9
     }
    ],
    "iva": 22,
    "conto": {
-    "imponibile": 702.4,
-    "iva": 154.53,
-    "totale": 856.93,
+    "imponibile": 675.2,
+    "iva": 148.54,
+    "totale": 823.74,
     "basso": 648.8,
     "alto": 702.4
    }
@@ -180,15 +180,15 @@
     {
      "q": 200,
      "min": 0.3,
-     "medio": 1,
+     "medio": 0.35,
      "max": 5
     }
    ],
    "iva": 22,
    "conto": {
-    "imponibile": 200.0,
-    "iva": 44.0,
-    "totale": 244.0,
+    "imponibile": 70.0,
+    "iva": 15.4,
+    "totale": 85.4,
     "basso": 60.0,
     "alto": 1000.0
    }

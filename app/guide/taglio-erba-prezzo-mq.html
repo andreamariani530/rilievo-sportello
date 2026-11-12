@@ -135,12 +135,12 @@ section{padding:46px 0;border-top:1px solid #E2DCD0}
 
   <section class="g-calcola" id="calcola" aria-labelledby="t-calcola">
    <h2 id="t-calcola">Calcola il taglio del tuo prato</h2>
-   <p class="g-nota">Metti i metri quadri del prato. Il prezzo di partenza viene dai preventivi pubblicati su ProntoPro.</p>
+   <p class="g-nota">Metti i metri quadri del prato. Il prezzo di partenza è 0,35 € al mq (35 € ogni 100 mq), lo stesso del listino di Rilievo per lo sfalcio: sui prati grandi i preventivi pubblicati su ProntoPro stanno lì. Cambialo col tuo.</p>
    <div class="g-righe">
      <div class="g-riga" data-i="0">
       <p class="g-voce">Taglio del prato con raccolta</p>
       <label><span>metri quadri</span><input class="g-q" inputmode="decimal" value="200" aria-label="metri quadri: Taglio del prato con raccolta"></label>
-      <label><span>prezzo al mq</span><input class="g-p" inputmode="decimal" value="1,00" aria-label="Prezzo al mq: Taglio del prato con raccolta"></label>
+      <label><span>prezzo al mq</span><input class="g-p" inputmode="decimal" value="0,35" aria-label="Prezzo al mq: Taglio del prato con raccolta"></label>
       <p class="g-forbice">di solito da 0,30 € a 5 € al mq</p>
      </div>
    </div>
@@ -152,9 +152,9 @@ section{padding:46px 0;border-top:1px solid #E2DCD0}
     </select></label>
    </div>
    <dl class="g-esito" aria-live="polite">
-    <div><dt>Prezzo medio</dt><dd id="g-imponibile">200,00 €</dd></div>
+    <div><dt>Prezzo medio</dt><dd id="g-imponibile">70,00 €</dd></div>
     <div><dt>Forbice di mercato</dt><dd id="g-forbice">da 60 € a 1.000 €</dd></div>
-    <div class="g-totale"><dt>Totale con IVA</dt><dd id="g-totale">244,00 €</dd></div>
+    <div class="g-totale"><dt>Totale con IVA</dt><dd id="g-totale">85,40 €</dd></div>
    </dl>
    <p class="g-nota">Prezzi IVA esclusa. Sono medie: ogni lavoro si guarda sul posto. Le fonti sono in fondo alla pagina.</p>
   </section>
@@ -174,10 +174,10 @@ section{padding:46px 0;border-top:1px solid #E2DCD0}
     <p><b>Per:</b> [Nome del cliente], [indirizzo del lavoro]</p>
     <p><b>Lavoro:</b> taglio del prato</p>
     <table><thead><tr><th>Voce</th><th class=n>Quantità</th><th class=n>Prezzo</th><th class=n>Importo</th></tr></thead>
-     <tbody id="g-modello-righe"><tr><td>Taglio del prato con raccolta</td><td class=n>200 mq</td><td class=n>1,00 €</td><td class=n>200,00 €</td></tr></tbody>
-     <tfoot><tr><td colspan=3>Imponibile</td><td class=n id="g-m-imp">200,00 €</td></tr>
-     <tr><td colspan=3 id="g-m-iva-nome">IVA 22%</td><td class=n id="g-m-iva">44,00 €</td></tr>
-     <tr class="g-m-tot"><td colspan=3>Totale</td><td class=n id="g-m-tot">244,00 €</td></tr></tfoot></table>
+     <tbody id="g-modello-righe"><tr><td>Taglio del prato con raccolta</td><td class=n>200 mq</td><td class=n>0,35 €</td><td class=n>70,00 €</td></tr></tbody>
+     <tfoot><tr><td colspan=3>Imponibile</td><td class=n id="g-m-imp">70,00 €</td></tr>
+     <tr><td colspan=3 id="g-m-iva-nome">IVA 22%</td><td class=n id="g-m-iva">15,40 €</td></tr>
+     <tr class="g-m-tot"><td colspan=3>Totale</td><td class=n id="g-m-tot">85,40 €</td></tr></tfoot></table>
     <ul class="g-condizioni" id="g-condizioni"><li>Validità dell&#x27;offerta: 30 giorni.</li><li>Pagamento: [acconto] all&#x27;accettazione, saldo a fine lavori.</li><li>Sono esclusi i lavori non scritti in questo preventivo.</li><li>Misure e prezzi da confermare con il sopralluogo.</li></ul>
     <p class="g-firme"><span>Firma della ditta</span><span>Per accettazione, il cliente</span></p>
    </div>
@@ -233,7 +233,7 @@ section{padding:46px 0;border-top:1px solid #E2DCD0}
   <a href="/privacy">Come trattiamo i dati</a>
  </footer>
 </div>
-<script type="application/json" id="g-dati">{"slug": "taglio-erba-prezzo-mq", "voci": [{"nome": "Taglio del prato con raccolta", "quanto": "metri quadri", "unita": "al mq", "abbr": "mq", "q": 200, "min": 0.3, "medio": 1, "max": 5}], "iva": 22, "mestiere": "giardiniere", "titoloModello": "Preventivo", "condizioni": ["Validità dell'offerta: 30 giorni.", "Pagamento: [acconto] all'accettazione, saldo a fine lavori.", "Sono esclusi i lavori non scritti in questo preventivo.", "Misure e prezzi da confermare con il sopralluogo."]}</script>
+<script type="application/json" id="g-dati">{"slug": "taglio-erba-prezzo-mq", "voci": [{"nome": "Taglio del prato con raccolta", "quanto": "metri quadri", "unita": "al mq", "abbr": "mq", "q": 200, "min": 0.3, "medio": 0.35, "max": 5}], "iva": 22, "mestiere": "giardiniere", "titoloModello": "Preventivo", "condizioni": ["Validità dell'offerta: 30 giorni.", "Pagamento: [acconto] all'accettazione, saldo a fine lavori.", "Sono esclusi i lavori non scritti in questo preventivo.", "Misure e prezzi da confermare con il sopralluogo."]}</script>
 <script>/* Il calcolatore delle pagine «quanto costa» (notte 11-12/11/2026).
    Lo stesso conto di conto() in genera.py: il collaudo li confronta. */
 (function(){

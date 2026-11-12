@@ -1368,6 +1368,24 @@ html{background:var(--carta)}
   .foglio .piede{margin-top:16px!important;padding-top:10px!important}
   .foglio .chiusura,.foglio .pianta-doc,.foglio .firma-doc{break-inside:avoid;page-break-inside:avoid}
 }
+/* a379: la lista materiali stampata da sola (tasto «Stampa la lista») */
+#foglio-materiali{display:none}
+@media print{
+  body.stampa-materiali > *:not(#foglio-materiali){display:none!important}
+  body.stampa-materiali #foglio-materiali{display:block!important;font-family:Georgia,serif;color:#1d1b18;font-size:12pt}
+  #foglio-materiali .fm-testa{display:flex;justify-content:space-between;gap:20px;border-bottom:1px solid #1d1b18;padding-bottom:10px}
+  #foglio-materiali .fm-ditta{font-size:20pt}
+  #foglio-materiali .fm-nome{font-size:15pt}
+  #foglio-materiali .fm-tenue{color:#5A554C;font-size:10pt}
+  #foglio-materiali .fm-cantiere{margin:14px 0 10px}
+  #foglio-materiali table{width:100%;border-collapse:collapse}
+  #foglio-materiali th{text-align:left;font-size:9pt;letter-spacing:.12em;text-transform:uppercase;color:#5A554C;border-bottom:1px solid #b9b2a6;padding:6px 0}
+  #foglio-materiali td{border-bottom:1px solid #e3ded4;padding:8px 0;vertical-align:top}
+  #foglio-materiali .n{text-align:right;white-space:nowrap;padding-left:16px}
+  #foglio-materiali tr{break-inside:avoid;page-break-inside:avoid}
+}
+/* a379 (si' di Andrea): sul computer largo il foglio del preventivo sta in mezzo, non attaccato al menu */
+@media screen and (min-width:1200px){ #schermo .foglio{margin-left:auto;margin-right:auto} }
 /* il foglio dice formato e margini: con i margini a «nessuno» la ditta toccava il bordo */
 @page{size:A4;margin:12mm 13mm 11mm}
 /* il menu chiuso sul tablet lasciava la sua ombra sul bordo sinistro */
@@ -1608,7 +1626,7 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
    <h2>Vuoi provarla sui tuoi lavori?</h2>
    <p class="s-sotto">Lasciaci un contatto: ti mandiamo il tuo link personale. Risponde chi la costruisce.</p>
    <!-- porta un collega (12/11/2026): chi arriva col link di un artigiano entra subito -->
-   <p class="s-sotto" id="s-invitato" hidden><b>Ti ha invitato un collega:</b> lascia la mail. Se l'invito è ancora valido il link ti arriva subito, altrimenti ti scriviamo noi.</p>
+   <p class="s-sotto" id="s-invitato" hidden><b>Ti ha invitato un collega:</b> lascia la mail e ti mandiamo il tuo link personale.</p>
    <form class="s-modulo" id="s-modulo" novalidate>
     <label>Nome o ditta<input name="nome" autocomplete="name" maxlength="80" required></label>
     <label>Mestiere<select name="mestiere"><option value="">Scegli…</option><option>Giardiniere</option><option>Elettricista</option><option>Idraulico</option><option>Termoidraulico</option><option>Imbianchino</option><option>Piastrellista</option><option>Muratore</option><option>Serramentista</option><option>Disinfestatore</option><option>Altro</option></select></label>
@@ -1688,7 +1706,9 @@ document.getElementById('s-modulo').addEventListener('submit', function(e){
     .then(function(x){
       if(!x.ok){ esito.textContent = x.j.errore || 'Non è partita. Riprova tra poco.'; tasto.disabled = false; return; }
       var grazie = document.getElementById('s-grazie');
-      if(x.j.subito) grazie.textContent = 'Fatto: il tuo link personale è partito per mail. Se non lo vedi, guarda anche nella posta indesiderata.';
+      /* a379 (si' di Andrea): «il link ti arriva subito» solo quando il server l'ha fatto entrare da solo */
+      if(x.j.subito) grazie.textContent = 'Fatto: il link ti arriva subito: è già partito per mail. Se non lo vedi, guarda anche nella posta indesiderata.';
+      else if(d.invito) grazie.textContent = 'Grazie, richiesta ricevuta. Ti scriviamo appena è attivo.';
       f.hidden = true; grazie.hidden = false;
     })
     .catch(function(){ esito.textContent = 'Non è partita: controlla la rete, oppure scrivi a info@rilievoapp.it.'; tasto.disabled = false; });
@@ -1993,7 +2013,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-12 21:25';
+const COSTRUITA = '2026-11-12 23:07';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -2528,7 +2548,7 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "el-emergenza", "nome": "Emergenza antiblackout LED", "u": "a pezzo", "p": 152.67}, 
     {"id": "el-terra", "nome": "Messa a terra con picchetto", "u": "a pezzo", "p": 39.99}, 
     {"id": "el-conformita", "nome": "Dichiarazione di conformità", "u": "a corpo", "p": 150}, 
-    {"id": "el-guasto", "nome": "Ricerca guasto", "u": "all'ora", "p": 40.55, "h": 1}, 
+    {"id": "el-guasto", "nome": "Ricerca guasto", "u": "all'ora", "p": 55, "h": 1}, 
     {"id": "el-frutto", "nome": "Sostituzione frutto e placca", "u": "a pezzo", "p": 18, "h": 0.25}, 
     {"id": "el-lampadario", "nome": "Montaggio lampadario o plafoniera", "u": "a pezzo", "p": 35, "h": 0.5}, 
     {"id": "el-clima", "nome": "Punto climatizzatore", "u": "a punto", "p": 95, "h": 1.5}, 
@@ -2537,10 +2557,11 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "el-uscita", "nome": "Uscita e diritto di chiamata", "u": "a corpo", "p": 40}, 
     {"id": "el-impianto", "nome": "Rifacimento impianto elettrico completo", "u": "al metro quadro", "p": 95, "h": 0.6}]}, "idraulico": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da idraulico e impianti termici) e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
     {"id": "id-sanitario", "nome": "Sostituzione sanitario o boiler", "u": "a pezzo", "p": 111.26, "h": 2.5}, 
-    {"id": "id-lavabo", "nome": "Attacco lavabo", "u": "ad attacco", "p": 638.8, "h": 2.5}, 
-    {"id": "id-bidet", "nome": "Attacco bidet", "u": "ad attacco", "p": 638.8, "h": 2.5}, 
-    {"id": "id-wc", "nome": "Attacco wc", "u": "ad attacco", "p": 577.61, "h": 2.5}, 
-    {"id": "id-doccia", "nome": "Attacco doccia", "u": "ad attacco", "p": 638.8}, 
+    {"id": "id-primo", "nome": "Primo attacco del bagno, acqua e scarico nuovi", "u": "ad attacco", "p": 640, "h": 2.5, "dalConto": "primo-attacco"}, 
+    {"id": "id-lavabo", "nome": "Attacco lavabo", "u": "ad attacco", "p": 220, "h": 2.5}, 
+    {"id": "id-bidet", "nome": "Attacco bidet", "u": "ad attacco", "p": 220, "h": 2.5}, 
+    {"id": "id-wc", "nome": "Attacco wc", "u": "ad attacco", "p": 250, "h": 2.5}, 
+    {"id": "id-doccia", "nome": "Attacco doccia", "u": "ad attacco", "p": 220}, 
     {"id": "id-piatto", "nome": "Posa piatto doccia", "u": "a pezzo", "p": 117.13, "h": 1.5}, 
     {"id": "id-lavatrice", "nome": "Attacco lavatrice", "u": "ad attacco", "p": 522.4, "h": 1.8}, 
     {"id": "id-lavello", "nome": "Attacco lavello cucina", "u": "ad attacco", "p": 638.8}, 
@@ -2551,7 +2572,7 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "id-caldaia", "nome": "Caldaia a condensazione 25 kW", "u": "a pezzo", "p": 1645.43, "h": 9}, 
     {"id": "id-radiatore", "nome": "Radiatore in alluminio (1 kW)", "u": "a pezzo", "p": 288.3}, 
     {"id": "id-valvola", "nome": "Valvola termostatica", "u": "a pezzo", "p": 54.77}, 
-    {"id": "id-perdita", "nome": "Ricerca perdita", "u": "all'ora", "p": 40.55, "h": 1}, 
+    {"id": "id-perdita", "nome": "Ricerca perdita", "u": "all'ora", "p": 55, "h": 1}, 
     {"id": "id-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180}]}, "imbianchino": {"fonte": "Prezzario Regione Piemonte 2025 delle opere pubbliche (opere da decoratore), con alcune voci del Prezzario Regione Lombardia 2026 e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
     {"id": "im-pareti", "nome": "Tinteggiatura pareti", "u": "al metro quadro", "p": 10, "stanza": "pareti", "h": 0.12}, 
     {"id": "im-soffitti", "nome": "Tinteggiatura soffitti", "u": "al metro quadro", "p": 6.27, "stanza": "soffitto", "h": 0.12}, 
@@ -2583,8 +2604,8 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "pi-silicone", "nome": "Sigillatura in silicone", "u": "al metro", "p": 2.51, "stanza": ""}, 
     {"id": "pi-esterno", "nome": "Pavimento esterno o terrazzo", "u": "al metro quadro", "p": 44.63, "stanza": ""}, 
     {"id": "pi-macerie", "nome": "Smaltimento macerie", "u": "a viaggio", "p": 180, "stanza": ""}]}, "serramentista": {"fonte": "Prezzario Regione Lombardia 2026 e Prezzario Lavori Regione Toscana 2026 delle opere pubbliche (serramenti) e, per le voci più comuni, dai prezzi medi pagati dai privati", "voci": [
-    {"id": "se-pvc2", "nome": "Finestra in PVC, due ante", "u": "al metro quadro", "p": 709.85, "detti": "due ante, doppia anta", "h": 1.4}, 
-    {"id": "se-pvc1", "nome": "Finestra in PVC, un'anta", "u": "al metro quadro", "p": 614.72, "detti": "un'anta, anta singola", "h": 1.4}, 
+    {"id": "se-pvc2", "nome": "Finestra in PVC, due ante", "u": "al metro quadro", "p": 450, "detti": "due ante, doppia anta", "h": 1.4}, 
+    {"id": "se-pvc1", "nome": "Finestra in PVC, un'anta", "u": "al metro quadro", "p": 390, "detti": "un'anta, anta singola", "h": 1.4}, 
     {"id": "se-fissa", "nome": "Finestra fissa in PVC", "u": "al metro quadro", "p": 386.68, "detti": "finestra fissa", "h": 1.4}, 
     {"id": "se-pf", "nome": "Portafinestra in PVC, due ante", "u": "al metro quadro", "p": 475.61, "h": 1.4}, 
     {"id": "se-scorrevole", "nome": "Portafinestra scorrevole in PVC", "u": "al metro quadro", "p": 472.16, "h": 1.4}, 
@@ -2602,7 +2623,7 @@ const LISTINI_MESTIERI = {"elettricista": {"fonte": "Prezzario Regione Lombardia
     {"id": "se-zanzfissa", "nome": "Zanzariera fissa", "u": "al metro quadro", "p": 51.95, "detti": "zanzariera fissa"}, 
     {"id": "se-porta", "nome": "Porta interna laccata", "u": "a pezzo", "p": 470.48}, 
     {"id": "se-controtelaio", "nome": "Controtelaio porta scorrevole", "u": "a pezzo", "p": 368.8}, 
-    {"id": "se-blindata", "nome": "Posa di porta blindata", "u": "al metro quadro", "p": 74.68}, 
+    {"id": "se-blindata", "nome": "Posa di porta blindata", "u": "al metro quadro", "p": 158}, 
     {"id": "se-davanzale", "nome": "Davanzale o soglia in marmo", "u": "al metro", "p": 35.65}, 
     {"id": "se-silicone", "nome": "Sigillatura in silicone", "u": "al metro", "p": 2.51}, 
     {"id": "se-ora", "nome": "Regolazione e manutenzione infissi", "u": "all'ora", "p": 31.88, "h": 1}, 
@@ -3035,6 +3056,8 @@ function cifra(n, decimali){
   return (meno ? '− ' : '') + parti.join(',');
 }
 function euro(n){ return '€ ' + cifra(n); }
+/* a379 (si' di Andrea): nei totali del foglio sempre i centesimi, «€ 1.684,00» sopra «− € 168,40» */
+function euroTot(n){ return '€ ' + cifra(n, 2); }
 /* controllo 12/11 sera: il prezzo puo' avere tre decimali (1,365 al mq, listini importati):
    sul foglio si scrive com'e', se no 100 x € 1,37 non fa € 136,50 */
 function prezzoScritto(n){ n = Number(n) || 0;
@@ -3723,6 +3746,22 @@ function righeDalSopralluogo(s){
       volteDette.push(v.nome.toLowerCase() + ' ' + (t.volteDa ? t.volteDa + ', cioè ' : '') + t.volte + ' volte'); }
     righe.push(riga);
   });
+  /* a379 (si' di Andrea 12/11 sera, prezzi del lavoro D sul prezzario Piemonte 2025): in un bagno il primo
+     attacco porta acqua e scarico nuovi e costa 640; ogni altro attacco dello stesso bagno 220, il wc 250.
+     Il parlato riconosce i singoli attacchi; qui il primo detto diventa «Primo attacco del bagno».
+     Solo se il listino ha quella voce: le ditte nate prima tengono il loro listino com'e'. */
+  const primo = (S.listino || []).find(v => v.dalConto === 'primo-attacco');
+  if(primo && !righe.some(r => r.v === primo.id)){
+    const r0 = ['id-lavabo', 'id-doccia', 'id-bidet', 'id-wc'].map(id => righe.find(r => r.v === id && r.q >= 1 && !r.daMisurare)).find(Boolean);
+    if(r0){
+      const nuova = {v:primo.id, q:1, p:primo.p, nome:primo.nome, u:primo.u,
+                     iva:typeof primo.iva === 'number' ? primo.iva : (Number(S.azienda.iva)||0), on:true};
+      const at = righe.indexOf(r0);
+      r0.q = Number((r0.q - 1).toPrecision(12));
+      if(r0.q <= 0) righe.splice(at, 1, nuova); else righe.splice(at, 0, nuova);
+      if(parlate.has(r0.v)) parlate.add(primo.id);
+    }
+  }
   /* quello che ha detto e che a listino non c'e' non entra nel preventivo: se sparisse
      in silenzio, l'artigiano se ne accorgerebbe davanti al cliente */
   return {righe, dalDisegno, daMisurare, volteDette, ril, fuoriListino: (trovate || []).filter(t => t.nuova),
@@ -9160,6 +9199,8 @@ function rilevateHtml(s){
     if(x.nuova) return `<button class="chip fuori-listino" style="cursor:pointer" onclick="schedaLavorazione('${id}',${i})"
       title="Mettila a listino">+&nbsp; ${esc(x.nome)}${x.q ? ' · ' + x.q + ' ' + esc(unitaDetta(x.u)) : ''} · quanto la fai pagare?</button>`;
     const v = voce(x.voce);
+    if(x.quali) return `<button class="chip fuori-listino" style="cursor:pointer" onclick="schedaQualiPiastrelle('${id}',${i})"
+      title="Scegli quali piastrelle">?&nbsp; Piastrelle del bagno · ${esc(v ? quantitaDetta(x.q, v.u) : cifra(x.q))} · pavimento, pareti o tutti e due?</button>`;
     return `<button class="chip" style="cursor:pointer" onclick="schedaLavorazione('${id}',${i})"
       title="Cambia o togli">✓&nbsp; ${esc(v ? v.nome : x.voce)} · ${esc(v ? quantitaDetta(x.q, v.u) : cifra(x.q))}${x.dubbio ? ' · metti la misura' : ''}${x.volte > 1 ? ' · detto ' + x.volte + ' volte' : ''}${x.stanza ? ' · da ' + esc(x.stanza) : ''}</button>`;
   }).join('') + (s.testo ? `<div style="flex-basis:100%;width:100%;font-size:14px;color:var(--tenue);margin-top:8px">Una lavorazione è sbagliata? Toccala e correggila: ti chiedo se ricordare le tue parole.
@@ -10631,9 +10672,9 @@ const SERVIZIO_PRIMA = new Set(['poi','inoltre','anche','pure','adesso','dopo','
   'quindi','allora','va','vanno','bisogna','dobbiamo','devo','deve','serve','fare','facciamo',
   'ce','c','qui','la','li','ancora','magari','pero','ma']);
 const PREPOSIZIONE_DI = new Set(['di','del','dello','della','dei','degli','delle','dell']);
-/* le parole che dicono dove si lavora, non cosa si fa (controllo del 12/11). Manca «sotto»: collauda-mestieri
-   vuole ancora che «c'e' una perdita sotto il lavandino» faccia anche l'attacco lavabo (da decidere) */
-const POSTO_DETTO = /^(sopra|sul|sulla|sullo|sull|sui|sugli|sulle|su|dietro|dentro|per)$/;
+/* le parole che dicono dove si lavora, non cosa si fa (controllo del 12/11). «sotto» dal 12/11 sera (a379,
+   si' di Andrea): «una perdita sotto il lavello» e' solo la ricerca della perdita, non un attacco da 640 euro */
+const POSTO_DETTO = /^(sopra|sotto|sul|sulla|sullo|sull|sui|sugli|sulle|su|dietro|dentro|per)$/;
 const NEL_POSTO = /^(in|nel|nella|nello|nell|nei|negli|nelle)$/;
 const LUOGHI_DEL_LAVORO = new Set(['giardino','giardini','casa','appartamento','terreno','area','cortile','villa','villetta','condominio','proprieta','lotto','superficie','totale']);
 const MATERIALI = new Set(['cemento','calce','sabbia','ghiaia','malta','colla','calcestruzzo']);
@@ -11192,7 +11233,9 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
     const tratti = trattiDeiPosti(correzioniDette(preparaTesto(testo)));
     if(tratti.length > 1) return unisciTratti(tratti.map(t => capisci(t, listino, mestiere, true)));
   }
-  const voci = listino.map(v => ({v, parole: paroleDellaVoce(v),
+  /* a379: «Primo attacco del bagno» non si riconosce a voce (le sue parole, acqua e scarico, prenderebbero
+     il punto acqua e lo scarico in PVC): la mette righeDalSopralluogo al posto del primo attacco detto */
+  const voci = listino.filter(v => !v.dalConto).map(v => ({v, parole: paroleDellaVoce(v),
                                   frasi: frasiDellaVoce(v).concat(frasiDeiConcetti(v)), tipo: tipoUnita(v.u)}));
   const haMisura = g => numeriDetti(g.tok).some(n => misuraDellaVoce(n, g.voce.tipo.k)) || contatiConUn(g.tok, g.voce) > 0;
   const trovate = [];
@@ -11542,7 +11585,37 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
     }
   });
   mettiLeStanze(trovate, conStanze.stanze, listino);
+  quali_piastrelle(trovate, testo, listino);
   return trovate;
+}
+/* a379 (si' di Andrea 12/11 sera): «togliere le piastrelle del bagno» faceva solo il pavimento. In bagno
+   le piastrelle stanno anche sui muri: se non dice quali, la pastiglia chiede pavimento, pareti o tutti e due. */
+function quali_piastrelle(trovate, testo, listino){
+  const t = senzaAccenti(String(testo || '').toLowerCase());
+  if(!/piastrell/.test(t) || !/\bbagn/.test(t)) return;
+  if(/\b(pavimento|pavimenti|pavimentazione|terra|pareti|parete|muri|muro|rivestimento|rivestimenti)\b/.test(t)) return;
+  const togli = v => v && /^(demolizione|rimozione)\b/i.test(senzaAccenti(String(v.nome || '')));
+  const pav = listino.find(v => v.stanza === 'pavimento' && togli(v));
+  const riv = listino.find(v => v.stanza === 'rivestimento' && togli(v));
+  if(!pav || !riv) return;
+  const sue = trovate.filter(x => x.voce === pav.id || x.voce === riv.id);
+  if(sue.length === 1) sue[0].quali = {pav: pav.id, riv: riv.id};
+}
+/* la risposta alla domanda della pastiglia: pavimento, pareti o tutti e due */
+function schedaQualiPiastrelle(id, i){
+  const s = sopr(id); const x = s && s._trovate && s._trovate[i];
+  if(!x || !x.quali) return schedaLavorazione(id, i);
+  scheda({titolo: 'Le piastrelle del bagno', sotto: 'Quali togli? Il pavimento e le pareti hanno due prezzi diversi.',
+    valori: {dove: x.voce === x.quali.riv ? 'riv' : 'pav'},
+    campi: [{k:'dove', l:'Piastrelle da togliere', t:'scelta',
+             opzioni: [['pav', 'Solo il pavimento'], ['riv', 'Solo le pareti'], ['tutte', 'Pavimento e pareti']]}],
+    salva: d => {
+      const q = x.quali; delete x.quali;
+      x.voce = d.dove === 'riv' ? q.riv : q.pav;
+      if(d.dove === 'tutte' && !s._trovate.some(y => y.voce === q.riv))
+        s._trovate.splice(i + 1, 0, Object.assign({voce: q.riv, q: 1, dubbio: true}, x.detto ? {detto: x.detto} : {}));
+    },
+    messaggio: 'Lavorazioni aggiornate.'});
 }
 /* ===== FINE CAPIRE IL PARLATO ===== */
 
@@ -12781,9 +12854,9 @@ function corpoFattura(id){
       </table>
 
       <div class="chiusura">
-        ${c.basi.map(x => `<div class="riga"><span class="lbl">${c.forf || c.basi.length === 1 ? 'Imponibile' : 'Imponibile al ' + cifra(x.aliquota) + '%'}</span>${grande(euro(x.base))}</div>` +
-          (c.forf ? '' : `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}%</span>${grande(euro(x.iva))}</div>`)).join('')}
-        <div class="riga" style="margin-top:6px"><span class="lbl">Totale</span><span class="grande">${euro(c.totale)}</span></div>
+        ${c.basi.map(x => `<div class="riga"><span class="lbl">${c.forf || c.basi.length === 1 ? 'Imponibile' : 'Imponibile al ' + cifra(x.aliquota) + '%'}</span>${grande(euroTot(x.base))}</div>` +
+          (c.forf ? '' : `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}%</span>${grande(euroTot(x.iva))}</div>`)).join('')}
+        <div class="riga" style="margin-top:6px"><span class="lbl">Totale</span><span class="grande">${euroTot(c.totale)}</span></div>
       </div>
 
       <div class="condizioni-doc">
@@ -14205,7 +14278,7 @@ const CONSUMI_MATERIALI = [
   {voci:['el-citofono'], k:'pz', parole:/citofon/, usa:[['cavo-citofono',20]]},
   {voci:['el-impianto'], k:'mq', parole:/impianto elettrico/, usa:[['corrugato',4],['cavo-15',6],['cavo-25',6],['scatole-503',0.5],['placche',0.5]]},
   /* idraulico e termoidraulico */
-  {voci:['id-lavabo','id-bidet','id-wc','id-doccia','id-lavello','id-lavatrice'], k:'pz', parole:/attacco/, usa:[['multistrato',10,10],['raccordi',4],['pvc-scarico',3],['curve-pvc',2],['rubinetti-arresto',2]]},
+  {voci:['id-primo','id-lavabo','id-bidet','id-wc','id-doccia','id-lavello','id-lavatrice'], k:'pz', parole:/attacco/, usa:[['multistrato',10,10],['raccordi',4],['pvc-scarico',3],['curve-pvc',2],['rubinetti-arresto',2]]},
   {voci:['id-acqua'], k:'pz', parole:/punto acqua/, usa:[['multistrato',5,10],['raccordi',2]]},
   {voci:['id-tubo'], k:'m', parole:/multistrato/, usa:[['multistrato',1,10],['raccordi',0.5]]},
   {voci:['te-condensa'], k:'m', parole:/condensa/, usa:[['tubo-condensa',1,10]]},
@@ -14356,10 +14429,37 @@ function materialiHtml(p){
       </div>`).join('')}</div>
     <div class="azioni" style="margin-top:12px">
       <button class="bottone vuoto piccolo" id="agg-materiale" onclick="aggiungiMateriale('${p.id}')">+ Aggiungi un materiale</button>
+      ${lista.length ? `<button class="tasto-testo" id="stampa-materiali" onclick="stampaMateriali('${p.id}')">Stampa la lista</button>` : ''}
       ${tolti ? `<button class="tasto-testo" id="rimetti-tolti" onclick="rimettiMateriali('${p.id}')">Rimetti ${tolti === 1 ? 'quello tolto' : 'i ' + tolti + ' tolti'}</button>` : ''}
     </div>
     ${lista.length ? `<div id="dove-comprare">${doveComprareHtml(p, lista)}</div>` : ''}
   </div>`;
+}
+/* a379 (si' di Andrea 12/11 sera): la lista materiali si stampa da sola, con ditta,
+   cliente e cantiere, senza tasti e interruttori. Prima Ctrl+P dava 5 pagine dello schermo. */
+function stampaMateriali(id){
+  const p = prev(id); if(!p) return;
+  const lista = listaMateriali(p); if(!lista.length) return;
+  const a = S.azienda || {};
+  const cl = p.cliente ? cliente(p.cliente) : null;
+  const dove = cl ? (cl.indirizzo || cl.luogo || '') : (p.luogo || '');
+  const vecchio = document.getElementById('foglio-materiali'); if(vecchio) vecchio.remove();
+  const f = document.createElement('div'); f.id = 'foglio-materiali';
+  f.innerHTML = `<div class="fm-testa"><div><div class="fm-ditta">${esc(a.nome || '')}</div>
+      <div class="fm-tenue">${esc([a.tel, a.mail].filter(Boolean).join(' · '))}</div></div>
+      <div style="text-align:right"><div class="fm-tenue">Materiali da comprare</div><div>${esc(dataLunga(S.oggi))}</div></div></div>
+    <div class="fm-cantiere"><div class="fm-tenue">Cantiere</div><div class="fm-nome">${esc(p.nome || '')}</div>
+      ${dove ? `<div>${esc(dove)}</div>` : ''}${p.numero ? `<div class="fm-tenue">Preventivo n. ${esc(p.numero)}</div>` : ''}</div>
+    <table><thead><tr><th>Materiale</th><th class="n">Quantità</th></tr></thead><tbody>${lista.map(x => `<tr>
+      <td>${esc(x.nome)}<div class="fm-tenue">${esc(dettaglioMateriale(x))}</div></td>
+      <td class="n">${esc(quantitaMateriale(x))}</td></tr>`).join('')}</tbody></table>`;
+  document.body.appendChild(f);
+  document.body.classList.add('stampa-materiali');
+  const via = () => { document.body.classList.remove('stampa-materiali'); const e = document.getElementById('foglio-materiali'); if(e) e.remove(); window.removeEventListener('afterprint', via); };
+  /* sull'iPhone print() torna subito e la stampa viene dopo: si toglie a stampa finita o cambiando pagina */
+  window.addEventListener('afterprint', via);
+  window.addEventListener('hashchange', via, {once: true});
+  window.print();
 }
 function disegnaMateriali(id){
   const e = document.getElementById('materiali'); if(!e) return;
@@ -15156,10 +15256,10 @@ PAGINE.documento = {
       </table>
 
       <div class="chiusura">
-        <div class="riga"><span class="lbl">Imponibile</span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(c.imponibile)}</span></div>
-        ${p.sconto ? `<div class="riga"><span class="lbl">Sconto ${p.sconto}%</span><span style="font-family:'Cormorant',serif;font-size:22px">− ${euro(c.sconto)}</span></div>` : ''}
-        ${c.aliquote.map(x => `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}% su <span class="base-iva">${euro(x.base)}</span></span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(x.iva)}</span></div>`).join('')}
-        <div class="riga" style="margin-top:6px"><span class="lbl">Totale</span><span class="grande">${euro(c.totale)}</span></div>
+        <div class="riga"><span class="lbl">Imponibile</span><span style="font-family:'Cormorant',serif;font-size:22px">${euroTot(c.imponibile)}</span></div>
+        ${p.sconto ? `<div class="riga"><span class="lbl">Sconto ${p.sconto}%</span><span style="font-family:'Cormorant',serif;font-size:22px">− ${euroTot(c.sconto)}</span></div>` : ''}
+        ${c.aliquote.map(x => `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}% su <span class="base-iva">${euroTot(x.base)}</span></span><span style="font-family:'Cormorant',serif;font-size:22px">${euroTot(x.iva)}</span></div>`).join('')}
+        <div class="riga" style="margin-top:6px"><span class="lbl">Totale</span><span class="grande">${euroTot(c.totale)}</span></div>
         ${rateCarta ? `<div class="riga"><span class="lbl">${rateCarta.anticipo ? 'Dopo l’acconto, in' : 'In'} ${rateCarta.quante} rate mensili da</span><span style="font-family:'Cormorant',serif;font-size:22px">${rateScritte(rateCarta)}</span></div>` : ''}
       </div>
 
