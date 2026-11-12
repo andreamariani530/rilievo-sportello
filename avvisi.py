@@ -82,7 +82,7 @@ BENVENUTO_TESTO = """Ciao,
 
 grazie per l'iscrizione a Rilievo.
 
-Per ritrovare il tuo lavoro su un altro telefono o sul computer, apri https://rilievoapp.it ed entra con questa mail e la tua password.
+Per ritrovare il tuo lavoro su un altro telefono o sul computer, apri https://rilievoapp.it/?entra=1 ed entra con questa mail e la tua password.
 
 Se qualcosa non ti torna o ti manca, rispondi pure a questa mail: la sto costruendo io, e i pareri di chi lavora davvero sono quelli che mi servono di più.
 

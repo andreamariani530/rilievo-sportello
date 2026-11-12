@@ -375,6 +375,8 @@ select.campo{-webkit-appearance:none;appearance:none;border-radius:0}
 .foglio .logo-doc{display:block;width:auto;height:auto;max-height:64px;max-width:170px;object-fit:contain}
 .foglio .dati{font-size:14.5px;color:var(--tenue);text-align:right;line-height:1.6}
 .foglio .a-chi{display:flex;justify-content:space-between;gap:24px;margin:24px 0 6px;flex-wrap:wrap}
+/* nome del cliente lungo: va a capo nella sua colonna, «Numero e data» resta a destra (controllo 12/11 sera) */
+.foglio .a-chi > div:first-child{flex:1 1 320px;min-width:0}
 .foglio .programma-lavoro{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:18px 0 4px;
   padding:13px 0;border-top:1px solid var(--filetto);border-bottom:1px solid var(--filetto)}
 .foglio .programma-lavoro .valore{font-family:'Cormorant',serif;font-size:20px;margin-top:2px}
@@ -1338,6 +1340,7 @@ body{font-feature-settings:"liga" 1,"lnum" 1}
 .barra-sotto a{font-size:11px;letter-spacing:0}
 th,.tavola .didascalia,.foto .didascalia,.foglio .foto-doc figcaption,.facoltativa,.interruttore .stato{font-size:11px;letter-spacing:.1em}
 .foglio .lbl{font-size:10px;letter-spacing:.22em}
+.foglio .lbl .base-iva{letter-spacing:0;font-size:1.25em;text-transform:none}
 /* 10/11/2026: la stampa vale piu' di tutto il resto, per questo sta in fondo */
 html{background:var(--carta)}
 @media print{
@@ -1351,7 +1354,22 @@ html{background:var(--carta)}
   main,.app{display:block!important}
   html,body,.app,main,#schermo,.arriva,.contenuto{min-height:0!important;height:auto!important;padding-bottom:0!important}
   .foglio .firma-doc{grid-template-columns:1.6fr 1fr!important}
+  /* controllo 12/11 sera: «Stampa o salva in PDF» mandava la firma da sola sulla pagina 2,
+     anche con tre voci. Le condizioni viaggiano con la firma (come nel PDF dell'app) e le
+     righe sono un po' piu' basse, cosi' un preventivo corto sta in un foglio */
+  .foglio .firma-doc{break-before:avoid;page-break-before:avoid}
+  .foglio .condizioni-doc{break-after:avoid;page-break-after:avoid}
+  .foglio table td{padding-top:8px!important;padding-bottom:8px!important}
+  .foglio .intestazione{margin-bottom:12px!important}
+  .foglio .a-chi{margin-top:16px!important}
+  .foglio .chiusura{margin-top:16px!important;padding-top:10px!important}
+  .foglio .condizioni-doc{margin-top:16px!important;padding-top:10px!important}
+  .foglio .firma-doc{margin-top:18px!important}
+  .foglio .piede{margin-top:16px!important;padding-top:10px!important}
+  .foglio .chiusura,.foglio .pianta-doc,.foglio .firma-doc{break-inside:avoid;page-break-inside:avoid}
 }
+/* il foglio dice formato e margini: con i margini a «nessuno» la ditta toccava il bordo */
+@page{size:A4;margin:12mm 13mm 11mm}
 /* il menu chiuso sul tablet lasciava la sua ombra sul bordo sinistro */
 @media (max-width:900px){ aside{transform:translateX(calc(-100% - 50px))} aside.aperta{transform:none} }
 /* sul computer il tasto «Chiedi» galleggiante copriva l'ultima riga di ogni pagina */
@@ -1378,7 +1396,25 @@ a[href^="tel:"]{white-space:nowrap}
 .matita{min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center}
 /* controllo col dito 12/11/2026: ogni tasto almeno 44 px sotto il dito. Erano 35-43 px:
    menu, tasti piccoli, linguette, matita, tasti tondi della casa, domande pronte, esempio */
-nav a.voce{min-height:44px;box-sizing:border-box}
+nav a.voce{box-sizing:border-box;min-height:44px}
+/* controllo col dito 12/11/2026 sera: i tasti rimasti sotto i 44 px dopo il giro della notte.
+   Si allarga solo la zona che prende il dito; dove serviva, l'altezza minima. */
+.torna{min-height:44px;box-sizing:border-box}
+.qta button{position:relative}
+.qta button:first-child::before,.qta button:last-child::before{content:"";position:absolute;top:50%;width:44px;height:44px;margin-top:-22px}
+.qta button:first-child::before{right:-8px}
+.qta button:last-child::before{left:-8px}
+#persone-al-lavoro{transform:none!important}
+.interr::before{content:"";position:absolute;left:-3px;right:-3px;top:-11px;bottom:-11px}
+#durata-sul-foglio::before{top:-6px;bottom:-16px}
+.sconto input[type=range]{height:44px}
+.al-cliente,.tel-cliente{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+.pericolo,.lascia-perche,.casa-menu button,.chip{min-height:44px;box-sizing:border-box}
+.casa-chiedi textarea{min-height:44px;box-sizing:border-box}
+.testo-messaggio summary{padding-top:14px;padding-bottom:14px}
+.firma-cancella{top:0;right:0;padding:14px 10px;min-height:44px;box-sizing:border-box}
+.porta-piede a,.ore-mancano,.contenuto a[onclick^="schedaVoce"],.rilevate a[href="#listino"]{display:inline-flex;align-items:center;min-height:44px}
+td.n .campo{min-height:44px;box-sizing:border-box}
 .bottone.piccolo,.filtri button,.casa-domande button,.striscia-esempio button{min-height:44px;box-sizing:border-box}
 .matita{min-width:44px;min-height:44px}
 .casa-tasto{width:44px;height:44px;margin:-7px 0}
@@ -1411,7 +1447,9 @@ nav a.voce{min-height:44px;box-sizing:border-box}
     var collaudo = /^(127\.0\.0\.1|localhost|collaudo\.local|)$/.test(location.hostname);
     var chiavi = false;
     for(var i = 0; i < ls.length; i++){ if(/^rilievo/.test(ls.key(i))){ chiavi = true; break; } }
-    var app = /[?&]da=[^&#]/.test(q) || (collaudo && /[?&]app=/.test(q)) || location.hash.indexOf('#nuova-password/') === 0 ||
+    /* ?entra=1 (controllo 12/11 sera): il link delle mail all'artigiano apre l'app e chiede mail e password,
+       anche su un telefono nuovo, sul computer o nel browser della app Gmail */
+    var app = /[?&]da=[^&#]/.test(q) || /[?&]entra=1/.test(q) || (collaudo && /[?&]app=/.test(q)) || location.hash.indexOf('#nuova-password/') === 0 ||
               (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true ||
               !!ls.getItem('rilievo-collaudo') || !!sessionStorage.getItem('rilievo-dentro') ||
               (chiavi && (q.length > 1 || location.hash.length > 1));
@@ -1570,7 +1608,7 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
    <h2>Vuoi provarla sui tuoi lavori?</h2>
    <p class="s-sotto">Lasciaci un contatto: ti mandiamo il tuo link personale. Risponde chi la costruisce.</p>
    <!-- porta un collega (12/11/2026): chi arriva col link di un artigiano entra subito -->
-   <p class="s-sotto" id="s-invitato" hidden><b>Ti ha invitato un collega:</b> lascia la mail e il link ti arriva subito.</p>
+   <p class="s-sotto" id="s-invitato" hidden><b>Ti ha invitato un collega:</b> lascia la mail. Se l'invito è ancora valido il link ti arriva subito, altrimenti ti scriviamo noi.</p>
    <form class="s-modulo" id="s-modulo" novalidate>
     <label>Nome o ditta<input name="nome" autocomplete="name" maxlength="80" required></label>
     <label>Mestiere<select name="mestiere"><option value="">Scegli…</option><option>Giardiniere</option><option>Elettricista</option><option>Idraulico</option><option>Termoidraulico</option><option>Imbianchino</option><option>Piastrellista</option><option>Muratore</option><option>Serramentista</option><option>Disinfestatore</option><option>Altro</option></select></label>
@@ -1583,6 +1621,7 @@ html.vista-sito #sito{display:block;position:fixed;inset:0;z-index:2147483000;ov
     <p class="s-nota" style="margin:0">Basta la mail o il telefono. Li usiamo solo per mandarti il link e per parlare di Rilievo.</p>
    </form>
    <p class="s-grazie" id="s-grazie" hidden>Grazie, richiesta ricevuta. Ti mandiamo il tuo link personale appena possibile.</p>
+   <p class="s-nota s-entra" style="font-style:normal;margin-top:22px"><a href="/?entra=1" style="display:inline-flex;align-items:center;min-height:44px;color:#4F6B54">Hai già un accesso? Entra con mail e password</a></p>
    <details><summary>Hai già un codice?</summary>
     <form class="s-codice" id="s-codice"><input name="c" autocomplete="off" autocapitalize="none" aria-label="Il tuo codice" placeholder="Il tuo codice"><button>Entra</button></form>
     <p class="s-esito" id="s-esito-codice" role="alert"></p>
@@ -1875,7 +1914,7 @@ async function avvia(){
   preparaInstallazione();
   ascoltaIlTiro();
   vai();
-  if(senzaAccesso()) apriMuro();
+  if(senzaAccesso()){ apriMuro(); if(/[?&]entra=1/.test(location.search)) schedaEntra(); }   /* dal link delle mail: chi ha gia' l'accesso */
   else if(primaVolta()) apriPorta();
   preparaPassi();          /* solo chi arriva col link della ditta: un segno per passo */
   togliAvvio();            /* la R si ingrandisce e sfuma: l'app e' gia' sotto */
@@ -1954,7 +1993,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-12 19:11';
+const COSTRUITA = '2026-11-12 21:25';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -2996,6 +3035,15 @@ function cifra(n, decimali){
   return (meno ? '− ' : '') + parti.join(',');
 }
 function euro(n){ return '€ ' + cifra(n); }
+/* controllo 12/11 sera: il prezzo puo' avere tre decimali (1,365 al mq, listini importati):
+   sul foglio si scrive com'e', se no 100 x € 1,37 non fa € 136,50 */
+function prezzoScritto(n){ n = Number(n) || 0;
+  if(Math.abs(Math.round(n * 100) - n * 100) < 1e-6) return euro(n);
+  const x = (Math.round(Math.abs(n) * 1000) / 1000).toFixed(3).split('.');
+  return (n < 0 ? '− ' : '') + '€ ' + x[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + x[1]; }
+/* «all'8 dicembre», «dell'11 novembre», «l'8»: davanti a 8 e 11 l'articolo si apostrofa (controllo 12/11 sera) */
+function conData(prep, iso){ const d = dataLunga(iso);
+  return /^(8|11) /.test(d) ? ({al:'all’', del:'dell’', il:'l’', dal:'dall’'})[prep] + d : prep + ' ' + d; }
 const MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 const GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 const gg = iso => new Date(iso + 'T12:00:00');
@@ -3312,8 +3360,41 @@ function aggiornaAdesso(){
   vai();
   return esito;
 }
+/* Il tasto Indietro del telefono (o il dito che scorre dal bordo, sull'iPhone) con una finestra
+   aperta chiude la finestra e lascia la pagina dov'e'. Prima cambiava la pagina sotto e la finestra
+   restava aperta sopra un'altra pagina; la firma a meta' si perdeva uscendo dal preventivo
+   (controllo col dito, 12/11/2026 sera). Ogni passo ha un numero che cresce: tornare a un passo
+   col numero piu' piccolo vuol dire Indietro. */
+let passoAttuale = 0;
+function finestraSopra(){ return document.querySelector('.velo-scheda, #firma, #velo-chat'); }
+function chiudiFinestreSopra(){
+  if(document.querySelector('.velo-scheda')) chiudiScheda();
+  if(document.getElementById('firma') && typeof chiudiFirma === 'function') chiudiFirma();
+  if(document.getElementById('velo-chat') && typeof chiudiChat === 'function') chiudiChat();
+}
+if(typeof window !== 'undefined' && window.history && history.replaceState){
+  try{
+    passoAttuale = (history.state && history.state.passo) || Date.now();
+    history.replaceState(Object.assign({}, history.state || {}, {passo: passoAttuale}), '');
+  }catch(e){}
+  addEventListener('hashchange', e => {
+    let st = null; try{ st = history.state; }catch(x){}
+    if(st && st.passo){
+      if(st.passo < passoAttuale && finestraSopra()){
+        e.stopImmediatePropagation();
+        chiudiFinestreSopra();
+        history.forward();
+        return;
+      }
+      passoAttuale = st.passo;
+    } else {
+      passoAttuale = Math.max(Date.now(), passoAttuale + 1);
+      try{ history.replaceState(Object.assign({}, st || {}, {passo: passoAttuale}), ''); }catch(x){}
+    }
+  });
+}
 function ascoltaIlTiro(){
-  if(typeof document === 'undefined' || document.tiroPronto) return;
+  if(typeof document === 'undefined' || document.tiroPronto){ return; }
   document.tiroPronto = true;
   const barra = document.createElement('div');
   barra.className = 'tiro';
@@ -3705,7 +3786,7 @@ function generaPreventivo(idSopralluogo){
     id: nuovoId('p'), numero: nuovoNumero(),
     cliente: s.cliente || null, nome: s.nome, luogo: s.luogo,
     data: S.oggi, stato: 'bozza', sconto: 0,
-    note: 'Preventivo scritto in sopralluogo il ' + dataLunga(S.oggi) + '.',
+    note: 'Preventivo scritto in sopralluogo ' + conData('il', S.oggi) + '.',
     righe: d.righe, sopralluogo: s.id
   };
   S.preventivi.unshift(p);
@@ -9492,8 +9573,10 @@ const CONCETTI_MESTIERI = {
     { chiavi: ['davanzale','soglia'], dette: ['davanzale','davanzali','soglia','soglie','marmo','bancale'] },
     { chiavi: ['silicone','sigillatura'], dette: ['silicone','sigillatura','sigillare','siliconare','schiuma'] },
     { chiavi: ['regolazione','infissi'],
+      /* "due ore per SISTEMARE le finestre che NON CHIUDONO" (controllo del 12/11): non usciva niente */
+      frasi: [['non','chiudono'],['non','chiude'],['sistemare','finestre'],['sistemare','finestra'],['sistemare','infissi']],
       dette: ['regolazione','regolare','registrare','registrazione','cerniera','cerniere','maniglia','maniglie',
-              'guarnizione','guarnizioni','cigola','chiude','spifferi'] },
+              'guarnizione','guarnizioni','cigola','chiude','spifferi','sistemare','sistemiamo'] },
     { chiavi: ['uscita','trasferta'], dette: ['uscita','trasferta','chiamata','diritto'] },
     MACERIE ],
   muratore: [
@@ -9507,7 +9590,8 @@ const CONCETTI_MESTIERI = {
       dette: ['demolire','demolizione','demoliamo','abbattere','abbattiamo','rompere','spaccare','smantellare',
               'rimuovere','rimozione','togliere','togliamo','vecchio','vecchia','vecchi','vecchie','esistente'] },
     { chiavi: ['apertura'], dette: ['aprire','apriamo','apertura','allargare','allarghiamo','varco'] },
-    { chiavi: ['chiusura'], dette: ['chiudere','chiudiamo','chiusura','tamponare','tamponamento','murare','muriamo'] },
+    /* "aprire un vano porta e CHIUDERNE un altro" (controllo del 12/11): la chiusura si perdeva */
+    { chiavi: ['chiusura'], dette: ['chiudere','chiudiamo','chiuderne','chiusura','tamponare','tamponamento','murare','muriamo'] },
     { chiavi: ['vano','porta'], dette: ['vano','porta','porte','passaggio'] },
     { chiavi: ['intonaco'],
       dette: ['intonaco','intonaci','intonacare','intonachiamo','arriccio','rinzaffo','malta'] },
@@ -9714,6 +9798,17 @@ function preparaTesto(t){
     /* «2 metri e 40»: i centimetri dopo i metri. Solo con due cifre e se dopo non viene
        un'altra cosa da contare: «20 metri e 15 alberi» restano due cose */
     .replace(/(\d+)\s+(metri|metro|m)\s+e\s+(\d{2})\b(?=\s*(?:$|[,;.!?]|e\b|poi\b|centimetri\b|cm\b))/g, '$1,$3 $2')
+    /* "un metro e venti", "tre metri e sessanta" a parole (controllo del 12/11): restava 1 e 3 */
+    .replace(/\b([a-z]+)\s+(metri|metro)\s+e\s+([a-z]+)\b(?=\s*(?:$|[,;.!?]|e\b|poi\b|centimetri\b|cm\b))/g, (m, a, u, c) => {
+      const x = PAROLE_NUMERO[a], y = PAROLE_NUMERO[c];
+      return x != null && y != null && y >= 10 && y <= 99 ? x + ',' + y + ' ' + u : m; })
+    /* "gres SESSANTA PER CENTOVENTI trentacinque metri quadri" (controllo del 12/11): la taglia della
+       piastrella diventava la superficie (0,72 mq, 21 euro invece di 35 mq). Detta subito dopo la
+       piastrella e' la taglia: lunga 120 o piu' e' il grande formato (60 per 60 resta la posa normale) */
+    .replace(/\b(piastrell[ae]|mattonell[ae]|gres|porcellanato|ceramica|lastr[ae])\s+(?:da\s+)?([a-z0-9]+)\s*(?:cm\s+|centimetri\s+)?(?:\s+per\s+|x\s*)([a-z0-9]+)(?:\s+(?:cm|centimetri)\b)?/g, (m, cosa, a, b) => {
+      const x = numeroDetto(a), y = numeroDetto(b);
+      if(x == null || y == null || x < 10 || y < 10 || x > 300 || y > 300) return m;
+      return cosa + (Math.max(x, y) >= 120 ? ' grande formato' : ''); })
     .replace(/(\d)(mq|m)\b/g, '$1 $2');
 }
 /* ===== SI CORREGGE PARLANDO (4 novembre 2026) =====
@@ -9744,6 +9839,10 @@ function ilNuovoDopoIlVecchio(t){
 function correzioniDette(t){
   const eNumero = w => numeroDetto(w) != null || CIRCA[w] != null;
   return ilNuovoDopoIlVecchio(t)
+    /* "otto prese, ANZI DIECI PRESE", "otto prese, no dieci prese" (controllo del 12/11): la cosa
+       ridetta dopo la correzione faceva due righe sommate (18 prese) o teneva il numero vecchio */
+    .replace(/\b([a-z0-9,]+)((?:\s+[a-z]+){1,2})[\s,]+(?:anzi|no)[\s,]+([a-z0-9,]+)((?:\s+[a-z]+){1,2})\b/g, (m, a, c, b, d) =>
+      eNumero(a) && eNumero(b) && c.trim().slice(0, 4) === d.trim().slice(0, 4) ? b + d : m)
     .replace(new RegExp('\\bno[\\s,]+(' + DOPO_CORREZIONE + ')\\b', 'g'), '$1')
     .replace(/\banzi[\s,]+no\b/g, 'anzi')
     .replace(new RegExp('\\b' + DOPO_CORREZIONE + '\\b[\\s,]+([a-z0-9,]+)', 'g'), (m, w) => eNumero(w) ? 'anzi ' + w : m)
@@ -9930,6 +10029,7 @@ function numeriDetti(tok){
     const n = {v: v * (m ? m.f : 1), u: m ? m.u : null, i, f: m ? m.f : 1};
     const contate = n.u === null && contaCose(i);
     if(contate) n.conteggio = true;
+    if(contate === true && PAROLE_CONCETTO.some(m => somiglia(tok[i + 1] || '', m))) n.cosaContata = true;
     if(contate === 'stanze') n.stanze = true;
     if(ELEMENTI.has(cosaDopo(i))) n.elementi = true;
     /* "sta in via Roma DODICI il prato e' trecento metri quadri e la siepe venti metri"
@@ -9944,6 +10044,9 @@ function numeriDetti(tok){
     /* "UNA RINGHIERA DA otto metri" (6 novembre 2026): e' quanto e' lunga una cosa, non i
        metri quadri da smaltare. In giardino "un prato da duecento metri" resta il prato. */
     if(n.u === 'm' && tok[i - 1] === 'da' && i >= 3 && (ARTICOLI.has(tok[i - 3]) || numeroDetto(tok[i - 3]) != null) && !inGiardino()) n.daUna = true;
+    /* "verniciare la RINGHIERA venti metri" (lista «Da fare» del 12/11): una ringhiera detta in metri e' quanto e'
+       lunga, non i metri quadri da smaltare. Uscivano 20 mq: meglio chiedere la misura */
+    if(n.u === 'm' && !inGiardino() && tok.slice(Math.max(0, i - 4), i).some(w => /^(ringhier|inferriat|cancellat|grondai)/.test(w))) n.daUna = true;
     /* "abbattere un PINO DA QUINDICI METRI" (7 novembre 2026): i metri sono quanto e' alto,
        e uscivano quindici abbattimenti */
     if(n.u === 'm' && tok[i - 1] === 'da' && i >= 2 && inGiardino() && PIANTE_ALTE.test(tok[i - 2] || '')) n.altezza = true;
@@ -9953,6 +10056,9 @@ function numeriDetti(tok){
        In giardino, e dopo una stanza o una superficie ("una stanza da trenta"), resta la misura. */
     if(n.u === null && !n.conteggio && tok[i - 1] === 'da' && i >= 2 && v >= 20 && !inGiardino() &&
        !SUPERFICI_DETTE.has(tok[i - 2]) && tok[i + 1] !== 'a' && tok[i + 1] !== 'per') n.taglia = true;
+    /* "quattro finestre in pvc a DUE ANTE" (controllo del 12/11): le ante dicono com'e' fatta la finestra,
+       non quante ne servono ne' quanto e' grande. Il due diventava 2 mq */
+    if(n.u === null && /^ant[ae]$/.test(tok[i + 1] || '')) return;
     fuori.push(n);
   });
   /* ===== IL FORO: LARGHEZZA PER ALTEZZA (4 ottobre 2026) =====
@@ -9976,8 +10082,13 @@ function numeriDetti(tok){
     if(w !== 'per' && w !== 'x') return;
     const a = fuori.find(n => (n.i === i - 1 || (n.i === i - 2 && (UNITA_DOPO[tok[i - 1]] === 'm' || CM.has(tok[i - 1])))) &&
                               (n.u === null || n.u === 'm') && !n.prezzo && !n.tempo && !n.foro);
-    const b = fuori.find(n => n.i === i + 1 && (n.u === null || n.u === 'm') && !n.prezzo && !n.tempo);
+    let b = fuori.find(n => n.i === i + 1 && (n.u === null || n.u === 'm') && !n.prezzo && !n.tempo);
+    /* "da un metro per UNO E MEZZO" (controllo del 12/11): l'uno era un articolo e il mezzo si perdeva,
+       la zanzariera usciva da 1 mq invece di 1,5 */
+    const mezzoDopo = k => tok[k + 1] === 'e' && /^mezz[oa]$/.test(tok[k + 2] || '');
+    if(a && !b && /^(uno|una)$/.test(tok[i + 1] || '') && mezzoDopo(i + 1)){ b = {v: 1, u: null, i: i + 1, f: 1}; fuori.push(b); }
     if(!a || !b || !(a.v > 0) || !(b.v > 0)) return;
+    if(b.u === null && Number.isInteger(b.v) && b.v < 10 && mezzoDopo(b.i)) b.v += 0.5;
     /* "per due E SETTANTA": sono 2,70, non 2 e poi un 70 per conto suo */
     const coda = tok[b.i + 1] === 'e' ? fuori.find(n => n.i === b.i + 2 && n.u === null) : null;
     if(coda && Number.isInteger(b.v) && b.v < 10 && Number.isInteger(coda.v) && coda.v >= 1 && coda.v <= 99){
@@ -10005,7 +10116,7 @@ function numeriDetti(tok){
     /* "DODICI metri e mezzo", col numero detto a parole: subito dopo "metri" la "e" e'
        proprio una "e". Con le cifre ("12 metri e mezzo") ci pensa gia' preparaTesto
        (trovato col collaudo dei compiti di Cafagna, 4 ottobre 2026) */
-    else if(prima && prima.u === 'm' && prima.i === i - 3 && UNITA_DOPO[tok[i - 2]] === 'm') prima.v += 0.5;
+    else if(prima && (prima.u === 'm' || prima.u === 'mq') && prima.i === i - 3 && UNITA_DOPO[tok[i - 2]] === prima.u) prima.v += 0.5;
   });
   /* ===== LA MISURA CHE VALE PER OGNI PEZZO (22 settembre 2026) =====
      "siepe su due lati trenta metri PER LATO" fa sessanta metri, non trenta: quei trenta
@@ -10329,6 +10440,11 @@ function scegliVoce(tok, voci){
     const sue = meglio.x.parole || [];
     if(tok.some(w => SEMINA_DETTA.has(w) && !sue.some(p => somiglia(w, p.p)))) return null;
     if(tok.some(w => LAVORI_DEL_PRATO.has(w) && !sue.some(p => somiglia(w, p.p)))) return null;
+    /* "DISERBO VIALETTO cinquanta metri quadri" (lista «Da fare» del 12/11): il diserbo di un vialetto o di un
+       cortile si pagava come il rifacimento di un'aiuola. Senza aiuole nominate e' un lavoro suo, che chiede il prezzo */
+    if(/aiuol/.test(senzaAccenti(String(meglio.x.v.nome || '').toLowerCase())) && tok.some(w => /^(diserb|scerb)/.test(w)) &&
+       tok.some(w => /^(vialett|viale|vial[ei]$|marciapied|cortil|piazzal|selciat|autobloccant|ghiaia|camminament|passaggi|vial)/.test(w)) &&
+       !tok.some(w => /^(aiuol|fiori|bordur|fiorier)/.test(w))) return null;
     /* "potatura di otto ROSE" (2 novembre 2026): senza una voce loro nel listino sceglievano
        la potatura di alberi ad alto fusto, e otto rose si pagavano come otto alberi. Meglio
        una lavorazione nuova, che chiede il prezzo una volta. */
@@ -10390,7 +10506,9 @@ function quantitaPer(tipo, numeri){
      della siepe, e il conteggio delle cose quando il lavoro si paga a superficie.
      Se pero' resta soltanto quella, meglio quella che niente. */
   const buone = numeri.filter(n => !n.altezza && (!n.conteggio || tipo.k === 'pezzi'));
-  if(buone.length) numeri = buone;
+  /* "QUATTRO FINESTRE in pvc" (controllo del 12/11) faceva 4 mq: a metro quadro quante cose
+     sono non e' mai la superficie. Meglio chiedere la misura */
+  if(buone.length || (tipo.k === 'mq' && numeri.length && numeri.every(n => n.conteggio) && numeri.some(n => n.cosaContata))) numeri = buone;
   /* alla misura trovata si aggiungono gli altri pezzi di giardino nominati col pronome
      ("quello dietro duecentocinquanta"), che sono in piu' e non una correzione. */
   const conGliAltri = n0 => numeri.slice(numeri.indexOf(n0) + 1)
@@ -10426,7 +10544,9 @@ const DUBBIO_NON = new Set(['so','saprei','sapre','ricordo','sono','sicuro','sic
    riparare, non un lavoro rifiutato. Prima il citofono spariva (10 ottobre 2026) */
 const GUASTO_NON = new Set(['funziona','funzionano','funzionava','funzionavano','funzionante','funzionanti',
   'parte','partono','accende','accendono','regge','reggono','tiene','tengono','gira','girano',
-  'arriva','arrivano','carica','caricano','scalda','scaldano']);
+  'arriva','arrivano','carica','caricano','scalda','scaldano',
+  /* "le finestre che NON CHIUDONO" (controllo del 12/11): e' il guasto, non un lavoro rifiutato */
+  'chiude','chiudono','apre','aprono']);
 function rifiutata(tok){
   return tok.some((w, i) => NIENTE.has(w) && !(w === 'non' && (DUBBIO_NON.has(tok[i + 1] || '') ||
     GUASTO_NON.has(tok[i + 1] || '') || (tok[i + 1] === 'si' && GUASTO_NON.has(tok[i + 2] || '')))));
@@ -10511,6 +10631,10 @@ const SERVIZIO_PRIMA = new Set(['poi','inoltre','anche','pure','adesso','dopo','
   'quindi','allora','va','vanno','bisogna','dobbiamo','devo','deve','serve','fare','facciamo',
   'ce','c','qui','la','li','ancora','magari','pero','ma']);
 const PREPOSIZIONE_DI = new Set(['di','del','dello','della','dei','degli','delle','dell']);
+/* le parole che dicono dove si lavora, non cosa si fa (controllo del 12/11). Manca «sotto»: collauda-mestieri
+   vuole ancora che «c'e' una perdita sotto il lavandino» faccia anche l'attacco lavabo (da decidere) */
+const POSTO_DETTO = /^(sopra|sul|sulla|sullo|sull|sui|sugli|sulle|su|dietro|dentro|per)$/;
+const NEL_POSTO = /^(in|nel|nella|nello|nell|nei|negli|nelle)$/;
 const LUOGHI_DEL_LAVORO = new Set(['giardino','giardini','casa','appartamento','terreno','area','cortile','villa','villetta','condominio','proprieta','lotto','superficie','totale']);
 const MATERIALI = new Set(['cemento','calce','sabbia','ghiaia','malta','colla','calcestruzzo']);
 const diServizio = w => PICCOLE.has(w) || ARTICOLI.has(w) || RIEMPITIVI.has(w) ||
@@ -10830,7 +10954,15 @@ function spostaIlConto(pezzi, voci){
        davanti, quindi il due e' delle prese (1 ottobre 2026) */
     /* "il quadro nuovo CON due differenziali": il due conta i differenziali, non i
        quadri (10 ottobre 2026). Vale per "e", "con", "piu'" */
-    if(qui && qui.tipo.k === 'pezzi' && !['e','ed','con','piu'].includes(p[j - 1])) continue;
+    /* "rifare IL quadro elettrico OTTO PUNTI LUCE" (controllo del telefono, 12/11 sera): il quadro detto al
+       singolare il suo numero ce l'ha gia' (uno), e l'otto detto subito prima del nome dei punti luce li conta.
+       Uscivano 8 quadri (2.000 euro) e 1 punto luce */
+    const singolare = qui && (() => { const forti = (qui.parole || []).filter(x => x.peso >= 1);
+      const t = p.slice(0, j), c = t.findIndex(w => forti.some(x => somiglia(w, x.p)));
+      return c > 0 && /^(il|lo|la|l|un|uno|una)$/.test(t[c - 1]); })();
+    const nomeDopo = dopo && ((dopo.parole || []).some(x => somiglia(pezzi[k + 1][0] || '', x.p)) ||
+      (senzaAccenti(String(dopo.v.nome || '').toLowerCase()).match(/[a-z]+/g) || []).some(x => x.length >= 4 && somiglia(pezzi[k + 1][0] || '', x)));
+    if(qui && qui.tipo.k === 'pezzi' && !['e','ed','con','piu'].includes(p[j - 1]) && !(singolare && nomeDopo && dopo.tipo.k === 'pezzi')) continue;
     pezzi[k + 1] = p.slice(j).concat(pezzi[k + 1]);
     pezzi[k] = p.slice(0, j);
   }
@@ -11108,6 +11240,49 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
     /* un volume non e' mai la misura di una voce a metro quadro, a metro o a pezzo */
     const aVolume = t => numeriDetti(t).some(n => n.u === 'mc');
     rimasti.forEach(p => { p.voce = scegliVoce(p.tok, voci); if(p.voce && aVolume(p.tok)) p.voce = null; });
+    /* "una perdita SOTTO IL LAVELLO", "valvole SUI TERMOSIFONI", "zanzariera SU UNA FINESTRA", "tracce PER
+       L'IMPIANTO", "topi IN CANTINA" (controllo del 12/11): il posto dove si lavora diventava un lavoro in piu',
+       l'attacco lavello da 638 euro o un radiatore da 288. Un pezzo che dopo «sotto, sui, su, per...» nomina solo
+       una cosa (niente verbi), detto dopo un lavoro gia' nominato, e' il posto di quel lavoro. Con «in» vale solo
+       per le stanze («sei prese in soggiorno» resta com'e'). */
+    for(let k = rimasti.length - 1; k > 0; k--){
+      const a = rimasti[k - 1], p = rimasti[k];
+      if(!a.voce || !p.voce || a.voce === p.voce || a.staccato || p.staccato) continue;
+      const vuota = w => diServizio(w) || POSTO_DETTO.test(w) || NEL_POSTO.test(w);
+      let fa = a.tok.length; while(fa > 0 && vuota(a.tok[fa - 1])) fa--;
+      let ip = 0; while(ip < p.tok.length && vuota(p.tok[ip])) ip++;
+      const giunta = a.tok.slice(fa).concat(p.tok.slice(0, ip));
+      const cose = p.tok.filter(w => !vuota(w) && numeroDetto(w) == null && !UNITA_DOPO[w] && CIRCA[w] == null);
+      const conNumeri = p.tok.some(w => numeroDetto(w) != null);
+      if(!cose.length || cose.length > 2 || p.tok.some(w => sembraVerbo(w) || VERBI_GENERICI.has(w) || TOGLIERE_DETTO.test(w))) continue;
+      const sopra = giunta.some(w => POSTO_DETTO.test(w)), dentro = giunta.some(w => NEL_POSTO.test(w));
+      /* "derattizzazione CANTINA", "il miscelatore DELLA CUCINA": la stanza detta subito dopo il lavoro, senza
+         «e», e' il posto anche senza «in» (il miscelatore della cucina faceva un attacco lavello da 638 euro) */
+      const soloStanza = !conNumeri && cose.every(w => STANZE_DEBOLI.has(w)) && !giunta.some(w => w === 'e' || w === 'ed');
+      const diStanza = giunta.length && giunta.every(w => /^(di|del|della|dello|dell|dei|degli|delle)$/.test(w));
+      if(!sopra && !((dentro || diStanza || !giunta.length) && soloStanza)) continue;
+      if(conNumeri && numeriDetti(a.tok).length) continue;
+      const forti = v => (v.parole || []).filter(x => x.peso >= 1);
+      const suoi = a.tok.slice(0, fa).filter(w => forti(a.voce).some(x => somiglia(w, x.p)));
+      if(!suoi.length) continue;
+      const insieme = a.tok.concat(p.tok), v2 = scegliVoce(insieme, voci);
+      a.tok = insieme;
+      if(v2 && v2 !== a.voce && suoi.some(w => forti(v2).some(x => somiglia(w, x.p)))) a.voce = v2;
+      rimasti.splice(k, 1);
+    }
+    /* "DEMOLIRE IL VECCHIO | massetto trenta mq, rifare il massetto trenta" (controllo del telefono, 12/11 sera):
+       il verbo che toglie restava da solo e prendeva la demolizione del tramezzo, e i 30 mq passavano al massetto
+       nuovo (60 mq). Quando la cosa tolta non ha una voce di demolizione sua, e' un lavoro suo che chiede il prezzo */
+    const demolisce = v => /^(demolizione|rimozione|smontaggio)\b/.test(senzaAccenti(String(v.v.nome || '').toLowerCase()));
+    for(let k = rimasti.length - 2; k >= 0; k--){
+      const a = rimasti[k], p = rimasti[k + 1];
+      if(!MESTIERE_PARLATO || inGiardino() || !a.voce || !p.voce || a.staccato || p.staccato || !demolisce(a.voce) || demolisce(p.voce)) continue;
+      const sue = a.tok.filter(w => !diServizio(w) && !POSTO_DETTO.test(w));
+      if(!sue.length || !sue.every(w => TOGLIERE_DETTO.test(w)) || p.tok.some(w => TOGLIERE_DETTO.test(w))) continue;
+      const insieme = a.tok.concat(p.tok), v2 = scegliVoce(insieme, voci);
+      a.tok = insieme; a.voce = v2 && demolisce(v2) && v2 !== rimasti[k].voce ? v2 : null;
+      rimasti.splice(k + 1, 1);
+    }
     /* un pezzo senza lavorazione ("circa dieci metri") va con quello prima;
        due pezzi della stessa lavorazione con due misure restano due, e si sommano */
     const gruppi = [];
@@ -12596,8 +12771,8 @@ function corpoFattura(id){
         <tbody>
           ${c.righe.map(r => `<tr>
             <td>${esc(r.descrizione)}${c.forf ? '' : `<div class="sub-doc">IVA ${cifra(r.aliquota)}%</div>`}</td>
-            <td class="n" data-l="Quantità">${cifra(r.quantita)}${r.unita ? `<div class="sub-doc">${esc(r.unita)}</div>` : ''}</td>
-            <td class="n" data-l="Prezzo">${euro(r.prezzo)}</td>
+            <td class="n" data-l="Quantità">${perMqDi(r.unita) > 1 ? cifra(r.quantita * perMqDi(r.unita)) + ' mq' : cifra(r.quantita)}${r.unita && !(perMqDi(r.unita) > 1) ? `<div class="sub-doc">${esc(r.unita)}</div>` : ''}</td>
+            <td class="n" data-l="Prezzo">${prezzoScritto(r.prezzo)}${perMqDi(r.unita) > 1 ? `<div class="sub-doc">${esc(r.unita)}</div>` : ''}</td>
             <td class="n" data-l="Importo">${euro(r.totale)}</td>
           </tr>`).join('')}
           ${c.sconti.map(x => `<tr><td>Sconto${c.basi.length > 1 ? `<div class="sub-doc">sulle voci con IVA ${cifra(x.aliquota)}%</div>` : ''}</td>
@@ -14974,7 +15149,7 @@ PAGINE.documento = {
           ${righe.map(r => `<tr>
             <td>${fotoVoceBuona(r.foto) ? `<div class="voce-con-foto"><img class="foto-voce" src="${r.foto}" alt=""><div>` : ''}${esc(r.nome)}<div class="sub-doc">${dettaglio(r, false)}</div>${fotoVoceBuona(r.foto) ? '</div></div>' : ''}</td>
             <td class="n" data-l="Quantità">${aCorpo(r) ? 'a corpo' : perMqDi(r.u) > 1 ? qtaScritta(r) : cifra(r.q)}${volteRiga(r) > 1 ? `<div class="sub-doc">× ${volteRiga(r)} volte</div>` : ''}</td>
-            <td class="n" data-l="Prezzo">${euro(r.p)}</td>
+            <td class="n" data-l="Prezzo">${prezzoScritto(r.p)}${perMqDi(r.u) > 1 ? '<div class="sub-doc">ogni ' + perMqDi(r.u) + ' mq</div>' : ''}</td>
             <td class="n" data-l="Importo">${euro(importoRiga(r))}</td>
           </tr>`).join('')}
         </tbody>
@@ -14983,7 +15158,7 @@ PAGINE.documento = {
       <div class="chiusura">
         <div class="riga"><span class="lbl">Imponibile</span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(c.imponibile)}</span></div>
         ${p.sconto ? `<div class="riga"><span class="lbl">Sconto ${p.sconto}%</span><span style="font-family:'Cormorant',serif;font-size:22px">− ${euro(c.sconto)}</span></div>` : ''}
-        ${c.aliquote.map(x => `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}% su ${euro(x.base)}</span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(x.iva)}</span></div>`).join('')}
+        ${c.aliquote.map(x => `<div class="riga"><span class="lbl">IVA ${cifra(x.aliquota)}% su <span class="base-iva">${euro(x.base)}</span></span><span style="font-family:'Cormorant',serif;font-size:22px">${euro(x.iva)}</span></div>`).join('')}
         <div class="riga" style="margin-top:6px"><span class="lbl">Totale</span><span class="grande">${euro(c.totale)}</span></div>
         ${rateCarta ? `<div class="riga"><span class="lbl">${rateCarta.anticipo ? 'Dopo l’acconto, in' : 'In'} ${rateCarta.quante} rate mensili da</span><span style="font-family:'Cormorant',serif;font-size:22px">${rateScritte(rateCarta)}</span></div>` : ''}
       </div>
@@ -14991,14 +15166,14 @@ PAGINE.documento = {
       ${fac.length ? `<div class="facoltative-doc">
         <div class="lbl">Proposte a parte, non comprese nel totale</div>
         <table><tbody>${fac.map(r => `<tr>
-          <td>${fotoVoceBuona(r.foto) ? `<div class="voce-con-foto"><img class="foto-voce" src="${r.foto}" alt=""><div>` : ''}${esc(r.nome)}<div class="sub-doc">${dettaglio(r)}${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}</div>${fotoVoceBuona(r.foto) ? '</div></div>' : ''}</td>
+          <td>${fotoVoceBuona(r.foto) ? `<div class="voce-con-foto"><img class="foto-voce" src="${r.foto}" alt=""><div>` : ''}${esc(r.nome)}<div class="sub-doc">${!aCorpo(r) && perMqDi(r.u) <= 1 && Number(r.q) > 1 ? cifra(r.q) + ' × ' + prezzoScritto(r.p) + ' · ' : ''}${dettaglio(r)}${volteRiga(r) > 1 ? ' · ' + volteRiga(r) + ' volte l\'anno' : ''}</div>${fotoVoceBuona(r.foto) ? '</div></div>' : ''}</td>
           <td class="n">${euro(importoRiga(r))}<div class="sub-doc">più IVA</div></td>
         </tr>`).join('')}</tbody></table>
       </div>` : ''}
 
       <div class="condizioni-doc">
         <div class="lbl">Condizioni</div>
-        <p>Il preventivo vale fino al ${dataLunga(dopoGiorni(p.data, giorni))}.${acconto
+        <p>Il preventivo vale fino ${conData('al', dopoGiorni(p.data, giorni))}.${acconto
           ? ` Alla firma si versa un acconto del ${cifra(acconto)}%, cioè <span class="euro-intero">${euro(rateCarta ? rateCarta.anticipo : cent(c.totale * acconto / 100))}</span>${rateCarta ? '.' : '; il saldo a fine lavori.'}` : ''}${rateCarta
           ? ` ${acconto ? 'Il resto' : 'Il totale'} si paga in ${rateCarta.quante} rate mensili da ${rateScritte(rateCarta)}.` : ''}</p>
         ${durataPerIlCliente(p) ? `<p class="durata-doc">${esc(durataPerIlCliente(p))}</p>` : ''}
@@ -15200,6 +15375,7 @@ function pdfDaPagine(pagine){
 function jpegDa(tela){ return new Uint8Array(byteDiBase64(tela.toDataURL('image/jpeg', 0.88).split(',')[1])); }
 /* la foto lunga del documento tagliata in fogli A4, andando a capo fra un blocco e
    l'altro o fra le righe di una tabella, mai a meta' di una riga di testo */
+const TESTA_PDF = {testo: '', n: 0};
 function pagineDa(tela, tagli){
   const W = tela.width, H = Math.round(W * A4.h / A4.w), margine = Math.round(W * 0.06);
   const pagine = [];
@@ -15212,6 +15388,7 @@ function pagineDa(tela, tagli){
     const g = p.getContext('2d');
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
     g.drawImage(tela, 0, 0, W, tela.height, Math.round((W - w) / 2), 0, w, utile);
+    TESTA_PDF.n++;
     return [{jpeg: jpegDa(p), w: W, h: H, da: 0, a: tela.height}];
   }
   let y = 0;
@@ -15229,6 +15406,12 @@ function pagineDa(tela, tagli){
     const g = p.getContext('2d');
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
     g.drawImage(tela, 0, y, W, fine - y, 0, sopra, W, fine - y);
+    /* dalla seconda pagina una riga piccola dice di chi e' il foglio (controllo 12/11 sera:
+       la pagina 3 della fattura non diceva ne' ditta ne' numero) */
+    if(sopra && TESTA_PDF.testo){ TESTA_PDF.n++;
+      g.fillStyle = '#7d776d'; g.font = Math.round(W * 0.0125) + 'px Georgia, serif';
+      g.fillText(TESTA_PDF.testo + ' · pagina ' + TESTA_PDF.n, Math.round(W * 0.052), Math.round(margine * 0.62)); }
+    else TESTA_PDF.n++;
     pagine.push({jpeg: jpegDa(p), w: W, h: H, da: y, a: fine});
     y = fine;
   }
@@ -15306,6 +15489,10 @@ async function pdfDaCorpo(corpo){
     /* un foglio alla volta, ognuno dalla sua prima pagina: il preventivo, poi il
        giardino misurato su una pagina nuova, cosi' la foto non resta a cavallo */
     const fogli = [...d.querySelectorAll('.foglio')], pagine = [];
+    const numDoc = d.querySelector('.foglio .a-chi > div:last-child');
+    TESTA_PDF.n = 0;
+    TESTA_PDF.testo = [S.azienda && S.azienda.nome, numDoc ? [...numDoc.children].slice(1).map(e => e.textContent).join(' · ') : '']
+      .map(s => String(s || '').replace(/\s+/g, ' ').trim()).filter(Boolean).join(' · ');
     for(const foglio of fogli){
       fogli.forEach(x => { x.style.display = x === foglio ? '' : 'none'; });
       const tela = await window.html2canvas(foglio, {scale: SCALA, backgroundColor: '#ffffff', logging: false,
@@ -15473,7 +15660,7 @@ function perIlLavoro(p, maiuscola){
   const d = soloFattura(p) ? S.documenti.find(x => x.id === p.dal_documento) : null;
   const t = soloFattura(p)
     ? 'per ' + (d ? String(d.titolo || 'il documento') : 'il lavoro') + (d && d.data ? ' del ' + dataLunga(d.data) : '')
-    : 'per il lavoro del preventivo n. ' + p.numero + ' del ' + dataLunga(p.data);
+    : 'per il lavoro del preventivo n. ' + p.numero + ' ' + conData('del', p.data);
   return maiuscola ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 }
 function tastoFatturaDocumento(d){
@@ -17527,7 +17714,7 @@ function bloccoLink(id){
   const p = prev(id); if(!p) return '';
   return `<div class="pdf-consegna" id="link-consegna">
       <div><span class="lbl">Il link da mandare</span>
-        <span>Lo apre dal telefono e lo firma via mail con OTP (un codice usa e getta che gli arriva per mail). Tu vedi quando l’ha aperto.</span></div>
+        <span>Lo apre dal telefono e lo firma con un codice che gli arriva per mail. Tu vedi quando l’ha aperto.</span></div>
       <button class="bottone piccolo" id="btn-link" onclick="preparaLink('${id}')">${linkVivo(p) ? 'Usa il link' : 'Prepara il link'}</button>
     </div>`;
 }

@@ -127,7 +127,7 @@ def testo(voce, ditta):
             corpo += "\n\nLo ritrova qui, e se le va bene lo accetta direttamente dalla pagina:\n" + voce["link"]
     chi = ditta.get("nome") or "chi le ha fatto il preventivo"
     corpo += ("\n\n" + firma).rstrip() + "\n\n(Messaggio mandato da Rilievo per conto di " + chi + \
-             (": se risponde, la risposta arriva direttamente a loro.)" if _mail_buona(ditta.get("mail")) else ".)")
+             (": se risponde, la risposta arriva direttamente a " + chi + ".)" if _mail_buona(ditta.get("mail")) else ".)")
     return oggetto, corpo
 
 

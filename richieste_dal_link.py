@@ -262,7 +262,7 @@ html,body{background:#F4EFE6;margin:0}
 .rl-pagina .errore{color:#9A4B3A}
 .rl-nascosto{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
 .rl-stima .rl-avviso{font-size:15px;color:#9A4B3A;margin:6px 0 0}
-.rl-pagina .nota a{color:inherit}
+.rl-pagina .nota a{color:inherit;display:inline-flex;align-items:center;min-height:44px}
 .rl-pagina h1{text-wrap:balance}
 .rl-pagina .fatto{font-family:'Cormorant',Georgia,serif;font-size:26px;color:#4F6B4A}
 .rl-pagina .nascosto{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
@@ -274,7 +274,7 @@ html,body{background:#F4EFE6;margin:0}
 .rl-stima .rl-forbice{font-family:'Cormorant',Georgia,serif;font-size:24px;line-height:1.25;color:#2B2822;margin:0 0 8px}
 .rl-stima .rl-nota-prezzo{font-size:14px;color:#7A746A;margin:6px 0 0}
 .rl-pagina button.rl-secondario{margin-top:0;background:#fff;color:#2B2822;border:1px solid #2B2822;font-size:16px;padding:12px 20px}
-.rl-pagina .contatti a{color:#2B2822;margin-right:18px}
+.rl-pagina .contatti a{color:#2B2822;margin-right:18px;display:inline-flex;align-items:center;min-height:44px}
 </style>"""
 
 
@@ -328,7 +328,7 @@ def _riquadro_prezzo(d, e, stima, foto, nota):
     return (f'<div class="rl-stima">'
             + (f'<p class="rl-avviso">{e(nota)}</p>' if nota else '') +
             f'<button type="submit" name="fai" value="prezzo" formnovalidate class="rl-secondario">Vedi il prezzo indicativo</button>'
-            f'<p class="rl-nota-prezzo">Per {voce.lower()}: scrivi l’indirizzo e tocca qui. Ci vuole fino a mezzo minuto: misuriamo il lotto sul catasto.</p></div>')
+            f'<p class="rl-nota-prezzo">Per {voce.lower()}: scrivi l’indirizzo e tocca qui. Ci vuole fino a un minuto: misuriamo il lotto sul catasto.</p></div>')
 
 
 def _intera(titolo, stili_app, corpo):
@@ -340,12 +340,15 @@ def _intera(titolo, stili_app, corpo):
 
 def mail_alla_ditta(d, r):
     """Oggetto e testo della mail che avvisa l'artigiano."""
-    paese = (r.get("indirizzo") or "").split(",")[-1].strip()
+    # controllo 12/11 sera: nell'oggetto solo il paese, senza CAP e sigla; senza virgole niente indirizzo
+    ind = r.get("indirizzo") or ""
+    paese = re.sub(r"\s+\(?[A-Z]{2}\)?$", "", re.sub(r"^\d{5}\s*", "", ind.split(",")[-1].strip()))[:40].strip() if "," in ind else ""
     oggetto = "Nuova richiesta da " + r["nome"] + (", " + paese if paese else "")
     testo = ("Ti ha scritto " + r["nome"] + " dal tuo link per le richieste.\n\n"
              "Telefono: " + r["tel"] + "\n" + ("Indirizzo: " + r["indirizzo"] + "\n" if r.get("indirizzo") else "") +
              "Cosa gli serve: " + r["cosa"] + "\n" +
-             ("Ha visto il prezzo indicativo: %s, da %s a %s euro (%s m2).\n" % (r["stima"]["voce"], r["stima"]["da"], r["stima"]["a"], r["stima"]["mq"])
+             ("Ha visto il prezzo indicativo: %s, da %s a %s (%s m²).\n" % (r["stima"]["voce"], _euro_tondo(r["stima"]["da"]), _euro_tondo(r["stima"]["a"]),
+                                                                            f'{int(round(float(r["stima"]["mq"]))):,}'.replace(",", "."))
               if r.get("stima") else "") + "\n"
              "La trovi anche in Rilievo, in Richieste, appena apri l'app.\n\nRilievo")
     return oggetto, testo

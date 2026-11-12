@@ -4042,7 +4042,8 @@ def servizio(porta=8787, pubblico=False):
 
         def _posta_del_link(self, fai, lid, *argomenti):
             """Lavori in piu' (12/11/2026): la posta parte nel suo filo, la pagina del cliente non aspetta."""
-            manda = lambda a, oggetto, testo: posta.manda(a, oggetto, testo, nome="Rilievo")
+            # controllo 12/11 sera: le mail al cliente portano la mail della ditta come «Rispondi a»
+            manda = lambda a, oggetto, testo, rispondi_a="": posta.manda(a, oggetto, testo, nome="Rilievo", rispondi_a=rispondi_a)
             def lavora():
                 try:
                     fai(lid, *argomenti, manda)
@@ -4297,7 +4298,17 @@ def servizio(porta=8787, pubblico=False):
                 self._pagina_cliente(stato, pagina)
                 return
             # il preventivo col link: la pagina che apre il cliente
-            m = re.fullmatch(r"/p/([a-z2-9]{14})/?", u.path)
+            # controllo 12/11 sera: anche /p/<link>/codice (pagina ricaricata o salvata dopo un tasto),
+            # il link in maiuscolo o col punto finale copiato dalla frase portano al preventivo
+            m = re.fullmatch(r"/p/([a-z2-9]{14})(/(?:accetto|risposta|pagato|codice|altra|aggiungi))?/?[.,;:!?)\]]*", u.path.lower())
+            if m and u.path != "/p/" + m.group(1):
+                self.send_response(302)
+                self.send_header("Location", "/p/" + m.group(1) + ("?" + u.query if u.query else ""))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Referrer-Policy", "no-referrer")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             if m:
                 lid = m.group(1)
                 pagina = preventivo_col_link.pagina(lid, preventivo_col_link.stili_dell_app(APP / "index.html"))

@@ -414,11 +414,11 @@ def chiedi_codice(lid, nome, con=None, mail_scritta="", ip="", browser="", manda
                           "ip": str(ip or "")[:60], "browser": str(browser or "")[:200]}
         d["codici_mandati"] = mandati + [adesso]
         _scrivi(lid, d)
-        ditta, titolo = d.get("ditta") or "", d.get("titolo") or "il preventivo"
+        ditta, titolo = d.get("ditta") or "", d.get("titolo") or ""
     partita = False
     if manda:
         testo = (f"Buongiorno {nome},\n\n"
-                 f"il codice per accettare {titolo}" + (f" di {ditta}" if ditta else "") + f" è:\n\n    {codice}\n\n"
+                 f"il codice per accettare {_il_preventivo(titolo)}" + (f" di {ditta}" if ditta else "") + f" è:\n\n    {codice}\n\n"
                  f"Scrivilo nella pagina del preventivo. Vale {CODICE_MINUTI} minuti.\n\n"
                  "Se non hai chiesto tu di accettare questo preventivo, ignora questa mail: senza il codice non succede niente.\n\n"
                  "Rilievo")
@@ -559,7 +559,9 @@ def segna_bonifico(lid):
         if not d or not d.get("accettato") or not d.get("pagamento") or _scaduto(d):
             return False
         if not d.get("bonifico"):
-            d["bonifico"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+            # controllo 12/11 sera: si ricorda quanto chiedeva la pagina quando ha pagato
+            d["bonifico"] = {"quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                             "importo": _importo_da_pagare(d)}
             _scrivi(lid, d)
         return True
 
@@ -609,7 +611,9 @@ def decidi_in_piu(lid, gestione, chi, esito):
 
 
 # ---- le mail: all'artigiano quando il cliente risponde, al cliente l'esito -----
-INDIRIZZO_APP = "https://rilievoapp.it/"
+# ?entra=1 (controllo 12/11 sera): apre l'app e chiede mail e password anche su un telefono nuovo
+INDIRIZZO_APP = "https://rilievoapp.it/?entra=1"
+INDIRIZZO_SITO = "https://rilievoapp.it"
 _FINTE = ("@example.", "collaud")
 
 
@@ -627,6 +631,14 @@ def niente_posta(d, mail):
     if (d.get("da") or "") in no:
         return True
     return (d.get("ditta") or "").strip() == "Giardini Conti"      # la dimostrazione
+
+
+def _il_preventivo(titolo):
+    """«il preventivo «Sfalcio»», ma «Preventivo n. 12» senza ripetere la parola."""
+    titolo = str(titolo or "").strip()
+    if not titolo or titolo.lower() == "il preventivo":
+        return "il preventivo"
+    return f"«{titolo}»" if titolo.lower().startswith("preventivo") else f"il preventivo «{titolo}»"
 
 
 def _voci_scritte(voci):
@@ -666,15 +678,16 @@ def avvisa_ditta(lid, cose, manda):
     piede = "\n\nTi scriviamo solo quando un cliente risponde. Lo spegni in Impostazioni."
     mail = []
     lavoro = "un lavoro" if len(nuove) == 1 else "dei lavori"
+    totale = f"Totale accettato: {_euro(acc['totale'])}.\n\n" if acc.get("totale") is not None else ""
     chiedi = (f"\n\nPrima di farlo ti serve il tuo sì. Apri Rilievo e rispondi: {INDIRIZZO_APP}")
     if "accettato" in altre and nuove:
         mail.append((f"{N} ha accettato il preventivo e vorrebbe aggiungere {lavoro} · {T}",
-                     f"Buone notizie: {N} ha accettato il preventivo «{T}».\n\n"
+                     f"Buone notizie: {N} ha accettato {_il_preventivo(T)}.\n\n" + totale +
                      f"Vorrebbe aggiungere anche:\n{_voci_scritte(nuove)}" + chiedi + piede))
     elif "accettato" in altre:
         mail.append((f"{N} ha accettato il preventivo · {T}",
-                     f"Buone notizie: {N} ha accettato il preventivo «{T}».\n\n"
-                     f"Apri Rilievo e dagli un giorno: {INDIRIZZO_APP}" + piede))
+                     f"Buone notizie: {N} ha accettato {_il_preventivo(T)}.\n\n" + totale +
+                     f"Apri Rilievo e fissa il giorno del lavoro: {INDIRIZZO_APP}" + piede))
     elif nuove:
         mail.append((f"{N} vorrebbe aggiungere {lavoro} · {T}",
                      f"{N} vorrebbe aggiungere al preventivo «{T}»:\n{_voci_scritte(nuove)}" + chiedi + piede))
@@ -685,10 +698,13 @@ def avvisa_ditta(lid, cose, manda):
     if "no" in altre:
         mail.append((f"Il cliente ha detto no · {T}",
                      f"Motivo: {dict(MOTIVI_NO).get(risp.get('motivo'), 'Altro')}.\n\n"
+                     + (f"Ha scritto: «{str(risp.get('nota') or '')[:200]}».\n\n" if risp.get("nota") else "") +
                      f"Su Rilievo il preventivo è fra i rifiutati: {INDIRIZZO_APP}" + piede))
     if "bonifico" in altre:
-        mail.append((f"Il cliente dice di aver pagato · {T}",
-                     f"Controlla in banca. Quando lo vedi arrivato, segnalo su Rilievo: {INDIRIZZO_APP}" + piede))
+        pagato = (d.get("bonifico") or {}).get("importo")
+        mail.append((f"{N} dice di aver pagato · {T}",
+                     f"{N} dice di aver fatto il bonifico" + (f" di {_euro(pagato)}" if pagato else "") + ".\n\n"
+                     f"Controlla in banca. Quando lo vedi arrivato, segna su Rilievo che è pagato: {INDIRIZZO_APP}" + piede))
     ok = False
     for oggetto, testo in mail:
         try:
@@ -717,22 +733,27 @@ def avvisa_cliente(lid, manda):
         _scrivi(lid, d)
     ditta = (d.get("ditta") or "").strip() or "La ditta"
     T = d.get("titolo") or "il preventivo"
-    url = INDIRIZZO_APP.rstrip("/") + "/p/" + lid
+    url = INDIRIZZO_SITO + "/p/" + lid
+    # 3: se il cliente risponde, la risposta va alla ditta, non a info@
+    rispondi_a = d.get("mail_ditta") if mail_buona(d.get("mail_ditta") or "") else ""
+    rispondi = f"Per rispondere a {ditta} basta rispondere a questa mail.\n\n" if rispondi_a else ""
     ok = False
     if si:
         tot = acc.get("totale")
         testo = (f"Buongiorno,\n\n{ditta} ha confermato: farà anche {_elenco([x['nome'] for x in si])}."
                  + (f" Nuovo totale {_euro(tot)}." if tot is not None else "")
-                 + f"\n\nIl preventivo aggiornato è qui: {url}\n\nRilievo")
+                 + f"\n\nIl preventivo aggiornato è qui: {url}\n\n{rispondi}Rilievo")
+        cosa = "il lavoro in più" if len(si) == 1 else "i lavori in più"
         try:
-            ok = bool(manda(a, f"{ditta} ha confermato il lavoro in più · {T}", testo)) or ok
+            ok = bool(manda(a, f"{ditta} ha confermato {cosa} · {T}", testo, rispondi_a=rispondi_a)) or ok
         except Exception as e:              # noqa: BLE001
             print("  esito al cliente non partito:", type(e).__name__)
     if no:
         testo = (f"Buongiorno,\n\n{ditta} per questa volta non riesce ad aggiungere {_elenco([x['nome'] for x in no])}. "
-                 f"Il resto del lavoro resta confermato: ne parlate di persona.\n\nIl preventivo è qui: {url}\n\nRilievo")
+                 f"Il resto del lavoro resta confermato: ne parlate di persona.\n\nIl preventivo è qui: {url}\n\n{rispondi}Rilievo")
+        cosa = "Il lavoro in più" if len(no) == 1 else "I lavori in più"
         try:
-            ok = bool(manda(a, f"Il lavoro in più, per questa volta no · {T}", testo)) or ok
+            ok = bool(manda(a, f"{cosa}, per questa volta no · {T}", testo, rispondi_a=rispondi_a)) or ok
         except Exception as e:              # noqa: BLE001
             print("  esito al cliente non partito:", type(e).__name__)
     return ok
@@ -751,16 +772,16 @@ html,body{background:#F4EFE6;margin:0}
 .banda h1{font-weight:400;font-size:28px;margin:4px 0 0}
 .carta{max-width:920px;margin:12px auto}
 .carta .foglio{margin:0 auto 18px!important}
-.accetta{max-width:920px;margin:0 auto 60px;padding:26px 20px;font-family:'EB Garamond','Cormorant',Georgia,serif;font-size:17px;scroll-margin-top:12px;color:#2B2822;border-top:1px solid #D9D1C2}
+.accetta{max-width:920px;margin:0 auto 24px;padding:26px 20px;font-family:'EB Garamond','Cormorant',Georgia,serif;font-size:17px;scroll-margin-top:12px;color:#2B2822;border-top:1px solid #D9D1C2}
 .accetta h2{font-weight:400;font-size:24px;margin:0 0 6px}
 .accetta p{margin:6px 0 14px;color:#4A463F;line-height:1.5}
 .accetta input[type=text],.accetta input[type=email]{width:100%;box-sizing:border-box;font-size:19px;padding:14px;border:1px solid #BDB4A3;background:#fff;font-family:inherit;margin-bottom:8px}
-.accetta label.ok{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:16px}
+.accetta label.ok{display:flex;gap:10px;align-items:flex-start;margin:6px 0;padding:10px 0;min-height:44px;box-sizing:border-box;font-size:16px}
 .accetta label.ok input{width:22px;height:22px;margin-top:2px;flex:0 0 22px}
 .accetta button{font-size:18px;padding:15px 28px;border:0;background:#2B2822;color:#F4EFE6;font-family:inherit;letter-spacing:.04em}
 .accetta .fatto{font-size:22px;color:#4F6B4A}
 .accetta .errore{color:#9A4B3A}
-.accetta .contatti a{color:#2B2822;margin-right:18px;white-space:nowrap}
+.accetta .contatti a{color:#2B2822;margin-right:18px;white-space:nowrap;display:inline-flex;align-items:center;min-height:44px}
 .accetta input.codice{font-size:26px;letter-spacing:.3em}
 .accetta input.codice::placeholder{letter-spacing:normal;font-size:19px}
 .accetta .ancora{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 16px}
@@ -772,7 +793,7 @@ html,body{background:#F4EFE6;margin:0}
 .aggiungi h3{font-weight:400;font-size:20px;margin:0 0 4px}
 .aggiungi .totale-scelto{font-size:18px;margin:10px 0 12px}
 .altre{margin-top:26px;border-top:1px solid #D9D1C2;padding-top:14px}
-.altre summary{cursor:pointer;font-size:17px;color:#4A463F}
+.altre summary{cursor:pointer;font-size:17px;color:#4A463F;padding:10px 0;min-height:44px;box-sizing:border-box}
 .altre form{margin:14px 0 6px}
 .altre textarea,.altre input[type=text]{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid #BDB4A3;background:#fff;font-family:inherit;margin:4px 0 10px}
 .pagare{max-width:920px;margin:12px auto 0;padding:22px 20px;font-family:'EB Garamond','Cormorant',Georgia,serif;color:#2B2822;background:#FBF8F2;border:1px solid #D9D1C2;box-sizing:border-box}
@@ -806,22 +827,36 @@ def _iban_scritto(iban):
     return " ".join(iban[i:i + 4] for i in range(0, len(iban), 4))
 
 
+def _importo_da_pagare(d):
+    """Quanto chiede adesso il riquadro «Come pagare»: se il cliente ha aggiunto delle voci,
+    l'acconto segue il totale che ha scelto."""
+    pg = d.get("pagamento") or {}
+    importo = pg.get("importo")
+    acc = d.get("accettato") or {}
+    if importo is not None and acc.get("totale") is not None and d.get("base"):
+        importo = round(importo * acc["totale"] / d["base"], 2) if pg.get("acconto") else acc["totale"]
+    return importo
+
+
 def _come_pagare(d, e, ditta, con_tasto):
     pg = d.get("pagamento")
     if not pg:
         return ""
     cosa = "l’acconto" if pg.get("acconto") else "il preventivo"
-    importo = pg["importo"]
-    acc = d.get("accettato") or {}
-    if acc.get("totale") is not None and d.get("base"):
-        # il cliente ha aggiunto delle voci: l'acconto segue il totale che ha scelto
-        importo = round(importo * acc["totale"] / d["base"], 2) if pg.get("acconto") else acc["totale"]
+    importo = _importo_da_pagare(d)
     righe = (f'<div class="pagare"><h2>Come pagare {cosa}</h2>'
              f'<p class="cifra">{e(_euro(importo))}</p>'
              f'<p>Bonifico a <b>{e(pg.get("intestato") or ditta)}</b><br>IBAN<br><span class="iban">{e(_iban_scritto(pg["iban"]))}</span>'
              + (f'<br>Causale: {e(pg["causale"])}' if pg.get("causale") else '') + '</p>')
-    if d.get("bonifico"):
-        righe += f'<p class="fatto">Grazie: hai detto di aver fatto il bonifico. {ditta or 'La ditta'} controlla e ti conferma.</p>'
+    pagato = (d.get("bonifico") or {}).get("importo")
+    if d.get("bonifico") and pagato and importo - pagato >= 0.01:
+        # controllo 12/11 sera: dopo il bonifico la ditta ha confermato un lavoro in piu'
+        righe += (f'<p class="fatto">Hai detto di aver fatto il bonifico di {e(_euro(pagato))}. '
+                  f'Con i lavori in più confermati la cifra è salita: mancano {e(_euro(round(importo - pagato, 2)))}.</p>'
+                  f'<p class="nota">Puoi mandarli con un altro bonifico, oppure mettervi d’accordo con {ditta or "la ditta"}.</p>')
+    elif d.get("bonifico"):
+        righe += (f'<p class="fatto">Grazie: hai detto di aver fatto il bonifico' + (f' di {e(_euro(pagato))}' if pagato else '')
+                  + f'. {ditta or 'La ditta'} controlla e ti conferma.</p>')
     elif con_tasto:
         righe += (f'<form method="post" action="/p/{e(d["_lid"])}/pagato#rispondi">'
                   f'<button type="submit">Ho fatto il bonifico</button></form>'
@@ -853,9 +888,14 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
                      f'<div class="accetta"><p>Il tempo per accettarlo è passato. Chiedi a {ditta or "chi te l’ha mandato"} di rinnovarlo: '
                      f'ti manda il link nuovo.</p>{_contatti("Per chiederlo:")}</div>')
         else:
-            corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>Questo preventivo non è più valido</h1></div>'
-                     '<div class="accetta"><p>Chi te l’ha mandato lo ha ritirato o ne ha fatto uno nuovo. '
-                     f'Chiedigli il link aggiornato.</p>{_contatti("Per chiederlo:")}</div>')
+            corpo = (f'<div class="banda"><div class="chi">{ditta}</div><h1>'
+                     + ('La pagina del preventivo è chiusa' if d.get("accettato") and not d.get("ritirato") else 'Questo preventivo non è più valido')
+                     + '</h1></div>'
+                     + ('<div class="accetta"><p>Questo preventivo era stato accettato. Dopo sei mesi la pagina si chiude: '
+                        f'se ti serve una copia, chiedila a {ditta or "chi te l’ha mandato"}.</p>{_contatti("Per chiederla:")}</div>'
+                        if d.get("accettato") and not d.get("ritirato") else
+                        '<div class="accetta"><p>Chi te l’ha mandato lo ha ritirato o ne ha fatto uno nuovo. '
+                        f'Chiedigli il link aggiornato.</p>{_contatti("Per chiederlo:")}</div>'))
         return _intera(e(d.get("titolo") or "Preventivo"), stili_app, corpo)
     acc = d.get("accettato")
     risp = d.get("risposta") or {}
@@ -981,8 +1021,11 @@ def _lavori_in_piu(d, e, ditta, con=None):
                       'Il resto del lavoro resta confermato: ne parlate di persona.</p>')
         else:
             righe += f'<p class="attesa">In attesa di conferma: {voce}</p>'
-    if righe and any(x.get("esito") is None for x in d.get("in_piu") or []):
+    attesa = sum(1 for x in d.get("in_piu") or [] if x.get("esito") is None)
+    if righe and attesa == 1:
         righe += f'<p class="nota">{chi} ti conferma se riesce a farlo nella stessa giornata. Finché non conferma, non entra nel totale.</p>'
+    elif righe and attesa > 1:
+        righe += f'<p class="nota">{chi} ti conferma se riesce a farli nella stessa giornata. Finché non conferma, non entrano nel totale.</p>'
     chiesti = {x["k"] for x in d.get("in_piu") or []} | set((d.get("accettato") or {}).get("scelte") or [])
     restano = [v for v in d.get("facoltative") or [] if v["k"] not in chiesti]
     modulo = ""

@@ -30,7 +30,7 @@ a{color:#3E4A3A}
 .g-testa{display:flex;align-items:center;justify-content:space-between;padding:24px 0 0}
 .g-marchio{display:flex;align-items:center;gap:12px;font-family:'Cormorant',Georgia,serif;font-size:27px;letter-spacing:.02em;color:#1B1917;text-decoration:none}
 .g-marchio i{display:grid;place-items:center;width:38px;height:38px;border:1px solid #4F6B54;border-radius:50%;font-style:normal;font-size:25px;color:#4F6B54;line-height:1}
-.g-tutte{font-family:'Jost',system-ui,sans-serif;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#4F6B54;text-decoration:none}
+.g-tutte{font-family:'Jost',system-ui,sans-serif;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#4F6B54;text-decoration:none;display:inline-block;padding:14px 0}
 .g-eti{font-family:'Jost',system-ui,sans-serif;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#8A8377;margin-bottom:14px}
 article{padding:54px 0 10px}
 h1{font-family:'Cormorant',Georgia,serif;font-weight:500;font-size:clamp(36px,6vw,54px);line-height:1.08;letter-spacing:-.005em}
@@ -88,19 +88,20 @@ section{padding:46px 0;border-top:1px solid #E2DCD0}
 .g-errore{color:#F2C3B6;min-height:1.2em;font-size:17px}
 .g-grazie{margin-top:22px;padding-top:18px;border-top:1px solid #9fac96;font-family:'Cormorant',Georgia,serif;font-size:26px;line-height:1.3}
 .g-faq details{border-bottom:1px solid #E2DCD0;padding:14px 0}
-.g-faq summary{cursor:pointer;font-size:20px;list-style:none;padding-right:28px;position:relative}
+.g-faq summary{cursor:pointer;font-size:20px;list-style:none;padding:7px 28px 7px 0;min-height:44px;position:relative}
 .g-faq summary::-webkit-details-marker{display:none}
-.g-faq summary:after{content:"+";position:absolute;right:4px;top:-2px;font-family:'Jost',system-ui,sans-serif;font-size:22px;color:#9A7B3F}
+.g-faq summary:after{content:"+";position:absolute;right:4px;top:5px;font-family:'Jost',system-ui,sans-serif;font-size:22px;color:#9A7B3F}
 .g-faq details[open] summary:after{content:"−"}
 .g-faq details p{margin-top:10px;color:#4A453E}
 .g-fonti ul{margin-left:18px;font-size:16px;color:#4A453E}
 .g-fonti li{margin:6px 0}
+.g-fonti a{display:inline-block;padding:11px 0}
 .g-vicine ul,.g-elenco{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
 .g-vicine li,.g-elenco li{padding:16px 18px;background:#FFFDF9;border:1px solid #E2DCD0;border-radius:10px}
-.g-vicine a,.g-elenco a{font-family:'Cormorant',Georgia,serif;font-size:23px;font-weight:600;line-height:1.2;text-decoration:none;color:#1B1917}
+.g-vicine a,.g-elenco a{display:block;padding:8px 0;font-family:'Cormorant',Georgia,serif;font-size:23px;font-weight:600;line-height:1.2;text-decoration:none;color:#1B1917}
 .g-vicine small,.g-elenco small{display:block;margin-top:4px;font-family:'Jost',system-ui,sans-serif;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8A8377}
 .g-piede{padding:34px 0 50px;display:flex;flex-wrap:wrap;gap:10px 26px;font-family:'Jost',system-ui,sans-serif;font-size:13px;color:#8A8377;border-top:1px solid #E2DCD0}
-.g-piede a{color:#8A8377;text-decoration:none;border-bottom:1px solid #E2DCD0}
+.g-piede a{color:#8A8377;text-decoration:underline;text-decoration-color:#E2DCD0;text-underline-offset:4px;display:inline-block;padding:12px 0}
 @media (max-width:560px){
  body{font-size:18px}
  .g-riga{grid-template-columns:1fr 1fr}

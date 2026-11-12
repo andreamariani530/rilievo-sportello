@@ -135,13 +135,13 @@ def testo(bozze, stato):
                  + ". È ancora in bozza, quindi il cliente non l'ha ricevuto.\n\n"
                  "Per mandarglielo apri il preventivo e tocca «Consegnalo al cliente»: "
                  "parte su WhatsApp o per mail, con il link per accettarlo.\n"
-                 + SITO + "/#preventivo/" + str(p["id"]))
+                 + SITO + "/?entra=1#preventivo/" + str(p["id"]))
     else:
         oggetto = "Hai %d preventivi pronti da mandare" % len(bozze)
         righe = []
         for p in bozze[:5]:
-            chi = _per_chi(p, stato) or ("n. " + str(p.get("numero") or "")).strip()
-            righe.append("- " + chi + ": " + SITO + "/#preventivo/" + str(p["id"]))
+            chi = _per_chi(p, stato) or (("n. " + str(p["numero"])) if p.get("numero") else "preventivo senza nome")
+            righe.append("- " + chi + ": " + SITO + "/?entra=1#preventivo/" + str(p["id"]))
         corpo = ("Ciao,\n\nin Rilievo hai %d preventivi pronti, ancora in bozza: "
                  "i clienti non li hanno ricevuti.\n\n" % len(bozze)
                  + "\n".join(righe)
