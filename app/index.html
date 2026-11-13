@@ -2013,7 +2013,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-13 10:28';
+const COSTRUITA = '2026-11-13 12:40';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -2206,9 +2206,75 @@ function fotoFai(modo, fare){
   }));
 }
 const fotoPesante = v => typeof v === 'string' && v.length > FOTO_PESANTE && v.slice(0, 11) === 'data:image/';
+/* 13/11/2026: anche le foto del posto (s.foto[].src) e quelle sulle voci (r.foto) vanno
+   nella memoria grande. Con foto vere dopo 11-20 in tutto compariva «memoria piena».
+   Ogni foto fuori si segna con la chiave del suo posto in IndexedDB: f._fuori per le foto
+   del posto, r._fotoFuori per quelle delle voci. La chiave porta dentro un'impronta della
+   foto, cosi' una riga spostata o una foto cambiata non riprende mai la foto di un'altra. */
+function improntaFoto(v){
+  let h = 7; const n = v.length, passo = Math.max(1, Math.floor(n / 600));
+  for(let i = 0; i < n; i += passo) h = (h * 31 + v.charCodeAt(i)) | 0;
+  for(let i = Math.max(0, n - 80); i < n; i++) h = (h * 31 + v.charCodeAt(i)) | 0;
+  return n.toString(36) + '-' + (h >>> 0).toString(36);
+}
+const chiaveFotoPosto = (s, f) => 'p|' + s.id + '|' + f.id + '|' + improntaFoto(f.src);
+const chiaveFotoVoce  = (p, r) => 'v|' + p.id + '|' + improntaFoto(r.foto);
+/* le foto del posto e delle voci di S, una per una: chiave, foto, dove sta */
+function fotoDiCarta(fare){
+  (Array.isArray(S && S.sopralluoghi) ? S.sopralluoghi : []).forEach(s => {
+    if(s && Array.isArray(s.foto)) s.foto.forEach(f => {
+      if(f && typeof f === 'object' && fotoPesante(f.src)) fare(chiaveFotoPosto(s, f), f.src, {tipo: 'posto', sop: s.id, foto: f.id});
+    });
+  });
+  (Array.isArray(S && S.preventivi) ? S.preventivi : []).forEach(p => {
+    if(p && Array.isArray(p.righe)) p.righe.forEach(r => {
+      if(r && typeof r === 'object' && fotoPesante(r.foto)) fare(chiaveFotoVoce(p, r), r.foto, {tipo: 'voce', prev: p.id});
+    });
+  });
+}
+/* le stesse, alleggerite per la memoria piccola: null se non c'e' niente da togliere */
+function cartaLeggera(){
+  let tolte = false;
+  const sop = (Array.isArray(S.sopralluoghi) ? S.sopralluoghi : []).map(s => {
+    if(!s || !Array.isArray(s.foto) || !s.foto.length) return s;
+    let qui = false;
+    const l = s.foto.map(f => {
+      if(!f || typeof f !== 'object') return f;
+      if(fotoPesante(f.src)){
+        const k = chiaveFotoPosto(s, f);
+        if(fotoGiaFuori.get(k) !== f.src) return f;
+        const x = Object.assign({}, f); delete x.src; x._fuori = k; qui = true; return x;
+      }
+      /* non ancora ripresa all'avvio: resta segnata, se no si perderebbe */
+      if(f.src === undefined && typeof f._fuori === 'string') qui = true;
+      return f;
+    });
+    if(qui){ tolte = true; return Object.assign({}, s, {foto: l}); }
+    return s;
+  });
+  const pre = (Array.isArray(S.preventivi) ? S.preventivi : []).map(p => {
+    if(!p || !Array.isArray(p.righe)) return p;
+    let qui = false;
+    const righe = p.righe.map(r => {
+      if(!r || typeof r !== 'object') return r;
+      if(fotoPesante(r.foto)){
+        const k = chiaveFotoVoce(p, r);
+        if(fotoGiaFuori.get(k) !== r.foto) return r;
+        const x = Object.assign({}, r); delete x.foto; x._fotoFuori = k; qui = true; return x;
+      }
+      if(r.foto === undefined && typeof r._fotoFuori === 'string') qui = true;
+      return r;
+    });
+    if(qui){ tolte = true; return Object.assign({}, p, {righe}); }
+    return p;
+  });
+  return tolte ? {sopralluoghi: sop, preventivi: pre} : null;
+}
 /* lo stato da scrivere nella memoria piccola: S, senza le foto che IndexedDB ha gia' */
 function statoDaScrivere(){
-  if(!S || !S.rilievi || typeof S.rilievi !== 'object') return S;
+  if(!S || typeof S !== 'object') return S;
+  const carta = (fotoGiaFuori.size || fotoFuoriDaRiprendere) ? cartaLeggera() : null;
+  if(!S.rilievi || typeof S.rilievi !== 'object') return carta ? Object.assign({}, S, carta) : S;
   let tolte = false;
   const ril = {};
   Object.keys(S.rilievi).forEach(id => {
@@ -2225,14 +2291,18 @@ function statoDaScrivere(){
     if(fuori.length){ leggero._fuori = fuori; tolte = true; } else delete leggero._fuori;
     ril[id] = leggero;
   });
-  return tolte ? Object.assign({}, S, {rilievi: ril}) : S;
+  if(!tolte && !carta) return S;
+  return Object.assign({}, S, tolte ? {rilievi: ril} : {}, carta || {});
 }
 /* le foto nuove o cambiate vanno in IndexedDB; quando ci sono, si riscrive lo stato leggero */
 function mandaFotoFuori(){
-  if(!S || !S.rilievi || typeof S.rilievi !== 'object') return;
+  if(!S || typeof S !== 'object') return;
   if(fotoInViaggio){ fotoDiNuovo = true; return; }
   const daMettere = [];
-  Object.keys(S.rilievi).forEach(id => {
+  fotoDiCarta((k, dato, dove) => {
+    if(fotoGiaFuori.get(k) !== dato && !daMettere.some(x => x.id === k)) daMettere.push(Object.assign({id: k, dato}, dove));
+  });
+  if(S.rilievi && typeof S.rilievi === 'object') Object.keys(S.rilievi).forEach(id => {
     const r = S.rilievi[id]; if(!r || typeof r !== 'object') return;
     Object.keys(r).forEach(k => {
       if(fotoPesante(r[k]) && fotoGiaFuori.get(id + '|' + k) !== r[k])
@@ -2254,15 +2324,39 @@ function mandaFotoFuori(){
     });
 }
 /* all'avvio: le foto tornano dentro i loro rilievi, prima di disegnare la prima pagina */
+let fotoFuoriDaRiprendere = false;   /* qualche foto del posto o delle voci e' ancora fuori */
 async function riprendiFoto(){
-  if(!S || !S.rilievi || typeof S.rilievi !== 'object') return;
+  if(!S || typeof S !== 'object') return;
+  const RIL = (S.rilievi && typeof S.rilievi === 'object') ? S.rilievi : {};
   let tutte;
   try{
     tutte = await Promise.race([fotoFai('readonly', st => st.getAll()),
                                 new Promise((_, no) => setTimeout(() => no(new Error('lenta')), 5000))]);
   }catch(e){ return; }
+  /* le foto del posto e delle voci: tornano al loro posto per chiave */
+  const perChiave = new Map();
+  (tutte || []).forEach(x => { if(x && x.tipo && typeof x.dato === 'string') perChiave.set(x.id, x.dato); });
+  const segnate = new Set();
+  (Array.isArray(S.sopralluoghi) ? S.sopralluoghi : []).forEach(s => {
+    if(s && Array.isArray(s.foto)) s.foto.forEach(f => {
+      if(!f || typeof f !== 'object' || typeof f._fuori !== 'string') return;
+      const k = f._fuori;
+      if(f.src === undefined && perChiave.has(k)){ f.src = perChiave.get(k); fotoGiaFuori.set(k, f.src); }
+      if(f.src !== undefined) delete f._fuori; else { segnate.add(k); fotoFuoriDaRiprendere = true; }
+    });
+  });
+  (Array.isArray(S.preventivi) ? S.preventivi : []).forEach(p => {
+    if(p && Array.isArray(p.righe)) p.righe.forEach(r => {
+      if(!r || typeof r !== 'object' || typeof r._fotoFuori !== 'string') return;
+      const k = r._fotoFuori;
+      if(r.foto === undefined && perChiave.has(k)){ r.foto = perChiave.get(k); fotoGiaFuori.set(k, r.foto); }
+      if(r.foto !== undefined) delete r._fotoFuori; else { segnate.add(k); fotoFuoriDaRiprendere = true; }
+    });
+  });
+  fotoDiCarta(k => segnate.add(k));
   (tutte || []).forEach(x => {
-    const r = x && S.rilievi[x.ril];
+    if(!x || x.tipo) return;
+    const r = RIL[x.ril];
     if(!r || !Array.isArray(r._fuori) || r._fuori.indexOf(x.campo) < 0 || r[x.campo] !== undefined) return;
     r[x.campo] = x.dato;
     fotoGiaFuori.set(x.id, x.dato);
@@ -2270,7 +2364,7 @@ async function riprendiFoto(){
     if(!r._fuori.length) delete r._fuori;
   });
   /* le foto di rilievi che non ci sono piu' si buttano */
-  const via = (tutte || []).filter(x => x && !S.rilievi[x.ril]).map(x => x.id);
+  const via = (tutte || []).filter(x => x && (x.tipo ? !segnate.has(x.id) : !RIL[x.ril])).map(x => x.id);
   if(via.length) fotoFai('readwrite', st => { via.forEach(k => st.delete(k)); }).catch(() => {});
 }
 function svuotaFoto(){
@@ -4509,7 +4603,7 @@ function schedaRiga(id, k){
     testoElimina: 'Tolgo questa voce dal preventivo.',
     dopo: () => {
       /* la memoria del telefono e' piena: la foto non entra, il resto si' */
-      if(!salva() && r.foto){ delete r.foto; salva(); avvisa('La foto non è entrata: la memoria del telefono è piena. In Impostazioni salva tutto in un file.'); return; }
+      if(!salva() && r.foto && !fotoInViaggio){ delete r.foto; salva(); avvisa('La foto non è entrata: la memoria del telefono è piena. In Impostazioni salva tutto in un file.'); return; }
       /* PreventivAI (4 ottobre 2026): il prezzo cambiato puo' tornare nel listino,
          cosi' il prossimo preventivo esce giusto. Solo se lo chiedi tu. */
       const x = prezzoNelListino; prezzoNelListino = null;
@@ -4647,7 +4741,8 @@ function aggiungiFoto(id, src, nota){
   const s = sopr(id); if(!s || !src) return false;
   s.foto = s.foto || [];
   s.foto.push({id: nuovoId('f'), src: src, nota: nota || '', quando: S.oggi});
-  if(!salva()){
+  /* 13/11/2026: se la foto sta andando nella memoria grande, il salvataggio si rifa' appena c'e' */
+  if(!salva() && !fotoInViaggio){
     s.foto.pop(); salva();
     avvisa('La memoria del telefono è piena. In Impostazioni salva tutto in un file, poi togli le foto vecchie.');
     return false;
@@ -4695,7 +4790,7 @@ function schedaFoto(idSopralluogo, idFoto){
   });
 }
 function fotoHtml(s){
-  const l = s.foto || [];
+  const l = (s.foto || []).filter(f => f && f.src);
   return `<div class="riquadro" style="margin-top:22px">
     <div class="foto-testa">
       <div>
@@ -15389,7 +15484,7 @@ PAGINE.documento = {
     const righe = p.righe.filter(r => r.on && !r.facoltativa);
     const fac = p.righe.filter(r => r.on && r.facoltativa);
     const sop = S.sopralluoghi.find(x => x.preventivo === p.id);
-    const foto = sop && sop.foto ? sop.foto : [];
+    const foto = sop && Array.isArray(sop.foto) ? sop.foto.filter(f => f && f.src) : [];
     /* il giardino misurato: la foto con le parti disegnate e la loro misura. Vale
        anche per un preventivo scritto a mano a un cliente gia' misurato: il suo
        giardino gli resta attaccato e finisce stampato (Andrea, 21 settembre 2026). */
@@ -17544,6 +17639,7 @@ function fuoriDalServer(){
   if(senzaAccesso()) apriMuro();
 }
 let copiaTimer = null, copiaInViaggio = false, copiaDiNuovo = false;
+const TETTO_COPIA = 10.5 * 1024 * 1024;
 function copiaFraPoco(){
   if(!copiaAccesa()) return;
   clearTimeout(copiaTimer);
@@ -17564,7 +17660,13 @@ async function mandaCopia(forza){
     if(c.conflitto && !forza) return false;      // aspetta che la persona scelga
     const testo = JSON.stringify(S), impronta = improntaLavoro(testo);
     if(!forza && impronta === c.impronta) return true;   // niente di nuovo da mandare
-    const {stato, ok, d} = await chiamaServer('/copia/salva', {mail: c.mail, gettone: c.gettone, copia: copiaDaMandare(),
+    /* 13/11/2026: con le foto nella memoria grande il lavoro puo' passare i 12 MB che il server
+       tiene. Sopra il tetto le foto si rifanno piu' leggere SOLO per la copia, come per il link */
+    let copiaVa = copiaDaMandare();
+    if(testo.length > TETTO_COPIA){
+      try{ copiaVa = JSON.parse(await alleggerisciCorpo(JSON.stringify(copiaVa), TETTO_COPIA)); }catch(e){}
+    }
+    const {stato, ok, d} = await chiamaServer('/copia/salva', {mail: c.mail, gettone: c.gettone, copia: copiaVa,
       partenza: forza ? (c.conflitto && c.conflitto.versione) || c.versione || 0 : (c.versione || 0),
       /* dentro va anche l'elenco gia' pronto per i promemoria automatici (promemoria.py) */
       da: telefonoCheSalva()});
