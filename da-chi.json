@@ -313,6 +313,30 @@
    "ditta": "Dieffe Clima (D.F. Clima snc)",
    "n": "84"
   },
+  "le-vele": {
+   "ditta": "Fondazione Le Vele",
+   "n": "85"
+  },
+  "umanitaria": {
+   "ditta": "Società Umanitaria",
+   "n": "86"
+  },
+  "sannino": {
+   "ditta": "Studio Sannino",
+   "n": "87"
+  },
+  "unione-artigiani": {
+   "ditta": "Unione Artigiani della Provincia di Milano",
+   "n": "88"
+  },
+  "apa-confartigianato": {
+   "ditta": "APA Confartigianato Milano Monza Brianza",
+   "n": "89"
+  },
+  "assoflor": {
+   "ditta": "Assoflor",
+   "n": "90"
+  },
   "prova-andrea": {
    "ditta": "Il link di prova di Andrea",
    "prova": true
