@@ -37,6 +37,7 @@ LE DIFESE
 import hashlib, html, json, os, pathlib, re, secrets, threading, time
 
 import archivio
+import foto_clienti        # fino a 3 foto del posto (13/11/2026)
 
 _chiave = threading.RLock()
 _ALFABETO = "abcdefghijkmnpqrstuvwxyz23456789"
@@ -134,7 +135,7 @@ def _pulito(x, n):
     return re.sub(r"\s+", " ", str(x or "")).strip()[:n]
 
 
-def ricevi(codice, campi, ip=""):
+def ricevi(codice, campi, ip="", foto=None):
     """Una richiesta dal modulo. Torna (stato, messaggio, chi) con stato 'ok', 'errore' o 'finto'."""
     ditta = di_chi(codice)
     if not ditta:
@@ -169,6 +170,8 @@ def ricevi(codice, campi, ip=""):
         attesa = _leggi_json(f, [])[-(MAX_IN_ATTESA - 1):]
         nuova = {"id": "rl" + secrets.token_hex(6), "quando": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(adesso)),
                  "nome": nome, "tel": tel, "indirizzo": indirizzo, "cosa": cosa}
+        if foto_clienti.nomi_buoni(foto):
+            nuova["foto"] = foto_clienti.nomi_buoni(foto)
         st = _stime.get((codice, _chiave_ind(indirizzo)))
         if st and adesso - st["quando"] < 3600:
             nuova["stima"] = {k: st[k] for k in ("mq", "da", "a", "voce")}
@@ -308,6 +311,7 @@ def pagina(codice, stili_app, errore="", fatto=False, valori=None, stima=None, f
              + (_riquadro_prezzo(d, e, stima, foto, nota_prezzo) if d.get("prezzo") else "") +
              f'<label for="cosa">Cosa ti serve</label><textarea id="cosa" name="cosa" required minlength="3" '
              f'placeholder="Per esempio: cosa va fatto, quanto è grande, per quando ti serve">{e(v.get("cosa", ""))}</textarea>'
+             + foto_clienti.riquadro(v) +
              f'<div class="nascosto" aria-hidden="true"><label for="sito">Lascia vuoto</label><input id="sito" name="sito" tabindex="-1" autocomplete="off"></div>'
              f'<button type="submit">Manda la richiesta</button></form>{contatti}'
              f'<p class="nota">Nome, telefono e indirizzo vanno solo a {ditta}, per richiamarti, e non servono ad altro. '
@@ -347,6 +351,8 @@ def mail_alla_ditta(d, r):
     testo = ("Ti ha scritto " + r["nome"] + " dal tuo link per le richieste.\n\n"
              "Telefono: " + r["tel"] + "\n" + ("Indirizzo: " + r["indirizzo"] + "\n" if r.get("indirizzo") else "") +
              "Cosa gli serve: " + r["cosa"] + "\n" +
+             (("Ha mandato %s: le vedi in Rilievo.\n" % ("una foto" if len(r["foto"]) == 1 else "%d foto" % len(r["foto"])))
+              if r.get("foto") else "") +
              ("Ha visto il prezzo indicativo: %s, da %s a %s (%s m²).\n" % (r["stima"]["voce"], _euro_tondo(r["stima"]["da"]), _euro_tondo(r["stima"]["a"]),
                                                                             f'{int(round(float(r["stima"]["mq"]))):,}'.replace(",", "."))
               if r.get("stima") else "") + "\n"

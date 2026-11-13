@@ -45,6 +45,10 @@ import fattura             # la fattura elettronica: Openapi in prova, Aruba, o 
 import fattureincloud      # il collegamento col Fatture in Cloud dell'artigiano (4/10/2026)
 import assistente          # l'assistente in chat, col manuale dell'app dentro
 import foto_preventivo     # il listino da una foto del preventivo vecchio
+import foto_clienti        # le foto che manda il cliente, 30 giorni sul disco (13/11/2026)
+REGOLE_CON_FOTO = (preventivo_col_link.REGOLE
+                   .replace("default-src 'none';", "default-src 'none'; script-src '%s';" % foto_clienti.IMPRONTA_SCRIPT, 1)
+                   .replace("sandbox ", "sandbox allow-scripts ", 1))
 # il Centralino di Andrea (30/10/2026): un modulo a parte. Se si rompe, Rilievo resta uguale.
 try:
     import centralino
@@ -3801,18 +3805,27 @@ def servizio(porta=8787, pubblico=False):
 
         def _chiedi_manda(self, codice):
             """Il cliente preme «Manda la richiesta» sulla pagina della ditta."""
-            try:
-                quanto = min(int(self.headers.get("Content-Length") or 0), 8192)
-            except ValueError:
-                quanto = 0
-            grezzo = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace")) if quanto > 0 else {}
-            campi = {k: (v or [""])[0] for k, v in grezzo.items()}
-            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
             stili = preventivo_col_link.stili_dell_app(APP / "index.html")
+            # dal 13/11/2026 il modulo porta fino a 3 foto gia' rimpicciolite dal telefono
+            campi = self._modulo_con_foto()
+            if campi is None:
+                pagina, stato = richieste_dal_link.pagina(codice, stili, errore="Le foto sono troppo grandi. Scegline altre, al massimo 3.")
+                self._pagina_cliente(stato, pagina)
+                return
+            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
             if campi.get("fai") == "prezzo":
                 self._chiedi_prezzo(codice, campi, ip, stili)
                 return
-            esito, msg, cosa = richieste_dal_link.ricevi(codice, campi, ip)
+            prese, sbagliata = foto_clienti.leggi_dal_modulo(campi)
+            if sbagliata:
+                via = {k: v for k, v in campi.items() if not k.startswith("foto")}
+                pagina, stato = richieste_dal_link.pagina(codice, stili, errore=sbagliata, valori=via)
+                self._pagina_cliente(stato, pagina)
+                return
+            nomi = foto_clienti.salva(prese) if prese and richieste_dal_link.di_chi(codice) else []
+            esito, msg, cosa = richieste_dal_link.ricevi(codice, campi, ip, foto=nomi)
+            if esito != "ok":
+                foto_clienti.togli(nomi)
             if esito == "ok":
                 oggetto, testo = richieste_dal_link.mail_alla_ditta(cosa["ditta"], cosa["richiesta"])
                 try:
@@ -3823,6 +3836,50 @@ def servizio(porta=8787, pubblico=False):
             pagina, stato = richieste_dal_link.pagina(codice, stili, errore=msg if esito == "errore" else "",
                                                       fatto=esito in ("ok", "finto"), valori=campi if esito == "errore" else None)
             self._pagina_cliente(stato, pagina)
+
+        MAX_MODULO_FOTO = 6 * 1024 * 1024    # tre foto da 1,5 MB, scritte in base64 e nel modulo
+
+        def _modulo_con_foto(self, piccolo=8192):
+            """Il modulo del cliente. Con le foto puo' arrivare a 6 MB; oltre si dice no (None)
+            e il resto non si legge: la connessione si chiude."""
+            try:
+                quanto = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                quanto = 0
+            if quanto > self.MAX_MODULO_FOTO:
+                self.close_connection = True
+                return None
+            if quanto <= 0:
+                return {}
+            grezzo = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace"))
+            return {k: (v or [""])[0] for k, v in grezzo.items()}
+
+        def _foto_cliente(self, nome):
+            """Una foto mandata dal cliente: si legge dal disco a pezzi, mai tutta in memoria."""
+            f = foto_clienti.percorso(nome)
+            if not f:
+                self._manda(404, {"errore": "Questa foto non c'e' piu': le foto dei clienti restano 30 giorni."})
+                return
+            try:
+                quanto = f.stat().st_size
+                with open(f, "rb") as dentro:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png" if nome.endswith(".png") else "image/jpeg")
+                    self.send_header("Content-Length", str(quanto))
+                    self.send_header("Cache-Control", "private, max-age=86400")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.send_header("X-Robots-Tag", "noindex, nofollow")
+                    self.send_header("Referrer-Policy", "no-referrer")
+                    self.send_header("Content-Security-Policy", "default-src 'none'; sandbox")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    while True:
+                        pezzo = dentro.read(64 * 1024)
+                        if not pezzo:
+                            break
+                        self.wfile.write(pezzo)
+            except OSError:
+                pass
 
         def _chiedi_prezzo(self, codice, campi, ip, stili):
             """«Vedi il prezzo indicativo»: il rilievo dall'indirizzo, come per l'app, e la forbice."""
@@ -4050,7 +4107,9 @@ def servizio(porta=8787, pubblico=False):
             dati = (testo or "").encode("utf-8")
             self.send_response(codice)
             self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Security-Policy", preventivo_col_link.REGOLE)
+            # con il riquadro delle foto (13/11/2026) gira un solo script, per impronta esatta
+            self.send_header("Content-Security-Policy", REGOLE_CON_FOTO if 'id="rl-foto-script"' in (testo or "")
+                             else preventivo_col_link.REGOLE)
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("X-Robots-Tag", "noindex, nofollow")
@@ -4071,12 +4130,21 @@ def servizio(porta=8787, pubblico=False):
             threading.Thread(target=lavora, daemon=True).start()
 
         def _accetta_dal_link(self, lid, cosa="accetto"):
-            try:
-                quanto = min(int(self.headers.get("Content-Length") or 0), 4096)
-            except ValueError:
-                quanto = 0
-            campi = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace")) if quanto > 0 else {}
             stili = preventivo_col_link.stili_dell_app(APP / "index.html")
+            if cosa == "risposta":
+                # «Vorrei cambiare qualcosa» puo' portare fino a 3 foto (13/11/2026)
+                semplici = self._modulo_con_foto()
+                if semplici is None:
+                    pagina = preventivo_col_link.pagina(lid, stili, errore="Scrivi cosa vorresti cambiare. Le foto erano troppo grandi: scegline altre, al massimo 3.")
+                    self._pagina_cliente(200 if pagina is not None else 404, pagina or preventivo_col_link.pagina_mancante(stili))
+                    return
+                campi = {k: [v] for k, v in semplici.items()}
+            else:
+                try:
+                    quanto = min(int(self.headers.get("Content-Length") or 0), 4096)
+                except ValueError:
+                    quanto = 0
+                campi = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace")) if quanto > 0 else {}
             uno = lambda k: (campi.get(k) or [""])[0]
             con = campi.get("con") or []
             ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
@@ -4100,7 +4168,15 @@ def servizio(porta=8787, pubblico=False):
                 preventivo_col_link.altra_mail(lid)
                 pagina = preventivo_col_link.pagina(lid, stili)
             elif cosa == "risposta":
-                ok, msg = preventivo_col_link.rispondi(lid, uno("tipo"), uno("motivo"), uno("testo"))
+                prese, sbagliata = foto_clienti.leggi_dal_modulo({k: uno(k) for k in ("foto1", "foto2", "foto3")}) \
+                    if uno("tipo") == "cambia" else ([], "")
+                nomi = foto_clienti.salva(prese) if prese and not sbagliata and preventivo_col_link.esiste(lid) else []
+                if sbagliata:
+                    ok, msg = False, "Scrivi cosa vorresti cambiare. " + sbagliata
+                else:
+                    ok, msg = preventivo_col_link.rispondi(lid, uno("tipo"), uno("motivo"), uno("testo"), foto=nomi)
+                if not ok:
+                    foto_clienti.togli(nomi)
                 pagina = preventivo_col_link.pagina(lid, stili, errore="" if ok else msg)
                 if ok:
                     if uno("tipo") in ("cambia", "no"):
@@ -4268,7 +4344,7 @@ def servizio(porta=8787, pubblico=False):
             # le richieste e il centralino restano fuori dai motori di ricerca.
             if u.path == "/robots.txt":
                 testo = ("User-agent: *\nAllow: /$\nAllow: /telefono\nAllow: /guide/\n"
-                         "Disallow: /p/\nDisallow: /chiedi/\nDisallow: /centralino\n"
+                         "Disallow: /p/\nDisallow: /chiedi/\nDisallow: /foto-cliente/\nDisallow: /centralino\n"
                          "Disallow: /posta\nDisallow: /visite\nDisallow: /fic/\nDisallow: /ingresso/\n"
                          "Disallow: /fattura\n\nSitemap: https://rilievoapp.it/sitemap.xml\n")
                 dati = testo.encode("utf-8")
@@ -4309,6 +4385,11 @@ def servizio(porta=8787, pubblico=False):
                 if c:
                     guida = guida.replace('href="/"', 'href="/?da=%s"' % c)
                 self._pagina_cliente(200, guida)
+                return
+            # le foto mandate dal cliente (13/11/2026): nome casuale, 30 giorni
+            m = re.fullmatch(r"/foto-cliente/([A-Za-z0-9_-]{24}\.(?:jpg|png))", u.path)
+            if m:
+                self._foto_cliente(m.group(1))
                 return
             # il link della ditta: la pagina dove un cliente nuovo chiede un preventivo
             m = re.fullmatch(r"/chiedi/([a-z2-9]{10})/?", u.path)
@@ -4650,6 +4731,7 @@ def servizio(porta=8787, pubblico=False):
     socketserver.TCPServer.allow_reuse_address = True
     promemoria.avvia()     # ogni mezz'ora, nei giorni feriali dalle 9 alle 19
     bozze.avvia()          # la mattina, lun-sab 7:30-9:30: «il preventivo e' pronto da mandare»
+    foto_clienti.pulizia_continua()   # le foto dei clienti si cancellano dopo 30 giorni
     with socketserver.ThreadingTCPServer((indirizzo_ascolto, porta), Sportello) as s:
         print("Il rilievo è acceso su http://%s:%d" % (indirizzo_ascolto, porta))
         print("Lascia questa finestra aperta e usa Rilievo. Ctrl-C per fermare.")

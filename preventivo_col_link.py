@@ -68,6 +68,7 @@ quello e aver preso altri lavori, o non aver portato gli attrezzi giusti». Quin
 import datetime, hashlib, html, json, os, pathlib, re, secrets, threading, time
 
 import archivio
+import foto_clienti        # fino a 3 foto con «Vorrei cambiare qualcosa» (13/11/2026)
 
 MAX_CORPO = 6 * 1024 * 1024        # le foto del giardino stanno dentro come data:
 DURATA_GIORNI = 180
@@ -319,6 +320,16 @@ def _vivo(d):
     return bool(d) and not _scaduto(d)
 
 
+def _quante_foto(risp):
+    n = len(risp.get("foto") or [])
+    return "una foto" if n == 1 else "%d foto" % n
+
+
+def esiste(lid):
+    """Il link c'e' ed e' ancora valido: prima di scrivere le foto sul disco."""
+    return _vivo(_leggi(lid))
+
+
 CODICE_MINUTI = 15
 CODICE_TENTATIVI = 5
 CODICE_MAIL_ORA = 5
@@ -535,7 +546,7 @@ def firmato_sul_posto(corpo, ditta="", titolo="", telefono="", da_ip="", extra=N
     return r, None
 
 
-def rispondi(lid, tipo, motivo="", testo=""):
+def rispondi(lid, tipo, motivo="", testo="", foto=None):
     """«No, grazie» o «Vorrei cambiare qualcosa». Torna (True, '') oppure (False, motivo)."""
     testo = re.sub(r"[ \t]+", " ", str(testo or "")).strip()[:600]
     with _chiave:
@@ -555,6 +566,8 @@ def rispondi(lid, tipo, motivo="", testo=""):
             if len(testo) < 3:
                 return False, "Scrivi cosa vorresti cambiare."
             d["risposta"] = {"tipo": "cambia", "testo": testo, "quando": quando}
+            if foto_clienti.nomi_buoni(foto):
+                d["risposta"]["foto"] = foto_clienti.nomi_buoni(foto)
         else:
             return False, "Non ho capito la risposta."
         _scrivi(lid, d)
@@ -703,6 +716,8 @@ def avvisa_ditta(lid, cose, manda):
     if "cambia" in altre:
         mail.append((f"Il cliente vorrebbe cambiare qualcosa · {T}",
                      f"Il cliente ha scritto: «{str(risp.get('testo') or '')[:300]}».\n\n"
+                     + (f"Ha mandato {_quante_foto(risp)}: le vedi in Rilievo.\n\n" if risp.get("foto") else "")
+                     +
                      f"Lo trovi in Oggi su Rilievo: {INDIRIZZO_APP}" + piede))
     if "no" in altre:
         mail.append((f"Il cliente ha detto no · {T}",
@@ -945,7 +960,8 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
                            f'se {ditta or "la ditta"} ti conferma i lavori in più.</p>'
                            if scelte and tot is not None else '')
                         + '<button type="submit" name="fai" value="conto" formnovalidate class="secondario">Rifai il conto</button></div>')
-        gia = (f'<p class="fatto" style="font-size:18px">Hai chiesto di cambiare: “{e(risp.get("testo",""))}”. '
+        gia = (f'<p class="fatto" style="font-size:18px">Hai chiesto di cambiare: “{e(risp.get("testo",""))}”'
+               + (f', con {_quante_foto(risp)}' if risp.get("foto") else '') + '. '
                f'{chi} lo sa e ti risponde.</p>') if risp.get("tipo") == "cambia" else ""
         motivi = "".join(f'<label class="ok"><input type="radio" name="motivo" value="{k}">'
                          f'<span>{e(n)}</span></label>' for k, n in MOTIVI_NO)
@@ -999,6 +1015,7 @@ def pagina(lid, stili_app, messaggio="", errore="", con=None, nome="", mail=""):
                  + (f'<p class="errore">{e(errore)}</p>' if sul_cambio else '') +
                  f'<p>Cosa vorresti cambiare?</p><textarea name="testo" rows="3" required minlength="3" '
                  f'placeholder="Per esempio: senza la siepe, oppure a novembre"></textarea>'
+                 + foto_clienti.riquadro(testo="Se vuoi, aggiungi fino a 3 foto di quello che vorresti cambiare.") +
                  f'<button type="submit" class="secondario">Vorrei cambiare qualcosa</button></form>'
                  f'<form method="post" action="/p/{lid}/risposta#rispondi"><input type="hidden" name="tipo" value="no">'
                  f'<p>Non lo vuoi fare? Ci aiuta sapere perché.</p>{motivi}'

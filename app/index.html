@@ -837,6 +837,12 @@ body.disegno-aperto{overflow:hidden}
 .vista-scontrino{margin:4px 0 10px}
 .scontrino-messo{display:flex;align-items:center;gap:12px;font-size:15px;color:var(--soft)}
 .scontrino-messo img{width:64px;height:64px;object-fit:cover;border:1px solid var(--filetto2)}
+/* 13/11/2026: lo scontrino in PDF e le foto mandate dal cliente */
+.scontrino-messo .pdf-messo{display:flex;align-items:center;justify-content:center;width:64px;height:64px;flex:none;border:1px solid var(--filetto2);
+  font-family:'Jost',sans-serif;font-size:13px;letter-spacing:.12em;color:var(--accento);background:var(--bianco)}
+.foto-cliente{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.foto-cliente a{display:block;line-height:0}
+.foto-cliente img{width:72px;height:72px;object-fit:cover;border:1px solid var(--filetto2);border-radius:6px}
 .link-piccolo{background:none;border:0;padding:0;font:inherit;color:var(--accento);text-decoration:underline;cursor:pointer}
 button.via{font:inherit;text-align:left;width:100%}
 .testo-messaggio{margin-bottom:18px;font-size:15px;color:var(--soft)}
@@ -2013,7 +2019,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-13 12:40';
+const COSTRUITA = '2026-11-13 12:48';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -6110,7 +6116,7 @@ PAGINE.oggi = {
         ${dalLink.length ? `<div class="lbl" style="margin-bottom:12px">Nuove richieste dal tuo link</div>
           <div class="elenco" id="richieste-dal-link" style="margin-bottom:26px">${dalLink.map(r => `
             <div class="r"><div><div class="tit">${esc(r.nome)}</div>
-              <div class="sub">${sotto(r.cosa, r.luogo, quando(r.arrivata))}</div></div>
+              <div class="sub">${sotto(r.cosa, r.luogo, quando(r.arrivata))}</div>${fotoDalCliente(r.foto)}</div>
               <div class="azioni">${r.tel ? `<a class="bottone vuoto piccolo" href="tel:${esc(String(r.tel).replace(/[^+\d]/g, ''))}">Chiama</a>` : ''}
                 <button class="bottone piccolo" style="white-space:nowrap" onclick="fissaSopralluogo('${r.id}')">Fissa il sopralluogo</button></div>
             </div>`).join('')}</div>` : ''}
@@ -6146,7 +6152,7 @@ PAGINE.oggi = {
               <div><div class="tit">${esc(p.nome)}</div>
                    <div class="sub">Consegnato ${quando(p.data)} · <span style="white-space:nowrap">${euro(conti(p).netto)}</span>${risentito ? ' · risentito ' + quando(risentito) : ''}</div>
                    ${scadeFraPoco(p) ? `<div class="sub scade-presto">Scade ${quandoScade(p)}</div>` : ''}
-                   ${p.link && p.link.cambia && !p.link.cambia.visto ? `<div class="sub chiede-cambio">Vorrebbe cambiare: “${esc(p.link.cambia.testo)}”</div>` : ''}</div>
+                   ${p.link && p.link.cambia && !p.link.cambia.visto ? `<div class="sub chiede-cambio">Vorrebbe cambiare: “${esc(p.link.cambia.testo)}”</div>${fotoDalCliente(p.link.cambia.foto)}` : ''}</div>
               ${p.link && p.link.cambia && !p.link.cambia.visto
                 ? `<button class="bottone piccolo" onclick="event.stopPropagation();cambiaVisto('${p.id}')">Apri il preventivo</button>`
                 : daSollecitare(p) || (scadeFraPoco(p) && !(risentito && giorniDa(risentito) <= 1)) ? `<button class="bottone piccolo" onclick="event.stopPropagation();sollecita('${p.id}')">Risentilo</button>` : ''}
@@ -6205,6 +6211,17 @@ PAGINE.oggi = {
 /* ===== RICHIESTE ===== */
 let filtroRichieste = 'tutte';
 function setFiltroRichieste(f){ filtroRichieste = f; vai(); }
+/* 13/11/2026: fino a 3 foto dal cliente (dal link per le richieste o con «Vorrei cambiare»).
+   Stanno sul server 30 giorni con un nome casuale: qui si guardano, toccandole si aprono grandi.
+   Passati i 30 giorni il server non le ha piu' e la miniatura sparisce. */
+const nomiFotoCliente = l => (Array.isArray(l) ? l : []).filter(n => typeof n === 'string' && /^[A-Za-z0-9_-]{24}\.(jpg|png)$/.test(n)).slice(0, 3);
+function fotoDalCliente(l){
+  const nomi = nomiFotoCliente(l); if(!nomi.length) return '';
+  return `<div class="foto-cliente" onclick="event.stopPropagation()">${nomi.map((n, i) => {
+    const u = SPORTELLO_RILIEVO + '/foto-cliente/' + n;
+    return `<a href="${esc(u)}" target="_blank" rel="noopener" title="Apri la foto"><img src="${esc(u)}" alt="Foto ${i + 1} del cliente" loading="lazy" onerror="this.parentNode.remove()"></a>`;
+  }).join('')}</div>`;
+}
 PAGINE.richieste = {
   testata(){ return {occhiello:'Chi ti sta cercando', titolo:'Richieste',
     destra:'<div class="azioni"><button class="bottone" onclick="schedaRichiesta(null)">+ Nuova richiesta</button>' +
@@ -6243,6 +6260,7 @@ PAGINE.richieste = {
           <div class="sub">${esc(r.cosa)}</div>
           <div class="sub" style="margin-top:3px">${sotto(r.canale, quando(r.arrivata), r.luogo)}${r.rilievo ? ' · <b style="color:var(--accento)">rilievo pronto</b>' : ''}</div>
           ${r.stima ? `<div class="sub stima-vista">Ha visto il prezzo indicativo: ${esc(r.stima.voce)}, ${euro(r.stima.da)}–${euro(r.stima.a)} (${cifra(r.stima.mq, 0)} m²)</div>` : ''}
+          ${fotoDalCliente(r.foto)}
           <div class="azioni">${azione}</div>
         </div>
         <div class="riga-azione">
@@ -17236,6 +17254,9 @@ function testoPrivacy(){
         quante richieste arrivano dallo stesso indirizzo di rete, senza conservarlo. Se fai un link nuovo, il vecchio smette di funzionare.
         Se accendi il prezzo indicativo, l&rsquo;indirizzo che il cliente scrive viene cercato sul catasto e sulle foto dall&rsquo;alto,
         come fai tu dall&rsquo;app; la stima resta un&rsquo;ora per finire nella sua richiesta, poi si butta.</li>
+      <li><b>Le foto che manda il cliente.</b> Dal tuo link per le richieste, o quando chiede di cambiare qualcosa nel
+        preventivo col link, il cliente pu&ograve; mandare fino a 3 foto. Le vedi nella tua app. Le foto mandate dal cliente
+        restano sul nostro server 30 giorni e poi si cancellano da sole.</li>
       <li><b>I promemoria automatici.</b> Se li accendi, il nostro server usa la mail del tuo cliente, il numero,
         il luogo e il totale del preventivo per mandargli un promemoria a nome tuo, dalla casella di Rilievo.
         Le risposte arrivano a te. Teniamo il giorno e l&rsquo;ora di ogni promemoria partito.</li>
@@ -18252,7 +18273,9 @@ async function guardaILink(){
       p.link.risposta = {tipo: r.tipo, quando: r.quando};
       if(r.tipo === 'cambia'){
         p.link.cambia = {testo: String(r.testo || '').slice(0, 600), quando: r.quando};
-        detti.push(p.nome + ' vorrebbe cambiare qualcosa nel preventivo n. ' + p.numero + ': lo trovi in Oggi');
+        if(nomiFotoCliente(r.foto).length) p.link.cambia.foto = nomiFotoCliente(r.foto);
+        detti.push(p.nome + ' vorrebbe cambiare qualcosa nel preventivo n. ' + p.numero +
+                   (p.link.cambia.foto ? (p.link.cambia.foto.length === 1 ? ', con una foto' : ', con ' + p.link.cambia.foto.length + ' foto') : '') + ': lo trovi in Oggi');
       }
       if(r.tipo === 'no' && (p.stato === 'bozza' || p.stato === 'inviato')){
         p.stato = 'rifiutato';
@@ -18352,7 +18375,7 @@ function rigaLink(p){
     : l.aperto ? (l.aperto === 1 ? 'aperto una volta' : 'aperto ' + l.aperto + ' volte') + (l.ultima ? ', l’ultima ' + esc(quandoOra(l.ultima)) : '')
     : 'non ancora aperto';
   return `<div class="riga-tot"><span>Il link</span><span>${detto}</span></div>` +
-    (l.cambia ? `<div class="riga-tot"><span>Chiede di cambiare</span><span>“${esc(l.cambia.testo)}”</span></div>` : '') +
+    (l.cambia ? `<div class="riga-tot"><span>Chiede di cambiare</span><span>“${esc(l.cambia.testo)}”${fotoDalCliente(l.cambia.foto)}</span></div>` : '') +
     (l.bonifico ? `<div class="riga-tot"><span>Bonifico</span><span>${p.acconto_preso ? 'arrivato, segnato ' + esc(quando(p.acconto_preso.quando))
       : 'fatto, dice il cliente, ' + esc(quandoOra(l.bonifico.quando))}</span></div>` : '');
 }
@@ -18462,6 +18485,7 @@ async function guardaRichiesteDalLink(){
       luogo: ind.split(',').slice(-1)[0].trim(), cosa: String(x.cosa || '').slice(0, 1000),
       canale: 'Dal tuo link', arrivata: /^\d{4}-\d{2}-\d{2}/.test(String(x.quando || '')) ? String(x.quando).slice(0, 10) : S.oggi,
       stato: 'da_richiamare'};
+    if(nomiFotoCliente(x.foto).length) nuova.foto = nomiFotoCliente(x.foto);
     S.richieste.unshift(nuova); nuove.push(nuova);
   });
   if(nuove.length){ salva(); vai(); avvisa(nuove.length === 1 ? 'Nuova richiesta da ' + nuove[0].nome + ': la trovi in Richieste.' : nuove.length + ' richieste nuove dal tuo link: le trovi in Richieste.'); }

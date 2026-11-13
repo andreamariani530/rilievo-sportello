@@ -538,8 +538,8 @@ def aggancia(visite=None, avvisi=None, richieste_dal_link=None, fattureincloud=N
         vero_ricevi = richieste_dal_link.ricevi
 
         @functools.wraps(vero_ricevi)
-        def ricevi(codice, campi, ip=""):
-            r = vero_ricevi(codice, campi, ip)
+        def ricevi(codice, campi, ip="", **altro):
+            r = vero_ricevi(codice, campi, ip, **altro)   # altro: foto=... (13/11/2026)
             try:
                 if r and r[0] == "ok":
                     ditta = ((r[2] or {}).get("ditta") or {}).get("ditta") or "una ditta"
