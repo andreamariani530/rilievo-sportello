@@ -2019,7 +2019,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-13 12:48';
+const COSTRUITA = '2026-11-13 13:00';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -5258,10 +5258,67 @@ async function apriFile(idDoc, scaricare){
    rimpicciolisce e resta trasparente, cosi' sulla carta non fa un riquadro. */
 const LOGO_MAX = 450000;
 function logoSicuro(x){ return fotoSicura(x) && x.length <= LOGO_MAX; }
+/* 13/11/2026: il logo in PDF entra. La prima pagina si disegna con pdf.js (come pagineDelPdf)
+   e il bianco attorno si ritaglia: resta il logo, non il foglio A4 col logo in un angolo. */
+function ritagliaBianco(c){
+  const w = c.width, h = c.height, d = c.getContext('2d').getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for(let y = 0; y < h; y++){
+    for(let x = 0; x < w; x++){
+      const i = (y * w + x) * 4;
+      if(d[i + 3] > 24 && (d[i] < 240 || d[i + 1] < 240 || d[i + 2] < 240)){
+        if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      }
+    }
+  }
+  if(x1 < 0) return null;
+  const m = Math.round(Math.max(x1 - x0, y1 - y0) * .04);
+  x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(w - 1, x1 + m); y1 = Math.min(h - 1, y1 + m);
+  const r = document.createElement('canvas');
+  r.width = x1 - x0 + 1; r.height = y1 - y0 + 1;
+  r.getContext('2d').drawImage(c, x0, y0, r.width, r.height, 0, 0, r.width, r.height);
+  return r;
+}
+async function logoDalPdf(file){
+  const lib = await caricaPdfJs();
+  const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false}).promise;
+  try{
+    const pagina = await doc.getPage(1);
+    const v1 = pagina.getViewport({scale: 1});
+    const vista = pagina.getViewport({scale: Math.min(4, 1800 / Math.max(v1.width, v1.height))});
+    const c = document.createElement('canvas');
+    c.width = Math.round(vista.width); c.height = Math.round(vista.height);
+    await pagina.render({canvasContext: c.getContext('2d'), viewport: vista}).promise;
+    if(pagina.cleanup) pagina.cleanup();
+    return ritagliaBianco(c);
+  } finally { try{ await doc.destroy(); }catch(e){} }
+}
+/* un disegno (immagine o pagina di PDF) -> il logo: al massimo 800 x 400, PNG trasparente o JPG */
+function logoDaDisegno(im, w0, h0){
+  const k = Math.min(1, 800 / w0, 400 / h0);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w0 * k)); c.height = Math.max(1, Math.round(h0 * k));
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  let src = c.toDataURL('image/png');
+  /* una foto usata come logo in PNG pesa troppo: allora JPG, su fondo bianco */
+  if(src.length > LOGO_MAX){
+    const b = document.createElement('canvas'); b.width = c.width; b.height = c.height;
+    const g = b.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, b.width, b.height); g.drawImage(c, 0, 0);
+    src = b.toDataURL('image/jpeg', .85);
+  }
+  return logoSicuro(src) ? src : null;
+}
 function rimpicciolisciLogo(file, poi){
-  if(!file || !/^image\//.test(file.type || '')){ avvisa(/pdf/i.test((file && (file.type || file.name)) || '')
-    ? 'Il logo in PDF qui non entra. Apri il PDF, fai uno screenshot del logo e carica quello.'
-    : 'Il logo dev\'essere un\'immagine: PNG, JPG o SVG.'); poi(null); return; }
+  if(file && filePdf(file)){
+    logoDalPdf(file).then(c => {
+      if(!c){ avvisa('La prima pagina di questo PDF è bianca: il logo non lo trovo. Prova con il logo in PNG o JPG.'); poi(null); return; }
+      const src = logoDaDisegno(c, c.width, c.height);
+      if(!src){ avvisa('Questo logo è troppo pesante. Prova con un PNG o un JPG.'); poi(null); return; }
+      poi(src);
+    }).catch(() => { avvisa('Questo PDF non si apre. Prova con il logo in PNG o JPG.'); poi(null); });
+    return;
+  }
+  if(!file || !/^image\//.test(file.type || '')){ avvisa('Il logo dev\'essere un\'immagine (PNG, JPG o SVG) o un PDF.'); poi(null); return; }
   const l = new FileReader();
   l.onerror = () => { avvisa('Non riesco a leggere questo file.'); poi(null); };
   l.onload = () => {
@@ -5269,19 +5326,8 @@ function rimpicciolisciLogo(file, poi){
     im.onerror = () => { avvisa(fotoHeic(file) ? 'Questa foto è nel formato dell\'iPhone (HEIC) e qui non si apre. Mandala in JPG o PNG, o fanne uno screenshot.'
       : 'Questa immagine non si apre. Prova con un PNG o un JPG.'); poi(null); };
     im.onload = () => {
-      const w0 = im.width || 600, h0 = im.height || 300;   // un SVG senza misure
-      const k = Math.min(1, 800 / w0, 400 / h0);
-      const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(w0 * k)); c.height = Math.max(1, Math.round(h0 * k));
-      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-      let src = c.toDataURL('image/png');
-      /* una foto usata come logo in PNG pesa troppo: allora JPG, su fondo bianco */
-      if(src.length > LOGO_MAX){
-        const b = document.createElement('canvas'); b.width = c.width; b.height = c.height;
-        const g = b.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, b.width, b.height); g.drawImage(c, 0, 0);
-        src = b.toDataURL('image/jpeg', .85);
-      }
-      if(!logoSicuro(src)){ avvisa('Questa immagine è troppo pesante per fare da logo.'); poi(null); return; }
+      const src = logoDaDisegno(im, im.width || 600, im.height || 300);   // un SVG senza misure
+      if(!src){ avvisa('Questa immagine è troppo pesante per fare da logo.'); poi(null); return; }
       poi(src);
     };
     im.src = l.result;
@@ -5301,7 +5347,7 @@ function bloccoLogo(logo, dove){
           ${c ? `<button type="button" class="bottone vuoto piccolo" onclick="togliLogo('${dove}')">Toglilo</button>` : ''}
         </div>
       </div>
-      <input type="file" id="scelta-logo-${dove}" accept="image/*" style="display:none" onchange="caricaLogo(this,'${dove}')">
+      <input type="file" id="scelta-logo-${dove}" accept="image/*,application/pdf,.pdf" style="display:none" onchange="caricaLogo(this,'${dove}')">
     </div>`;
 }
 function caricaLogo(input, dove){
@@ -13165,14 +13211,36 @@ function bloccoSpese(p){
 }
 /* la foto dello scontrino: undefined = non toccata, null = tolta, {src} = nuova */
 let scontrinoInArrivo;
-function vistaScontrino(src){
+function vistaScontrino(src, pdf){
+  /* 13/11/2026: lo scontrino puo' essere anche un PDF (fattura del fornitore, scontrino mandato per mail) */
+  if(src && pdf) return `<div class="scontrino-messo"><span class="pdf-messo" id="miniatura-scontrino-pdf">PDF</span>
+      <span>PDF messo · <button type="button" class="link-piccolo" id="apri-scontrino-pdf" data-pdf="${src}" onclick="apriScontrinoPdf(this)">Aprilo</button> · <button type="button" class="link-piccolo" onclick="togliScontrino()">Toglilo</button></span></div>`;
   return src ? `<div class="scontrino-messo"><img src="${src}" alt="Lo scontrino" id="miniatura-scontrino">
       <span>Scontrino messo · <button type="button" class="link-piccolo" onclick="togliScontrino()">Toglilo</button></span></div>`
     : `<button type="button" class="bottone vuoto piccolo" id="btn-scontrino" onclick="document.getElementById('foto-scontrino').click()">Fotografa o scegli lo scontrino</button>`;
 }
+/* il PDF si apre dentro il tocco, come i preventivi di prima (apriFile): se no Safari lo blocca.
+   Se il telefono non apre finestre nuove, si scarica. */
+function apriScontrinoPdf(b){
+  const u = b && b.dataset.pdf; if(!u) return;
+  const w = window.open(u, '_blank');
+  if(!w){ const a = document.createElement('a'); a.href = u; a.download = 'Scontrino.pdf'; document.body.appendChild(a); a.click(); a.remove(); }
+}
+const filePdf = f => /pdf/i.test((f && f.type) || '') || /\.pdf$/i.test((f && f.name) || '');
 function scontrinoScelto(input){
   const f = input.files && input.files[0]; input.value = '';
   if(!f) return;
+  if(filePdf(f)){
+    if(!(f.size > 0) || f.size > ARCHIVIO_MAX){ avvisa('Questo PDF è troppo grande: va bene fino a 15 MB.'); return; }
+    f.arrayBuffer().then(b => {
+      const dati = new Uint8Array(b);
+      if(!(dati[0] === 0x25 && dati[1] === 0x50 && dati[2] === 0x44 && dati[3] === 0x46)){ avvisa('Questo file non è un PDF che si apre.'); return; }
+      scontrinoInArrivo = {pdf: dati, nome: String(f.name || '').slice(0, 120)};
+      const v = document.getElementById('vista-scontrino');
+      if(v) v.innerHTML = vistaScontrino(URL.createObjectURL(new Blob([dati], {type: 'application/pdf'})), true);
+    }).catch(() => avvisa('Non riesco a leggere questo file.'));
+    return;
+  }
   rimpicciolisci(f, src => {
     if(!src) return;
     scontrinoInArrivo = {src};
@@ -13190,11 +13258,13 @@ async function mostraScontrinoSalvato(s){
   const v = document.getElementById('vista-scontrino');
   if(!v || scontrinoInArrivo !== undefined) return;
   if(!f || !f.dati){ v.innerHTML = '<p class="fattura-nota">Lo scontrino sta sul telefono dove l\'hai fotografato.</p>' + vistaScontrino(null); return; }
-  v.innerHTML = vistaScontrino(URL.createObjectURL(new Blob([f.dati], {type: f.tipo || 'image/jpeg'})));
+  const pdf = /pdf/i.test(f.tipo || s.foto.tipo || '');
+  v.innerHTML = vistaScontrino(URL.createObjectURL(new Blob([f.dati], {type: pdf ? 'application/pdf' : (f.tipo || 'image/jpeg')})), pdf);
 }
-async function mettiScontrino(s, src){
-  const dati = byteDiBase64(String(src).split(',')[1] || '');
-  const meta = {id: nuovoId('a'), nome: 'Scontrino ' + s.data + '.jpg', tipo: 'image/jpeg', byte: dati.byteLength};
+async function mettiScontrino(s, arrivo){
+  const pdf = arrivo && arrivo.pdf;
+  const dati = pdf ? arrivo.pdf : byteDiBase64(String(arrivo && arrivo.src || '').split(',')[1] || '');
+  const meta = {id: nuovoId('a'), nome: 'Scontrino ' + s.data + (pdf ? '.pdf' : '.jpg'), tipo: pdf ? 'application/pdf' : 'image/jpeg', byte: dati.byteLength};
   try{
     await fileMetti(Object.assign({dati}, meta));
     if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
@@ -13224,7 +13294,7 @@ function schedaSpesa(idSpesa, idLavoro, daDocumenti){
       {k:'cosa', l:'Per cosa', p:'Per esempio: concime, sacchi, discarica'},
       ...(chiedeLavoro ? [{k:'lavoro', l:'Per quale lavoro', t:'scelta', opzioni: scelte}] : [])
     ],
-    extra: `<input type="file" id="foto-scontrino" accept="image/*,.heic,.heif" style="display:none" onchange="scontrinoScelto(this)">`,
+    extra: `<input type="file" id="foto-scontrino" accept="image/*,.heic,.heif,application/pdf,.pdf" style="display:none" onchange="scontrinoScelto(this)">`,
     dopoCampi: `<div id="vista-scontrino" class="vista-scontrino">${vistaScontrino(null)}</div>`,
     controlla: d => !(d.importo > 0) ? 'Scrivi quanto hai speso, per esempio 84,50.'
       : d.importo >= 10000000 ? 'Questa cifra è troppo grande: controlla le cifre.'
@@ -13239,9 +13309,9 @@ function schedaSpesa(idSpesa, idLavoro, daDocumenti){
       if(!s) S.spese.push(x);
       const arrivo = scontrinoInArrivo;
       if(arrivo === null && x.foto){ const vecchia = x.foto.id; x.foto = null; fileTogli(vecchia).catch(() => {}); }
-      if(arrivo && arrivo.src){
+      if(arrivo && (arrivo.src || arrivo.pdf)){
         const vecchia = x.foto && x.foto.id;
-        mettiScontrino(x, arrivo.src).then(() => { if(vecchia) fileTogli(vecchia).catch(() => {}); });
+        mettiScontrino(x, arrivo).then(() => { if(vecchia) fileTogli(vecchia).catch(() => {}); });
       }
       scontrinoInArrivo = undefined;
     },
