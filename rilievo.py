@@ -3479,6 +3479,35 @@ def fic_pagina_scelta(gettone, ditte):
 LAVORI_PESANTI = max(1, int((os.environ.get("RILIEVO_LAVORI_PESANTI") or "2").strip() or 2))
 ATTESA_TURNO = 30.0
 PERCORSI_PESANTI = frozenset(("/rilievo", "/foto", "/particelle", "/case-vicine"))
+
+# Gli assistenti con l'intelligenza artificiale (Claude, ChatGPT, Gemini, Perplexity...)
+# non leggono l'app. Andrea, 13/11/2026: un contatto voleva incollare il link in Claude,
+# «blocchiamo la possibilita' di far accedere altre IA». La pagina "/" contiene tutta
+# l'app, quindi si chiude tutto tranne le guide «quanto costa» (pura vetrina), robots.txt
+# e sitemap. Google normale (Googlebot) e le anteprime dei link di WhatsApp, Facebook e
+# Telegram NON sono nell'elenco: devono continuare a funzionare.
+LETTORI_IA = ("claudebot", "claude-user", "claude-searchbot", "claude-web", "anthropic-ai",
+              "gptbot", "chatgpt-user", "oai-searchbot", "chatgpt agent",
+              "perplexitybot", "perplexity-user", "google-cloudvertexbot", "gemini",
+              "bytespider", "ccbot", "amazonbot", "meta-externalagent", "meta-externalfetcher",
+              "mistralai-user", "cohere-ai", "cohere-training-data-crawler", "diffbot",
+              "youbot", "duckassistbot", "ai2bot", "timpibot", "omgili", "imagesiftbot",
+              "petalbot", "applebot-extended", "kangaroo bot", "panscient", "novaact",
+              "manus", "firecrawl", "deepseek", "grok", "xai-bot")
+ROBOTS_IA = ("ClaudeBot", "Claude-User", "Claude-SearchBot", "anthropic-ai", "GPTBot",
+             "ChatGPT-User", "OAI-SearchBot", "PerplexityBot", "Perplexity-User",
+             "Google-Extended", "Google-CloudVertexBot", "Applebot-Extended", "Bytespider",
+             "CCBot", "Amazonbot", "meta-externalagent", "meta-externalfetcher",
+             "MistralAI-User", "cohere-ai", "Diffbot", "YouBot", "DuckAssistBot", "AI2Bot")
+
+
+def e_un_lettore_ia(agente, percorso):
+    """True se chi chiede e' un assistente IA e la pagina non e' fra quelle lasciate aperte."""
+    a = (agente or "").lower()
+    if not a or not any(x in a for x in LETTORI_IA):
+        return False
+    return not (percorso in ("/robots.txt", "/sitemap.xml") or percorso == "/guide"
+                or percorso.startswith("/guide/"))
 _TURNO_PESANTE = threading.BoundedSemaphore(LAVORI_PESANTI)
 
 
@@ -3518,6 +3547,22 @@ def servizio(porta=8787, pubblico=False):
         def do_OPTIONS(self):
             self._apri(204, "text/plain")
 
+        def _fuori_le_ia(self):
+            """Risponde «non disponibile» agli assistenti IA (vedi LETTORI_IA)."""
+            percorso = self.path.split("?", 1)[0]
+            if not e_un_lettore_ia(self.headers.get("User-Agent"), percorso):
+                return False
+            dati = ("Rilievo non e' disponibile per gli assistenti automatici.\n"
+                    "Rilievo is not available to automated assistants.\n").encode("utf-8")
+            self.send_response(403)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("X-Robots-Tag", "noindex, nofollow, noai, noimageai")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(dati)))
+            self.end_headers()
+            self.wfile.write(dati)
+            return True
+
         def _passo(self, q):
             """Un passo di chi e' arrivato col link della sua ditta (visite.segna_passo).
             Risponde sempre 204: l'app non aspetta niente e non deve accorgersi di nulla."""
@@ -3547,6 +3592,8 @@ def servizio(porta=8787, pubblico=False):
         def do_POST(self):
             """Si scrive solo nell'archivio della squadra. Tutto il resto del
             servizio e' in sola lettura e resta com'e'."""
+            if self._fuori_le_ia():
+                return
             u = urllib.parse.urlparse(self.path)
             q = urllib.parse.parse_qs(u.query)
             if centralino and centralino.gestisci(self, "POST", u.path, q):
@@ -4254,6 +4301,8 @@ def servizio(porta=8787, pubblico=False):
             self._manda(200, r)
 
         def do_GET(self):
+            if self._fuori_le_ia():
+                return
             # lavori pesanti a turno (cerotto notte 11-12/11/2026)
             if self.path.split("?", 1)[0] not in PERCORSI_PESANTI:
                 return self._do_GET_sportello()
@@ -4346,7 +4395,9 @@ def servizio(porta=8787, pubblico=False):
                 testo = ("User-agent: *\nAllow: /$\nAllow: /telefono\nAllow: /guide/\n"
                          "Disallow: /p/\nDisallow: /chiedi/\nDisallow: /foto-cliente/\nDisallow: /centralino\n"
                          "Disallow: /posta\nDisallow: /visite\nDisallow: /fic/\nDisallow: /ingresso/\n"
-                         "Disallow: /fattura\n\nSitemap: https://rilievoapp.it/sitemap.xml\n")
+                         "Disallow: /fattura\n\n"
+                         + "".join("User-agent: %s\nAllow: /guide/\nDisallow: /\n\n" % n for n in ROBOTS_IA)
+                         + "Sitemap: https://rilievoapp.it/sitemap.xml\n")
                 dati = testo.encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/plain; charset=utf-8")
