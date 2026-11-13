@@ -2013,7 +2013,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-13 03:03';
+const COSTRUITA = '2026-11-13 10:28';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -4613,13 +4613,24 @@ function salvaTrascrizione(id){
    attaccate al sopralluogo: didascalia modificabile, cancellabili,
    e stampate in fondo al preventivo che consegni.                        */
 const FOTO_LATO = 1400, FOTO_QUALITA = .72;
-function rimpicciolisci(file, poi, lato, qualita){
-  if(!file || String(file.type).indexOf('image/') !== 0){ avvisa('Questo file non è una foto.'); poi(null); return; }
+/* giro foto e file, 13/11/2026: «Questa foto non si apre» non diceva perche' ne' cosa fare.
+   Un .heic dell'iPhone su Android o sul computer non si apre: lo si dice per nome. Un PDF
+   messo fra le foto va nel cassetto dei Documenti. Con piu' foto insieme il motivo lo dice
+   caricaFoto alla fine, se no l'ultimo «Foto aggiunta» lo copriva (zitto = poi(null, motivo)). */
+const fotoHeic = f => /\.hei[cf]$/i.test((f && f.name) || '') || /hei[cf]/i.test((f && f.type) || '');
+function motivoFoto(f, nonSiApre){
+  if(fotoHeic(f)) return 'Questa foto è nel formato dell\'iPhone (HEIC) e qui non si apre. Sull\'iPhone sceglila dalle Foto; altrimenti mandala in JPG, o fanne uno screenshot.';
+  if(/pdf/i.test((f && f.type) || '') || /\.pdf$/i.test((f && f.name) || '')) return 'Qui vanno le foto. Un PDF mettilo nei Documenti, con «Carica preventivi di prima».';
+  return nonSiApre ? 'Questa foto non si apre. Prova con un JPG, o fanne uno screenshot.' : 'Questo file non è una foto: qui vanno JPG, PNG o le foto del telefono.';
+}
+function rimpicciolisci(file, poi, lato, qualita, zitto){
+  const no = nonSiApre => { const m = motivoFoto(file, nonSiApre); if(!zitto) avvisa(m); poi(null, m); };
+  if(!file || (String(file.type).indexOf('image/') !== 0 && !fotoHeic(file))){ no(false); return; }
   const lettore = new FileReader();
-  lettore.onerror = () => { avvisa('Non riesco a leggere questo file.'); poi(null); };
+  lettore.onerror = () => { if(!zitto) avvisa('Non riesco a leggere questo file.'); poi(null, 'Non riesco a leggere questo file.'); };
   lettore.onload = () => {
     const im = new Image();
-    im.onerror = () => { avvisa('Questa foto non si apre.'); poi(null); };
+    im.onerror = () => no(true);
     im.onload = () => {
       const scala = Math.min(1, (lato || FOTO_LATO) / Math.max(im.width, im.height));
       const c = document.createElement('canvas');
@@ -4648,14 +4659,23 @@ function caricaFoto(id, input){
   input.value = '';
   if(!files.length) return;
   avvisa(files.length === 1 ? 'Sto sistemando la foto…' : 'Sto sistemando ' + files.length + ' foto…');
-  let messe = 0;
+  let messe = 0, fuori = 0, motivo = '', piena = false;
   const prossima = k => {
     if(k >= files.length){
       vai();
-      if(messe) avvisa(messe === 1 ? 'Foto aggiunta al sopralluogo.' : messe + ' foto aggiunte al sopralluogo.');
+      if(piena) return;   /* «memoria piena» l'ha gia' detto aggiungiFoto, e resta quello */
+      const quante = messe ? (messe === 1 ? 'Foto aggiunta al sopralluogo.' : messe + ' foto aggiunte al sopralluogo.') : '';
+      if(!fuori) { if(quante) avvisa(quante); return; }
+      const scarto = files.length === 1 || (fuori === 1 && !messe) ? motivo
+        : (fuori === 1 ? 'Una è rimasta fuori. ' : fuori + ' sono rimaste fuori. ') + motivo;
+      avvisa((quante + ' ' + scarto).trim());
       return;
     }
-    rimpicciolisci(files[k], src => { if(src && aggiungiFoto(id, src, '')) messe++; prossima(k + 1); });
+    rimpicciolisci(files[k], (src, m) => {
+      if(src){ if(aggiungiFoto(id, src, '')) messe++; else { piena = true; prossima(files.length); return; } }
+      else { fuori++; motivo = m || motivo; }
+      prossima(k + 1);
+    }, undefined, undefined, true);
   };
   prossima(0);
 }
@@ -5021,7 +5041,7 @@ function schedaDocumento(id){
    stanno nella memoria grande del browser (IndexedDB): quella piccola, dove
    sta il resto, si riempirebbe con un paio di PDF. */
 const ARCHIVIO_MAX = 15 * 1024 * 1024;
-const FILE_ARCHIVIO = /\.(pdf|jpe?g|png|webp|heic|docx?|odt|rtf|xlsx?|ods|csv|txt)$/i;
+const FILE_ARCHIVIO = /\.(pdf|jpe?g|png|webp|hei[cf]|docx?|odt|rtf|xlsx?|ods|csv|txt)$/i;
 function fileBuono(f){
   return !!f && typeof f === 'object' && typeof f.id === 'string' && /^[A-Za-z0-9_-]{1,60}$/.test(f.id)
     && typeof f.nome === 'string' && f.nome.length > 0 && f.nome.length <= 200
@@ -5077,7 +5097,7 @@ function giornoIso(d){
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 const inputArchivio = () => `<input type="file" id="scelta-archivio" multiple style="display:none"
-  accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ods,.csv,.txt,application/pdf,image/*"
+  accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.odt,.rtf,.xls,.xlsx,.ods,.csv,.txt,application/pdf,image/*"
   onchange="caricaArchivio(this)">`;
 async function caricaArchivio(input){
   const files = Array.prototype.slice.call(input.files || []);
@@ -5138,12 +5158,15 @@ async function apriFile(idDoc, scaricare){
 const LOGO_MAX = 450000;
 function logoSicuro(x){ return fotoSicura(x) && x.length <= LOGO_MAX; }
 function rimpicciolisciLogo(file, poi){
-  if(!file || !/^image\//.test(file.type || '')){ avvisa('Il logo dev\'essere un\'immagine: PNG, JPG o SVG.'); poi(null); return; }
+  if(!file || !/^image\//.test(file.type || '')){ avvisa(/pdf/i.test((file && (file.type || file.name)) || '')
+    ? 'Il logo in PDF qui non entra. Apri il PDF, fai uno screenshot del logo e carica quello.'
+    : 'Il logo dev\'essere un\'immagine: PNG, JPG o SVG.'); poi(null); return; }
   const l = new FileReader();
   l.onerror = () => { avvisa('Non riesco a leggere questo file.'); poi(null); };
   l.onload = () => {
     const im = new Image();
-    im.onerror = () => { avvisa('Questa immagine non si apre. Prova con un PNG o un JPG.'); poi(null); };
+    im.onerror = () => { avvisa(fotoHeic(file) ? 'Questa foto è nel formato dell\'iPhone (HEIC) e qui non si apre. Mandala in JPG o PNG, o fanne uno screenshot.'
+      : 'Questa immagine non si apre. Prova con un PNG o un JPG.'); poi(null); };
     im.onload = () => {
       const w0 = im.width || 600, h0 = im.height || 300;   // un SVG senza misure
       const k = Math.min(1, 800 / w0, 400 / h0);
@@ -5531,7 +5554,7 @@ function importa(){
     l.onload = () => {
       let d;
       try{ d = JSON.parse(l.result); }
-      catch(e){ avvisa('Quel file non si legge: dentro non c’è un JSON valido.'); return; }
+      catch(e){ avvisa('Quel file non si legge: non è un salvataggio di Rilievo, oppure si è rovinato.'); return; }
       if(!d.listino || !d.azienda){ avvisa('Quel file non sembra un salvataggio di Rilievo.'); return; }
       chiedi('Carico questo file e prende il posto di quello che c’è adesso. Se non l’hai esportato, il lavoro di adesso si perde.', async () => {
         /* i file dei preventivi di prima: vanno nella memoria grande, non in quella piccola */
@@ -13032,7 +13055,7 @@ let scontrinoInArrivo;
 function vistaScontrino(src){
   return src ? `<div class="scontrino-messo"><img src="${src}" alt="Lo scontrino" id="miniatura-scontrino">
       <span>Scontrino messo · <button type="button" class="link-piccolo" onclick="togliScontrino()">Toglilo</button></span></div>`
-    : `<button type="button" class="bottone vuoto piccolo" id="btn-scontrino" onclick="document.getElementById('foto-scontrino').click()">Fotografa lo scontrino</button>`;
+    : `<button type="button" class="bottone vuoto piccolo" id="btn-scontrino" onclick="document.getElementById('foto-scontrino').click()">Fotografa o scegli lo scontrino</button>`;
 }
 function scontrinoScelto(input){
   const f = input.files && input.files[0]; input.value = '';
@@ -13088,7 +13111,7 @@ function schedaSpesa(idSpesa, idLavoro, daDocumenti){
       {k:'cosa', l:'Per cosa', p:'Per esempio: concime, sacchi, discarica'},
       ...(chiedeLavoro ? [{k:'lavoro', l:'Per quale lavoro', t:'scelta', opzioni: scelte}] : [])
     ],
-    extra: `<input type="file" id="foto-scontrino" accept="image/*" capture="environment" style="display:none" onchange="scontrinoScelto(this)">`,
+    extra: `<input type="file" id="foto-scontrino" accept="image/*,.heic,.heif" style="display:none" onchange="scontrinoScelto(this)">`,
     dopoCampi: `<div id="vista-scontrino" class="vista-scontrino">${vistaScontrino(null)}</div>`,
     controlla: d => !(d.importo > 0) ? 'Scrivi quanto hai speso, per esempio 84,50.'
       : d.importo >= 10000000 ? 'Questa cifra è troppo grande: controlla le cifre.'
@@ -13717,7 +13740,10 @@ async function leggiPreventivoScelto(input){
   /* piu' foto insieme = le pagine dello stesso preventivo: una lettura sola */
   const foto = tutti.filter(eFoto);
   if(foto.length > 1 && foto.length === tutti.length){ await leggiDaFoto(foto, 'Dalle tue ' + foto.length + ' foto'); return; }
+  /* giro foto e file 13/11: due PDF scelti insieme, del secondo non si sapeva piu' niente */
+  notaListino = tutti.length > 1 ? ' (ne leggo uno alla volta: ' + (tutti.length === 2 ? 'l\'altro file sceglilo' : 'gli altri ' + (tutti.length - 1) + ' file sceglili') + ' dopo)' : '';
   await leggiEProponi(tutti[0]);
+  notaListino = '';
 }
 
 /* ===== IL LISTINO DA UNA FOTO =========================================
@@ -13843,7 +13869,9 @@ async function leggiEProponi(file){
   proponiVoci(leggiRigheListino(esito.testo), 'Da ' + (file.name || 'un preventivo vecchio'));
 }
 
+let notaListino = '';
 function proponiVoci(righe, da){
+  if(notaListino){ da = da + notaListino; notaListino = ''; }
   const voci = unisciVoci(righe);
   if(!voci.length){
     avvisa('In questo preventivo non ho trovato righe con un prezzo. Prova a incollare le righe qui sotto.');
@@ -16276,7 +16304,7 @@ async function mandaCopiaFirmata(id){
   try{
     const r = await fetch(SPORTELLO_RILIEVO + '/link/firmato', {method:'POST', mode:'cors',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(Object.assign({corpo: PAGINE.documento.corpo(id), ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
+      body: JSON.stringify(Object.assign({corpo: await alleggerisciCorpo(PAGINE.documento.corpo(id)), ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
                             titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : ''), nome: p.firma.nome,
                             mail_cliente: (cl && cl.mail) || ''}, extraDelLink(p)))});
     const d = await r.json().catch(() => ({}));
@@ -17992,6 +18020,39 @@ function extraDelLink(p){
   const giorni = Number(S.azienda.validita) > 0 ? Number(S.azienda.validita) : 30;
   return {pagamento: pagamentoDi(p), facoltative, base, scade_il: dopoGiorni(p.data, giorni)};
 }
+/* giro foto e file, 13/11/2026: il link porta le foto dentro, e oltre 6 MB il server lo
+   rifiuta. Con 14-15 foto del posto il link non partiva piu' (e oltre 8 MB la risposta era
+   «Non ho capito cosa mi stai mandando»). Sopra il tetto le foto piu' pesanti si rifanno
+   piu' piccole SOLO per il link: sul telefono e nel PDF restano come sono. */
+const TETTO_LINK = 5.6 * 1024 * 1024;
+const fotoPerIlLink = (src, lato, q) => new Promise(ok => {
+  const im = new Image();
+  im.onload = () => {
+    const k = Math.min(1, lato / Math.max(im.width, im.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+    const n = c.toDataURL('image/jpeg', q);
+    ok(n.length < src.length ? n : src);
+  };
+  im.onerror = () => ok(src);
+  im.src = src;
+});
+async function alleggerisciCorpo(corpo, tetto){
+  tetto = tetto || TETTO_LINK;
+  if(corpo.length <= tetto) return corpo;
+  for(const [lato, q] of [[1000, .62], [760, .55], [560, .5]]){
+    const foto = [...new Set(corpo.match(/data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+\/=]+/g) || [])]
+      .filter(f => f.length > 60000).sort((a, b) => b.length - a.length);
+    for(const f of foto){
+      if(corpo.length <= tetto) return corpo;
+      const n = await fotoPerIlLink(f, lato, q);
+      if(n !== f) corpo = corpo.split(f).join(n);
+    }
+    if(corpo.length <= tetto) return corpo;
+  }
+  return corpo;
+}
 async function preparaLink(id){
   const p = prev(id); if(!p) return;
   const b = document.getElementById('btn-link');
@@ -18004,7 +18065,7 @@ async function preparaLink(id){
       if(linkVivo(p)) ritiraLink(p);
       const r = await fetch(SPORTELLO_RILIEVO + '/link/metti', {method:'POST', mode:'cors',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(Object.assign({corpo, ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
+        body: JSON.stringify(Object.assign({corpo: await alleggerisciCorpo(corpo), ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
                               titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : ''),
                               /* dall'11/11: il cliente conferma il si' con un codice mandato a questa mail */
                               mail_cliente: ((p.cliente && cliente(p.cliente)) || {}).mail || '',
