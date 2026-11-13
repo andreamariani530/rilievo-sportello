@@ -2013,7 +2013,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-13 00:13';
+const COSTRUITA = '2026-11-13 03:03';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -10097,6 +10097,11 @@ function numeriDetti(tok){
        In giardino, e dopo una stanza o una superficie ("una stanza da trenta"), resta la misura. */
     if(n.u === null && !n.conteggio && tok[i - 1] === 'da' && i >= 2 && v >= 20 && !inGiardino() &&
        !SUPERFICI_DETTE.has(tok[i - 2]) && tok[i + 1] !== 'a' && tok[i + 1] !== 'per') n.taglia = true;
+    /* "PIATTO DOCCIA NOVANTA", "box doccia settanta" (giro notturno del 13/11): detto senza «da», il numero
+       dopo il piatto o il box doccia e' quanto e' largo, in centimetri (70, 80, 90, 120...). Uscivano
+       novanta piatti doccia. Il conto si dice davanti: «due piatti doccia». */
+    if(n.u === null && !n.conteggio && v >= 60 && v <= 200 && i >= 2 && /^docc/.test(tok[i - 1]) &&
+       /^(piatt|box)/.test(tok[i - 2]) && tok[i + 1] !== 'a' && tok[i + 1] !== 'per') n.taglia = true;
     /* "quattro finestre in pvc a DUE ANTE" (controllo del 12/11): le ante dicono com'e' fatta la finestra,
        non quante ne servono ne' quanto e' grande. Il due diventava 2 mq */
     if(n.u === null && /^ant[ae]$/.test(tok[i + 1] || '')) return;
@@ -10393,8 +10398,30 @@ function staccaLavoroNuovo(tok){
   }
   if(da > 0 && NIENTE.has(tok[da - 1])) da--;
   let fine = a + 1;
-  while(fine < tok.length && !ALTRO_LAVORO.test(tok[fine])) fine++;
-  return {prima: tok.slice(0, da), sua: tok.slice(da, fine), dopo: tok.slice(fine)};
+  while(fine < tok.length && !ALTRO_LAVORO.test(tok[fine]) && !dopoLAbbattimento(tok, fine)) fine++;
+  /* la «e» che lega la trituratura all'abbattimento non va dentro nessuno dei due */
+  if(!dopoLAbbattimento(tok, fine)) return {prima: tok.slice(0, da), sua: tok.slice(da, fine), dopo: tok.slice(fine)};
+  let fine2 = fine + 1;
+  while(fine2 < tok.length && !ALTRO_LAVORO.test(tok[fine2]) && !dopoLAbbattimento(tok, fine2)) fine2++;
+  const poi = tok.slice(fine + 1, fine2);
+  /* la ceppaia e' una per ogni pianta tirata giu': il numero lo sa gia' l'app */
+  if(poi.some(w => /^cepp/.test(w)) && !numeriDetti(poi).length){
+    const sua = tok.slice(da, fine), quante = numeriDetti(sua).find(n => !n.altezza && !n.taglia && !n.u);
+    const n = quante ? quante.v : (sua.some((w, i) => ARTICOLI.has(w) && PIANTE_ALTE.test(sua[i + 1] || '')) ? 1 : null);
+    if(n) poi.splice(poi.findIndex(w => /^cepp/.test(w)), 0, String(n));
+  }
+  return {prima: tok.slice(0, da), sua: tok.slice(da, fine), poi, dopo: tok.slice(fine2)};
+}
+/* "abbattimento di un pino con la piattaforma E TRITURATURA DEI RAMI", "... e rimozione della
+   CEPPAIA" (trovato col dito il 12/11, giro notturno del 13/11): il pezzo dell'abbattimento
+   arrivava fino in fondo alla frase, la riga diventava «abbattimento pino alto piattaforma» e la
+   trituratura spariva dal preventivo senza traccia. Triturare i rami e togliere la ceppaia sono
+   lavori a parte, pagati a parte: dopo una «e» (o «ed») cominciano un pezzo loro. «con la
+   piattaforma» resta dentro l'abbattimento: e' come lo si fa, non un altro lavoro. */
+const DOPO_ABBATTIMENTO = /^(trituratura|triturazione|triturare|tritur[ai]amo|biotrituratura|cippatura|cippare|cippiamo|trinciatura|trinciare|ceppaia|ceppaie|ceppo|ceppi|fresatura|fresare|estirpazione|sradicamento)$/;
+function dopoLAbbattimento(tok, k){
+  if(!/^(e|ed)$/.test(tok[k] || '')) return false;
+  return tok.slice(k + 1, k + 4).some(w => DOPO_ABBATTIMENTO.test(w));
 }
 /* "due condizionatori da DODICIMILA BTU" (7 novembre 2026): 12.000 btu sono circa 3,5 kW,
    e vinceva il monosplit da 2,5 perche' viene prima nel listino: 578 euro in meno sui due.
@@ -10641,7 +10668,7 @@ function lavorazioneFuoriListino(tok){
      vera, con la sua unita'. Un verbo generico da solo non basta mai: "il giro lo
      facciamo domani" e "gli diamo una sistemata" non sono lavorazioni da mettere a
      listino, e chiederne il prezzo sarebbe peggio del silenzio di prima. */
-  const delMestiere = parole.some(w => PAROLE_CONCETTO.some(m => somiglia(w, m)) || (inGiardino() && TRATTAMENTO_DETTO.has(w)));
+  const delMestiere = parole.some(w => PAROLE_CONCETTO.some(m => somiglia(w, m)) || (inGiardino() && (TRATTAMENTO_DETTO.has(w) || DOPO_ABBATTIMENTO.test(w))));
   const conMisura = numeri.some(n => n.u);
   if(!delMestiere && !conMisura) return null;
   /* "RIFARE IL BAGNO da sei metri quadri" (7 novembre 2026): rifare una stanza con la sua
@@ -10653,8 +10680,10 @@ function lavorazioneFuoriListino(tok){
   const nome = parole.slice(0, 4).join(' ');
   /* "abbattimento di UN pino": l'albero e' uno, la misura c'e' */
   const unSolo = !misura && tok.some(ABBATTERE_DETTO) && tok.some((w, i) => ARTICOLI.has(tok[i - 1] || '') && !ABBATTERE_DETTO(w) && w !== 'altro');
+  /* "box doccia DA SETTANTA" (giro notturno del 13/11): una cosa detta con la sua taglia e' una */
+  const conLaTaglia = !misura && !unSolo && numeriDetti(tok).some(n => n.taglia) && !numeriDetti(tok).some(n => !n.taglia && !n.altezza);
   return {nuova:true, nome, detto: parole.slice(0, 5).join(' '),
-          q: misura ? misura.v : (unSolo ? 1 : null), u: misura ? misura.u : (unSolo ? 'pezzi' : null)};
+          q: misura ? misura.v : (unSolo || conLaTaglia ? 1 : null), u: misura ? misura.u : (unSolo || conLaTaglia ? 'pezzi' : null)};
 }
 /* ===== IL FLUSSO SENZA PUNTEGGIATURA (Andrea, 21 settembre 2026) =====
    Dettando col telefono non esce ne' un punto ne' una virgola: tutto il sopralluogo
@@ -10895,6 +10924,31 @@ function tagliaFlusso(tok, voci){
 /* le cose che stanno SUL foro di una finestra gia' misurata: la tapparella, la zanzariera,
    lo smontaggio del vecchio. Una portafinestra o una porta sono un foro loro, con la loro
    misura: "tre finestre 100 per 140 e una portafinestra" non fa la portafinestra da 4,2 mq */
+/* "togliere la vasca PIATTO DOCCIA da ottanta" detto tutto attaccato, "SOSTITUIRE la vasca CON LA
+   DOCCIA" (giro notturno del 13/11, dalla lista «Restano» dell'11/11): senza la «e» in mezzo la vasca
+   finiva dentro il piatto doccia e spariva dal preventivo; con «sostituire» si vedeva solo l'attacco
+   doccia. Smontare e portare via la vasca e' un lavoro suo, che chiede il prezzo una volta: si stacca
+   subito dopo la vasca, e il resto (il piatto, la doccia, il miscelatore) va per la sua strada.
+   «Sostituire la vasca» da sola resta com'era: non si sa con cosa. */
+const VASCA_DETTA = /^(vasca|vasche|idromassaggio)$/;
+const SOSTITUIRE_DETTO = /^(sostitu|cambi|trasform)/;
+function staccaLaVasca(tok, voci){
+  if(!MESTIERE_PARLATO || inGiardino()) return null;
+  const iv = tok.findIndex(w => VASCA_DETTA.test(w));
+  if(iv < 1 || iv + 1 >= tok.length) return null;
+  const davanti = tok.slice(0, iv);
+  const togli = davanti.some(w => TOGLIERE_DETTO.test(w)), sostituisci = davanti.some(w => SOSTITUIRE_DETTO.test(w));
+  if(!togli && !sostituisci) return null;
+  const segni = segnaliForti(tok, voci);
+  let j = iv + 1;
+  while(j < tok.length && !segni[j] && !/^(e|ed)$/.test(tok[j])) j++;
+  /* con la «e» ci pensa gia' staccaCoseContate; senza niente dopo la vasca non c'e' da staccare */
+  if(j >= tok.length || /^(e|ed)$/.test(tok[j])) return null;
+  /* «sostituire la vasca CON la doccia»: senza «con» non si sa cosa si mette, e si lascia com'era */
+  if(sostituisci && !togli && !tok.slice(iv + 1, j).some(w => /^(con|in|col|nel|nella)$/.test(w))) return null;
+  const sua = tok.slice(0, iv + 1).map(w => SOSTITUIRE_DETTO.test(w) ? 'togliere' : w);
+  return [{tok: sua, staccato: true}].concat(staccaCoseContate(tok.slice(j), voci));
+}
 const sulForo = v => MESTIERE_PARLATO === 'serramentista' &&
   concettiDellaVoce(v).some(c => c.chiavi.some(k => ['avvolgibile','zanzariera','rimozione'].includes(k)));
 /* "tetto cento metri quadri E DUE COMIGNOLI" (6 novembre 2026): nessuna delle due cose e'
@@ -10903,6 +10957,8 @@ const sulForo = v => MESTIERE_PARLATO === 'serramentista' &&
    mestiere senza voce sua comincia un lavoro nuovo. Se dopo c'e' una voce del listino ci
    pensa gia' tagliaFlusso. */
 function staccaCoseContate(tok, voci){
+  const vasca = staccaLaVasca(tok, voci);
+  if(vasca) return vasca;
   for(let k = 1; k + 1 < tok.length; k++){
     if(tok[k] !== 'e' && tok[k] !== 'ed') continue;
     const n = numeroDetto(tok[k + 1]);
@@ -10953,7 +11009,12 @@ function staccaCoseContate(tok, voci){
 function ridaiLaTaglia(pezzi){
   for(let k = 0; k < pezzi.length - 1; k++){
     const p = pezzi[k], q = pezzi[k + 1];
-    if(p[p.length - 1] !== 'da' || !q.length || numeroDetto(q[0]) == null) continue;
+    if(!q.length || numeroDetto(q[0]) == null) continue;
+    /* "piatto doccia NOVANTA miscelatore nuovo" (giro notturno del 13/11): anche senza «da» il numero dopo
+       il piatto doccia e' la sua larghezza, e finiva sul miscelatore (90 miscelatori, 2.854 euro) */
+    const largoDoccia = /^docc/.test(p[p.length - 1]) && /^(piatt|box)/.test(p[p.length - 2] || '') &&
+      numeroDetto(q[0]) >= 60 && numeroDetto(q[0]) <= 200;
+    if(p[p.length - 1] !== 'da' && !largoDoccia) continue;
     let n = 1;
     while(n < q.length && (numeroDetto(q[n]) != null || q[n] === 'e' && numeroDetto(q[n + 1] || '') != null || UNITA_DOPO[q[n]] || q[n] === 'per')) n++;
     pezzi[k] = p.concat(q.slice(0, n)); pezzi[k + 1] = q.slice(n);
@@ -10968,6 +11029,10 @@ function spostaIlConto(pezzi, voci){
     if(j <= 0) continue;
     const n = numeroDetto(p[j]) != null ? numeroDetto(p[j]) : CIRCA[p[j]];
     if(n == null || n < 2) continue;
+    /* "box doccia (da) SETTANTA lavabo nuovo" (giro notturno del 13/11): il numero dopo «da», o dopo il
+       piatto o il box doccia, e' quanto e' grande la cosa davanti, non quanti lavabi servono (uscivano 70) */
+    if(!inGiardino() && (p[j - 1] === 'da' ||
+       (/^docc/.test(p[j - 1] || '') && /^(piatt|box)/.test(p[j - 2] || '') && n >= 60 && n <= 200))) continue;
     const dopo = scegliVoce(pezzi[k + 1], voci);
     /* "una portafinestra E DUE tapparelle": le tapparelle si pagano a metro quadro, ma il
        due le conta (6 ottobre 2026): la portafinestra restava da 2 mq, le tapparelle a 1 */
@@ -11271,7 +11336,9 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
         const nuovo = staccaLavoroNuovo(t);
         const scorri = x => { if(x.length) spostaIlConto(ridaiLaTaglia(tagliaFlusso(x, voci)), voci).forEach(y => pezzi.push({tok: y})); };
         if(!nuovo) return scorri(t);
-        scorri(nuovo.prima); pezzi.push({tok: nuovo.sua, staccato: true}); scorri(nuovo.dopo);
+        scorri(nuovo.prima); pezzi.push({tok: nuovo.sua, staccato: true});
+        if(nuovo.poi && nuovo.poi.length) pezzi.push({tok: nuovo.poi, staccato: true, dopoAbbattimento: true});
+        scorri(nuovo.dopo);
       });
     /* i pezzi rifiutati si buttano via qui, prima dei gruppi: se restassero, le loro
        misure ("la siepe di 20 metri non la tocchiamo") finirebbero sulla voce di prima.
@@ -11282,7 +11349,7 @@ function capisci(testo, listino, mestiere, dentroUnPosto){
       .filter(p => p.tok.length && !rifiutata(p.tok));
     /* un volume non e' mai la misura di una voce a metro quadro, a metro o a pezzo */
     const aVolume = t => numeriDetti(t).some(n => n.u === 'mc');
-    rimasti.forEach(p => { p.voce = scegliVoce(p.tok, voci); if(p.voce && aVolume(p.tok)) p.voce = null; });
+    rimasti.forEach(p => { p.voce = p.dopoAbbattimento ? null : scegliVoce(p.tok, voci); if(p.voce && aVolume(p.tok)) p.voce = null; });
     /* "una perdita SOTTO IL LAVELLO", "valvole SUI TERMOSIFONI", "zanzariera SU UNA FINESTRA", "tracce PER
        L'IMPIANTO", "topi IN CANTINA" (controllo del 12/11): il posto dove si lavora diventava un lavoro in piu',
        l'attacco lavello da 638 euro o un radiatore da 288. Un pezzo che dopo «sotto, sui, su, per...» nomina solo
