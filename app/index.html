@@ -2019,7 +2019,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-13 13:00';
+const COSTRUITA = '2026-11-14 07:25';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -9883,6 +9883,11 @@ const CONCETTI_MESTIERI = {
       frasi: [['pulizia','caldaia'],['pulire','caldaia'],['manutenzione','caldaia']] },
     { chiavi: ['canna','fumaria'], dette: ['canna','canne','fumaria','fumarie','camino','comignolo'] },
     { chiavi: ['defangatore'], dette: ['defangatore','defangatori','fanghi','magnetico','fango'] },
+    /* "caldaia nuova e due RACCORDI" (14 novembre 2026) faceva 2 caldaie: i raccordi e il tubo
+       multistrato non erano cose del termoidraulico, il due andava alla caldaia e il tubo spariva.
+       Senza una voce loro nel listino chiedono il prezzo, una riga per uno, come all'idraulico */
+    { chiavi: ['raccordo','raccordi'], dette: ['raccordo','raccordi','gomito','gomiti','manicotto','manicotti'] },
+    { chiavi: ['multistrato'], dette: ['multistrato'] },
     { chiavi: ['radiatore'],
       dette: ['radiatore','radiatori','termosifone','termosifoni','calorifero','caloriferi','elemento','elementi',
               'scaldasalviette','termoarredo'] },
