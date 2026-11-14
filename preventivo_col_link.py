@@ -208,8 +208,10 @@ def _fine_del_giorno(iso):
         return None
 
 
-def metti(corpo, ditta="", titolo="", telefono="", da_ip="", extra=None):
-    """Conserva un preventivo e torna (link, chiave per seguirlo) oppure (None, errore)."""
+def metti(corpo, ditta="", titolo="", telefono="", da_ip="", extra=None, chi=None, massimo=40):
+    """Conserva un preventivo e torna (link, chiave per seguirlo) oppure (None, errore).
+    chi: da chi contare il limite (14/11/2026: l'account se la ditta e' entrata, se no
+    l'indirizzo di rete); massimo: quanti link l'ora."""
     corpo = str(corpo or "")
     if not corpo.strip():
         return None, "Il preventivo e' vuoto."
@@ -217,10 +219,11 @@ def metti(corpo, ditta="", titolo="", telefono="", da_ip="", extra=None):
         return None, "Il preventivo e' troppo grande per il link (oltre 6 MB di foto)."
     adesso = time.time()
     with _chiave:
-        recenti = [t for t in _creati.get(da_ip, []) if adesso - t < 3600]
-        if len(recenti) >= 40:
+        chi = chi or da_ip
+        recenti = [t for t in _creati.get(chi, []) if adesso - t < 3600]
+        if len(recenti) >= massimo:
             return None, "Troppi link in un'ora da questo telefono. Riprova piu' tardi."
-        _creati[da_ip] = recenti + [adesso]
+        _creati[chi] = recenti + [adesso]
         lid = _segreto(14)
         while _file(lid).exists():
             lid = _segreto(14)
@@ -503,14 +506,14 @@ def in_attesa(d):
 
 
 def firmato_sul_posto(corpo, ditta="", titolo="", telefono="", da_ip="", extra=None, nome="",
-                      browser="", indirizzo="https://rilievoapp.it", manda=None):
+                      browser="", indirizzo="https://rilievoapp.it", manda=None, chi=None, massimo=40):
     """La copia di un preventivo firmato col dito davanti all'artigiano (firma sul posto (11/11/2026)).
     Si conserva come un link gia' accettato, con l'ora del server, e se c'e' la mail del
     cliente gli si manda la sua copia. Torna (risposta, None) oppure (None, errore)."""
     nome = re.sub(r"\s+", " ", str(nome or "")).strip()[:80]
     if len(nome) < 2:
         return None, "Manca il nome di chi ha firmato."
-    r, errore = metti(corpo, ditta, titolo, telefono, da_ip, extra)
+    r, errore = metti(corpo, ditta, titolo, telefono, da_ip, extra, chi=chi, massimo=massimo)
     if not r:
         return None, errore
     lid = r["link"]

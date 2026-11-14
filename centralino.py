@@ -799,6 +799,10 @@ def _uguale(a, b):
                                hashlib.sha256(str(b or "").encode()).digest())
 
 
+# 14/11/2026 09:00 UTC (prima di questo controllo): vedi accedi()
+CENTRALINO_ACCOUNT_PRIMA_DI = int(os.environ.get("CENTRALINO_ACCOUNT_PRIMA_DI") or 1794646800)
+
+
 def mail_ammesse():
     v = os.environ.get("CENTRALINO_MAIL") or ",".join(CONFIG.get("mail_accesso") or ["andreamariani530a@gmail.com"])
     return {m.strip().lower() for m in v.split(",") if m.strip()}
@@ -886,6 +890,14 @@ def accedi(dati, ip=""):
             _sbagliato(ip)
             return 403, {"errore": "Il Centralino è solo per Andrea."}
         import accessi
+        # 14/11/2026: la registrazione di Rilievo non verifica la mail. Se una delle mail
+        # ammesse non aveva ancora un account, uno sconosciuto poteva crearlo con una sua
+        # password ed entrare qui. Valgono solo gli account nati prima di oggi (quelli di
+        # Andrea); per uno nuovo restano la chiave e il codice di abbinamento.
+        nato = accessi.creato(mail)
+        if not nato or nato > CENTRALINO_ACCOUNT_PRIMA_DI:
+            _sbagliato(ip)
+            return 403, {"errore": "Con questa mail il Centralino non si apre. Usa la chiave."}
         g, motivo, cod = accessi.entra(mail, dati.get("password"), ip, "centralino")
         if g:
             accessi.esci(mail, g)       # il gettone di Rilievo non serve: il Centralino ha il suo
@@ -3253,6 +3265,10 @@ def _a_capo(d, testo, font, larghezza, righe=3):
 def widget_png(misura="grande", pieno=True):
     """L'immagine del widget. pieno=False (senza accesso): solo il reattore e l'ora, nessun dato."""
     from PIL import Image, ImageDraw
+    # 14/11/2026: solo le tre misure vere. Una misura inventata a ogni richiesta saltava
+    # la memoria delle immagini gia' fatte e costringeva il server a ridisegnare (e a
+    # riempire la memoria) per chiunque, anche senza accesso.
+    misura = misura if misura in ("piccolo", "grande", "blocco") else "grande"
     st = stato() if pieno else {"livello": "calm", "numero": None, "spicchio": 1, "principale": None,
                                 "etichetta": "", "fonti": [{"attiva": a} for a in (1, 1, 1, 0, 0)]}
     ora = datetime.datetime.now(ROMA).strftime("%H:%M")
@@ -3886,7 +3902,12 @@ def _json(h, massimo=256 * 1024):
 
 
 def _ip(h):
-    return (h.headers.get("X-Forwarded-For") or h.client_address[0] or "").split(",")[0].strip()
+    # 14/11/2026: l'indirizzo che mette Cloudflare, non quello che scrive chi chiede
+    try:
+        import accessi
+        return accessi.ip_vero(h.headers, h.client_address[0])[0]
+    except Exception:                       # noqa: BLE001
+        return (h.client_address[0] or "").strip()
 
 
 STATICI = {

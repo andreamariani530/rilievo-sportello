@@ -33,6 +33,29 @@ DURATA_RESET = 3600
 MAX_SESSIONI = 20
 
 
+# ---- l'indirizzo di rete vero di chi chiede (14/11/2026) -----------------------
+# Su Render davanti al server c'e' Cloudflare. X-Forwarded-For lo scrive anche chi
+# chiede: la sua PRIMA voce si puo' inventare, e cosi' il blocco dopo troppi tentativi
+# si aggirava cambiando un'intestazione. CF-Connecting-IP e True-Client-IP invece li
+# mette Cloudflare e li riscrive se qualcuno li manda da fuori: ci si fida solo di quelli.
+# In locale (niente Cloudflare) vale l'indirizzo della connessione.
+_IP_BUONO = re.compile(r"[0-9A-Fa-f:.]{3,45}")
+
+
+def ip_vero(intestazioni, indirizzo=""):
+    """Torna (ip, da dove l'ho preso)."""
+    for nome in ("CF-Connecting-IP", "True-Client-IP"):
+        v = str((intestazioni.get(nome) if intestazioni else "") or "").strip()
+        if v and _IP_BUONO.fullmatch(v):
+            return v, nome.lower()
+    if intestazioni and intestazioni.get("X-Forwarded-For"):
+        # ripiego (come prima del 14/11): se un giorno Cloudflare non ci fosse piu'
+        v = str(intestazioni.get("X-Forwarded-For")).split(",")[0].strip()
+        if _IP_BUONO.fullmatch(v):
+            return v, "x-forwarded-for"
+    return str(indirizzo or "").strip(), "connessione"
+
+
 def _cartella():
     d = pathlib.Path(archivio.CARTELLA) / "accessi"
     d.mkdir(parents=True, exist_ok=True)
@@ -112,7 +135,28 @@ def _nuova_sessione(conto, da):
     return g
 
 
-def registra(mail, password, da=""):
+# 14/11/2026: prima le registrazioni non avevano nessun limite. Ognuna scrive un file sul
+# disco (1 GB) e fa partire la mail di benvenuto da info@: un programma poteva riempire il
+# disco o usare la nostra posta per scrivere a indirizzi a caso. Un artigiano vero si
+# registra una volta: 5 account l'ora dallo stesso indirizzo di rete e 60 l'ora in tutto
+# bastano anche a una fiera con tutti sulla stessa rete.
+REGISTRAZIONI_PER_IP = 5
+REGISTRAZIONI_IN_TUTTO = 60
+_registrazioni = {}                 # ip -> [istanti], "*" -> [istanti]
+
+
+def _registrazioni_troppe(ip):
+    adesso = time.time()
+    for k, massimo in ((ip or "?", REGISTRAZIONI_PER_IP), ("*", REGISTRAZIONI_IN_TUTTO)):
+        _registrazioni[k] = [t for t in _registrazioni.get(k, []) if adesso - t < 3600]
+        if len(_registrazioni[k]) >= massimo:
+            return True
+    for vecchio in [k for k, v in _registrazioni.items() if not v]:
+        _registrazioni.pop(vecchio, None)
+    return False
+
+
+def registra(mail, password, da="", ip=""):
     """Torna (gettone, None) oppure (None, motivo, codice)."""
     m = mail_pulita(mail)
     if not m:
@@ -123,6 +167,10 @@ def registra(mail, password, da=""):
     with _chiave:
         if _leggi(m):
             return None, "Con questa mail c'è già un accesso. Entra con la tua password.", 409
+        if _registrazioni_troppe(ip):
+            return None, "Troppe registrazioni nuove da questa rete. Riprova fra un'ora.", 429
+        for k in (ip or "?", "*"):
+            _registrazioni.setdefault(k, []).append(time.time())
         sale = secrets.token_hex(16)
         conto = {"mail": m, "sale": sale, "password": _impasta(password, sale),
                  "creato": int(time.time()), "sessioni": {}, "reset": None}

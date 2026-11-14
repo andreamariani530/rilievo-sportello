@@ -3534,6 +3534,29 @@ def servizio(porta=8787, pubblico=False):
         def log_message(self, *a):
             pass
 
+        # 14/11/2026: le protezioni che mancavano su molte risposte (pagina dell'app,
+        # Centralino, /guide/, robots, rimandi). Si aggiungono solo se la risposta non
+        # ne ha gia' una sua (le pagine del cliente hanno le loro, piu' strette).
+        # - HSTS: il telefono usa sempre https, anche se qualcuno scrive http://
+        # - nosniff: il browser non indovina il tipo di un file
+        # - SAMEORIGIN: nessun altro sito puo' mostrare Rilievo dentro una sua cornice
+        #   (per far toccare all'artigiano tasti che non vede)
+        # - Referrer-Policy: agli altri siti arriva solo «rilievoapp.it», mai la pagina
+        PROTEZIONI = (("Strict-Transport-Security", "max-age=31536000"),
+                      ("X-Content-Type-Options", "nosniff"),
+                      ("X-Frame-Options", "SAMEORIGIN"),
+                      ("Referrer-Policy", "strict-origin-when-cross-origin"))
+
+        def end_headers(self):
+            try:
+                gia = b"".join(getattr(self, "_headers_buffer", []) or []).lower()
+                for nome, valore in self.PROTEZIONI:
+                    if (nome.lower() + ":").encode() not in gia:
+                        self.send_header(nome, valore)
+            except Exception:               # noqa: BLE001
+                pass
+            super().end_headers()
+
         def _apri(self, codice=200, tipo="application/json; charset=utf-8"):
             self.send_response(codice)
             self.send_header("Content-Type", tipo)
@@ -3607,7 +3630,7 @@ def servizio(porta=8787, pubblico=False):
                 self._fattura_invia(codice)
                 return
             if u.path == "/ingresso/chiedi":
-                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()
+                ip = accessi.ip_vero(self.headers, self.client_address[0])[0]
                 codice_http, r = ingresso.chiedi(self._corpo(8 * 1024), ip)
                 self._manda(codice_http, r)
                 return
@@ -3700,7 +3723,7 @@ def servizio(porta=8787, pubblico=False):
 
         # ---- gli accessi: mail e password ------------------------------------
         def _ip(self):
-            return (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+            return accessi.ip_vero(self.headers, self.client_address[0])[0]
 
         def _accesso(self, percorso):
             dentro = self._corpo(64 * 1024)
@@ -3710,7 +3733,7 @@ def servizio(porta=8787, pubblico=False):
             mail, pw, da = dentro.get("mail"), dentro.get("password"), dentro.get("da")
             if percorso in ("/accesso/registra", "/accesso/entra"):
                 fa = accessi.registra if percorso.endswith("registra") else None
-                g, motivo, codice = (accessi.registra(mail, pw, da) if fa
+                g, motivo, codice = (accessi.registra(mail, pw, da, self._ip()) if fa
                                      else accessi.entra(mail, pw, self._ip(), da))
                 if not g:
                     self._manda(codice, {"errore": motivo})
@@ -3859,7 +3882,7 @@ def servizio(porta=8787, pubblico=False):
                 pagina, stato = richieste_dal_link.pagina(codice, stili, errore="Le foto sono troppo grandi. Scegline altre, al massimo 3.")
                 self._pagina_cliente(stato, pagina)
                 return
-            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+            ip = accessi.ip_vero(self.headers, self.client_address[0])[0]
             if campi.get("fai") == "prezzo":
                 self._chiedi_prezzo(codice, campi, ip, stili)
                 return
@@ -3959,11 +3982,19 @@ def servizio(porta=8787, pubblico=False):
             if not isinstance(dentro, dict):
                 self._manda(400, {"errore": "Non ho capito cosa mi stai mandando."})
                 return
+            # 14/11/2026: prima chiunque, senza accesso, poteva far nascere pagine su
+            # rilievoapp.it e (con la firma sul posto) far partire mail da info@ verso
+            # indirizzi a caso. Ora l'app manda il suo accesso: la ditta entrata ha i suoi
+            # 40 link l'ora come prima; senza accesso (app vecchia ancora in memoria sul
+            # telefono) 5 l'ora per indirizzo di rete, e la mail della copia firmata non parte.
+            ip = accessi.ip_vero(self.headers, self.client_address[0])[0]
+            dentro_chi = accessi.chi_e(dentro.get("mail"), dentro.get("gettone"))
+            limite = (("conto:" + accessi.id_account(dentro_chi), 40) if dentro_chi
+                      else ("ip:" + ip, int(os.environ.get("RILIEVO_LINK_SENZA_ACCESSO") or 5)))
             if percorso == "/link/metti":
-                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
                 r, errore = preventivo_col_link.metti(dentro.get("corpo"), dentro.get("ditta"),
                                                      dentro.get("titolo"), dentro.get("telefono"), ip,
-                                                     extra=dentro)
+                                                     extra=dentro, chi=limite[0], massimo=limite[1])
                 if not r:
                     self._manda(400, {"errore": errore})
                     return
@@ -3972,12 +4003,13 @@ def servizio(porta=8787, pubblico=False):
                 return
             if percorso == "/link/firmato":
                 # firma sul posto (11/11/2026): la copia firmata sul server, e al cliente
-                ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
                 r, errore = preventivo_col_link.firmato_sul_posto(
                     dentro.get("corpo"), dentro.get("ditta"), dentro.get("titolo"), dentro.get("telefono"), ip,
                     extra=dentro, nome=dentro.get("nome"), browser=self.headers.get("User-Agent") or "",
                     indirizzo=(os.environ.get("RILIEVO_INDIRIZZO") or "https://rilievoapp.it"),
-                    manda=lambda a, oggetto, testo: posta.manda(a, oggetto, testo, nome=str(dentro.get("ditta") or "Rilievo")[:60]))
+                    manda=((lambda a, oggetto, testo: posta.manda(a, oggetto, testo, nome=str(dentro.get("ditta") or "Rilievo")[:60]))
+                           if dentro_chi else None),
+                    chi=limite[0], massimo=limite[1])
                 if not r:
                     self._manda(400, {"errore": errore})
                     return
@@ -4194,7 +4226,7 @@ def servizio(porta=8787, pubblico=False):
                 campi = urllib.parse.parse_qs(self.rfile.read(quanto).decode("utf-8", "replace")) if quanto > 0 else {}
             uno = lambda k: (campi.get(k) or [""])[0]
             con = campi.get("con") or []
-            ip = (self.headers.get("X-Forwarded-For") or self.client_address[0] or "").split(",")[0].strip()
+            ip = accessi.ip_vero(self.headers, self.client_address[0])[0]
             if cosa == "pagato":
                 if preventivo_col_link.segna_bonifico(lid):
                     self._posta_del_link(preventivo_col_link.avvisa_ditta, lid, ["bonifico"])
@@ -4514,7 +4546,10 @@ def servizio(porta=8787, pubblico=False):
                                   "indirizzi_google": {"chiave": bool(_chiave_google()),
                                                        "ultimo": GOOGLE_STATO["ultimo"],
                                                        "suggerimenti": GOOGLE_STATO.get("completa", ""),
-                                                       "scheda": GOOGLE_STATO.get("scheda", "")}})
+                                                       "scheda": GOOGLE_STATO.get("scheda", "")},
+                                  # 14/11/2026: da quale intestazione il server prende l'indirizzo di
+                                  # chi chiede (il nome, non l'indirizzo): serve a verificare il blocco
+                                  "ip_da": accessi.ip_vero(self.headers, self.client_address[0])[1]})
                 return
             if u.path == "/entra":
                 # l'app lo chiede all'apertura: questo codice vale ancora? e di
@@ -4537,7 +4572,12 @@ def servizio(porta=8787, pubblico=False):
                 self._manda(200, risposta)
                 return
             if u.path == "/chi-entra":
-                # per Andrea: chi si e' fatto vivo, da quando, quante volte
+                # per Andrea: chi si e' fatto vivo, da quando, quante volte.
+                # 14/11/2026: prima rispondeva a chiunque, codici compresi (e un codice apre
+                # l'archivio della squadra). Ora vuole la stessa chiave di /visite.
+                if not visite.chiave_giusta(self.headers.get("X-Chiave")):
+                    self._manda(401, {"errore": "Serve la chiave."})
+                    return
                 self._manda(200, come_va_con_i_codici())
                 return
 

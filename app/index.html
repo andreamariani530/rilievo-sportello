@@ -2019,7 +2019,7 @@ function proponiAggiornamento(){
 }
 /* Quando e' stata costruita questa copia dell'app. La scrive costruisci.py, uguale
    dentro sw.js: se quella del server e' diversa, c'e' una versione nuova. */
-const COSTRUITA = '2026-11-14 07:25';
+const COSTRUITA = '2026-11-14 10:51';
 function dataVersione(){
   const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d)$/.exec(COSTRUITA);
   return m ? (+m[3]) + ' ' + MESI[+m[2] - 1] + ' ' + m[1] + ', ore ' + m[4] : '';
@@ -16492,7 +16492,8 @@ async function mandaCopiaFirmata(id){
   try{
     const r = await fetch(SPORTELLO_RILIEVO + '/link/firmato', {method:'POST', mode:'cors',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(Object.assign({corpo: await alleggerisciCorpo(PAGINE.documento.corpo(id)), ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
+      /* 14/11/2026: col proprio accesso, cosi' il server sa che e' una ditta vera */
+      body: JSON.stringify(Object.assign(accessoPerIlServer(), {corpo: await alleggerisciCorpo(PAGINE.documento.corpo(id)), ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
                             titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : ''), nome: p.firma.nome,
                             mail_cliente: (cl && cl.mail) || ''}, extraDelLink(p)))});
     const d = await r.json().catch(() => ({}));
@@ -17665,6 +17666,11 @@ function mandaDomandaChat(){
   a.value = '';
   chiediAllAssistente(d);
 }
+/* 14/11/2026: mail e gettone dell'accesso, per le chiamate che il server da' solo alle ditte entrate */
+function accessoPerIlServer(){
+  const c = statoCopia();
+  return c && c.gettone ? {mail: c.mail || '', gettone: c.gettone} : {};
+}
 function corpoChat(extra){
   const c = statoCopia();
   return Object.assign({telefono: telefonoChat(), mail: c.gettone ? c.mail : '', gettone: c.gettone || ''}, extra);
@@ -18263,7 +18269,7 @@ async function preparaLink(id){
       if(linkVivo(p)) ritiraLink(p);
       const r = await fetch(SPORTELLO_RILIEVO + '/link/metti', {method:'POST', mode:'cors',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(Object.assign({corpo: await alleggerisciCorpo(corpo), ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
+        body: JSON.stringify(Object.assign(accessoPerIlServer(), {corpo: await alleggerisciCorpo(corpo), ditta: S.azienda.nome || '', telefono: S.azienda.tel || '',
                               titolo: 'Preventivo n. ' + p.numero + (p.luogo ? ' · ' + p.luogo : ''),
                               /* dall'11/11: il cliente conferma il si' con un codice mandato a questa mail */
                               mail_cliente: ((p.cliente && cliente(p.cliente)) || {}).mail || '',
